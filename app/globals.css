@@ -42,7 +42,10 @@ body {
   background: var(--bone);
   -webkit-font-smoothing: antialiased;
   line-height: 1.5;
+  min-height: 100vh;
+  overflow-x: hidden;
 }
+main, footer { min-width: 0; }
 h1, h2, h3, h4, p, figure, blockquote, dl, dd { margin: 0; }
 a { color: var(--ember-deep); }
 a:hover { color: #7e2e09; }
@@ -65,7 +68,12 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .lead { font-size: clamp(16.5px, 1.6vw, 20px); line-height: 1.55; color: var(--ink-2); }
 
 /* ============ layout ============ */
-.wrap { padding-left: var(--gutter); padding-right: var(--gutter); }
+.wrap {
+  width: min(100%, 1460px);
+  margin-inline: auto;
+  padding-left: var(--gutter);
+  padding-right: var(--gutter);
+}
 .stack { display: flex; flex-direction: column; }
 .row { display: flex; align-items: center; }
 .between { justify-content: space-between; }
@@ -88,6 +96,25 @@ button, input, select, textarea { font: inherit; color: inherit; }
   .m-hide { display: none !important; }
   .m-col { flex-direction: column; align-items: stretch !important; }
   .m-full { width: 100%; }
+}
+@media (max-width: 560px) {
+  .wrap { padding-left: 16px; padding-right: 16px; }
+  .row.wrapx { row-gap: 12px; }
+  .searchbox { padding: 8px 10px; }
+  .searchbox input { height: 42px; font-size: 15px; }
+  .btn, .btn-lg, .btn-sm { white-space: normal; }
+  .hero { padding-top: 30px; padding-bottom: 38px; }
+  .h-hero { letter-spacing: -0.035em; }
+  .lead { font-size: 17px; }
+  .cta-band { padding: 24px 18px; }
+  .how-step { padding: 20px 0 20px 18px; }
+}
+@media (max-width: 420px) {
+  .wrap { padding-left: 14px; padding-right: 14px; }
+  .h-hero { font-size: clamp(37px, 15vw, 54px); }
+  .btn, .btn-lg { width: 100%; justify-content: center; }
+  .pubnav { padding-left: 12px; padding-right: 12px; }
+  .pubnav .logo-mark + span { font-size: 24px; }
 }
 @media (min-width: 721px) { .d-hide { display: none !important; } }
 .split { display: grid; grid-template-columns: minmax(0, 1fr) var(--aside, 380px); gap: 24px; align-items: start; }
