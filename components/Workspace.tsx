@@ -1,180 +1,273 @@
 "use client";
 import Link from "next/link";
-import { useState } from "react";
-import { CASES, STATUS, STEPS, SERVICES, requestByRef, rwf, type StatusKey, type TimelineEvent } from "@/lib/data";
-import { Alert, Badge, FeeTag, Icon, TimelineH, TimelineV, initials } from "./ui";
+import { useRouter } from "next/navigation";
+import { useEffect, useRef, useState, useTransition } from "react";
+import { addNote, assignCase, clearHold, closeCase, markSubmitted, messageCustomer, reviewDocument, saveFees, scheduleFollowUp, sendQuote, setStage } from "@/app/actions/agent";
+import { fmtMonth, fmtWhen, initials, rwf, shortName } from "@/lib/format";
+import type { Permission } from "@/lib/permissions";
+import { payStatus, stageLabel } from "@/lib/status";
+import type { Closed, RequestView, Staff, Stage } from "@/lib/types";
+import { KIND } from "./CaseBoard";
+import { Alert, DocBadge, FeeTag, Icon, PayBadge, RequestBadge, StageTimeline, TimelineV } from "./ui";
 
-const STEP_KEY: StatusKey[] = ["new", "info", "rec", "prep", "sub", "proc", "act", "done"];
-const QUICK = ["Clearer ID photo", "Passport photo", "Purpose letter", "Signed form"];
+type Res = { ok: true } | { ok: false; error: string };
+const CHANNELS = ["Irembo", "RRA e-Tax", "RRA EBM", "RDB online registration", "RURA online services", "In person"];
 
-export default function Workspace({ caseRef }: { caseRef: string }) {
-  const c = CASES.find((x) => x.ref === caseRef)!;
-  const req = requestByRef(caseRef);
-  const svc = SERVICES.find((s) => s.name.startsWith(c.service.split(" (")[0])) ?? SERVICES[0];
-  const rich = caseRef === "INZ-2026-04817";
+/** One case, worked by an agent. Every button saves to the server and the page refreshes with the result. */
+export default function Workspace({ c, me, perms, agents, category, now }: { c: RequestView; me: Staff; perms: Permission[]; agents: Staff[]; category: string; now: string }) {
+  const router = useRouter();
+  const [busy, start] = useTransition();
+  const can = (p: Permission) => perms.includes(p);
+  const [toast, setToast] = useState("");
+  const [error, setError] = useState("");
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => { if (timer.current) clearTimeout(timer.current); }, []);
+  const flash = (m: string) => { setToast(m); if (timer.current) clearTimeout(timer.current); timer.current = setTimeout(() => setToast(""), 2800); };
+  /** Runs a server action; on success clears the form via `after`, shows `ok` and reloads the case. */
+  const run = (ok: string, fn: () => Promise<Res>, after?: () => void) => start(async () => {
+    setError("");
+    const r = await fn().catch((): Res => ({ ok: false, error: "Not saved. Check your connection and try again." }));
+    if (!r.ok) { setError(r.error); return; }
+    after?.();
+    flash(ok);
+    router.refresh();
+  });
 
-  const [status, setStatus] = useState<StatusKey>(c.status);
-  const [pending, setPending] = useState<StatusKey>(rich ? "rec" : c.status);
+  // Form fields only. Everything else comes from the case.
+  const [reviewId, setReviewId] = useState<string | null>(null);
+  const [rejecting, setRejecting] = useState(false);
+  const [reason, setReason] = useState("");
+  const [note, setNote] = useState("");
+  const [msg, setMsg] = useState("");
+  const [tab, setTab] = useState<"notes" | "activity">("notes");
+  const [pending, setPending] = useState<Stage>(c.stage);
   const [statusMsg, setStatusMsg] = useState("");
   const [notify, setNotify] = useState(true);
-  const [docState, setDocState] = useState<"review" | "approved" | "rejected">("review");
-  const [rejectOpen, setRejectOpen] = useState(false);
-  const [reason, setReason] = useState("The ID number is still not readable. Please retake in daylight without flash.");
-  const [notes, setNotes] = useState(rich ? [
-    { who: "Eric N.", time: "28 Sep 15:20", body: "Submitted on Irembo, app no. 1240 8876 3321. Paid official fee from client float." },
-    { who: "Eric N.", time: "Today 10:05", body: "Irembo returned: ID front unreadable. Asked customer for a new photo via WhatsApp + portal." },
-  ] : [{ who: c.agent, time: c.updated, body: "Case opened from intake. Checklist loaded from the service template." }]);
-  const [note, setNote] = useState("");
-  const [tab, setTab] = useState<"notes" | "activity">("notes");
-  const [askMsg, setAskMsg] = useState("");
-  const [officialRef, setOfficialRef] = useState(req?.officialRef ?? "");
-  const [official, setOfficial] = useState(svc.official.amount === null ? "" : String(svc.official.amount));
-  const [ours, setOurs] = useState(String(svc.ours));
-  const [toast, setToast] = useState("");
-  const [activity, setActivity] = useState<TimelineEvent[]>(req?.activity ?? [{ state: "cur", title: STATUS[c.status].label, meta: c.updated }]);
+  const [channel, setChannel] = useState(c.channel);
+  const [officialRef, setOfficialRef] = useState(c.officialRef ?? "");
+  const [official, setOfficial] = useState(c.billing.official === null ? "" : String(c.billing.official));
+  const [ours, setOurs] = useState(String(c.billing.ours));
+  const [closeKind, setCloseKind] = useState<Closed["kind"]>("cancelled");
+  const [closeReason, setCloseReason] = useState("");
+  // When the case changes on the server, show its new values.
+  useEffect(() => { setPending(c.stage); }, [c.stage]);
+  useEffect(() => { setOfficialRef(c.officialRef ?? ""); setChannel(c.channel); }, [c.officialRef, c.channel]);
+  useEffect(() => { setOfficial(c.billing.official === null ? "" : String(c.billing.official)); setOurs(String(c.billing.ours)); }, [c.billing.official, c.billing.ours]);
 
-  const flash = (m: string) => { setToast(m); setTimeout(() => setToast(""), 2600); };
-  const log = (title: string, body?: string) => setActivity((a) => [{ state: "cur", title, meta: "Just now · Eric N.", body }, ...a.map((e) => ({ ...e, state: "done" as const }))]);
-  const stage = STEP_KEY.indexOf(status);
-  const oursChanged = Number(ours) !== svc.ours;
-  const total = (Number(official) || 0) + (Number(ours) || 0);
-
-  const checklist = rich ? [
-    { name: "National ID — front", meta: docState === "approved" ? "Approved just now" : docState === "rejected" ? "Rejected — customer notified" : "Re-uploaded 11:52 · awaiting your review", status: (docState === "approved" ? "appr" : docState === "rejected" ? "rej" : "recd") as StatusKey },
-    { name: "National ID — back", meta: "Approved 27 Sep", status: "appr" as StatusKey },
-    { name: "Purpose", meta: "Employment in Rwanda — standard format", status: "appr" as StatusKey },
-  ] : svc.documents.map((d, i) => ({ name: d.name, meta: d.detail, status: (i === 0 && c.status !== "new" ? "recd" : "req") as StatusKey }));
+  const { hold, closed, stage } = c;
+  const first = c.account.first;
+  const finished = stage === "completed" || !!closed;
+  const mode = c.billing.officialMode;
+  const officialValue = mode || official === "" ? null : Number(official);
+  const oursValue = Number(ours) || 0;
+  const feesDirty = officialValue !== c.billing.official || oursValue !== c.billing.ours;
+  const oursChanged = oursValue !== c.billing.ours;
+  const review = c.documents.find((d) => d.id === reviewId && d.status === "received") ?? c.documents.find((d) => d.status === "received");
+  const quick = c.documents.filter((d) => d.status === "rejected" || (d.required && d.status === "required")).map((d) => d.name);
+  const phone = c.account.phone.replace(/\D/g, "");
+  const progress = { stage, stageDates: c.stageDates, hold, closed, flow: c.flow, labels: c.labels };
+  const billing = { ...c.billing, official: officialValue, ours: oursValue };
+  const nope = (p: Permission) => !can(p) && <span className="hint">Your role can’t do this.</span>;
 
   return (
     <>
       <div className="page-band stack g16">
         <div className="row between g20 m-col" style={{ alignItems: "flex-start" }}>
           <div className="stack g8">
-            <nav aria-label="Breadcrumb" className="mut row g8" style={{ fontSize: 13.5 }}><Link href="/agent">My cases</Link><span>/</span><span className="m">{c.ref}</span></nav>
-            <div className="row g12 wrapx"><h1 className="d" style={{ fontSize: "clamp(22px, 2.6vw, 28px)" }}>{c.service}</h1><Badge k={status} /><span className="tag">{c.category}</span></div>
-            <span className="mut" style={{ fontSize: 14 }}>{c.customer} · {c.type} · SLA: reply to customer uploads within 2 working hours</span>
+            <nav aria-label="Breadcrumb" className="mut row g8" style={{ fontSize: 13.5 }}><Link href="/agent#cases">Cases</Link><span>/</span><span className="m">{c.ref}</span></nav>
+            <div className="row g12 wrapx"><h1 className="d" style={{ fontSize: "clamp(22px, 2.6vw, 28px)" }}>{c.name}</h1><RequestBadge r={progress} viewer="staff" /><span className="tag">{category}</span></div>
+            <div className="row g12 wrapx mut" style={{ fontSize: 14 }}>
+              <span>{c.profile.name} · {KIND[c.profile.kind]}</span>
+              <label htmlFor="asg" className="row g8" style={{ fontWeight: 400, color: "var(--muted)" }}>Assigned to
+                <select id="asg" className="in in-sm" value={c.agentId ?? ""} disabled={!can("assign") || busy} onChange={(e) => { const v = e.target.value || null; run(v ? `Assigned to ${shortName(agents.find((a) => a.id === v)?.name ?? "")}` : "Case unassigned", () => assignCase(c.ref, v)); }}>
+                  <option value="">Unassigned</option>{agents.map((a) => <option key={a.id} value={a.id}>{a.name}{a.id === me.id ? " (me)" : ""}</option>)}
+                </select>
+              </label>
+            </div>
           </div>
           <div className="row g8 wrapx">
             <a className="btn btn-s" href="#ask"><Icon name="msg" size={18} /> Message customer</a>
-            <button className="btn btn-p" type="button" disabled={status === "done"} onClick={() => { setStatus("done"); setPending("done"); log("Completed", "Final documents delivered to the customer portal."); flash("Request completed · customer notified"); }}><Icon name="check" size={18} /> {status === "done" ? "Completed" : "Complete request"}</button>
+            <button className="btn btn-p" type="button" disabled={finished || busy || !can("complete")} onClick={() => run("Request completed · customer notified", () => setStage(c.ref, "completed", "", true))}><Icon name="check" size={18} /> {stage === "completed" ? "Completed" : "Complete request"}</button>
           </div>
         </div>
-        <TimelineH current={stage} dates={req?.stepDates ?? []} skipped={req?.skipped} />
+        <StageTimeline r={progress} viewer="staff" />
       </div>
 
       <div className="content">
-        {toast && <div role="status" style={{ position: "fixed", bottom: 24, left: "50%", transform: "translateX(-50%)", zIndex: 90 }} className="dark row g10 shadow"><span className="row g10" style={{ padding: "12px 18px", borderRadius: 8, background: "var(--ink)", color: "#fff", fontWeight: 600, fontSize: 14 }}><Icon name="check" size={18} color="#8FD4A5" />{toast}</span></div>}
-        <div className="ws">
+        {toast && <div role="status" className="toast"><Icon name="check" size={18} color="#8FD4A5" />{toast}</div>}
+        {error && <Alert kind="err" title="Not saved" live action={<button type="button" className="btn btn-s btn-sm" onClick={() => setError("")}>Dismiss</button>}>{error}</Alert>}
+        {closed && <Alert kind={closed.kind === "rejected" ? "err" : "info"} title={closed.kind === "rejected" ? "Rejected by the institution" : "Cancelled"}>{closed.reason}</Alert>}
+        <div className="ws" aria-busy={busy}>
           <div className="stack g16">
             <section className="card stack g14" style={{ padding: 18 }} aria-label="Customer">
-              <div className="row g12"><span className="av" style={{ width: 44, height: 44, fontSize: 14 }}>{initials(c.customer)}</span><div className="stack" style={{ gap: 2 }}><strong style={{ fontSize: 16 }}>{c.customer}</strong><span className="mut" style={{ fontSize: 13 }}>{c.type} · customer since Jan 2026</span></div></div>
-              <dl style={{ display: "grid", gridTemplateColumns: "96px minmax(0, 1fr)", gap: "8px 10px", fontSize: 13.5 }}>
-                <dt className="mut">Phone</dt><dd style={{ fontWeight: 600 }}>+250 788 123 456</dd>
-                <dt className="mut">WhatsApp</dt><dd style={{ fontWeight: 600 }}>Same number · opted in</dd>
-                <dt className="mut">National ID</dt><dd className="m">1 1995 8 •••• 0 17</dd>
-                <dt className="mut">District</dt><dd style={{ fontWeight: 600 }}>Gasabo · Kacyiru</dd>
-                <dt className="mut">Language</dt><dd style={{ fontWeight: 600 }}>Kinyarwanda, English</dd>
+              <div className="row g12"><span className="av" style={{ width: 44, height: 44, fontSize: 14 }}>{initials(c.profile.name)}</span><div className="stack" style={{ gap: 2 }}><strong style={{ fontSize: 16 }}>{c.profile.name}</strong><span className="mut" style={{ fontSize: 13 }}>{KIND[c.profile.kind]} · customer since {fmtMonth(c.account.since)}</span></div></div>
+              <dl className="facts">
+                {c.profile.name !== c.account.name && <><dt>Contact</dt><dd>{c.account.name}</dd></>}
+                <dt>Phone</dt><dd>{c.account.phone}</dd>
+                <dt>WhatsApp</dt><dd>{c.account.whatsapp ? "Same number · opted in" : "Not opted in"}</dd>
+                {c.profile.idMasked && <><dt>National ID</dt><dd className="m" style={{ fontWeight: 500 }}>{c.profile.idMasked}</dd></>}
+                {c.profile.district && <><dt>District</dt><dd>{c.profile.district}</dd></>}
+                {c.account.languages.length > 0 && <><dt>Language</dt><dd>{c.account.languages.join(", ")}</dd></>}
+                {c.purpose && <><dt>Purpose</dt><dd>{c.purpose}</dd></>}
               </dl>
-              <div className="row g8"><a className="btn btn-s btn-sm grow" href="tel:+250788123456"><Icon name="phone" size={16} /> Call</a><a className="btn btn-s btn-sm grow" href="https://wa.me/250788123456"><Icon name="msg" size={16} /> WhatsApp</a></div>
+              <div className="row g8"><a className="btn btn-s btn-sm grow" href={`tel:+${phone}`}><Icon name="phone" size={16} /> Call</a><a className="btn btn-s btn-sm grow" href={`https://wa.me/${phone}`}><Icon name="msg" size={16} /> WhatsApp</a></div>
             </section>
             <section className="card stack g6" style={{ padding: 18 }} aria-label="Service requirements">
-              <div className="row between"><h2 className="d" style={{ fontSize: 16 }}>Service requirements</h2><Link className="lnk" href={`/services/${svc.slug}`} style={{ fontSize: 13 }}>Guide</Link></div>
-              {checklist.map((d) => (
-                <div key={d.name} className="row g12" style={{ padding: "10px 0", borderBottom: "1px solid var(--line-2)" }}>
-                  <Icon name={d.status === "appr" ? "check" : "alert"} size={18} color={d.status === "appr" ? "#1E6B3A" : "#A33C0C"} />
-                  <div className="stack grow" style={{ gap: 2 }}><strong style={{ fontSize: 14 }}>{d.name}</strong><span className="mut" style={{ fontSize: 12.5 }}>{d.meta}</span></div>
-                  <Badge k={d.status} />
+              <div className="row between"><h2 className="d" style={{ fontSize: 16 }}>Service requirements</h2><Link className="lnk" href={`/services/${c.service.slug}`} style={{ fontSize: 13 }}>Guide</Link></div>
+              {c.documents.map((d) => (
+                <div key={d.id} className="row g12" style={{ padding: "10px 0", borderBottom: "1px solid var(--line-2)" }}>
+                  <Icon name={d.status === "approved" ? "check" : d.status === "received" ? "eye" : "alert"} size={18} color={d.status === "approved" ? "var(--ok)" : d.status === "received" ? "var(--teal)" : d.required ? "var(--ember-deep)" : "var(--muted)"} />
+                  <div className="stack grow" style={{ gap: 2, minWidth: 0 }}><strong style={{ fontSize: 14 }}>{d.name}</strong><span className="mut" style={{ fontSize: 12.5 }}>{d.status === "received" && d.file ? `${d.file.name} · uploaded ${fmtWhen(d.file.uploadedAt, now)}` : d.status === "approved" && d.reviewedAt ? `Approved ${fmtWhen(d.reviewedAt, now)}` : d.note ?? (d.required ? "Not received yet" : "Only if applicable")}</span></div>
+                  {d.status === "received" && !finished ? <button type="button" className="btn btn-s btn-sm" onClick={() => { setReviewId(d.id); setRejecting(false); document.getElementById("review")?.scrollIntoView({ behavior: "smooth", block: "nearest" }); }}>Review</button> : <DocBadge s={d.status} />}
                 </div>
               ))}
+              {c.documents.length === 0 && <p className="hint" style={{ padding: "8px 0" }}>No documents are needed for this service.</p>}
               <p className="hint" style={{ paddingTop: 8 }}>Checklist comes from the service template in Admin › Services.</p>
             </section>
           </div>
 
           <div className="stack g16">
-            {rich && (
-              <section className="card stack g14" style={{ padding: 18 }} aria-labelledby="rv-h">
-                <div className="row between g8 wrapx"><h2 id="rv-h" className="d" style={{ fontSize: 17 }}>Review uploaded document</h2><span className="mut" style={{ fontSize: 13 }}>id_front_new.jpg · 2.5 MB</span></div>
-                <div style={{ height: 240, borderRadius: 6, background: "var(--sand)", display: "flex", alignItems: "center", justifyContent: "center", position: "relative" }}>
-                  <div className="row g16" style={{ width: "min(340px, 80%)", height: 200, background: "#fff", border: "1px solid #D3CDC1", borderRadius: 10, padding: 18, alignItems: "flex-start" }}>
-                    <span style={{ width: 80, height: 100, borderRadius: 6, background: "var(--line)", flexShrink: 0 }} />
-                    <div className="stack g10 grow" style={{ paddingTop: 6 }}>{[80, 60, 70, 50].map((w) => <span key={w} style={{ height: 10, width: `${w}%`, background: "#D3CDC1", borderRadius: 2 }} />)}</div>
-                  </div>
-                  <span className="tag" style={{ position: "absolute", left: 12, top: 12, background: "#fff" }}>Document preview</span>
+            {review && !finished && (
+              <section id="review" className="card stack g14" style={{ padding: 18 }} aria-labelledby="rv-h">
+                <div className="row between g8 wrapx"><h2 id="rv-h" className="d" style={{ fontSize: 17 }}>Review: {review.name}</h2><span className="mut" style={{ fontSize: 13 }}>{review.file?.name} · {review.file?.size}</span></div>
+                {review.file?.id && can("downloadDocs")
+                  ? <a className="btn btn-s" href={`/files/${review.file.id}`} target="_blank" rel="noopener" style={{ alignSelf: "flex-start" }}><Icon name="eye" size={18} /> Open the file</a>
+                  : <p className="hint">{review.file?.id ? "Your role can’t open customer documents." : "No stored file for this sample document."}</p>}
+                <div className="row g8 wrapx">
+                  <button className="btn btn-p" type="button" disabled={busy || !can("reviewDocs")} onClick={() => run("Document approved", () => reviewDocument(c.ref, review.id, "approve"))}><Icon name="check" size={18} /> Approve</button>
+                  <button className="btn btn-danger" type="button" disabled={!can("reviewDocs")} onClick={() => setRejecting(!rejecting)} aria-expanded={rejecting}>Reject with reason</button>
                 </div>
-                {docState === "review" ? (
-                  <div className="row g8 wrapx">
-                    <button className="btn btn-p" type="button" onClick={() => { setDocState("approved"); setPending("prep"); log("Document approved", "National ID — front"); flash("Document approved"); }}><Icon name="check" size={18} /> Approve</button>
-                    <button className="btn btn-danger" type="button" onClick={() => setRejectOpen(!rejectOpen)} aria-expanded={rejectOpen}>Reject with reason</button>
-                  </div>
-                ) : (
-                  <Alert kind={docState === "approved" ? "ok" : "err"} title={docState === "approved" ? "Approved — ready to resubmit via Irembo" : "Rejected — customer asked for a new photo"} action={<button type="button" className="btn btn-s btn-sm" onClick={() => setDocState("review")}>Undo</button>} />
-                )}
-                {rejectOpen && docState === "review" && (
+                {rejecting && (
                   <div className="stack g8">
                     <label htmlFor="rj">Reason the customer will see</label>
-                    <textarea id="rj" className="in" rows={2} value={reason} onChange={(e) => setReason(e.target.value)} />
-                    <button type="button" className="btn btn-danger btn-sm" style={{ alignSelf: "flex-start" }} onClick={() => { setDocState("rejected"); setRejectOpen(false); setStatus("act"); log("Document rejected", reason); flash("Customer notified with your reason"); }}>Send rejection</button>
+                    <textarea id="rj" className="in" rows={2} value={reason} onChange={(e) => setReason(e.target.value)} placeholder="e.g. The ID number is not readable. Please retake in daylight without flash." />
+                    <button type="button" className="btn btn-danger btn-sm" style={{ alignSelf: "flex-start" }} disabled={!reason.trim() || busy} onClick={() => run("Customer notified with your reason", () => reviewDocument(c.ref, review.id, "reject", reason), () => { setRejecting(false); setReason(""); })}>Send rejection</button>
                   </div>
                 )}
-                <span className="hint">The customer sees your rejection reason in plain words.</span>
+                <span className="hint">Rejecting puts the case on hold and sends your reason to the customer in plain words.</span>
               </section>
             )}
 
-            <section className="card" aria-label="Notes and activity">
-              <div className="row g6 wrapx" style={{ padding: "14px 18px", borderBottom: "1px solid var(--line)" }} role="tablist">
-                <button type="button" role="tab" aria-selected={tab === "notes"} className={`chip chip-sm ${tab === "notes" ? "chip-on" : ""}`} onClick={() => setTab("notes")}>Internal notes · {notes.length}</button>
-                <button type="button" role="tab" aria-selected={tab === "activity"} className={`chip chip-sm ${tab === "activity" ? "chip-on" : ""}`} onClick={() => setTab("activity")}>Activity · {activity.length}</button>
+            <section id="ask" className="card" aria-labelledby="ask-h">
+              <div className="card-head"><h2 id="ask-h" className="d" style={{ fontSize: 17 }}>Messages with {first}</h2><span className="mut" style={{ fontSize: 13 }}>Portal + SMS</span></div>
+              <div className="stack g14" style={{ padding: 18 }} aria-live="polite">
+                {c.messages.length === 0 && <p className="hint">No messages yet.</p>}
+                {c.messages.map((m) => {
+                  const staff = m.by !== "customer";
+                  return (
+                    <div key={m.id} className="row g10" style={{ alignItems: "flex-start", flexDirection: staff ? "row-reverse" : "row" }}>
+                      <span className="av" style={{ width: 28, height: 28, fontSize: 11, background: staff ? "var(--ink)" : undefined, color: staff ? "#fff" : undefined }}>{initials(m.name ?? "")}</span>
+                      <div className="stack g4" style={{ maxWidth: "82%", alignItems: staff ? "flex-end" : "flex-start" }}>
+                        <span className="mut" style={{ fontSize: 12 }}><strong style={{ color: "var(--ink)" }}>{m.by === me.id ? "You" : m.name}</strong> · {fmtWhen(m.at, now)}</span>
+                        <p className={`bubble ${staff ? "bubble-me" : ""}`}>{m.body}</p>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
-              {tab === "notes" ? (
-                <>
-                  <div className="stack g16" style={{ padding: 18 }}>
-                    {notes.map((n, i) => (
-                      <div key={i} className="row g10" style={{ alignItems: "flex-start" }}><span className="av" style={{ width: 28, height: 28, fontSize: 11 }}>{initials(n.who)}</span><div className="stack" style={{ gap: 3 }}><span className="mut" style={{ fontSize: 12 }}><strong style={{ color: "var(--ink)" }}>{n.who}</strong> · {n.time} · internal</span><p style={{ fontSize: 14, lineHeight: 1.5 }}>{n.body}</p></div></div>
-                    ))}
+              {!finished && (
+                <div className="stack g10" style={{ padding: "14px 18px", borderTop: "1px solid var(--line)" }}>
+                  {quick.length > 0 && <div className="row g8 wrapx" role="group" aria-label="Quick requests">{quick.map((qk) => <button key={qk} type="button" className="chip chip-sm" onClick={() => setMsg(`Mwiriwe ${first}, could you send the ${qk.toLowerCase()}? Clear photos from your phone are fine.`)}>{qk}</button>)}</div>}
+                  <label htmlFor="mi" className="sr-only">Message to customer</label>
+                  <textarea id="mi" className="in" rows={3} value={msg} onChange={(e) => setMsg(e.target.value)} placeholder="Write in plain words. Shown in their portal; “Send and wait” also texts them." />
+                  <div className="row g8 wrapx" style={{ justifyContent: "flex-end" }}>
+                    <button className="btn btn-s btn-sm" type="button" disabled={!msg.trim() || busy} onClick={() => run("Message sent", () => messageCustomer(c.ref, msg, false), () => setMsg(""))}><Icon name="send" size={16} /> Send</button>
+                    <button className="btn btn-d btn-sm" type="button" disabled={!msg.trim() || busy} onClick={() => run("Sent · case is now waiting on the customer", () => messageCustomer(c.ref, msg, true), () => setMsg(""))}>Send and wait on customer</button>
                   </div>
-                  <form className="stack g10" style={{ padding: "14px 18px", borderTop: "1px solid var(--line)" }} onSubmit={(e) => { e.preventDefault(); if (!note.trim()) return; setNotes([...notes, { who: "Eric N.", time: "Just now", body: note.trim() }]); setNote(""); }}>
-                    <label htmlFor="nt">Add internal note <span className="mut" style={{ fontWeight: 400 }}>— never visible to the customer</span></label>
-                    <textarea id="nt" className="in" rows={2} value={note} onChange={(e) => setNote(e.target.value)} placeholder="e.g. Called the institution’s desk, expected tomorrow" />
-                    <div className="row between g8"><label className="check"><input type="checkbox" /> Set follow-up reminder</label><button className="btn btn-d btn-sm" type="submit">Save note</button></div>
-                  </form>
-                </>
-              ) : <div style={{ padding: 18 }}><TimelineV events={activity} /></div>}
+                  <span className="hint">“Send and wait” puts the case on hold until the customer replies, and shows them what is needed.</span>
+                </div>
+              )}
             </section>
 
-            <section id="ask" className="card stack g12" style={{ padding: 18 }} aria-labelledby="ask-h">
-              <h2 id="ask-h" className="d" style={{ fontSize: 17 }}>Request missing information</h2>
-              <div className="row g8 wrapx">{QUICK.map((qk) => <button key={qk} type="button" className="chip chip-sm" onClick={() => setAskMsg(`Mwiriwe ${c.customer.split(" ")[0]}, could you send a ${qk.toLowerCase()}? ${qk === "Clearer ID photo" ? "Please retake it in daylight so the number is readable." : ""}`.trim())}>{qk}</button>)}</div>
-              <label htmlFor="mi" className="sr-only">Message to customer</label>
-              <textarea id="mi" className="in" rows={3} value={askMsg} onChange={(e) => setAskMsg(e.target.value)} placeholder="Write in plain words. Sent via portal + WhatsApp." />
-              <div className="row between g8 wrapx"><span className="hint">Sets status to Information required</span><button className="btn btn-s btn-sm" type="button" disabled={!askMsg.trim()} onClick={() => { setStatus("info"); setPending("info"); log("Information requested", askMsg); setAskMsg(""); flash("Request sent to customer"); }}><Icon name="send" size={16} /> Send request</button></div>
+            <section className="card" aria-label="Notes and activity">
+              <div className="row g6 wrapx" style={{ padding: "14px 18px", borderBottom: "1px solid var(--line)" }} role="tablist" aria-label="Notes and activity">
+                <button type="button" role="tab" id="tab-notes" aria-controls="panel-na" aria-selected={tab === "notes"} className={`chip chip-sm ${tab === "notes" ? "chip-on" : ""}`} onClick={() => setTab("notes")}>Internal notes · {c.notes.length}</button>
+                <button type="button" role="tab" id="tab-activity" aria-controls="panel-na" aria-selected={tab === "activity"} className={`chip chip-sm ${tab === "activity" ? "chip-on" : ""}`} onClick={() => setTab("activity")}>Activity · {c.events.length}</button>
+              </div>
+              <div id="panel-na" role="tabpanel" aria-labelledby={`tab-${tab}`}>
+                {tab === "notes" ? (
+                  <>
+                    <div className="stack g16" style={{ padding: 18 }}>
+                      {c.notes.length === 0 && <p className="hint">No internal notes yet.</p>}
+                      {c.notes.map((n) => (
+                        <div key={n.id} className="row g10" style={{ alignItems: "flex-start" }}><span className="av" style={{ width: 28, height: 28, fontSize: 11 }}>{initials(n.name ?? "")}</span><div className="stack" style={{ gap: 3 }}><span className="mut" style={{ fontSize: 12 }}><strong style={{ color: "var(--ink)" }}>{shortName(n.name ?? "")}</strong> · {fmtWhen(n.at, now)} · internal</span><p style={{ fontSize: 14, lineHeight: 1.5 }}>{n.body}</p></div></div>
+                      ))}
+                    </div>
+                    <form className="stack g10" style={{ padding: "14px 18px", borderTop: "1px solid var(--line)" }} onSubmit={(e) => { e.preventDefault(); if (note.trim()) run("Note saved", () => addNote(c.ref, note), () => setNote("")); }}>
+                      <label htmlFor="nt">Add internal note <span className="mut" style={{ fontWeight: 400 }}>— never visible to the customer</span></label>
+                      <textarea id="nt" className="in" rows={2} value={note} onChange={(e) => setNote(e.target.value)} placeholder="e.g. Called the institution’s desk, expected tomorrow" />
+                      <div className="row g8" style={{ justifyContent: "flex-end" }}><button className="btn btn-d btn-sm" type="submit" disabled={busy || !note.trim()}>Save note</button></div>
+                    </form>
+                  </>
+                ) : (
+                  <div style={{ padding: 18 }}>
+                    <TimelineV events={c.events.map((e, i) => ({ state: i === 0 && !finished ? "cur" : "done", title: e.title, body: e.body, meta: [fmtWhen(e.at, now), e.by === "system" ? "" : e.by === "customer" ? e.name : shortName(e.name ?? "")].filter(Boolean).join(" · ") }))} />
+                  </div>
+                )}
+              </div>
             </section>
           </div>
 
           <div className="stack g16">
             <section className="card stack g14" style={{ padding: 18 }} aria-labelledby="st-h">
-              <h2 id="st-h" className="d" style={{ fontSize: 17 }}>Update status</h2>
-              <div className="field"><label htmlFor="st">New status</label><select id="st" className="in" value={pending} onChange={(e) => setPending(e.target.value as StatusKey)}>{STEP_KEY.map((k, i) => <option key={k} value={k}>{STEPS[i]}</option>)}</select></div>
-              <div className="field"><label htmlFor="sm">Message to customer <span className="mut" style={{ fontWeight: 400 }}>(optional)</span></label><textarea id="sm" className="in" rows={2} value={statusMsg} onChange={(e) => setStatusMsg(e.target.value)} placeholder="Shown on their timeline" /></div>
-              <label className="check"><input type="checkbox" checked={notify} onChange={(e) => setNotify(e.target.checked)} /> Notify by SMS &amp; WhatsApp</label>
-              <button className="btn btn-d" type="button" disabled={pending === status} onClick={() => { setStatus(pending); log(`Status → ${STATUS[pending].label}`, statusMsg || undefined); setStatusMsg(""); flash(notify ? "Status updated · customer notified" : "Status updated"); }}>Update status</button>
+              <h2 id="st-h" className="d" style={{ fontSize: 17 }}>Status</h2>
+              {hold && !finished && (
+                <Alert kind="act" title={hold.returned ? "Returned · waiting on customer" : "Waiting on customer"} action={<button type="button" className="btn btn-s btn-sm" disabled={busy || !can("updateStatus")} onClick={() => run("Hold cleared · case is moving again", () => clearHold(c.ref))}>Clear hold</button>}>
+                  {hold.title} — since {fmtWhen(hold.since, now)}.
+                </Alert>
+              )}
+              <div className="field"><label htmlFor="st">Stage</label><select id="st" className="in" value={pending} disabled={finished || !can("updateStatus")} onChange={(e) => setPending(e.target.value as Stage)}>{c.flow.map((s) => <option key={s} value={s}>{stageLabel(c, s)}</option>)}</select>
+                <span className="hint">A stage says who has the work. If you are waiting on the customer, keep the stage and use “Send and wait”.</span></div>
+              <div className="field"><label htmlFor="sm">Message to customer <span className="mut" style={{ fontWeight: 400 }}>(optional)</span></label><textarea id="sm" className="in" rows={2} value={statusMsg} disabled={finished} onChange={(e) => setStatusMsg(e.target.value)} placeholder="Shown on their timeline" /></div>
+              <label className="check"><input type="checkbox" checked={notify} onChange={(e) => setNotify(e.target.checked)} /> Notify by SMS</label>
+              <button className="btn btn-d" type="button" disabled={finished || pending === stage || busy || !can("updateStatus")} onClick={() => run(notify ? "Stage updated · customer notified" : "Stage updated", () => setStage(c.ref, pending, statusMsg, notify), () => setStatusMsg(""))}>Update stage</button>
+              {nope("updateStatus")}
             </section>
-            <section className="card stack g12" style={{ padding: 18 }} aria-labelledby="sub-h">
-              <h2 id="sub-h" className="d" style={{ fontSize: 17 }}>Official submission</h2>
-              <div className="field"><label htmlFor="ch">Channel</label><select id="ch" className="in" defaultValue={svc.channel}>{[svc.channel, "Irembo", "RRA e-Tax", "RDB online", "Judiciary case system", "In person"].filter((v, i, a) => a.indexOf(v) === i).map((o) => <option key={o}>{o}</option>)}</select></div>
-              <div className="field"><label htmlFor="rf">Official reference / application no.</label><input id="rf" className="in m" style={{ fontSize: 15 }} value={officialRef} onChange={(e) => setOfficialRef(e.target.value)} placeholder="Added after submission" /></div>
-              <div className="grid cols-2" style={{ gap: 8 }}>
-                <button className="btn btn-s btn-sm" type="button" disabled={!officialRef} onClick={() => { setStatus("sub"); setPending("sub"); log("Submitted", `Official ref ${officialRef}`); flash("Marked as submitted"); }}>Mark submitted</button>
-                <button className="btn btn-s btn-sm" type="button" onClick={() => { log("Follow-up scheduled", "Tomorrow 10:00"); flash("Follow-up set for tomorrow 10:00"); }}><Icon name="calendar" size={16} /> Follow-up</button>
-              </div>
-            </section>
+
+            {c.flow.includes("institution") && (
+              <section className="card stack g12" style={{ padding: 18 }} aria-labelledby="sub-h">
+                <h2 id="sub-h" className="d" style={{ fontSize: 17 }}>Official submission</h2>
+                <div className="field"><label htmlFor="ch">Channel</label><select id="ch" className="in" value={channel} disabled={finished} onChange={(e) => setChannel(e.target.value)}>{[c.channel, ...CHANNELS].filter((v, i, a) => a.indexOf(v) === i).map((o) => <option key={o}>{o}</option>)}</select></div>
+                <div className="field"><label htmlFor="rf">Official reference / application no.</label><input id="rf" className="in m" style={{ fontSize: 15 }} value={officialRef} disabled={finished} onChange={(e) => setOfficialRef(e.target.value)} placeholder="Added after submission" /></div>
+                <div className="grid m-cols-2" style={{ gap: 8, gridTemplateColumns: "repeat(2, minmax(0, 1fr))" }}>
+                  <button className="btn btn-s btn-sm" type="button" disabled={finished || !officialRef.trim() || busy || !can("updateStatus")} onClick={() => run(stage === "institution" ? "Marked as resubmitted" : "Marked as submitted", () => markSubmitted(c.ref, channel, officialRef))}>{stage === "institution" ? "Mark resubmitted" : "Mark submitted"}</button>
+                  <button className="btn btn-s btn-sm" type="button" disabled={finished || busy} onClick={() => run("Follow-up set for tomorrow 10:00", () => scheduleFollowUp(c.ref, `Follow up on ${c.ref}`))}><Icon name="calendar" size={16} /> Follow-up</button>
+                </div>
+                {c.followUp && <span className="hint">Follow-up: {fmtWhen(c.followUp.at, now)} · {c.followUp.what}</span>}
+              </section>
+            )}
+
             <section className="card stack g14" style={{ padding: 18 }} aria-labelledby="fee-h">
-              <div className="row between"><h2 id="fee-h" className="d" style={{ fontSize: 17 }}>Fees &amp; payment</h2><Badge k={c.payment} /></div>
-              <div className="field"><label htmlFor="of" className="row g8"><FeeTag kind="official" /> Official government fee (RWF)</label><input id="of" className="in" inputMode="numeric" value={official} onChange={(e) => setOfficial(e.target.value.replace(/\D/g, ""))} placeholder={svc.official.label ?? "0"} /><span className="hint">Record exactly what the institution charged. Attach the official receipt.</span></div>
-              <label className="btn btn-s btn-sm" style={{ alignSelf: "flex-start", cursor: "pointer" }}><Icon name="clip" size={16} /> Attach official receipt<input type="file" className="sr-only" /></label>
-              <div className="field"><label htmlFor="sf" className="row g8"><FeeTag kind="ours" /> Service / assistance fee (RWF)</label><input id="sf" className="in" inputMode="numeric" value={ours} onChange={(e) => setOurs(e.target.value.replace(/\D/g, ""))} /><span className="hint">From the service template ({rwf(svc.ours)}).</span></div>
-              {oursChanged && <Alert kind="warn" title="Needs supervisor approval">Changing our fee on a case is logged and sent to a supervisor before the customer sees it.</Alert>}
-              <div className="total-row"><strong>Customer total</strong><strong>{official === "" ? `${rwf(Number(ours) || 0)} + official` : rwf(total)}</strong></div>
+              <div className="row between g8"><h2 id="fee-h" className="d" style={{ fontSize: 17 }}>Fees &amp; payment</h2><PayBadge s={payStatus(billing, now)} /></div>
+              {mode ? (
+                <div className="row between g12" style={{ fontSize: 14.5 }}><span className="row g8"><FeeTag kind="official" /> Official fee</span><strong>{mode === "none" ? "None" : "Paid by the customer"}</strong></div>
+              ) : (
+                <div className="field"><label htmlFor="of" className="row g8"><FeeTag kind="official" /> Official government fee (RWF)</label>
+                  <input id="of" className="in" inputMode="numeric" value={official} disabled={finished || !can("recordOfficial")} onChange={(e) => setOfficial(e.target.value.replace(/\D/g, ""))} placeholder={c.service.official.label ?? "Amount for this case"} />
+                  <span className="hint">Record exactly what the institution charges for this case.</span></div>
+              )}
+              {mode === "direct" && <span className="hint">The customer pays the institution directly. Tell them the exact amount and how to pay it.</span>}
+              <div className="field"><label htmlFor="sf" className="row g8"><FeeTag kind="ours" /> Service / assistance fee (RWF)</label><input id="sf" className="in" inputMode="numeric" value={ours} disabled={finished || !can("recordOfficial")} onChange={(e) => setOurs(e.target.value.replace(/\D/g, ""))} /><span className="hint">Price list: {rwf(c.billing.oursStandard)}{c.billing.oursUnit ? ` ${c.billing.oursUnit}` : ""}{c.billing.ours !== c.billing.oursStandard ? ` · this case: ${rwf(c.billing.ours)}` : ""}.</span></div>
+              {oursChanged && <Alert kind="warn" title={can("changeOurs") ? "You are changing our fee" : "Needs a supervisor"}>{can("changeOurs") ? "The change is written to the audit log." : "Only a supervisor can change our fee on a case. Ask one, or put the price-list fee back."}</Alert>}
+              <div className="total-row"><strong>Customer total</strong><strong>{officialValue === null ? `${rwf(oursValue)}${mode ? "" : " + official"}` : rwf(officialValue + oursValue)}</strong></div>
+              {feesDirty && <button className="btn btn-s" type="button" disabled={busy || (oursChanged && !can("changeOurs"))} onClick={() => run("Fees saved", () => saveFees(c.ref, officialValue, oursValue))}>Save fees</button>}
+              {c.billing.quote === "estimate"
+                ? <><button className="btn btn-d" type="button" disabled={finished || busy || !can("recordOfficial") || (!mode && officialValue === null) || (oursChanged && !can("changeOurs"))} onClick={() => run("Fees sent · customer can approve and pay", async () => { if (feesDirty) { const a = await saveFees(c.ref, officialValue, oursValue); if (!a.ok) return a; } return sendQuote(c.ref); })}>Send fees to customer</button>
+                    <span className="hint">{!mode && officialValue === null ? "Enter the official fee for this case first." : "The customer sees both lines and approves before paying."}</span></>
+                : <p className="hint row g8" style={{ alignItems: "flex-start" }}><Icon name={c.billing.quote === "approved" ? "check" : "clock"} size={16} color={c.billing.quote === "approved" ? "var(--ok)" : undefined} /><span>{c.billing.quote === "approved" ? "Fees approved by the customer." : "Fees sent. Waiting for the customer to approve and pay."}</span></p>}
             </section>
+
+            {!finished && can("complete") && (
+              <details className="card" style={{ padding: 18 }}>
+                <summary className="row between g8"><strong style={{ fontSize: 15 }}>Close without completing</strong><span className="chev"><Icon name="down" size={18} /></span></summary>
+                <div className="stack g12" style={{ paddingTop: 14 }}>
+                  <div className="field"><label htmlFor="ck">How did it end?</label><select id="ck" className="in" value={closeKind} onChange={(e) => setCloseKind(e.target.value as Closed["kind"])}><option value="cancelled">Cancelled (customer or Inzira)</option><option value="rejected">Rejected by the institution</option></select></div>
+                  <div className="field"><label htmlFor="cr">Reason the customer will see</label><textarea id="cr" className="in" rows={2} value={closeReason} onChange={(e) => setCloseReason(e.target.value)} /></div>
+                  <button type="button" className="btn btn-danger btn-sm" style={{ alignSelf: "flex-start" }} disabled={!closeReason.trim() || busy} onClick={() => run("Case closed · customer notified", () => closeCase(c.ref, closeKind, closeReason), () => setCloseReason(""))}>Close case</button>
+                  <span className="hint">Refunds are issued by Finance from Admin › Payments.</span>
+                </div>
+              </details>
+            )}
           </div>
         </div>
       </div>

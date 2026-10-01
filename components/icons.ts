@@ -50,5 +50,8 @@ export const ICONS: Record<string, string> = {
  "c-land": "<path d=\"M3 7l6-3 6 3 6-3v13l-6 3-6-3-6 3z\"></path><path d=\"M9 4v13M15 7v13\"></path>",
  "c-court": "<path d=\"M12 4v16M7 20h10M5 7h14\"></path><path d=\"M5 7l-3 6a3 3 0 0 0 6 0zM19 7l-3 6a3 3 0 0 0 6 0z\"></path>",
  "c-comp": "<rect x=\"5\" y=\"4\" width=\"14\" height=\"17\" rx=\"2\"></rect><path d=\"M9 4V2.8h6V4M8.5 12.5l2.5 2.5 4.5-4.5\"></path>",
- "c-other": "<circle cx=\"7\" cy=\"7\" r=\"2.5\"></circle><circle cx=\"17\" cy=\"7\" r=\"2.5\"></circle><circle cx=\"7\" cy=\"17\" r=\"2.5\"></circle><path d=\"M17 14v6M14 17h6\"></path>"
+ "c-other": "<circle cx=\"7\" cy=\"7\" r=\"2.5\"></circle><circle cx=\"17\" cy=\"7\" r=\"2.5\"></circle><circle cx=\"7\" cy=\"17\" r=\"2.5\"></circle><path d=\"M17 14v6M14 17h6\"></path>",
+ "pause": "<path d=\"M9 6v12M15 6v12\"></path>",
+ "c-car": "<path d=\"M3.5 16V12l2.2-5h12.6l2.2 5v4z\"></path><path d=\"M3.5 12h17\"></path><circle cx=\"7.5\" cy=\"16.5\" r=\"1.8\"></circle><circle cx=\"16.5\" cy=\"16.5\" r=\"1.8\"></circle>",
+ "c-learn": "<path d=\"M2.5 9L12 4.5 21.5 9 12 13.5z\"></path><path d=\"M6.5 11.2v4.3c0 1.6 2.5 3 5.5 3s5.5-1.4 5.5-3v-4.3M21.5 9v5\"></path>"
 };

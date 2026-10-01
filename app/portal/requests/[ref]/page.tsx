@@ -1,82 +1,93 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Badge, DocCard, FeeLines, Icon, TimelineH, TimelineV } from "@/components/ui";
-import { Messages, PayButton } from "@/components/RequestSide";
-import { REQUESTS, requestByRef } from "@/lib/data";
+import { DocBadge, DocCard, Icon, RequestBadge, StageTimeline, TimelineV } from "@/components/ui";
+import { Messages, PaymentPanel } from "@/components/RequestSide";
+import { fmtDate, fmtDay, fmtWhen, initials, shortName } from "@/lib/format";
+import { getMyRequest, getNow } from "@/lib/repo";
+import { whatsappUrl } from "@/lib/site";
 
-export function generateStaticParams() {
-  return REQUESTS.map((r) => ({ ref: r.ref }));
-}
 export async function generateMetadata({ params }: { params: Promise<{ ref: string }> }) {
-  const r = requestByRef((await params).ref);
-  return { title: r ? `${r.service} · ${r.ref}` : "Request" };
+  const r = await getMyRequest((await params).ref);
+  return { title: r ? `${r.name} · ${r.ref}` : "Request" };
 }
+
+const HOLD_ACTION = {
+  document: { href: "/portal/documents", icon: "upload", label: "Upload the document" },
+  information: { href: "#messages", icon: "msg", label: "Reply to your agent" },
+  payment: { href: "#payments", icon: "card", label: "Go to payment" },
+};
 
 export default async function RequestPage({ params }: { params: Promise<{ ref: string }> }) {
-  const r = requestByRef((await params).ref);
+  const [r, now] = await Promise.all([getMyRequest((await params).ref), getNow()]);
   if (!r) notFound();
+  const act = !!r.hold && !r.closed;
+  const banner = r.closed ? { title: r.summary.title, body: r.closed.reason } : r.hold ? { title: r.hold.title, body: r.hold.detail } : r.summary;
+  const action = act ? HOLD_ACTION[r.hold!.reason] : null;
+  const agent = r.agent?.name ?? "Inzira";
+
   return (
     <>
       <div className="stack g18 page-band">
         <nav aria-label="Breadcrumb" className="mut row g8 wrapx" style={{ fontSize: 13.5 }}>
-          <Link href="/portal">My requests</Link><span>/</span><span className="m">{r.ref}</span>
-          <span className="m-hide" style={{ marginLeft: 16 }}>Other requests:</span>
-          {REQUESTS.filter((x) => x.ref !== r.ref).map((x) => <Link key={x.ref} className="m-hide" href={`/portal/requests/${x.ref}`}>{x.service}</Link>)}
+          <Link href="/portal/requests">My requests</Link><span>/</span><span className="m">{r.ref}</span>
         </nav>
         <div className="row between g24 m-col" style={{ alignItems: "flex-start" }}>
           <div className="stack g8">
-            <div className="row g10 wrapx"><Badge k={r.status} /><span className="tag">{r.forWho.split("· ")[1]}</span></div>
-            <h1 className="d" style={{ fontSize: "clamp(24px, 3vw, 34px)" }}>{r.service}</h1>
-            <div className="row g24 wrapx mut" style={{ fontSize: 14 }}>
+            <div className="row g10 wrapx"><RequestBadge r={r} viewer="customer" /><span className="tag">via {r.channel}</span><span className="tag">For {r.profile.name}</span></div>
+            <h1 className="d" style={{ fontSize: "clamp(24px, 3vw, 34px)" }}>{r.name}</h1>
+            <div className="row wrapx mut" style={{ fontSize: 14, gap: "4px 24px" }}>
               <span>Our reference <strong className="m" style={{ color: "var(--ink)" }}>{r.ref}</strong></span>
               {r.officialRef && <span>Official application no. <strong className="m" style={{ color: "var(--ink)" }}>{r.officialRef}</strong></span>}
-              <span>Opened {r.opened}</span>
+              <span>Opened {fmtDate(r.openedAt)}</span>
             </div>
           </div>
           <a className="btn btn-s" href="#messages"><Icon name="msg" size={18} /> Message agent</a>
         </div>
-        <div style={{ paddingTop: 8 }}><TimelineH current={r.stage} dates={r.stepDates} skipped={r.skipped} /></div>
+        <div style={{ paddingTop: 8 }}><StageTimeline r={r} viewer="customer" /></div>
       </div>
       <div className="content">
         <div className="split">
           <div className="stack g20">
-            <div className="card row g16" style={{ padding: 20, alignItems: "flex-start", background: r.yourAction ? "var(--ember-tint)" : undefined, borderColor: r.yourAction ? "#F3CDB6" : undefined }}>
-              <span className="ico-tile" style={{ background: r.yourAction ? "#fff" : "var(--info-bg)", color: r.yourAction ? "var(--ember-deep)" : "var(--info)" }}><Icon name={r.yourAction ? "alert" : "send"} size={22} /></span>
+            <div className={`card row g16 banner ${act ? "banner-act" : ""}`}>
+              <span className="ico-tile"><Icon name={act ? "alert" : r.closed ? "info" : r.stage === "completed" ? "check" : "send"} size={22} /></span>
               <div className="stack g6 grow">
-                <strong style={{ fontSize: 17, color: r.yourAction ? "var(--ember-deep)" : undefined }}>{r.banner.title}</strong>
-                <p style={{ fontSize: 14.5, lineHeight: 1.55, color: "var(--ink-2)" }}>{r.banner.body}</p>
-                {r.yourAction && <Link className="btn btn-p" href="/portal/documents" style={{ alignSelf: "flex-start", marginTop: 6 }}><Icon name="upload" size={18} /> Upload ID photo</Link>}
+                <strong style={{ fontSize: 17 }}>{banner.title}</strong>
+                <p style={{ fontSize: 14.5, lineHeight: 1.55, color: "var(--ink-2)" }}>{banner.body}</p>
+                {r.dependsOn && !r.closed && <Link className="lnk" href={`/portal/requests/${r.dependsOn}`} style={{ fontSize: 14 }}>See {r.dependsOn} →</Link>}
+                {action && <Link className="btn btn-p" href={action.href} style={{ alignSelf: "flex-start", marginTop: 6 }}><Icon name={action.icon} size={18} /> {action.label}</Link>}
               </div>
             </div>
             <section className="card" aria-labelledby="docs-h">
-              <div className="card-head"><h2 id="docs-h" className="d" style={{ fontSize: 18 }}>Documents</h2><Link className="btn btn-s btn-sm" href="/portal/documents"><Icon name="upload" size={16} /> Upload</Link></div>
+              <div className="card-head"><h2 id="docs-h" className="d" style={{ fontSize: 18 }}>Documents</h2>{!r.closed && <Link className="btn btn-s btn-sm" href="/portal/documents"><Icon name="upload" size={16} /> Upload</Link>}</div>
               <div className="stack g18" style={{ padding: "16px 20px" }}>
                 <div className="stack g10"><span className="eb" style={{ fontSize: 11 }}>Required for this service</span>
-                  {r.docs.map((d) => <DocCard key={d.name} compact {...d} action={d.status === "rej" || d.status === "req" ? <Link className="btn btn-p btn-sm" href="/portal/documents">{d.status === "rej" ? "Replace" : "Upload"}</Link> : undefined} />)}
+                  {r.documents.map((d) => (
+                    <DocCard key={d.id} compact name={d.name} badge={<DocBadge s={d.status} />}
+                      meta={d.status === "rejected" || d.status === "required" ? d.note ?? (d.required ? "Needed before we can submit" : "Only if it applies to you") : `${d.file?.name ?? ""}${d.reviewedAt ? ` · checked ${fmtDay(d.reviewedAt)}` : " · awaiting review"}`}
+                      action={!r.closed && (d.status === "rejected" || d.status === "required") ? <Link className={`btn btn-sm ${d.status === "rejected" ? "btn-p" : "btn-s"}`} href="/portal/documents" aria-label={`${d.status === "rejected" ? "Replace" : "Upload"} ${d.name}`}>{d.status === "rejected" ? "Replace" : "Upload"}</Link> : undefined} />
+                  ))}
                 </div>
                 <div className="stack g10"><span className="eb" style={{ fontSize: 11 }}>Completed documents</span>
-                  {r.completed.map((d) => <DocCard key={d.name} compact {...d} action={<button className="btn btn-s btn-sm" type="button"><Icon name="download" size={16} /> Download</button>} />)}
-                  <div className="row g12 mut" style={{ padding: "14px 16px", border: "1px dashed #CFC9BD", borderRadius: 8 }}><Icon name="clock" size={18} /><span style={{ fontSize: 14 }}>Your final document will appear here when the institution issues it.</span></div>
+                  {r.deliverables.map((d) => <DocCard key={d.id} compact name={d.name} meta={`Issued by ${d.issuedBy} · ${fmtDay(d.issuedAt)}`} badge={<DocBadge s="issued" />} action={d.fileId ? <a className="btn btn-s btn-sm" href={`/files/${d.fileId}`} target="_blank" rel="noopener" aria-label={`Download ${d.name}`}><Icon name="download" size={16} /> Download</a> : <span className="hint">Ask your agent for a copy</span>} />)}
+                  {r.stage !== "completed" && !r.closed && <div className="row g12 mut" style={{ padding: "14px 16px", border: "1px dashed var(--line-3)", borderRadius: 8 }}><Icon name="clock" size={18} /><span style={{ fontSize: 14 }}>Your final document will appear here when the institution issues it.</span></div>}
                 </div>
               </div>
             </section>
-            <Messages r={r} />
+            <Messages reqRef={r.ref} initial={r.messages} agent={agent.split(" ")[0]} now={now} />
           </div>
           <div className="stack g16">
             <div className="card row g14" style={{ padding: 18 }}>
-              <span className="av" style={{ width: 48, height: 48, fontSize: 15 }}>{r.agentInitials}</span>
-              <div className="stack grow" style={{ gap: 3 }}><span className="eb" style={{ fontSize: 10.5 }}>Your agent</span><strong style={{ fontSize: 16 }}>{r.agent}</strong><span className="mut" style={{ fontSize: 13 }}>Replies in about 1 hour</span></div>
-              <a className="btn btn-s btn-ico" href="tel:+250700000000" aria-label={`Call ${r.agent}`}><Icon name="phone" size={19} /></a>
+              <span className="av" style={{ width: 48, height: 48, fontSize: 15 }}>{initials(agent)}</span>
+              <div className="stack grow" style={{ gap: 3 }}><span className="eb" style={{ fontSize: 10.5 }}>Your agent</span><strong style={{ fontSize: 16 }}>{agent}</strong><span className="mut" style={{ fontSize: 13 }}>{r.agent?.team ?? "Being assigned"} · replies in about 1 hour</span></div>
+              <Link className="btn btn-s btn-ico" href={whatsappUrl(`Hello, this is about ${r.ref}.`)} aria-label={`Call or WhatsApp about ${r.ref}`}><Icon name="phone" size={19} /></Link>
             </div>
-            <section className="card stack g14" style={{ padding: 18 }} aria-labelledby="pay-h">
-              <div className="row between"><h2 id="pay-h" className="d" style={{ fontSize: 18 }}>Payments</h2><Badge k={r.payment.status} /></div>
-              <FeeLines officialLabel={r.payment.officialLabel} official={r.payment.official} ours={r.payment.ours} total={r.payment.total} totalLabel={r.payment.status === "paid" ? "Total paid" : "Total due"} />
-              <span className="hint">{r.payment.note}</span>
-              {r.payment.status !== "paid" && <PayButton r={r} />}
-            </section>
+            <PaymentPanel reqRef={r.ref} billing={r.billing} now={now} phone={r.account.phone} />
             <section className="card stack g4" style={{ padding: 18 }} aria-labelledby="act-h">
               <h2 id="act-h" className="d" style={{ fontSize: 18, marginBottom: 8 }}>Activity</h2>
-              <TimelineV events={r.activity} />
+              <TimelineV events={r.events.map((e, i) => ({
+                state: i === 0 && !r.closed && r.stage !== "completed" ? "cur" : "done", title: e.title, body: e.body,
+                meta: [fmtWhen(e.at, now), e.by === "customer" ? "You" : e.by === "system" ? "" : shortName(e.name ?? "")].filter(Boolean).join(" · "),
+              }))} />
             </section>
             <p className="hint row g8" style={{ alignItems: "flex-start" }}><Icon name="shield" size={16} /><span>Decisions are made by the institution. Inzira prepares, submits and follows up on your behalf.</span></p>
           </div>

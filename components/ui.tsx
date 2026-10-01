@@ -1,10 +1,9 @@
 import Link from "next/link";
 import type { CSSProperties, ReactNode } from "react";
 import { ICONS } from "./icons";
-import {
-  STATUS, STEPS, catById, officialLabel, oursLabel, totalLabel,
-  type Service, type StatusKey, type TimelineEvent,
-} from "@/lib/data";
+import { fmtDay, officialLabel, oursLabel, totalLabel } from "@/lib/format";
+import { DOC_STATUS, PAY_STATUS, flowOf, holdLabel, requestStatus, stageIndex, stageLabel, type PayStatus, type Viewer } from "@/lib/status";
+import type { Category, CustomerRequest, DocStatus, Progress, Service, Tone } from "@/lib/types";
 
 export function Icon({ name, size = 20, stroke = 1.8, color, style }: { name: string; size?: number; stroke?: number; color?: string; style?: CSSProperties }) {
   return (
@@ -33,11 +32,17 @@ export function Logo({ dark = false, href = "/" }: { dark?: boolean; href?: stri
   );
 }
 
-export function Badge({ k, label }: { k: StatusKey; label?: string }) {
-  const s = STATUS[k];
-  return <span className="b" style={{ background: s.bg, color: s.fg }}>{label ?? s.label}</span>;
+// ---------------- status badges ----------------
+export function Badge({ tone, label }: { tone: Tone; label: string }) {
+  return <span className={`b t-${tone}`}>{label}</span>;
 }
+export function RequestBadge({ r, viewer }: { r: Pick<Progress, "stage" | "hold" | "closed">; viewer: Viewer }) {
+  return <Badge {...requestStatus(r, viewer)} />;
+}
+export const DocBadge = ({ s }: { s: DocStatus | "issued" }) => <Badge {...DOC_STATUS[s]} />;
+export const PayBadge = ({ s }: { s: PayStatus }) => <Badge {...PAY_STATUS[s]} />;
 
+// ---------------- pricing: always two labelled lines ----------------
 export function FeeTag({ kind }: { kind: "official" | "ours" }) {
   return kind === "official" ? <span className="fo">Official</span> : <span className="fs">Inzira</span>;
 }
@@ -52,7 +57,7 @@ export function FeeBreakdown({ official, officialNote, ours, oursNote = "Paid to
           <div className="row g8"><FeeTag kind="official" /><strong style={{ fontSize: 15 }}>Official government fee</strong></div>
           <p className="hint" style={{ maxWidth: 360 }}>{officialNote}</p>
         </div>
-        <span className="d" style={{ fontSize: 20, whiteSpace: "nowrap" }}>{official}</span>
+        <span className="d" style={{ fontSize: 20, textAlign: "right", maxWidth: 180 }}>{official}</span>
       </div>
       <div className="divider" />
       <div className="row between g16" style={{ alignItems: "flex-start" }}>
@@ -60,11 +65,11 @@ export function FeeBreakdown({ official, officialNote, ours, oursNote = "Paid to
           <div className="row g8"><FeeTag kind="ours" /><strong style={{ fontSize: 15 }}>Our service / assistance fee</strong></div>
           <p className="hint" style={{ maxWidth: 360 }}>{oursNote}</p>
         </div>
-        <span className="d fee-ours" style={{ fontSize: 20, whiteSpace: "nowrap" }}>{ours}</span>
+        <span className="d fee-ours" style={{ fontSize: 20, textAlign: "right", maxWidth: 180 }}>{ours}</span>
       </div>
       <div className="total-row"><strong>Total estimated cost</strong><span className="d" style={{ fontSize: 24 }}>{total}</span></div>
       {children}
-      <p className="hint row g8" style={{ alignItems: "flex-start" }}><Icon name="shield" size={18} color="#1E6B3A" /><span>You approve every amount before you pay. Nothing is charged without your confirmation.</span></p>
+      <p className="hint row g8" style={{ alignItems: "flex-start" }}><Icon name="shield" size={18} color="var(--ok)" /><span>You approve every amount before you pay. Nothing is charged without your confirmation.</span></p>
     </div>
   );
 }
@@ -72,33 +77,27 @@ export function FeeBreakdown({ official, officialNote, ours, oursNote = "Paid to
 export function FeeLines({ officialLabel: ol, official, ours, total, totalLabel: tl = "Total" }: { officialLabel: string; official: string; ours: string; total?: string; totalLabel?: string }) {
   return (
     <div className="stack g10" style={{ fontSize: 14.5 }}>
-      <div className="row between g12"><span className="row g8"><FeeTag kind="official" /> {ol}</span><strong>{official}</strong></div>
-      <div className="row between g12"><span className="row g8"><FeeTag kind="ours" /> Assistance fee</span><strong className="fee-ours">{ours}</strong></div>
-      {total && <div className="row between" style={{ paddingTop: 10, borderTop: "1px solid var(--line-2)" }}><strong>{tl}</strong><strong className="d" style={{ fontSize: 18 }}>{total}</strong></div>}
+      <div className="row between g12"><span className="row g8"><FeeTag kind="official" /> {ol}</span><strong className="nowrap">{official}</strong></div>
+      <div className="row between g12"><span className="row g8"><FeeTag kind="ours" /> Assistance fee</span><strong className="fee-ours nowrap">{ours}</strong></div>
+      {total && <div className="row between g12" style={{ paddingTop: 10, borderTop: "1px solid var(--line-2)" }}><strong>{tl}</strong><strong className="d" style={{ fontSize: 18, textAlign: "right" }}>{total}</strong></div>}
     </div>
   );
 }
 
 function FeeMini({ s }: { s: Service }) {
-  const cell = (label: string, value: string, color: string, last = false): ReactNode => (
-    <div className="stack g4" style={{ padding: "10px 12px", borderRight: last ? 0 : "1px solid var(--line-2)", background: last ? "#FAF8F4" : undefined }}>
-      <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: ".06em", textTransform: "uppercase", color }}>{label}</span>
-      <span style={{ fontWeight: 700, fontSize: 14, color: label === "Our fee" ? "var(--ember-deep)" : undefined }}>{value}</span>
-    </div>
-  );
   return (
-    <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", border: "1px solid var(--line-2)", borderRadius: 6 }}>
-      {cell("Official fee", officialLabel(s), "#3A3C40")}
-      {cell("Our fee", oursLabel(s), "#A33C0C")}
-      {cell("Est. total", totalLabel(s), "#5E5C55", true)}
-    </div>
+    <dl className="fee-mini">
+      <div><dt>Official fee</dt><dd>{officialLabel(s)}</dd></div>
+      <div><dt className="fee-ours">Our fee</dt><dd className="fee-ours">{oursLabel(s)}</dd></div>
+      <div><dt>Est. total</dt><dd>{totalLabel(s)}</dd></div>
+    </dl>
   );
 }
 
-export function ServiceCard({ s }: { s: Service }) {
+export function ServiceCard({ s, category }: { s: Service; category: string }) {
   return (
     <article className="card card-pad stack g16">
-      <div className="row between g10"><span className="eb" style={{ fontSize: 11 }}>{catById(s.category).name}</span>{s.popular && <span className="tag" style={{ background: "var(--ember-tint)", color: "var(--ember-deep)" }}>Popular</span>}</div>
+      <div className="row between g10"><span className="eb" style={{ fontSize: 11 }}>{category}</span>{s.popular && <span className="tag tag-ember">Popular</span>}</div>
       <div className="stack g6">
         <h3 className="d" style={{ fontSize: 19, lineHeight: 1.25 }}><Link href={`/services/${s.slug}`} className="lnk">{s.name}</Link></h3>
         <span className="mut" style={{ fontSize: 13.5 }}>{s.via}</span>
@@ -110,35 +109,31 @@ export function ServiceCard({ s }: { s: Service }) {
       <FeeMini s={s} />
       <div className="row g8" style={{ marginTop: "auto" }}>
         <Link className="btn btn-p btn-sm grow" href={`/start/${s.slug}`}>Start Request</Link>
-        <Link className="btn btn-s btn-sm" href={`/services/${s.slug}`}>Details</Link>
+        <Link className="btn btn-s btn-sm" href={`/services/${s.slug}`} aria-label={`Details: ${s.name}`}>Details</Link>
       </div>
     </article>
   );
 }
 
-export function CategoryCard({ id }: { id: string }) {
-  const c = catById(id);
+export function CategoryCard({ c, count }: { c: Category; count: number }) {
   return (
-    <Link href={`/services?category=${c.id}`} className="card stack g14" style={{ padding: 22, textDecoration: "none", color: "var(--ink)" }}>
+    <Link href={c.href ?? `/services?category=${c.id}`} className="card cat-card stack g14">
       <div className="row between" style={{ alignItems: "flex-start" }}>
         <span className="ico-tile"><Icon name={c.icon} size={24} /></span>
-        <span className="mut" style={{ fontSize: 12.5, fontWeight: 600 }}>{c.count}</span>
+        <span className="mut" style={{ fontSize: 12.5, fontWeight: 600 }}>{c.href ? "Ask us" : `${count} ${count === 1 ? "service" : "services"}`}</span>
       </div>
-      <div className="stack g6"><span className="d" style={{ fontSize: 18 }}>{c.name}</span><span className="mut" style={{ fontSize: 14, lineHeight: 1.5 }}>{c.desc}</span></div>
-      <span className="row g6" style={{ fontSize: 14, fontWeight: 700, color: "var(--ember-deep)", marginTop: "auto" }}>Browse <Icon name="arrow" size={16} /></span>
+      <div className="stack g6"><span className="d" style={{ fontSize: 18 }}>{c.name}</span><span className="mut m-hide" style={{ fontSize: 14, lineHeight: 1.5 }}>{c.desc}</span></div>
+      <span className="row g6 m-hide" style={{ fontSize: 14, fontWeight: 700, color: "var(--ember-deep)", marginTop: "auto" }}>{c.href ? "Tell us what you need" : "Browse"} <Icon name="arrow" size={16} /></span>
     </Link>
   );
 }
 
-const ALERT = {
-  info: ["#E6EEF8", "#1F4E8C", "info"], ok: ["#E2F2E6", "#1E6B3A", "check"], warn: ["#FDF1DC", "#7A4A00", "alert"],
-  err: ["#FBE3E3", "#A12424", "alert"], act: ["#FBEDE4", "#A33C0C", "alert"],
-} as const;
-export function Alert({ kind, title, children, action }: { kind: keyof typeof ALERT; title: string; children?: ReactNode; action?: ReactNode }) {
-  const [bg, fg, ic] = ALERT[kind];
+const ALERT_ICON = { info: "info", ok: "check", warn: "alert", err: "alert", act: "alert" } as const;
+/** Static by default. Pass `live` when the alert appears in response to something the person just did. */
+export function Alert({ kind, title, children, action, live }: { kind: keyof typeof ALERT_ICON; title: string; children?: ReactNode; action?: ReactNode; live?: boolean }) {
   return (
-    <div className="alert" role={kind === "err" || kind === "act" ? "alert" : "status"} style={{ background: bg, color: fg }}>
-      <Icon name={ic} size={20} />
+    <div className={`alert t-${kind}`} role={live ? (kind === "err" ? "alert" : "status") : undefined}>
+      <Icon name={ALERT_ICON[kind]} size={20} />
       <div className="alert-body"><strong>{title}</strong>{children && <span>{children}</span>}</div>
       {action}
     </div>
@@ -148,19 +143,19 @@ export function Alert({ kind, title, children, action }: { kind: keyof typeof AL
 export function Kpi({ label, value, delta, sub, icon, valueColor }: { label: string; value: string; delta?: string; sub?: string; icon?: string; valueColor?: string }) {
   return (
     <div className="card stack g10" style={{ padding: "18px 20px" }}>
-      <div className="row between"><span className="mut" style={{ fontSize: 13.5, fontWeight: 600 }}>{label}</span>{icon && <span style={{ width: 32, height: 32, borderRadius: 6, background: "var(--bone)", display: "flex", alignItems: "center", justifyContent: "center" }}><Icon name={icon} size={17} /></span>}</div>
+      <div className="row between g8"><span className="mut" style={{ fontSize: 13.5, fontWeight: 600 }}>{label}</span>{icon && <span className="kpi-ico"><Icon name={icon} size={17} /></span>}</div>
       <span className="d" style={{ fontSize: 30, lineHeight: 1, color: valueColor }}>{value}</span>
       <div className="row g8">{delta && <span style={{ fontSize: 13, fontWeight: 600, color: "var(--ok)" }}>{delta}</span>}{sub && <span className="mut" style={{ fontSize: 13 }}>{sub}</span>}</div>
     </div>
   );
 }
 
-export function DocCard({ name, meta, status, action, icon = "file", compact }: { name: string; meta: string; status: StatusKey; action?: ReactNode; icon?: string; compact?: boolean }) {
+export function DocCard({ name, meta, badge, action, icon = "file", compact }: { name: string; meta: string; badge: ReactNode; action?: ReactNode; icon?: string; compact?: boolean }) {
   return (
     <div className="card row g14" style={{ padding: compact ? 12 : 16, flexWrap: "wrap" }}>
       <span className="ico-tile" style={{ width: 40, height: 40, borderRadius: 6 }}><Icon name={icon} size={20} /></span>
       <div className="stack grow" style={{ gap: 3, minWidth: 160 }}><strong style={{ fontSize: 14.5 }}>{name}</strong><span className="mut" style={{ fontSize: 13 }}>{meta}</span></div>
-      <Badge k={status} />{action}
+      {badge}{action}
     </div>
   );
 }
@@ -168,7 +163,7 @@ export function DocCard({ name, meta, status, action, icon = "file", compact }: 
 export function Notif({ icon, title, meta, unread, href }: { icon: string; title: string; meta: string; unread?: boolean; href?: string }) {
   const inner = (
     <>
-      <span style={{ width: 34, height: 34, borderRadius: 6, background: "var(--bone)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}><Icon name={icon} size={17} /></span>
+      <span className="kpi-ico" style={{ width: 34, height: 34 }}><Icon name={icon} size={17} /></span>
       <div className="stack grow" style={{ gap: 3 }}><span style={{ fontSize: 14, lineHeight: 1.45, fontWeight: unread ? 700 : 400 }}>{title}</span><span className="mut" style={{ fontSize: 12.5 }}>{meta}</span></div>
       {unread ? <span style={{ width: 8, height: 8, borderRadius: "50%", background: "var(--ember)", flexShrink: 0, marginTop: 7 }}><span className="sr-only">Unread</span></span> : <span style={{ width: 8 }} />}
     </>
@@ -177,21 +172,33 @@ export function Notif({ icon, title, meta, unread, href }: { icon: string; title
   return href ? <Link href={href} style={st}>{inner}</Link> : <div style={st}>{inner}</div>;
 }
 
-export function TimelineH({ current, dates, skipped = [] }: { current: number; dates: string[]; skipped?: number[] }) {
+// ---------------- progress ----------------
+/** The request's stages. A hold or a closure marks the current step; it never adds or skips a step. */
+export function StageTimeline({ r, viewer }: { r: Progress; viewer: Viewer }) {
+  const flow = flowOf(r);
+  const cur = stageIndex(r);
+  const finished = r.stage === "completed";
   return (
-    <ol className="tl-h" aria-label="Request progress">
-      {STEPS.map((s, i) => {
-        const st = i < current ? "done" : i === current ? "cur" : "todo";
-        const color = st === "done" ? "var(--ink)" : st === "cur" ? "var(--ember-deep)" : skipped.includes(i) ? "#8A877E" : "var(--muted)";
+    <ol className="tl-h" aria-label="Request progress" style={{ ["--n" as string]: flow.length }}>
+      {flow.map((s, i) => {
+        const here = i === cur && !finished;
+        const st = i < cur || finished ? "done" : !here ? "todo" : r.closed ? "stop" : r.hold ? "hold" : "cur";
+        const date = r.stageDates[s];
         return (
-          <li key={s} className={st} aria-current={st === "cur" ? "step" : undefined}>
+          <li key={s} className={st} aria-current={here ? "step" : undefined}>
             <div className="tl-track">
-              <span className={`tl-dot ${st}`}>{st === "done" && <Icon name="check" size={15} stroke={2.4} />}</span>
-              {i < STEPS.length - 1 ? <span className="tl-line" /> : <span style={{ flexGrow: 1 }} />}
+              <span className={`tl-dot ${st}`}>
+                {st === "done" && <Icon name="check" size={15} stroke={2.4} />}
+                {st === "hold" && <Icon name="pause" size={14} stroke={2.6} />}
+                {st === "stop" && <Icon name="x" size={14} stroke={2.6} />}
+              </span>
+              {i < flow.length - 1 ? <span className="tl-line" /> : <span style={{ flexGrow: 1 }} />}
             </div>
             <div className="stack" style={{ gap: 3 }}>
-              <span className="tl-label" style={{ color }}>{s}</span>
-              {dates[i] && <span className="mut" style={{ fontSize: 12 }}>{dates[i]}</span>}
+              <span className="tl-label">{stageLabel(r, s)}</span>
+              {(st === "hold" || st === "stop") && <span className="tl-note">{holdLabel(r, viewer)}</span>}
+              {st === "stop" ? <span className="mut" style={{ fontSize: 12 }}>{fmtDay(r.closed!.at)}</span>
+                : date && <span className="mut" style={{ fontSize: 12 }}>{here ? `Since ${fmtDay(date)}` : fmtDay(date)}</span>}
             </div>
           </li>
         );
@@ -200,7 +207,8 @@ export function TimelineH({ current, dates, skipped = [] }: { current: number; d
   );
 }
 
-export function TimelineV({ events }: { events: TimelineEvent[] }) {
+export type TimelineItem = { state: "done" | "cur" | "todo"; title: string; meta?: string; body?: string };
+export function TimelineV({ events }: { events: TimelineItem[] }) {
   return (
     <ol className="tl-v">
       {events.map((e, i) => (
@@ -210,13 +218,35 @@ export function TimelineV({ events }: { events: TimelineEvent[] }) {
             {i < events.length - 1 && <span className="tl-vline" />}
           </div>
           <div className="tl-body">
-            <span style={{ fontWeight: 700, fontSize: 14.5, color: e.state === "cur" ? "var(--ember-deep)" : e.state === "todo" ? "var(--muted)" : "var(--ink)" }}>{e.title}</span>
+            <span style={{ fontWeight: 700, fontSize: 14.5, color: e.state === "todo" ? "var(--muted)" : "var(--ink)" }}>{e.title}</span>
             {e.meta && <span className="mut" style={{ fontSize: 12.5 }}>{e.meta}</span>}
             {e.body && <p style={{ fontSize: 14, lineHeight: 1.5, color: "var(--ink-2)" }}>{e.body}</p>}
           </div>
         </li>
       ))}
     </ol>
+  );
+}
+
+/** One request in a customer list: what it is, where it is, and what happens next. */
+export function RequestRow({ r }: { r: CustomerRequest }) {
+  const steps = r.flow.length;
+  const step = stageIndex(r) + 1;
+  const act = !!r.hold && !r.closed;
+  const open = !r.closed && r.stage !== "completed";
+  return (
+    <div className="req-row">
+      <div className="stack" style={{ gap: 5 }}><span className="m mut">{r.ref}</span><Link className="lnk" href={`/portal/requests/${r.ref}`} style={{ fontSize: 16 }}>{r.name}</Link><span className="mut" style={{ fontSize: 13 }}>For {r.profile.name} · via {r.channel}</span></div>
+      <div className="stack g8" style={{ alignItems: "flex-start" }}>
+        <RequestBadge r={r} viewer="customer" />
+        {open && <div className="progress" style={{ width: "100%" }} role="img" aria-label={`Step ${step} of ${steps}`}><span style={{ width: `${(step / steps) * 100}%`, background: act ? "var(--ember)" : undefined }} /></div>}
+        <span className="mut" style={{ fontSize: 12.5 }}>{open ? `Step ${step} of ${steps} · ${stageLabel(r, r.stage)}` : r.closed ? `Closed ${fmtDay(r.closed.at)}` : `Delivered ${fmtDay(r.stageDates.completed ?? r.updatedAt)}`}{r.agent ? ` · Agent: ${r.agent.name}` : ""}</span>
+      </div>
+      <div className="row between g12">
+        <div className="stack g4"><span className="req-next" style={{ color: act ? "var(--ember-deep)" : "var(--muted)" }}>{act ? "Your action" : open ? "Next step" : "Outcome"}</span><span style={{ fontSize: 14, lineHeight: 1.45 }}>{r.next}</span></div>
+        <Link className={`btn btn-sm ${act ? "btn-p" : "btn-s"}`} href={`/portal/requests/${r.ref}`} aria-label={`${act ? "Resolve" : "View"} ${r.name} ${r.ref}`}>{act ? "Resolve" : "View"}</Link>
+      </div>
+    </div>
   );
 }
 
@@ -227,14 +257,14 @@ export function FeeBars({ data, height = 160 }: { data: { label: string; officia
     <figure className="stack g14">
       <div className="row g16 wrapx" style={{ fontSize: 12.5 }}>
         <span className="row g6"><span style={{ width: 10, height: 10, background: "var(--ember)", borderRadius: 2 }} />Our service fees</span>
-        <span className="row g6"><span style={{ width: 10, height: 10, background: "#B8B3A8", borderRadius: 2 }} />Official fees passed through</span>
+        <span className="row g6"><span style={{ width: 10, height: 10, background: "var(--pass)", borderRadius: 2 }} />Official fees passed through</span>
       </div>
       <div className="bars" role="img" aria-label={data.map((d) => `${d.label}: ours RWF ${d.ours}k, official RWF ${d.official}k`).join("; ")}>
         {data.map((d) => (
           <div key={d.label}>
             <div className="bar-col" style={{ height }} title={`${d.label}: ours RWF ${d.ours}k · official RWF ${d.official}k`}>
               <div style={{ width: "60%", height: Math.round((d.ours / max) * height), background: "var(--ember)", borderRadius: "3px 3px 0 0" }} />
-              <div style={{ width: "60%", height: Math.max(2, Math.round((d.official / max) * height)), background: "#B8B3A8", marginTop: 2 }} />
+              <div style={{ width: "60%", height: Math.max(2, Math.round((d.official / max) * height)), background: "var(--pass)", marginTop: 2 }} />
             </div>
           </div>
         ))}
@@ -251,8 +281,4 @@ export function PageHead({ title, sub, children }: { title: string; sub?: string
       {children && <div className="row g12 wrapx">{children}</div>}
     </div>
   );
-}
-
-export function initials(name: string) {
-  return name.replace(/\./g, "").split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase();
 }

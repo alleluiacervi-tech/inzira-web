@@ -1,49 +1,47 @@
 "use client";
-import { useEffect, useRef, useState } from "react";
-import { DOC_LIBRARY, STATUS, type StatusKey } from "@/lib/data";
-import { Badge, DocCard, Icon } from "./ui";
+import { useRouter } from "next/navigation";
+import { useRef, useState } from "react";
+import { uploadDocument } from "@/app/actions/customer";
+import { DOC_STATUS } from "@/lib/status";
+import type { LibraryDoc } from "@/lib/types";
+import { DocBadge, DocCard, Icon } from "./ui";
 
 const GROUP_ICON: Record<string, string> = { Identification: "c-id", "Business documents": "c-biz", "Tax documents": "c-tax", "Land documents": "c-land", Certificates: "c-comp", Other: "c-other" };
-const TABS: ("all" | StatusKey)[] = ["all", "req", "recd", "rej", "appr", "done"];
-const TYPES = ["National ID — front", "National ID — back", "Passport data page", "Certificate", "Business document", "Tax document", "Land document", "Other"];
+const TABS: ("all" | LibraryDoc["status"])[] = ["all", "required", "received", "rejected", "approved", "issued"];
+const MAX = 10 * 1024 * 1024;
 
-export default function DocumentCenter() {
-  const [docs, setDocs] = useState(DOC_LIBRARY);
-  const [tab, setTab] = useState<"all" | StatusKey>("all");
-  const [target, setTarget] = useState(0);
-  const [type, setType] = useState(TYPES[0]);
-  const [file, setFile] = useState<File | null>(null);
-  const [progress, setProgress] = useState<number | null>(null);
+export default function DocumentCenter({ initial: docs }: { initial: LibraryDoc[] }) {
+  const router = useRouter();
+  const [tab, setTab] = useState<(typeof TABS)[number]>("all");
+  // Start on whatever the customer most needs to do: replace a rejected file, else upload a missing one.
+  const [target, setTarget] = useState(() => (docs.find((d) => d.action === "replace") ?? docs.find((d) => d.action === "upload"))?.key ?? null);
+  const [busy, setBusy] = useState<string | null>(null);
+  const [done, setDone] = useState("");
   const [error, setError] = useState("");
   const [drag, setDrag] = useState(false);
-  const timer = useRef<ReturnType<typeof setInterval> | null>(null);
   const panel = useRef<HTMLDivElement>(null);
-  useEffect(() => () => { if (timer.current) clearInterval(timer.current); }, []);
+  const t = docs.find((d) => d.key === target) ?? null;
 
-  const pick = (f: File | undefined) => {
-    setError("");
-    if (!f) return;
-    if (f.size > 10 * 1024 * 1024) { setError("That file is larger than 10 MB. Try a photo instead of a scan, or compress the PDF."); return; }
+  const pick = async (f: File | undefined) => {
+    setError(""); setDone("");
+    if (!f || !t) return;
+    if (f.size > MAX) { setError("That file is larger than 10 MB. Try a photo instead of a scan, or compress the PDF."); return; }
     if (!/^(image\/|application\/pdf)/.test(f.type)) { setError("Please upload a PDF, JPG or PNG."); return; }
-    setFile(f);
-    setProgress(0);
-    timer.current = setInterval(() => {
-      setProgress((p) => {
-        if (p === null) return p;
-        if (p >= 100) {
-          if (timer.current) clearInterval(timer.current);
-          setDocs((d) => d.map((x, i) => (i === target ? { ...x, status: "recd", meta: `${f.name} · just uploaded · awaiting agent review`, action: undefined } : x)));
-          return 100;
-        }
-        return Math.min(100, p + 12);
-      });
-    }, 160);
+    setBusy(f.name);
+    const fd = new FormData();
+    fd.set("docId", t.key);
+    fd.set("file", f);
+    const r = await uploadDocument(fd).catch(() => ({ ok: false as const, error: "The upload didn’t finish. Check your connection and try again." }));
+    setBusy(null);
+    if (!r.ok) { setError(r.error); return; }
+    setDone(f.name);
+    router.refresh();
   };
 
-  const count = (k: "all" | StatusKey) => (k === "all" ? docs.length : docs.filter((d) => d.status === k).length);
-  const shown = docs.map((d, i) => ({ ...d, i })).filter((d) => tab === "all" || d.status === tab);
+  const count = (k: (typeof TABS)[number]) => (k === "all" ? docs.length : docs.filter((d) => d.status === k).length);
+  const shown = docs.filter((d) => tab === "all" || d.status === tab);
   const groups = Array.from(new Set(shown.map((d) => d.group)));
-  const t = docs[target];
+  const choose = (key: string) => { setTarget(key); setError(""); setDone(""); panel.current?.scrollIntoView({ behavior: "smooth", block: "nearest" }); };
 
   return (
     <div className="split" style={{ ["--aside" as string]: "400px", gap: 28 }}>
@@ -51,44 +49,44 @@ export default function DocumentCenter() {
         <div className="chips-scroll" role="group" aria-label="Filter by status">
           {TABS.map((k) => (
             <button key={k} type="button" className={`chip chip-sm ${tab === k ? "chip-on" : ""}`} aria-pressed={tab === k} onClick={() => setTab(k)}>
-              {k === "all" ? "All" : STATUS[k].label} <span style={{ opacity: 0.7 }}>{count(k)}</span>
+              {k === "all" ? "All" : DOC_STATUS[k].label} <span style={{ opacity: 0.7 }}>{count(k)}</span>
             </button>
           ))}
         </div>
-        {groups.length === 0 && <div className="card stack g8" style={{ padding: 32, alignItems: "center", textAlign: "center" }}><Icon name="file" size={26} /><strong>Nothing here</strong><span className="hint">No documents with this status.</span></div>}
+        {groups.length === 0 && <div className="card stack g8" style={{ padding: 32, alignItems: "center", textAlign: "center" }}><Icon name="file" size={26} /><strong>{docs.length ? "Nothing here" : "No documents yet"}</strong><span className="hint">{docs.length ? "No documents with this status." : "Documents you send us and certificates we deliver will appear here."}</span></div>}
         {groups.map((g) => (
           <section key={g} className="stack g10" aria-label={g}>
             <div className="row g10"><Icon name={GROUP_ICON[g] ?? "file"} size={20} /><h2 style={{ fontSize: 15, fontWeight: 700 }}>{g}</h2></div>
             {shown.filter((d) => d.group === g).map((d) => (
-              <DocCard key={d.i} name={d.name} meta={d.meta} status={d.status}
-                action={d.action === "download" ? <button className="btn btn-s btn-sm btn-ico" type="button" aria-label={`Download ${d.name}`}><Icon name="download" size={17} /></button>
-                  : d.action ? <button className={`btn btn-sm ${d.action === "replace" ? "btn-p" : "btn-s"}`} type="button" onClick={() => { setTarget(d.i); setFile(null); setProgress(null); panel.current?.scrollIntoView({ behavior: "smooth" }); }}>{d.action === "replace" ? "Replace" : <><Icon name="upload" size={16} /> Upload</>}</button> : undefined} />
+              <DocCard key={d.key} name={d.name} meta={d.meta} badge={<DocBadge s={d.status} />}
+                action={d.action === "replace" || d.action === "upload"
+                  ? <button className={`btn btn-sm ${d.action === "replace" ? "btn-p" : "btn-s"}`} type="button" aria-label={`${d.action === "replace" ? "Replace" : "Upload"} ${d.name}`} onClick={() => choose(d.key)}>{d.action === "replace" ? "Replace" : <><Icon name="upload" size={16} /> Upload</>}</button>
+                  : d.fileId ? <a className="btn btn-s btn-sm btn-ico" href={`/files/${d.fileId}`} target="_blank" rel="noopener" aria-label={`Open ${d.name}`}><Icon name="download" size={17} /></a> : undefined} />
             ))}
           </section>
         ))}
       </div>
 
-      <div ref={panel} className="card shadow stack g18" style={{ padding: 22, position: "sticky", top: 24 }}>
-        <div className="stack g6"><span className="eb" style={{ fontSize: 11 }}>{t.status === "rej" ? "Replace document" : "Upload document"}</span><h2 className="d" style={{ fontSize: 20 }}>{t.name.split(" · ")[0]}</h2><span className="row g8"><Badge k={t.status} /><span className="mut" style={{ fontSize: 13 }}>{t.meta}</span></span></div>
-        <div className="field"><label htmlFor="dt">Document type</label><select id="dt" className="in" value={type} onChange={(e) => setType(e.target.value)}>{TYPES.map((x) => <option key={x}>{x}</option>)}</select></div>
-        <label htmlFor="up" onDragOver={(e) => { e.preventDefault(); setDrag(true); }} onDragLeave={() => setDrag(false)} onDrop={(e) => { e.preventDefault(); setDrag(false); pick(e.dataTransfer.files[0]); }}
-          className="stack g10" style={{ border: `2px dashed ${drag ? "var(--ember)" : "#CFC9BD"}`, borderRadius: 8, padding: "28px 20px", alignItems: "center", textAlign: "center", background: drag ? "var(--ember-tint)" : "#FAF8F4", cursor: "pointer" }}>
-          <span style={{ width: 48, height: 48, borderRadius: "50%", background: "#fff", border: "1px solid var(--line)", display: "flex", alignItems: "center", justifyContent: "center" }}><Icon name="upload" size={22} /></span>
-          <strong style={{ fontSize: 15 }}>Drop a file here, take a photo or choose one</strong><span className="hint">PDF, JPG or PNG · up to 10 MB</span><span className="btn btn-s btn-sm">Choose file</span>
-          <input id="up" type="file" accept="image/*,application/pdf" capture="environment" className="sr-only" onChange={(e) => pick(e.target.files?.[0])} />
-        </label>
-        {error && <div className="alert" role="alert" style={{ background: "var(--err-bg)", color: "var(--err)" }}><Icon name="alert" size={20} /><div className="alert-body"><strong>We couldn’t upload that file</strong><span>{error}</span></div></div>}
-        {file && progress !== null && (
-          <div className="stack g8" style={{ padding: 14, border: "1px solid var(--line)", borderRadius: 6 }} aria-live="polite">
-            <div className="row between" style={{ fontSize: 14 }}><span className="row g8" style={{ minWidth: 0 }}><Icon name="file" size={17} /><strong style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{file.name}</strong></span><span className="mut">{progress < 100 ? `${progress}%` : "Uploaded"}</span></div>
-            <div className="progress"><span style={{ width: `${progress}%`, background: progress < 100 ? "var(--ember)" : "var(--ok)" }} /></div>
-            <span className="hint">{progress < 100 ? "Keep this page open" : "Sent to your agent for review. You’ll get a WhatsApp message once it’s checked."}</span>
-          </div>
+      <div ref={panel} className={`card shadow stack g18 sticky-aside ${docs.some((d) => d.action === "replace") ? "m-first" : ""}`} style={{ padding: 22, top: 24 }}>
+        {t ? (
+          <>
+            <div className="stack g6"><span className="eb" style={{ fontSize: 11 }}>{t.status === "rejected" ? "Replace document" : t.status === "received" ? "Uploaded" : "Upload document"}</span><h2 className="d" style={{ fontSize: 20 }}>{t.name}</h2><span className="row g8 wrapx"><DocBadge s={t.status} /><span className="mut" style={{ fontSize: 13 }}>{t.meta}</span></span></div>
+            <label htmlFor="up" onDragOver={(e) => { e.preventDefault(); setDrag(true); }} onDragLeave={() => setDrag(false)} onDrop={(e) => { e.preventDefault(); setDrag(false); pick(e.dataTransfer.files[0]); }}
+              className={`drop stack g10 ${drag ? "drop-on" : ""}`} aria-disabled={!!busy}>
+              <span className="drop-ico">{busy ? <span className="spin spin-dark" /> : <Icon name="upload" size={22} />}</span>
+              <strong style={{ fontSize: 15 }}>{busy ? `Uploading ${busy}…` : "Drop a file here, take a photo or choose one"}</strong><span className="hint">{busy ? "Keep this page open" : "PDF, JPG or PNG · up to 10 MB"}</span>{!busy && <span className="btn btn-s btn-sm">Choose file</span>}
+              <input id="up" type="file" accept="image/*,application/pdf" className="sr-only" disabled={!!busy} onChange={(e) => { pick(e.target.files?.[0]); e.target.value = ""; }} />
+            </label>
+            {error && <div className="alert t-err" role="alert"><Icon name="alert" size={20} /><div className="alert-body"><strong>We couldn’t upload that file</strong><span>{error}</span></div></div>}
+            {done && <div className="alert t-ok" role="status"><Icon name="check" size={20} /><div className="alert-body"><strong>Uploaded</strong><span>{done} was sent to your agent for review. You’ll get a message once it’s checked.</span></div></div>}
+          </>
+        ) : (
+          <div className="stack g8"><span className="eb" style={{ fontSize: 11 }}>Nothing to upload</span><h2 className="d" style={{ fontSize: 20 }}>You’re up to date</h2><p className="hint">When a request needs a document, it appears in the list with an Upload button.</p></div>
         )}
         <div className="stack g8"><strong style={{ fontSize: 14 }}>For a photo that passes first time</strong>
           <ul className="stack g6" style={{ margin: 0, paddingLeft: 18, fontSize: 14, lineHeight: 1.45, color: "var(--ink-2)" }}><li>Lay the document flat in daylight, no flash</li><li>All four corners visible</li><li>Numbers readable when you zoom in</li></ul>
         </div>
-        <p className="hint row g8"><Icon name="lock" size={16} /><span>Encrypted. Only your agent and our quality team can see it.</span></p>
+        <p className="hint row g8"><Icon name="lock" size={16} /><span>Only you, your agent and our quality team can open your files.</span></p>
       </div>
     </div>
   );

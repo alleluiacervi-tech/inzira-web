@@ -1,12 +1,15 @@
-import { PageHead } from "@/components/ui";
 import AuditLog from "@/components/AuditLog";
+import { NoAccess } from "@/components/PageStates";
+import { PageHead } from "@/components/ui";
+import { getMyPermissions, listAudit } from "@/lib/repo";
 
 export const metadata = { title: "Audit logs" };
-export default function Page() {
+export default async function Page() {
+  if (!(await getMyPermissions()).includes("viewAudit")) return <><PageHead title="Audit logs" /><NoAccess what="the audit log" /></>;
   return (
     <>
-      <PageHead title="Audit logs" sub="Immutable record of every view, change and payment" />
-      <div className="content"><AuditLog /></div>
+      <PageHead title="Audit logs" sub="Every view, change and payment, newest first" />
+      <div className="content"><AuditLog entries={await listAudit()} /></div>
     </>
   );
 }

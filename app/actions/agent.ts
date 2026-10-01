@@ -1,0 +1,232 @@
+"use server";
+import { randomBytes } from "node:crypto";
+import { eq } from "drizzle-orm";
+import { revalidatePath } from "next/cache";
+import { getStaffUser, normalisePhone } from "@/lib/auth";
+import { rwf } from "@/lib/format";
+import { audit, db, event, fail, invoiceFor, nextNumber, notify, refFor, s, type Result } from "@/lib/mutate";
+import { PERMISSIONS, type Permission } from "@/lib/permissions";
+import { STAGE_LABEL } from "@/lib/status";
+import { SITE } from "@/lib/site";
+import { sendSms } from "@/lib/sms";
+import { getService } from "@/lib/repo";
+import { STAGES, type Closed, type Hold, type Stage } from "@/lib/types";
+
+/** Loads a case for the signed-in staff member, if they may see it and hold `perm`. */
+async function work(ref: string, perm?: Permission) {
+  const me = await getStaffUser();
+  if (!me) return { error: "Your session has ended. Sign in again." } as const;
+  const d = await db();
+  const [r] = await d.select().from(s.requests).where(eq(s.requests.ref, ref));
+  if (!r || (!me.permissions.has("viewAll") && r.agentId !== me.id)) return { error: "Case not found." } as const;
+  if (perm && !me.permissions.has(perm)) return { error: `Your role can’t do this (${PERMISSIONS[perm]}). Ask a supervisor.` } as const;
+  const svc = await getService(r.serviceSlug);
+  return { me, d, r, flow: (svc?.flow ?? [...STAGES]) as Stage[] };
+}
+const done = (ref: string): Result => { revalidatePath(`/agent/cases/${ref}`); revalidatePath(`/portal/requests/${ref}`); revalidatePath("/agent"); return { ok: true }; };
+const now = () => new Date().toISOString();
+
+export async function reviewDocument(ref: string, docId: string, decision: "approve" | "reject", reason = ""): Promise<Result> {
+  const w = await work(ref, "reviewDocs");
+  if ("error" in w) return fail(w.error!);
+  const { me, d, r } = w;
+  const [doc] = await d.select().from(s.requestDocuments).where(eq(s.requestDocuments.id, docId));
+  if (!doc || doc.ref !== ref) return fail("Document not found.");
+  if (decision === "reject" && !reason.trim()) return fail("Write the reason the customer will see.");
+  await d.transaction(async (tx) => {
+    if (decision === "approve") {
+      await tx.update(s.requestDocuments).set({ status: "approved", reviewedAt: now(), reviewedBy: me.id, note: null }).where(eq(s.requestDocuments.id, docId));
+      await event(tx, ref, "Document approved", me.id, doc.name);
+      const all = await tx.select().from(s.requestDocuments).where(eq(s.requestDocuments.ref, ref));
+      const blocked = all.some((x) => x.status === "rejected" || (x.required && x.status === "required"));
+      if (r.hold?.reason === "document" && !blocked) {
+        await tx.update(s.requests).set({ hold: null }).where(eq(s.requests.ref, ref));
+        await notify(tx, ref, { icon: "check", title: `Your documents for ${ref} are approved`, sms: "your documents are approved. We are carrying on with your request." });
+      }
+    } else {
+      const hold: Hold = { reason: "document", title: `We need a new copy: ${doc.name}`, detail: reason.trim(), since: now() };
+      await tx.update(s.requestDocuments).set({ status: "rejected", reviewedAt: now(), reviewedBy: me.id, note: reason.trim() }).where(eq(s.requestDocuments.id, docId));
+      await tx.update(s.requests).set({ hold }).where(eq(s.requests.ref, ref));
+      await tx.insert(s.messages).values({ ref, by: me.id, body: reason.trim() });
+      await event(tx, ref, "Document rejected", me.id, `${doc.name} — ${reason.trim()}`);
+      await notify(tx, ref, { icon: "alert", title: `${me.name.split(" ")[0]} needs a new copy of ${doc.name} for ${ref}`, sms: `we need a new copy of ${doc.name}: ${reason.trim()} Upload it in your portal.` });
+    }
+    await audit(tx, { actor: me.name, role: me.role, action: decision === "approve" ? "Approved document" : "Rejected document", entity: `${ref} · ${doc.name}` });
+  });
+  return done(ref);
+}
+
+/** A message to the customer. With `wait`, the case goes on hold until they answer. */
+export async function messageCustomer(ref: string, body: string, wait: boolean): Promise<Result> {
+  const w = await work(ref, "viewAssigned");
+  if ("error" in w) return fail(w.error!);
+  const { me, d } = w;
+  if (!body.trim()) return fail("Write a message first.");
+  await d.transaction(async (tx) => {
+    await tx.insert(s.messages).values({ ref, by: me.id, body: body.trim() });
+    if (wait) {
+      await tx.update(s.requests).set({ hold: { reason: "information", title: "Your agent needs something from you", detail: body.trim(), since: now() } }).where(eq(s.requests.ref, ref));
+      await event(tx, ref, "Information requested", me.id, body.trim());
+    }
+    await notify(tx, ref, { icon: "msg", title: `${me.name.split(" ")[0]}: “${body.trim().slice(0, 90)}”`, sms: wait ? `${me.name.split(" ")[0]} needs something from you: ${body.trim().slice(0, 300)}` : undefined });
+  });
+  return done(ref);
+}
+
+export async function clearHold(ref: string): Promise<Result> {
+  const w = await work(ref, "updateStatus");
+  if ("error" in w) return fail(w.error!);
+  await w.d.transaction(async (tx) => {
+    await tx.update(s.requests).set({ hold: null }).where(eq(s.requests.ref, ref));
+    await event(tx, ref, "Hold cleared", w.me.id);
+  });
+  return done(ref);
+}
+
+export async function setStage(ref: string, stage: Stage, message: string, tell: boolean): Promise<Result> {
+  const w = await work(ref, stage === "completed" ? "complete" : "updateStatus");
+  if ("error" in w) return fail(w.error!);
+  const { me, d, r, flow } = w;
+  if (!flow.includes(stage)) return fail("That stage does not apply to this service.");
+  if (r.closed) return fail("This case is closed.");
+  await d.transaction(async (tx) => {
+    await tx.update(s.requests).set({ stage, stageDates: { ...r.stageDates, [stage]: r.stageDates[stage] ?? now() }, hold: stage === "completed" ? null : r.hold }).where(eq(s.requests.ref, ref));
+    await event(tx, ref, stage === "completed" ? "Completed" : `Moved to: ${STAGE_LABEL[stage]}`, me.id, message.trim() || undefined);
+    if (tell) await notify(tx, ref, { icon: stage === "completed" ? "check" : "send", title: stage === "completed" ? `${ref} is completed` : `${ref}: ${STAGE_LABEL[stage]}`, sms: message.trim() || (stage === "completed" ? "your request is completed. See your portal." : `your request moved to: ${STAGE_LABEL[stage]}.`) });
+    await audit(tx, { actor: me.name, role: me.role, action: "Changed stage", entity: `${ref} · ${STAGE_LABEL[r.stage]} → ${STAGE_LABEL[stage]}` });
+  });
+  return done(ref);
+}
+
+export async function markSubmitted(ref: string, channel: string, officialRef: string): Promise<Result> {
+  const w = await work(ref, "updateStatus");
+  if ("error" in w) return fail(w.error!);
+  const { me, d, r, flow } = w;
+  if (!flow.includes("institution")) return fail("This service is not submitted to an institution.");
+  if (!officialRef.trim()) return fail("Add the official reference first.");
+  const again = r.stage === "institution";
+  await d.transaction(async (tx) => {
+    await tx.update(s.requests).set({ stage: "institution", channel: channel || r.channel, officialRef: officialRef.trim(), hold: null, stageDates: { ...r.stageDates, institution: r.stageDates.institution ?? now() } }).where(eq(s.requests.ref, ref));
+    await event(tx, ref, again ? "Resubmitted" : `Submitted via ${channel || r.channel}`, me.id, `Official ref ${officialRef.trim()}`);
+    await notify(tx, ref, { icon: "send", title: `${again ? "Resubmitted" : "Submitted"} via ${channel || r.channel}. Official ref ${officialRef.trim()}`, sms: `submitted via ${channel || r.channel}. Official reference ${officialRef.trim()}.` });
+    await audit(tx, { actor: me.name, role: me.role, action: "Added official reference", entity: `${ref} · ${officialRef.trim()}` });
+  });
+  return done(ref);
+}
+
+export async function scheduleFollowUp(ref: string, what: string): Promise<Result> {
+  const w = await work(ref, "viewAssigned");
+  if ("error" in w) return fail(w.error!);
+  // Tomorrow at 10:00 Kigali time (UTC+2).
+  const t = new Date(Date.now() + 864e5); t.setUTCHours(8, 0, 0, 0);
+  await w.d.transaction(async (tx) => {
+    await tx.update(s.requests).set({ followUp: { at: t.toISOString(), what: what.trim() || "Follow up" } }).where(eq(s.requests.ref, ref));
+    await event(tx, ref, "Follow-up scheduled", w.me.id, "Tomorrow 10:00");
+  });
+  return done(ref);
+}
+
+export async function addNote(ref: string, body: string): Promise<Result> {
+  const w = await work(ref, "viewAssigned");
+  if ("error" in w) return fail(w.error!);
+  if (!body.trim()) return fail("Write the note first.");
+  await w.d.insert(s.notes).values({ ref, by: w.me.id, body: body.trim() });
+  return done(ref);
+}
+
+export async function assignCase(ref: string, agentId: string | null): Promise<Result> {
+  const w = await work(ref, "assign");
+  if ("error" in w) return fail(w.error!);
+  const [agent] = agentId ? await w.d.select().from(s.staff).where(eq(s.staff.id, agentId)) : [null];
+  if (agentId && !agent) return fail("Agent not found.");
+  await w.d.transaction(async (tx) => {
+    await tx.update(s.requests).set({ agentId }).where(eq(s.requests.ref, ref));
+    await event(tx, ref, agent ? `Assigned to ${agent.name}` : "Unassigned", w.me.id);
+    await audit(tx, { actor: w.me.name, role: w.me.role, action: "Assigned case", entity: `${ref} → ${agent?.name ?? "nobody"}` });
+  });
+  return done(ref);
+}
+
+/** Saves the two fee lines. Changing OUR fee needs the "change our fee" permission (supervisors). */
+export async function saveFees(ref: string, official: number | null, ours: number): Promise<Result> {
+  const w = await work(ref, "recordOfficial");
+  if ("error" in w) return fail(w.error!);
+  const { me, d, r } = w;
+  if (ours !== r.ours && !me.permissions.has("changeOurs")) return fail("Changing our fee needs a supervisor. Ask one to change it on this case.");
+  if (ours < 0 || (official !== null && official < 0)) return fail("Amounts can’t be negative.");
+  await d.transaction(async (tx) => {
+    await tx.update(s.requests).set({ official: r.officialMode ? null : official, ours }).where(eq(s.requests.ref, ref));
+    if (!r.officialMode && official !== r.official) await audit(tx, { actor: me.name, role: me.role, action: "Recorded official fee", entity: `${ref} · ${official === null ? "cleared" : rwf(official)}`, fee: true });
+    if (ours !== r.ours) {
+      await event(tx, ref, "Assistance fee changed", me.id, `${rwf(r.ours)} → ${rwf(ours)}`);
+      await audit(tx, { actor: me.name, role: me.role, action: "Changed assistance fee on a case", entity: `${ref} · ${rwf(r.ours)} → ${rwf(ours)}`, fee: true });
+    }
+  });
+  return done(ref);
+}
+
+/** Sends the confirmed amounts to the customer, who can then approve and pay. */
+export async function sendQuote(ref: string): Promise<Result> {
+  const w = await work(ref, "recordOfficial");
+  if ("error" in w) return fail(w.error!);
+  const { me, d, r } = w;
+  if (!r.officialMode && r.official === null) return fail("Record the official fee for this case first.");
+  if (r.ours <= 0) return fail("Set our fee for this case first.");
+  const officialText = r.officialMode === "none" ? "no official fee" : r.officialMode ? "official fee paid by you directly" : `official ${rwf(r.official ?? 0)}`;
+  await d.transaction(async (tx) => {
+    await tx.update(s.requests).set({ quote: "confirmed" }).where(eq(s.requests.ref, ref));
+    await event(tx, ref, "Fees confirmed", me.id, `${officialText} + our fee ${rwf(r.ours)}`);
+    await notify(tx, ref, { icon: "card", title: `Fees confirmed for ${ref}: ${officialText} + our fee ${rwf(r.ours)}`, sms: `fees confirmed: ${officialText} + our fee ${rwf(r.ours)}. Approve and pay in your portal.` });
+    await audit(tx, { actor: me.name, role: me.role, action: "Sent quote", entity: `${ref} · ${officialText} + ${rwf(r.ours)}`, fee: true });
+  });
+  return done(ref);
+}
+
+export async function closeCase(ref: string, kind: Closed["kind"], reason: string): Promise<Result> {
+  const w = await work(ref, "complete");
+  if ("error" in w) return fail(w.error!);
+  if (!reason.trim()) return fail("Write the reason the customer will see.");
+  const closed: Closed = { kind, at: now(), reason: reason.trim() };
+  await w.d.transaction(async (tx) => {
+    await tx.update(s.requests).set({ closed, hold: null, summary: { title: kind === "cancelled" ? "Cancelled" : "Rejected by the institution", body: reason.trim() }, next: kind === "cancelled" ? "Closed." : "Rejected by the institution." }).where(eq(s.requests.ref, ref));
+    await event(tx, ref, kind === "cancelled" ? "Cancelled" : "Rejected by the institution", w.me.id, reason.trim());
+    await notify(tx, ref, { icon: "alert", title: `${ref} was ${kind === "cancelled" ? "cancelled" : "rejected by the institution"}`, sms: `${kind === "cancelled" ? "cancelled" : "rejected by the institution"}: ${reason.trim()}` });
+    await audit(tx, { actor: w.me.name, role: w.me.role, action: kind === "cancelled" ? "Cancelled case" : "Recorded rejection", entity: ref });
+  });
+  return done(ref);
+}
+
+/** Opens a case for a walk-in, a caller or a WhatsApp message. */
+export async function createIntake(input: { slug: string; name: string; phone: string; kind: "person" | "business" | "organization"; source: string; notes: string }): Promise<Result<{ ref: string }>> {
+  const me = await getStaffUser();
+  if (!me) return fail("Your session has ended. Sign in again.");
+  const phone = normalisePhone(input.phone);
+  if (!input.name.trim()) return fail("Enter the customer’s name.");
+  if (!phone) return fail("Enter a Rwandan mobile number, e.g. 788 123 456.");
+  const service = await getService(input.slug || "other-online-service");
+  if (!service) return fail("Service not found.");
+  const d = await db();
+  const ref = await d.transaction(async (tx) => {
+    let [account] = await tx.select().from(s.accounts).where(eq(s.accounts.phone, phone));
+    if (!account) [account] = await tx.insert(s.accounts).values({ id: `acc-${randomBytes(6).toString("hex")}`, name: input.name.trim(), first: input.name.trim().split(" ")[0], phone, languages: [] }).returning();
+    const [profile] = await tx.insert(s.profiles).values({ id: `p-${randomBytes(6).toString("hex")}`, accountId: account.id, kind: input.kind, name: input.name.trim(), relation: input.kind === "person" ? "self" : null }).returning();
+    const ref = refFor(await nextNumber(tx, "request"));
+    const at = now();
+    await tx.insert(s.requests).values({
+      ref, serviceSlug: service.slug, profileId: profile.id, agentId: me.id, stage: "received", stageDates: { received: at }, channel: service.channel,
+      summary: { title: "We’ve received your request", body: `${me.name.split(" ")[0]} is handling it and will contact you within 2 working hours.` },
+      next: `${me.name.split(" ")[0]} checks your documents.`, invoice: invoiceFor(await nextNumber(tx, "invoice")),
+      official: service.official.mode ? null : service.official.amount, officialMode: service.official.mode ?? null,
+      officialLabel: service.official.mode === "none" ? "Official fee" : `${service.official.label ?? "Official fee"} · ${service.channel}`,
+      ours: service.ours, oursStandard: service.ours, oursUnit: service.oursUnit ?? null, quote: "estimate", officialReceipt: service.official.mode ? "na" : "awaiting",
+    });
+    if (service.documents.length) await tx.insert(s.requestDocuments).values(service.documents.map((doc, i) => ({ id: `${ref}-d${i + 1}`, ref, position: i, name: doc.name, group: doc.group, required: doc.required, status: "required" as const })));
+    await event(tx, ref, "Request opened", me.id, input.source);
+    if (input.notes.trim()) await tx.insert(s.notes).values({ ref, by: me.id, body: input.notes.trim() });
+    await audit(tx, { actor: me.name, role: me.role, action: "Opened case from intake", entity: `${ref} · ${service.name} · ${input.source}` });
+    return ref;
+  });
+  sendSms(phone, `Inzira: your request ${ref} (${service.name}) is open. Track it or sign in with this number at ${SITE.url}.`).catch((e) => console.error("[sms]", e));
+  revalidatePath("/agent");
+  return { ok: true, ref };
+}
