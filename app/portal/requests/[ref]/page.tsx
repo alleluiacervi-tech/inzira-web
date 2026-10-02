@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { DocBadge, DocCard, Icon, RequestBadge, StageTimeline, TimelineV } from "@/components/ui";
-import { Messages, PaymentPanel } from "@/components/RequestSide";
+import { CancelRequest, Messages, PaymentPanel } from "@/components/RequestSide";
 import { fmtDate, fmtDay, fmtWhen, initials, shortName } from "@/lib/format";
 import { getMyRequest, getNow } from "@/lib/repo";
 import { whatsappUrl } from "@/lib/site";
@@ -89,6 +89,7 @@ export default async function RequestPage({ params }: { params: Promise<{ ref: s
                 meta: [fmtWhen(e.at, now), e.by === "customer" ? "You" : e.by === "system" ? "" : shortName(e.name ?? "")].filter(Boolean).join(" · "),
               }))} />
             </section>
+            {!r.closed && (r.stage === "received" || r.stage === "checking" || r.stage === "preparing") && !r.billing.transactions.some((t) => t.status === "paid" || t.status === "pending") && <CancelRequest reqRef={r.ref} />}
             <p className="hint row g8" style={{ alignItems: "flex-start" }}><Icon name="shield" size={16} /><span>Decisions are made by the institution. Inzira prepares, submits and follows up on your behalf.</span></p>
           </div>
         </div>

@@ -1,5 +1,7 @@
 // The database (files table) records who may read each uploaded file. Vercel Blob is private;
 // access is still checked by the authenticated file route before bytes are returned.
+// Without Blob credentials files go to local disk — allowed in development and in demo builds
+// (INZIRA_DEMO=1), refused in production.
 import { mkdir, readFile as read, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { get, put } from "@vercel/blob";
@@ -10,7 +12,7 @@ const safe = (key: string) => path.join(root, keyPath(key));
 const hasBlobCredentials = () => !!process.env.BLOB_READ_WRITE_TOKEN || (!!process.env.BLOB_STORE_ID && !!process.env.VERCEL_OIDC_TOKEN);
 const useBlob = () => {
   if (hasBlobCredentials()) return true;
-  if (process.env.NODE_ENV === "production") {
+  if (process.env.NODE_ENV === "production" && process.env.INZIRA_DEMO !== "1") {
     throw new Error("Private file storage is not configured. Connect a private Vercel Blob store or set BLOB_READ_WRITE_TOKEN.");
   }
   return false;

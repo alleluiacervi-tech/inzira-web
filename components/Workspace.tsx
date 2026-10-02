@@ -2,7 +2,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useTransition } from "react";
-import { addNote, assignCase, clearHold, closeCase, markSubmitted, messageCustomer, reviewDocument, saveFees, scheduleFollowUp, sendQuote, setStage } from "@/app/actions/agent";
+import { addNote, assignCase, clearHold, closeCase, markSubmitted, messageCustomer, reviewDocument, saveFees, scheduleFollowUp, sendQuote, setStage, uploadCaseFile } from "@/app/actions/agent";
 import { fmtMonth, fmtWhen, initials, rwf, shortName } from "@/lib/format";
 import type { Permission } from "@/lib/permissions";
 import { payStatus, stageLabel } from "@/lib/status";
@@ -67,6 +67,16 @@ export default function Workspace({ c, me, perms, agents, category, now }: { c: 
   const phone = c.account.phone.replace(/\D/g, "");
   const progress = { stage, stageDates: c.stageDates, hold, closed, flow: c.flow, labels: c.labels };
   const billing = { ...c.billing, official: officialValue, ours: oursValue };
+  /** Sends one chosen file to the server as a deliverable, receipt or customer document. */
+  const upload = (kind: "deliverable" | "receipt" | "document", file: File | undefined, extra: Record<string, string> = {}, ok = "File saved") => {
+    if (!file) return;
+    if (file.size > 10 * 1024 * 1024) { setError("That file is larger than 10 MB."); return; }
+    const fd = new FormData();
+    fd.set("ref", c.ref); fd.set("kind", kind); fd.set("file", file);
+    for (const [k, v] of Object.entries(extra)) fd.set(k, v);
+    run(ok, () => uploadCaseFile(fd));
+  };
+  const [deliverableName, setDeliverableName] = useState("");
   const nope = (p: Permission) => !can(p) && <span className="hint">Your role can’t do this.</span>;
 
   return (
@@ -118,7 +128,10 @@ export default function Workspace({ c, me, perms, agents, category, now }: { c: 
                 <div key={d.id} className="row g12" style={{ padding: "10px 0", borderBottom: "1px solid var(--line-2)" }}>
                   <Icon name={d.status === "approved" ? "check" : d.status === "received" ? "eye" : "alert"} size={18} color={d.status === "approved" ? "var(--ok)" : d.status === "received" ? "var(--teal)" : d.required ? "var(--ember-deep)" : "var(--muted)"} />
                   <div className="stack grow" style={{ gap: 2, minWidth: 0 }}><strong style={{ fontSize: 14 }}>{d.name}</strong><span className="mut" style={{ fontSize: 12.5 }}>{d.status === "received" && d.file ? `${d.file.name} · uploaded ${fmtWhen(d.file.uploadedAt, now)}` : d.status === "approved" && d.reviewedAt ? `Approved ${fmtWhen(d.reviewedAt, now)}` : d.note ?? (d.required ? "Not received yet" : "Only if applicable")}</span></div>
-                  {d.status === "received" && !finished ? <button type="button" className="btn btn-s btn-sm" onClick={() => { setReviewId(d.id); setRejecting(false); document.getElementById("review")?.scrollIntoView({ behavior: "smooth", block: "nearest" }); }}>Review</button> : <DocBadge s={d.status} />}
+                  {d.status === "received" && !finished ? <button type="button" className="btn btn-s btn-sm" onClick={() => { setReviewId(d.id); setRejecting(false); document.getElementById("review")?.scrollIntoView({ behavior: "smooth", block: "nearest" }); }}>Review</button>
+                    : (d.status === "required" || d.status === "rejected") && !finished && can("reviewDocs")
+                      ? <label className="btn btn-s btn-sm" style={{ cursor: "pointer" }} title="Add a copy the customer gave you in person or on WhatsApp"><Icon name="upload" size={15} /> Add<input type="file" accept="image/*,application/pdf" className="sr-only" aria-label={`Add ${d.name} for the customer`} onChange={(e) => { upload("document", e.target.files?.[0], { docId: d.id }, `${d.name} added`); e.target.value = ""; }} /></label>
+                      : <DocBadge s={d.status} />}
                 </div>
               ))}
               {c.documents.length === 0 && <p className="hint" style={{ padding: "8px 0" }}>No documents are needed for this service.</p>}
@@ -246,6 +259,12 @@ export default function Workspace({ c, me, perms, agents, category, now }: { c: 
                   <input id="of" className="in" inputMode="numeric" value={official} disabled={finished || !can("recordOfficial")} onChange={(e) => setOfficial(e.target.value.replace(/\D/g, ""))} placeholder={c.service.official.label ?? "Amount for this case"} />
                   <span className="hint">Record exactly what the institution charges for this case.</span></div>
               )}
+              {!mode && (
+                <div className="row between g8 wrapx" style={{ fontSize: 14 }}>
+                  <span className="mut">Official receipt: <strong style={{ color: "var(--ink)" }}>{c.billing.officialReceipt === "attached" ? "attached" : "not attached yet"}</strong></span>
+                  {can("recordOfficial") && <label className="btn btn-s btn-sm" style={{ cursor: "pointer" }}><Icon name="clip" size={16} /> {c.billing.officialReceipt === "attached" ? "Replace receipt" : "Attach receipt"}<input type="file" accept="image/*,application/pdf" className="sr-only" onChange={(e) => { upload("receipt", e.target.files?.[0], {}, "Official receipt attached"); e.target.value = ""; }} /></label>}
+                </div>
+              )}
               {mode === "direct" && <span className="hint">The customer pays the institution directly. Tell them the exact amount and how to pay it.</span>}
               <div className="field"><label htmlFor="sf" className="row g8"><FeeTag kind="ours" /> Service / assistance fee (RWF)</label><input id="sf" className="in" inputMode="numeric" value={ours} disabled={finished || !can("recordOfficial")} onChange={(e) => setOurs(e.target.value.replace(/\D/g, ""))} /><span className="hint">Price list: {rwf(c.billing.oursStandard)}{c.billing.oursUnit ? ` ${c.billing.oursUnit}` : ""}{c.billing.ours !== c.billing.oursStandard ? ` · this case: ${rwf(c.billing.ours)}` : ""}.</span></div>
               {oursChanged && <Alert kind="warn" title={can("changeOurs") ? "You are changing our fee" : "Needs a supervisor"}>{can("changeOurs") ? "The change is written to the audit log." : "Only a supervisor can change our fee on a case. Ask one, or put the price-list fee back."}</Alert>}
@@ -255,6 +274,24 @@ export default function Workspace({ c, me, perms, agents, category, now }: { c: 
                 ? <><button className="btn btn-d" type="button" disabled={finished || busy || !can("recordOfficial") || (!mode && officialValue === null) || (oursChanged && !can("changeOurs"))} onClick={() => run("Fees sent · customer can approve and pay", async () => { if (feesDirty) { const a = await saveFees(c.ref, officialValue, oursValue); if (!a.ok) return a; } return sendQuote(c.ref); })}>Send fees to customer</button>
                     <span className="hint">{!mode && officialValue === null ? "Enter the official fee for this case first." : "The customer sees both lines and approves before paying."}</span></>
                 : <p className="hint row g8" style={{ alignItems: "flex-start" }}><Icon name={c.billing.quote === "approved" ? "check" : "clock"} size={16} color={c.billing.quote === "approved" ? "var(--ok)" : undefined} /><span>{c.billing.quote === "approved" ? "Fees approved by the customer." : "Fees sent. Waiting for the customer to approve and pay."}</span></p>}
+            </section>
+
+            <section className="card stack g12" style={{ padding: 18 }} aria-labelledby="out-h">
+              <h2 id="out-h" className="d" style={{ fontSize: 17 }}>Documents for the customer</h2>
+              {c.deliverables.length === 0 && <p className="hint">The final document from the institution goes here. The customer gets an SMS and downloads it from their portal.</p>}
+              {c.deliverables.map((o) => (
+                <div key={o.id} className="row between g8" style={{ fontSize: 14 }}>
+                  <span className="stack" style={{ gap: 2 }}><strong>{o.name}</strong><span className="mut" style={{ fontSize: 12.5 }}>{fmtWhen(o.issuedAt, now)} · {o.issuedBy}</span></span>
+                  {o.fileId ? <a className="btn btn-s btn-sm btn-ico" href={`/files/${o.fileId}`} target="_blank" rel="noopener" aria-label={`Open ${o.name}`}><Icon name="download" size={16} /></a> : <span className="hint">No file</span>}
+                </div>
+              ))}
+              {can("complete") && !closed && (
+                <div className="stack g8" style={{ paddingTop: 6, borderTop: c.deliverables.length ? "1px solid var(--line-2)" : undefined }}>
+                  <label htmlFor="dn">Name the customer will see</label>
+                  <input id="dn" className="in" style={{ height: 40 }} value={deliverableName} onChange={(e) => setDeliverableName(e.target.value)} placeholder={`e.g. ${c.service.name} — ${c.profile.name}`} />
+                  <label className="btn btn-d btn-sm" style={{ alignSelf: "flex-start", cursor: "pointer" }}><Icon name="upload" size={16} /> Upload and deliver<input type="file" accept="image/*,application/pdf" className="sr-only" onChange={(e) => { upload("deliverable", e.target.files?.[0], { name: deliverableName || `${c.service.name} — ${c.profile.name}` }, "Delivered · customer notified"); setDeliverableName(""); e.target.value = ""; }} /></label>
+                </div>
+              )}
             </section>
 
             {!finished && can("complete") && (

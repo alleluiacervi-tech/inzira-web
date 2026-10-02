@@ -113,13 +113,25 @@ export default function ServiceAdmin({ services: rows, categories, demand }: { s
                 <button type="button" className="btn btn-s btn-sm" style={{ alignSelf: "flex-start" }} onClick={() => setEdit({ ...edit, documents: [...edit.documents, { name: "", detail: "", required: true, group: "Other" }] })}><Icon name="plus" size={16} /> Add document</button>
               </fieldset>
               <div className="field"><label htmlFor="e7">Typical processing</label><input id="e7" className="in" value={edit.time} onChange={(e) => setEdit({ ...edit, time: e.target.value })} /></div>
+              <fieldset className="stack g12" style={{ border: "1px solid var(--line)", borderRadius: 8, padding: 16, margin: 0 }}>
+                <legend style={{ fontSize: 13, fontWeight: 700, padding: "0 6px" }}>What customers read</legend>
+                <div className="field"><label htmlFor="e8">In simple terms</label><textarea id="e8" className="in" rows={4} value={edit.summary} onChange={(e) => setEdit({ ...edit, summary: e.target.value })} /></div>
+                <div className="field"><label htmlFor="e9">Also called <span className="mut" style={{ fontWeight: 400 }}>(other names people search for)</span></label><input id="e9" className="in" value={edit.aka ?? ""} onChange={(e) => setEdit({ ...edit, aka: e.target.value || undefined })} /></div>
+                <div className="grid cols-2" style={{ gap: 12 }}>
+                  <div className="field"><label htmlFor="e10">Responsible authority</label><input id="e10" className="in" value={edit.authority} onChange={(e) => setEdit({ ...edit, authority: e.target.value })} /></div>
+                  <div className="field"><label htmlFor="e11">Shown under the name</label><input id="e11" className="in" value={edit.via} placeholder={`Via ${edit.channel || "…"}`} onChange={(e) => setEdit({ ...edit, via: e.target.value })} /></div>
+                </div>
+                <div className="field"><label htmlFor="e12">Documents, in a few words</label><input id="e12" className="in" value={edit.docsShort} placeholder="e.g. National ID, UPI" onChange={(e) => setEdit({ ...edit, docsShort: e.target.value })} /></div>
+                <div className="field"><label htmlFor="e13">Requirements <span className="mut" style={{ fontWeight: 400 }}>(one per line)</span></label><textarea id="e13" className="in" rows={3} value={edit.requirements.join("\n")} onChange={(e) => setEdit({ ...edit, requirements: e.target.value.split("\n") })} /></div>
+                <label className="check"><input type="checkbox" checked={!!edit.popular} onChange={(e) => setEdit({ ...edit, popular: e.target.checked })} /> Mark as popular</label>
+              </fieldset>
             </div>
             {error && <div className="alert t-err" role="alert" style={{ borderRadius: 0 }}><Icon name="alert" size={20} /><div className="alert-body"><strong>Not saved</strong><span>{error}</span></div></div>}
             <div className="row between g8 wrapx" style={{ padding: "16px 24px", borderTop: "1px solid var(--line)" }}>
               <label className="check"><input type="checkbox" checked={edit.visible} onChange={(e) => setEdit({ ...edit, visible: e.target.checked })} /> Visible in catalogue</label>
               <div className="row g8"><button className="btn btn-g" type="button" onClick={() => setEdit(null)}>Cancel</button>
                 <button className="btn btn-p" type="button" disabled={!edit.name.trim() || busy} onClick={async () => {
-                  const clean = { ...edit, slug: edit.slug || slugify(edit.name), documents: edit.documents.filter((d) => d.name.trim()) };
+                  const clean = { ...edit, slug: edit.slug || slugify(edit.name), documents: edit.documents.filter((d) => d.name.trim()), requirements: edit.requirements.map((x) => x.trim()).filter(Boolean) };
                   setBusy(true); setError("");
                   const r = await saveService(clean, isNew).catch(() => ({ ok: false as const, error: "Not saved. Check your connection and try again." }));
                   setBusy(false);

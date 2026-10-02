@@ -260,3 +260,10 @@ export const counters = pgTable("counters", {
   name: text("name").primaryKey(),
   value: integer("value").notNull(),
 });
+
+/** Attempts per key (e.g. "code:ip:1.2.3.4") in the current window, for rate limiting. */
+export const rateLimits = pgTable("rate_limits", {
+  key: text("key").primaryKey(),
+  windowStart: ts("window_start").notNull(),
+  count: integer("count").notNull(),
+});
