@@ -67,7 +67,7 @@ export default function Catalogue({ services, categories, initialQuery, initialC
           <label htmlFor="cq" className="sr-only">What service do you need?</label>
           <input id="cq" value={q} onChange={(e) => setQ(e.target.value)} placeholder="What service do you need?" autoComplete="off" />
           {q && <button type="button" className="btn btn-g btn-ico" aria-label="Clear search" onClick={() => setQ("")}><Icon name="x" size={18} /></button>}
-          <button className="btn btn-p btn-lg m-hide" type="submit">Search</button>
+          <button className="btn btn-d btn-lg m-hide" type="submit">Search</button>
         </form>
         <div className="chips-scroll" role="group" aria-label="Category">
           <button type="button" className={`chip ${cat === "all" ? "chip-on" : ""}`} aria-pressed={cat === "all"} onClick={() => setCat("all")}>All services</button>

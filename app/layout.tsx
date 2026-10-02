@@ -1,16 +1,15 @@
 import type { Metadata, Viewport } from "next";
-import { Bricolage_Grotesque, Instrument_Sans, JetBrains_Mono } from "next/font/google";
+import { Archivo } from "next/font/google";
 import { siteOrigin } from "@/lib/site";
 import "./globals.css";
 
 // Fonts are downloaded at build time and served from our own domain: no request to Google when a
 // page loads, which matters on slow mobile connections.
-const display = Bricolage_Grotesque({ subsets: ["latin"], axes: ["opsz"], variable: "--f-display", display: "swap" });
-const body = Instrument_Sans({ subsets: ["latin"], variable: "--f-body", display: "swap" });
-const mono = JetBrains_Mono({ subsets: ["latin"], variable: "--f-mono", display: "swap" });
+// Archivo with its width axis: wide for headlines, normal for text.
+const sans = Archivo({ subsets: ["latin"], axes: ["wdth"], variable: "--f-sans", display: "swap" });
 
 export const metadata: Metadata = {
-  title: { default: "Inzira — Government & business services, made easier", template: "%s · Inzira" },
+  title: { default: "Inzira — your paperwork, walked for you", template: "%s · Inzira" },
   description:
     "Independent professional help in Rwanda with RDB business registration, taxes, EBM, land services, RURA vehicle authorisations and Irembo. Not a government website.",
   // Lets shared links point at the absolute address of the preview image.
@@ -20,11 +19,11 @@ export const metadata: Metadata = {
 };
 // Every page reads live data (prices, requests), so nothing is frozen at build time.
 export const dynamic = "force-dynamic";
-export const viewport: Viewport = { themeColor: "#F6F4EF", width: "device-width", initialScale: 1 };
+export const viewport: Viewport = { themeColor: "#fafbfc", width: "device-width", initialScale: 1 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${display.variable} ${body.variable} ${mono.variable}`}>
+    <html lang="en" className={sans.variable}>
       <body>{children}</body>
     </html>
   );

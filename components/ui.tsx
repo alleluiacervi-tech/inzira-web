@@ -15,21 +15,23 @@ export function Icon({ name, size = 20, stroke = 1.8, color, style }: { name: st
   );
 }
 
+/** The mark: a route that bends uphill (Rwanda's hills) and ends at the yellow "you are here" stop. */
 export function LogoMark({ dark = false }: { dark?: boolean }) {
   return (
     <svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true" style={{ flexShrink: 0 }}>
-      <rect width="30" height="30" rx="7" fill={dark ? "#2A2D31" : "#16181B"} />
-      <path d="M8.5 20.5L15 9.5l6.5 11" fill="none" stroke="#F08A4B" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" />
-      <circle cx="15" cy="21" r="2" fill="#F6F4EF" />
+      <rect width="30" height="30" rx="8" fill={dark ? "#f3f5fa" : "#142850"} />
+      <path d="M8 22.5c0-6 14-5 14-11.5" fill="none" stroke={dark ? "#142850" : "#dde4f0"} strokeWidth="2.6" strokeLinecap="round" />
+      <circle cx="8" cy="22.5" r="2.1" fill={dark ? "#142850" : "#dde4f0"} />
+      <circle cx="22" cy="9" r="3.4" fill="#F2C230" stroke={dark ? "#142850" : "#142850"} strokeWidth="1.4" />
     </svg>
   );
 }
 
 export function Logo({ dark = false, href = "/" }: { dark?: boolean; href?: string }) {
   return (
-    <Link href={href} className="row g10" style={{ textDecoration: "none", color: dark ? "#F6F4EF" : "#16181B" }} aria-label="Inzira home">
+    <Link href={href} className="row g10" style={{ textDecoration: "none", color: dark ? "var(--on-dark)" : "var(--brand)" }} aria-label="Inzira home">
       <LogoMark dark={dark} />
-      <span className="d" style={{ fontSize: 22, fontWeight: 700, letterSpacing: "-0.03em" }}>inzira</span>
+      <span className="d" style={{ fontSize: 22, fontWeight: 800, fontStretch: "118%", letterSpacing: "-0.03em" }}>inzira</span>
     </Link>
   );
 }
@@ -59,7 +61,7 @@ export function FeeBreakdown({ official, officialNote, ours, oursNote = "Paid to
           <div className="row g8"><FeeTag kind="official" /><strong style={{ fontSize: 15 }}>Official government fee</strong></div>
           <p className="hint" style={{ maxWidth: 360 }}>{officialNote}</p>
         </div>
-        <span className="d" style={{ fontSize: 20, textAlign: "right", maxWidth: 180 }}>{official}</span>
+        <span className="d fig" style={{ fontSize: 20, textAlign: "right", maxWidth: 200 }}>{official}</span>
       </div>
       <div className="divider" />
       <div className="row between g16" style={{ alignItems: "flex-start" }}>
@@ -67,9 +69,9 @@ export function FeeBreakdown({ official, officialNote, ours, oursNote = "Paid to
           <div className="row g8"><FeeTag kind="ours" /><strong style={{ fontSize: 15 }}>Our service / assistance fee</strong></div>
           <p className="hint" style={{ maxWidth: 360 }}>{oursNote}</p>
         </div>
-        <span className="d fee-ours" style={{ fontSize: 20, textAlign: "right", maxWidth: 180 }}>{ours}</span>
+        <span className="d fig fee-ours nowrap" style={{ fontSize: 20, textAlign: "right" }}>{ours}</span>
       </div>
-      <div className="total-row"><strong>Total estimated cost</strong><span className="d" style={{ fontSize: 24 }}>{total}</span></div>
+      <div className="total-row"><strong>Total estimated cost</strong><span className="d fig" style={{ fontSize: 22, textAlign: "right" }}>{total}</span></div>
       {children}
       <p className="hint row g8" style={{ alignItems: "flex-start" }}><Icon name="shield" size={18} color="var(--ok)" /><span>You approve every amount before you pay. Nothing is charged without your confirmation.</span></p>
     </div>
@@ -81,7 +83,7 @@ export function FeeLines({ officialLabel: ol, official, ours, total, totalLabel:
     <div className="stack g10" style={{ fontSize: 14.5 }}>
       <div className="row between g12"><span className="row g8"><FeeTag kind="official" /> {ol}</span><strong className="nowrap">{official}</strong></div>
       <div className="row between g12"><span className="row g8"><FeeTag kind="ours" /> Assistance fee</span><strong className="fee-ours nowrap">{ours}</strong></div>
-      {total && <div className="row between g12" style={{ paddingTop: 10, borderTop: "1px solid var(--line-2)" }}><strong>{tl}</strong><strong className="d" style={{ fontSize: 18, textAlign: "right" }}>{total}</strong></div>}
+      {total && <div className="row between g12" style={{ paddingTop: 10, borderTop: "1px solid var(--line-2)" }}><strong>{tl}</strong><strong className="d fig" style={{ fontSize: 18, textAlign: "right" }}>{total}</strong></div>}
     </div>
   );
 }
@@ -147,7 +149,7 @@ export function Kpi({ label, value, delta, sub, icon, valueColor }: { label: str
   return (
     <div className="card stack g10" style={{ padding: "18px 20px" }}>
       <div className="row between g8"><span className="mut" style={{ fontSize: 13.5, fontWeight: 600 }}>{label}</span>{icon && <span className="kpi-ico"><Icon name={icon} size={17} /></span>}</div>
-      <span className="d tnum nowrap" style={{ fontSize: 30, lineHeight: 1, color: valueColor }}>{value}</span>
+      <span className="d fig tnum nowrap" style={{ fontSize: 30, lineHeight: 1, color: valueColor }}>{value}</span>
       <div className="row g8">{delta && <span style={{ fontSize: 13, fontWeight: 600, color: "var(--ok)" }}>{delta}</span>}{sub && <span className="mut" style={{ fontSize: 13 }}>{sub}</span>}</div>
     </div>
   );
@@ -242,7 +244,7 @@ export function RequestRow({ r }: { r: CustomerRequest }) {
       <div className="stack" style={{ gap: 5 }}><span className="m mut">{r.ref}</span><Link className="lnk" href={`/portal/requests/${r.ref}`} style={{ fontSize: 16 }}>{r.name}</Link><span className="mut" style={{ fontSize: 13 }}>For {r.profile.name} · via {r.channel}</span></div>
       <div className="stack g8" style={{ alignItems: "flex-start" }}>
         <RequestBadge r={r} viewer="customer" />
-        {open && <div className="progress" style={{ width: "100%" }} role="img" aria-label={`Step ${step} of ${steps}`}><span style={{ width: `${(step / steps) * 100}%`, background: act ? "var(--ember)" : undefined }} /></div>}
+        {open && <div className="progress" style={{ width: "100%" }} role="img" aria-label={`Step ${step} of ${steps}`}><span style={{ width: `${(step / steps) * 100}%`, background: act ? "var(--signal-deep)" : undefined }} /></div>}
         <span className="mut" style={{ fontSize: 12.5 }}>{open ? `Step ${step} of ${steps} · ${stageLabel(r, r.stage)}` : r.closed ? `Closed ${fmtDay(r.closed.at)}` : `Delivered ${fmtDay(r.stageDates.completed ?? r.updatedAt)}`}{r.agent ? ` · Agent: ${r.agent.name}` : ""}</span>
       </div>
       <div className="row between g12">

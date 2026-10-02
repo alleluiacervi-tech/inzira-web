@@ -20,7 +20,7 @@ export default async function PortalHome() {
           <Icon name="search" size={18} /><label htmlFor="ps" className="sr-only">Search your requests</label>
           <input id="ps" name="q" placeholder="Search requests or references" style={{ border: 0, outline: 0, fontSize: 14, width: "100%" }} />
         </form>
-        <Link className="btn btn-p btn-sm m-hide" href="/services" style={{ height: 40 }}><Icon name="plus" size={18} /> Start New Service</Link>
+        <Link className="btn btn-s btn-sm m-hide" href="/services" style={{ height: 40 }}><Icon name="plus" size={18} /> Start a new request</Link>
       </PageHead>
       <div className="content">
         {holds.map((r) => (

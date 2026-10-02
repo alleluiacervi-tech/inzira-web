@@ -74,7 +74,7 @@ export default async function ServiceDetail({ params }: { params: Promise<{ slug
           </div>
           <aside className="stack g16 sticky-aside">
             <FeeBreakdown official={officialLabel(s)} officialNote={s.official.note} ours={oursLabel(s)} total={totalLabel(s)}>
-              <Link className="btn btn-p btn-lg" href={`/start/${s.slug}`}>Start Request <Icon name="arrow" size={18} /></Link>
+              <Link className="btn btn-p btn-lg" href={`/start/${s.slug}`}>Start this request</Link>
               <span className="hint" style={{ textAlign: "center" }}>No payment until an agent has checked your documents.</span>
             </FeeBreakdown>
             {s.official.verifiedAt && <p className="hint row g8" style={{ alignItems: "flex-start" }}><Icon name="calendar" size={16} /><span>Official fee last checked with {s.authority} on {fmtDate(s.official.verifiedAt)}.</span></p>}

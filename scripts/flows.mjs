@@ -114,10 +114,10 @@ const step = async (name, fn) => { console.log(`# ${name}`); try { await fn(); }
 await step("track", async () => {
   const p = await page();
   await p.go("/track");
-  await p.set("#tr-ref", "inz-2026-04817"); await p.set("#tr-phone", "0788 123 456"); await p.click("Check progress"); await sleep(1500);
+  await p.set("#tr-ref", "inz-2026-04817"); await p.set("#tr-phone", "0788 123 456"); await p.click("Check progress"); await waitFor(p, "We need a clearer ID photo");
   check("track: finds a request by reference + phone", await p.has("E-title") && await p.has("We need a clearer ID photo"));
   check("track: shows no personal data", !(await p.has("Aline")) && !(await p.has("id_front")));
-  await p.set("#tr-phone", "788 000 111"); await p.click("Check progress"); await sleep(1500);
+  await p.set("#tr-phone", "788 000 111"); await p.click("Check progress"); await waitFor(p, "couldn’t find a request");
   check("track: wrong phone is refused with the same message as not found", await p.has("couldn’t find a request") && !(await p.has("E-title")));
   await p.close();
 });
