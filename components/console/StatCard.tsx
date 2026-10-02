@@ -10,6 +10,7 @@ export function StatCard({
   href,
   icon,
   highlight = false,
+  tone,
 }: {
   title: string;
   value: string | number;
@@ -18,6 +19,8 @@ export function StatCard({
   href?: string;
   icon?: string;
   highlight?: boolean;
+  /** Colours the figure when it needs attention. */
+  tone?: "red";
 }) {
   const content = (
     <div
@@ -34,7 +37,7 @@ export function StatCard({
         {icon && <span style={{ color: highlight ? "var(--c-ember)" : "var(--c-text-subtle)" }}><Icon name={icon} size={16} /></span>}
       </div>
       <div className="row between g8" style={{ alignItems: "baseline" }}>
-        <span className="console-stat-figure" style={{ color: highlight ? "var(--c-ember)" : "var(--c-text)" }}>
+        <span className="console-stat-figure" style={{ color: tone === "red" ? "var(--c-red)" : highlight ? "var(--c-ember)" : "var(--c-text)" }}>
           {value}
         </span>
         {href && <span style={{ fontSize: 12, color: "var(--c-ember)", fontWeight: 500 }}>View →</span>}

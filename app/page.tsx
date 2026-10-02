@@ -93,7 +93,7 @@ export default async function Home() {
 
         <section aria-label="Commitments" className="wrap">
           <div className="grid cols-4 m-cols-2" style={{ padding: "26px 0", borderTop: "1px solid var(--line)", borderBottom: "1px solid var(--line)", gap: 24 }}>
-            {[["card", "Official fees at cost, always itemised"], ["user", "One named agent per request"], ["msg", "Updates by SMS & WhatsApp"], ["globe", "English · Kinyarwanda · Français"]].map(([i, t]) => (
+            {[["card", "Official fees at cost, always itemised"], ["user", "One named agent per request"], ["msg", "Updates by SMS & WhatsApp"], ["globe", "Help in English, Kinyarwanda or French"]].map(([i, t]) => (
               <div key={t} className="row g12"><Icon name={i} size={22} /><span style={{ fontSize: 15, fontWeight: 600 }}>{t}</span></div>
             ))}
           </div>

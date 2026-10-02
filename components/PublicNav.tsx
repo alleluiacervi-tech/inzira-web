@@ -12,7 +12,9 @@ const LINKS = [
   { href: "/#business", label: "For businesses" },
   { href: "/#faq", label: "Help" },
 ];
-const LANGS = ["EN", "RW", "FR"];
+// Only languages the site is actually translated into. The switch appears once there are two or more:
+// add { code: "RW", name: "Kinyarwanda" } and { code: "FR", name: "Français" } when their copy exists.
+const LANGS: { code: string; name: string }[] = [{ code: "EN", name: "English" }];
 
 export default function PublicNav() {
   const path = usePathname();
@@ -33,12 +35,14 @@ export default function PublicNav() {
           </nav>
         </div>
         <div className="row g12 nav-desk">
-          <div className="row" role="group" aria-label="Language" style={{ gap: 2 }}>
-            <Icon name="globe" size={18} style={{ marginRight: 6 }} />
-            {LANGS.map((l) => (
-              <button key={l} type="button" className="btn btn-g btn-sm" style={{ padding: "0 6px", color: lang === l ? "var(--ink)" : "var(--muted)" }} aria-pressed={lang === l} onClick={() => setLang(l)}>{l}</button>
-            ))}
-          </div>
+          {LANGS.length > 1 && (
+            <div className="row" role="group" aria-label="Language" style={{ gap: 2 }}>
+              <Icon name="globe" size={18} style={{ marginRight: 6 }} />
+              {LANGS.map(({ code }) => (
+                <button key={code} type="button" className="btn btn-g btn-sm" style={{ padding: "0 6px", color: lang === code ? "var(--ink)" : "var(--muted)" }} aria-pressed={lang === code} onClick={() => setLang(code)}>{code}</button>
+              ))}
+            </div>
+          )}
           <Link className="btn btn-g" href="/sign-in">Sign in</Link>
           <Link className="btn btn-p" href="/services">Start a Service <Icon name="arrow" size={18} /></Link>
         </div>
@@ -60,11 +64,13 @@ export default function PublicNav() {
           <div className="stack g10" style={{ padding: 16, marginTop: "auto", borderTop: "1px solid var(--line-2)" }}>
             <Link className="btn btn-p btn-lg" href="/services">Start a Service</Link>
             <Link className="btn btn-s btn-lg" href="/sign-in">Sign in</Link>
-            <div className="row g8" style={{ justifyContent: "center", paddingTop: 6 }}>
-              {[["EN", "English"], ["RW", "Kinyarwanda"], ["FR", "Français"]].map(([k, l]) => (
-                <button key={k} type="button" className="btn btn-g btn-sm" aria-pressed={lang === k} onClick={() => setLang(k)} style={{ color: lang === k ? "var(--ember-deep)" : "var(--muted)" }}>{l}</button>
-              ))}
-            </div>
+            {LANGS.length > 1 && (
+              <div className="row g8" role="group" aria-label="Language" style={{ justifyContent: "center", paddingTop: 6 }}>
+                {LANGS.map(({ code, name }) => (
+                  <button key={code} type="button" className="btn btn-g btn-sm" aria-pressed={lang === code} onClick={() => setLang(code)} style={{ color: lang === code ? "var(--ember-deep)" : "var(--muted)" }}>{name}</button>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       )}

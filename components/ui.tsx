@@ -6,6 +6,8 @@ import { DOC_STATUS, PAY_STATUS, flowOf, holdLabel, requestStatus, stageIndex, s
 import type { Category, CustomerRequest, DocStatus, Progress, Service, Tone } from "@/lib/types";
 
 export function Icon({ name, size = 20, stroke = 1.8, color, style }: { name: string; size?: number; stroke?: number; color?: string; style?: CSSProperties }) {
+  // An unknown name renders an empty box, which is easy to miss on screen; say so while developing.
+  if (process.env.NODE_ENV !== "production" && !(name in ICONS)) console.warn(`Icon "${name}" is not in components/icons.ts`);
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={stroke}
       strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ flexShrink: 0, color, ...style }}

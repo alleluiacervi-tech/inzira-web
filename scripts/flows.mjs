@@ -216,7 +216,7 @@ await step("agent", async () => {
   const p = await page();
   await signIn(p, "780000001");
   check("agent: staff land in the workspace", (await p.ev("location.pathname")) === "/agent" && await p.has("Good"));
-  check("agent: My Day shows agent work queues", await p.has("Follow-ups Today") && await p.has("SLA Attention") && await p.has("All My Open Cases ("));
+  check("agent: My Day shows agent work queues", await p.has("Follow-ups Today") && await p.has("SLA Attention") && await p.has("My open cases ("));
   await p.go("/agent/cases/INZ-2026-04817");
   check("agent: another agent's case is hidden", await p.has("We couldn’t find that case"));
   await p.go("/agent/cases/INZ-2026-04790");

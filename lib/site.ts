@@ -20,3 +20,8 @@ export const whatsappUrl = (text?: string) =>
 
 export const DISCLAIMER =
   "Inzira is a private, independent assistance company. We are not Irembo, RRA, RDB, RURA, the land administration or any government institution, and we do not give legal advice. Official fees and taxes are set and collected by the relevant institution; our assistance fee is separate and always shown on its own line.";
+
+/** The site's absolute origin (e.g. https://inzira.rw), or null while NEXT_PUBLIC_SITE_URL is not set. */
+export function siteOrigin(): string | null {
+  try { return new URL(process.env.NEXT_PUBLIC_SITE_URL ?? "").origin; } catch { return null; }
+}
