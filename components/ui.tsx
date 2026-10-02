@@ -6,6 +6,8 @@ import { DOC_STATUS, PAY_STATUS, flowOf, holdLabel, requestStatus, stageIndex, s
 import type { Category, CustomerRequest, DocStatus, Progress, Service, Tone } from "@/lib/types";
 
 export function Icon({ name, size = 20, stroke = 1.8, color, style }: { name: string; size?: number; stroke?: number; color?: string; style?: CSSProperties }) {
+  // An unknown name renders an empty box, which is easy to miss on screen; say so while developing.
+  if (process.env.NODE_ENV !== "production" && !(name in ICONS)) console.warn(`Icon "${name}" is not in components/icons.ts`);
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={stroke}
       strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ flexShrink: 0, color, ...style }}
@@ -94,12 +96,13 @@ function FeeMini({ s }: { s: Service }) {
   );
 }
 
+/** A catalogue entry. The whole card opens the service details; "Start request" is the one action. */
 export function ServiceCard({ s, category }: { s: Service; category: string }) {
   return (
-    <article className="card card-pad stack g16">
+    <article className="card card-pad stack g16 svc-card">
       <div className="row between g10"><span className="eb" style={{ fontSize: 11 }}>{category}</span>{s.popular && <span className="tag tag-ember">Popular</span>}</div>
       <div className="stack g6">
-        <h3 className="d" style={{ fontSize: 19, lineHeight: 1.25 }}><Link href={`/services/${s.slug}`} className="lnk">{s.name}</Link></h3>
+        <h3 className="d" style={{ fontSize: 19, lineHeight: 1.25 }}><Link href={`/services/${s.slug}`} className="lnk svc-link">{s.name}</Link></h3>
         <span className="mut" style={{ fontSize: 13.5 }}>{s.via}</span>
       </div>
       <div className="stack g8" style={{ fontSize: 13.5, color: "var(--ink-2)" }}>
@@ -107,9 +110,9 @@ export function ServiceCard({ s, category }: { s: Service; category: string }) {
         <span className="row g8" style={{ alignItems: "flex-start" }}><Icon name="file" size={16} /> {s.docsShort}</span>
       </div>
       <FeeMini s={s} />
-      <div className="row g8" style={{ marginTop: "auto" }}>
-        <Link className="btn btn-p btn-sm grow" href={`/start/${s.slug}`}>Start Request</Link>
-        <Link className="btn btn-s btn-sm" href={`/services/${s.slug}`} aria-label={`Details: ${s.name}`}>Details</Link>
+      <div className="row between g12 svc-foot">
+        <span className="svc-more" aria-hidden="true">Details <Icon name="arrow" size={15} /></span>
+        <Link className="btn btn-s btn-sm svc-start" href={`/start/${s.slug}`} aria-label={`Start request: ${s.name}`}>Start request</Link>
       </div>
     </article>
   );
@@ -144,7 +147,7 @@ export function Kpi({ label, value, delta, sub, icon, valueColor }: { label: str
   return (
     <div className="card stack g10" style={{ padding: "18px 20px" }}>
       <div className="row between g8"><span className="mut" style={{ fontSize: 13.5, fontWeight: 600 }}>{label}</span>{icon && <span className="kpi-ico"><Icon name={icon} size={17} /></span>}</div>
-      <span className="d" style={{ fontSize: 30, lineHeight: 1, color: valueColor }}>{value}</span>
+      <span className="d tnum nowrap" style={{ fontSize: 30, lineHeight: 1, color: valueColor }}>{value}</span>
       <div className="row g8">{delta && <span style={{ fontSize: 13, fontWeight: 600, color: "var(--ok)" }}>{delta}</span>}{sub && <span className="mut" style={{ fontSize: 13 }}>{sub}</span>}</div>
     </div>
   );

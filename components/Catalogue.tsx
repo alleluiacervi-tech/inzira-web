@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { billingKind } from "@/lib/format";
 import type { Audience, Category, Service } from "@/lib/types";
 import { Icon, ServiceCard } from "./ui";
+import { useDialog } from "./useDialog";
 
 type FeeKind = ReturnType<typeof billingKind>;
 
@@ -14,6 +15,7 @@ export default function Catalogue({ services, categories, initialQuery, initialC
   const [fees, setFees] = useState<FeeKind[]>([]);
   const [sort, setSort] = useState("popular");
   const [showFilters, setShowFilters] = useState(false);
+  const sheet = useDialog<HTMLDivElement>(showFilters, () => setShowFilters(false));
 
   const toggle = <T,>(arr: T[], v: T) => (arr.includes(v) ? arr.filter((x) => x !== v) : [...arr, v]);
   const catName = (id: string) => categories.find((c) => c.id === id)?.name ?? "";
@@ -88,7 +90,21 @@ export default function Catalogue({ services, categories, initialQuery, initialC
               </select>
             </div>
           </div>
-          {showFilters && <div className="d-hide card" style={{ padding: 18 }}>{filters}</div>}
+          {showFilters && (
+            <div className="sheet-bg d-hide" onClick={(e) => { if (e.target === e.currentTarget) setShowFilters(false); }}>
+              <div ref={sheet} className="sheet" role="dialog" aria-modal="true" aria-labelledby="sheet-title">
+                <div className="row between" style={{ padding: "6px 0 14px" }}>
+                  <h2 id="sheet-title" className="d" style={{ fontSize: 20 }}>Filters</h2>
+                  <button type="button" className="btn btn-g btn-ico" aria-label="Close filters" onClick={() => setShowFilters(false)}><Icon name="x" size={22} /></button>
+                </div>
+                <div className="sheet-body">{filters}</div>
+                <div className="row g10 sheet-foot">
+                  <button type="button" className="btn btn-s" disabled={!aud.length && !fees.length} onClick={() => { setAud([]); setFees([]); }}>Clear</button>
+                  <button type="button" className="btn btn-p grow" onClick={() => setShowFilters(false)}>Show {results.length} {results.length === 1 ? "service" : "services"}</button>
+                </div>
+              </div>
+            </div>
+          )}
           {results.length ? (
             <div className="grid cols-3">{results.map((s) => <ServiceCard key={s.slug} s={s} category={catName(s.category)} />)}</div>
           ) : (

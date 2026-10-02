@@ -47,7 +47,7 @@ export function NewMenu({
             width: 210,
             padding: 6,
             zIndex: 40,
-            boxShadow: "0 8px 24px rgba(0,0,0,0.12)",
+            boxShadow: "var(--shadow-pop)",
           }}
         >
           <Link

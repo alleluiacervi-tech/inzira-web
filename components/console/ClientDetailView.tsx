@@ -184,7 +184,7 @@ export function ClientDetailView({
       </div>
 
       {/* Tabs */}
-      <div className="row g6 console-tabs" style={{ borderBottom: "1px solid var(--c-border)", paddingBottom: 2 }}>
+      <div className="row console-tabs c-tabs" role="tablist" aria-label="Client sections">
         {[
           { id: "overview", label: "Overview", icon: "home" },
           { id: "requests", label: `Requests (${client.requests.length})`, icon: "list" },
@@ -197,7 +197,9 @@ export function ClientDetailView({
           <button
             key={tab.id}
             type="button"
-            className={`c-btn ${activeTab === tab.id ? "c-btn-primary" : "c-btn-ghost"} c-btn-sm`}
+            role="tab"
+            aria-selected={activeTab === tab.id}
+            className="c-tab"
             onClick={() => setActiveTab(tab.id as any)}
           >
             <Icon name={tab.icon} size={14} />
@@ -414,7 +416,7 @@ export function ClientDetailView({
           <h3 className="console-section-title" style={{ margin: 0 }}>All Messages History</h3>
           <div className="stack g10" style={{ maxHeight: 400, overflowY: "auto" }}>
             {client.messages.map((m) => (
-              <div key={m.id} className="console-panel stack g4" style={{ padding: 12, background: m.by === "customer" ? "#fff" : "var(--c-ember-bg)" }}>
+              <div key={m.id} className="console-panel stack g4" style={{ padding: 12, background: m.by === "customer" ? "var(--c-surface)" : "var(--c-ember-bg)" }}>
                 <div className="row between g8" style={{ fontSize: 12, color: "var(--c-text-muted)" }}>
                   <strong>{m.name || "Client"}</strong>
                   <span>{fmtWhen(m.at, now)}</span>
@@ -431,7 +433,7 @@ export function ClientDetailView({
           <h3 className="console-section-title" style={{ margin: 0 }}>Client-level Internal Notes</h3>
           <div className="stack g8" style={{ maxHeight: 300, overflowY: "auto" }}>
             {client.notes.map((n) => (
-              <div key={n.id} className="console-panel stack g4" style={{ padding: 12, background: "#fafafa" }}>
+              <div key={n.id} className="console-panel stack g4" style={{ padding: 12, background: "var(--c-bg)" }}>
                 <div className="row between g8" style={{ fontSize: 12, color: "var(--c-text-muted)" }}>
                   <strong>{n.name}</strong>
                   <span>{fmtWhen(n.at, now)}</span>

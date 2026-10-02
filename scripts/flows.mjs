@@ -216,7 +216,7 @@ await step("agent", async () => {
   const p = await page();
   await signIn(p, "780000001");
   check("agent: staff land in the workspace", (await p.ev("location.pathname")) === "/agent" && await p.has("Good"));
-  check("agent: My Day shows agent work queues", await p.has("Follow-ups Today") && await p.has("SLA Attention") && await p.has("All My Open Cases ("));
+  check("agent: My Day shows agent work queues", await p.has("Follow-ups Today") && await p.has("SLA Attention") && await p.has("My open cases ("));
   await p.go("/agent/cases/INZ-2026-04817");
   check("agent: another agent's case is hidden", await p.has("We couldn’t find that case"));
   await p.go("/agent/cases/INZ-2026-04790");
@@ -299,7 +299,7 @@ await step("console", async () => {
   // 1. Overview & Needs Attention link-through
   await p.go("/console/overview");
   check("console: overview loads with needs attention", await p.has("Needs attention") && await p.has("Fee breakdown trend"));
-  await p.click("New submissions to assign"); await sleep(500);
+  await p.click("New submissions to assign"); await waitFor(p, "Inbox / Triage");
   check("console: clicking needs attention card navigates to inbox", (await p.ev("location.pathname")).includes("/console/inbox"));
 
   // 2. Inbox view & assign
@@ -344,7 +344,7 @@ await step("console", async () => {
   // 4. Clients directory & Client profile
   await p.go("/console/clients");
   check("console: clients directory loads", await p.has("Client Directory") && await p.has("Aline Uwase"));
-  await p.click("Aline Uwase"); await sleep(600); await p.help();
+  await p.click("Aline Uwase"); await waitPath(p, (path) => path.startsWith("/console/clients/")); await waitFor(p, "National ID"); await p.help();
   check("console: client profile loads with tabs", (await p.ev("location.pathname")).includes("/console/clients/") && await p.has("National ID"));
   
   // Privacy reveal
@@ -359,7 +359,7 @@ await step("console", async () => {
 
   // Add a tag
   await p.set("input[placeholder='Add tag (e.g. VIP)...']", "FlowTest");
-  await p.click("Add tag", "button"); await sleep(400);
+  await p.click("Add tag", "button"); await waitFor(p, "FlowTest");
   check("console: client tag added", await p.has("FlowTest"));
 
   // 5. My Day view

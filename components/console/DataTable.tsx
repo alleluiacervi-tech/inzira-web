@@ -296,7 +296,7 @@ export function DataTable<T extends { id?: string; ref?: string }>({
                   zIndex: 30,
                   padding: 12,
                   width: 200,
-                  boxShadow: "0 8px 24px rgba(0,0,0,0.12)",
+                  boxShadow: "var(--shadow-pop)",
                 }}
               >
                 <div className="row between" style={{ paddingBottom: 6, borderBottom: "1px solid var(--c-border)" }}>
@@ -381,9 +381,9 @@ export function DataTable<T extends { id?: string; ref?: string }>({
         </div>
       )}
 
-      {/* Main Table Container */}
-      <div className="console-table-container">
-        <table className={`console-table ${compact ? "compact" : ""}`}>
+      {/* Main Table Container: scrolls inside itself so the header row can stay in view */}
+      <div className="console-table-container c-table-scroll">
+        <table className={`console-table c-cards ${compact ? "compact" : ""}`}>
           <thead>
             <tr>
               {bulkActions && (
@@ -451,6 +451,7 @@ export function DataTable<T extends { id?: string; ref?: string }>({
                 >
                   {bulkActions && (
                     <td
+                      className="c-td-select"
                       style={{ width: 36, textAlign: "center" }}
                       onClick={(e) => toggleSelectRow(rowId, e)}
                     >
@@ -472,6 +473,7 @@ export function DataTable<T extends { id?: string; ref?: string }>({
                       <td
                         key={col.id}
                         className={col.align === "right" ? "num" : ""}
+                        data-label={col.header}
                       >
                         {content}
                       </td>
@@ -497,10 +499,10 @@ export function DataTable<T extends { id?: string; ref?: string }>({
           {/* Totals Row (if any column specifies a total) */}
           {displayedColumns.some((c) => c.total) && (
             <tfoot>
-              <tr style={{ background: "#fafafa", fontWeight: 700, borderTop: "2px solid var(--c-border)" }}>
-                {bulkActions && <td />}
+              <tr style={{ background: "var(--c-bg)", fontWeight: 700, borderTop: "2px solid var(--c-border)" }}>
+                {bulkActions && <td className="c-td-select" />}
                 {displayedColumns.map((col) => (
-                  <td key={col.id} className={col.align === "right" ? "num" : ""}>
+                  <td key={col.id} className={col.align === "right" ? "num" : ""} data-label={col.total ? `Total ${col.header.toLowerCase()}` : undefined}>
                     {col.total ? col.total(sortedData) : null}
                   </td>
                 ))}

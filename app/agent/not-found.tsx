@@ -1,5 +1,5 @@
-import { PageMissing } from "@/components/PageStates";
+import { ConsoleMissing } from "@/components/console/ConsoleStates";
 
 export default function NotFound() {
-  return <PageMissing what="case" href="/agent#cases" back="All cases" />;
+  return <ConsoleMissing what="case" href="/agent" back="Back to My day" />;
 }

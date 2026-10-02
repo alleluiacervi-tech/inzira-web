@@ -139,7 +139,7 @@ export function RecordPaymentModal({
             </div>
 
             {/* Two separate fee lines */}
-            <div className="stack g10 console-panel" style={{ padding: 14, background: "#fafafa" }}>
+            <div className="stack g10 console-panel" style={{ padding: 14, background: "var(--c-bg)" }}>
               <strong style={{ fontSize: 13 }}>Two-line breakdown (RWF)</strong>
               
               <div className="row between g12">
@@ -198,7 +198,7 @@ export function RecordPaymentModal({
             style={{
               padding: "12px 18px",
               borderTop: "1px solid var(--c-border)",
-              background: "#fafafa",
+              background: "var(--c-bg)",
               display: "flex",
               alignItems: "center",
               justifyContent: "flex-end",

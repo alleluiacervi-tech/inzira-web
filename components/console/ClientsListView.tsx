@@ -1,5 +1,6 @@
 "use client";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { Icon } from "@/components/ui";
 import { fmtAgo, fmtDay, rwf } from "@/lib/format";
@@ -15,6 +16,7 @@ export function ClientsListView({
   clients: ClientSummary[];
   now: string;
 }) {
+  const router = useRouter();
   const [addClientOpen, setAddClientOpen] = useState(false);
   const [toast, setToast] = useState("");
 
@@ -210,7 +212,7 @@ export function ClientsListView({
         filters={filtersDef}
         exportFileName="clients.csv"
         searchPlaceholder="Search client name, phone, district, tags..."
-        onRowClick={(c) => window.location.assign(`/console/clients/${c.id}`)}
+        onRowClick={(c) => router.push(`/console/clients/${c.id}`)}
       />
 
       <AddClientModal

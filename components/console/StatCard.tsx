@@ -1,6 +1,13 @@
 "use client";
 import Link from "next/link";
+import type { ReactNode } from "react";
 import { Icon } from "@/components/ui";
+
+/** "+10 (+50%) vs prev 30d" → the signed change, and what it is compared with. */
+function splitDelta(delta: string) {
+  const m = delta.match(/^([+\-−]\S*(?: \([^)]*\))?)\s*(.*)$/);
+  return m ? { change: m[1], against: m[2], down: /^[-−]/.test(m[1]) } : null;
+}
 
 export function StatCard({
   title,
@@ -9,61 +16,56 @@ export function StatCard({
   subtext,
   href,
   icon,
-  highlight = false,
+  tone,
+  trend,
+  downIsGood = false,
 }: {
   title: string;
   value: string | number;
+  /** Signed change against an earlier period, e.g. "+10 vs prev 30d". */
   delta?: string;
   subtext?: string;
   href?: string;
   icon?: string;
-  highlight?: boolean;
+  /** Colours the figure when it needs attention. */
+  tone?: "red";
+  /** Optional small chart under the figure (e.g. a Sparkline). */
+  trend?: ReactNode;
+  /** For measures where a fall is good news (overdue items, refunds). */
+  downIsGood?: boolean;
 }) {
-  const content = (
-    <div
-      className={`console-panel console-panel-body stack g8 ${href ? "c-clickable-card" : ""}`}
-      style={{
-        padding: "16px 18px",
-        borderColor: highlight ? "var(--c-ember-border)" : "var(--c-border)",
-        background: highlight ? "var(--c-ember-bg)" : "var(--c-surface)",
-        transition: "border-color 0.12s, box-shadow 0.12s",
-      }}
-    >
+  const d = delta ? splitDelta(delta) : null;
+  const good = d ? d.down === downIsGood : false;
+  const body = (
+    <>
       <div className="row between g8">
-        <span style={{ fontSize: 13, fontWeight: 500, color: "var(--c-text-muted)" }}>{title}</span>
-        {icon && <span style={{ color: highlight ? "var(--c-ember)" : "var(--c-text-subtle)" }}><Icon name={icon} size={16} /></span>}
+        <span className="c-stat-label">{title}</span>
+        {icon && <span className="c-stat-icon"><Icon name={icon} size={16} /></span>}
       </div>
-      <div className="row between g8" style={{ alignItems: "baseline" }}>
-        <span className="console-stat-figure" style={{ color: highlight ? "var(--c-ember)" : "var(--c-text)" }}>
-          {value}
-        </span>
-        {href && <span style={{ fontSize: 12, color: "var(--c-ember)", fontWeight: 500 }}>View →</span>}
+      <div className="row between g8" style={{ alignItems: "flex-end" }}>
+        <span className="console-stat-figure" style={tone === "red" ? { color: "var(--c-red)" } : undefined}>{value}</span>
+        {trend}
       </div>
-      {(delta || subtext) && (
-        <div className="row g6 wrapx" style={{ fontSize: 12 }}>
-          {delta && (
-            <span
-              style={{
-                fontWeight: 600,
-                color: delta.startsWith("+") ? "var(--c-green)" : delta.startsWith("-") ? "var(--c-red)" : "var(--c-text-muted)",
-              }}
-            >
-              {delta}
-            </span>
-          )}
-          {subtext && <span style={{ color: "var(--c-text-muted)" }}>{subtext}</span>}
+      {(d || delta || subtext) && (
+        <div className="row g6 wrapx c-caption" style={{ rowGap: 2 }}>
+          {d ? (
+            <>
+              <span className={`c-delta ${d.change.startsWith("+0") || d.change === "0" ? "" : good ? "c-delta-good" : "c-delta-bad"}`}>
+                <Icon name={d.down ? "down" : "arrow"} size={11} stroke={2.4} style={d.down ? undefined : { transform: "rotate(-90deg)" }} />
+                {d.change.replace(/^\+/, "")}
+              </span>
+              {d.against && <span>{d.against}</span>}
+            </>
+          ) : delta ? <span>{delta}</span> : null}
+          {subtext && <span>{d || delta ? `· ${subtext}` : subtext}</span>}
         </div>
       )}
-    </div>
+    </>
   );
 
-  if (href) {
-    return (
-      <Link href={href} style={{ textDecoration: "none", color: "inherit", display: "block" }}>
-        {content}
-      </Link>
-    );
-  }
-
-  return content;
+  return href ? (
+    <Link href={href} className="console-panel c-stat c-stat-link" aria-label={`${title}: ${value}. Open details`}>{body}</Link>
+  ) : (
+    <div className="console-panel c-stat">{body}</div>
+  );
 }

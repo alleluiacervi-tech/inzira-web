@@ -29,9 +29,9 @@ export default function Ledger({ initial: rows, now, canRefund }: { initial: Req
           const b = r.billing;
           return (
             <tr key={r.ref}>
-              <td><span className="stack" style={{ gap: 1 }}><span className="m">{b.invoice}</span><span className="m mut" style={{ fontSize: 11.5 }}>{r.ref}</span></span></td>
+              <td className="nowrap"><span className="stack" style={{ gap: 1 }}><span className="m">{b.invoice}</span><span className="m mut" style={{ fontSize: 11.5 }}>{r.ref}</span></span></td>
               <td><strong>{r.profile.name}</strong></td><td className="mut">{r.name}</td>
-              <td style={{ fontWeight: 600 }}>{billOfficial(b)}</td><td className="fee-ours" style={{ fontWeight: 700 }}>{rwf(b.ours)}</td>
+              <td style={{ fontWeight: 600 }}>{billOfficial(b)}</td><td className="fee-ours nowrap" style={{ fontWeight: 700 }}>{rwf(b.ours)}</td>
               <td>{b.transactions[0]?.method ?? "—"}</td><td><PayBadge s={payStatus(b, now)} /></td><td className="mut" style={{ fontSize: 13 }}>{b.officialMode === "direct" ? "Paid by customer" : b.officialMode === "none" ? "n/a" : RECEIPT[b.officialReceipt]}</td>
               <td style={{ textAlign: "right" }}>{canRefund && refundable(r) > 0 && <button type="button" className="btn btn-s btn-sm" onClick={() => { setDone(""); setRefund(r); }}>Refund</button>}</td>
             </tr>

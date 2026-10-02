@@ -104,7 +104,7 @@ export default function Workspace({ c, me, perms, agents, category, now }: { c: 
       </div>
 
       <div className="content">
-        {toast && <div role="status" className="toast"><Icon name="check" size={18} color="#8FD4A5" />{toast}</div>}
+        {toast && <div role="status" className="toast"><Icon name="check" size={18} color="var(--ok-on-dark)" />{toast}</div>}
         {error && <Alert kind="err" title="Not saved" live action={<button type="button" className="btn btn-s btn-sm" onClick={() => setError("")}>Dismiss</button>}>{error}</Alert>}
         {closed && <Alert kind={closed.kind === "rejected" ? "err" : "info"} title={closed.kind === "rejected" ? "Rejected by the institution" : "Cancelled"}>{closed.reason}</Alert>}
         <div className="ws" aria-busy={busy}>

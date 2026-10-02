@@ -283,7 +283,7 @@ export function InboxView({
 
             <div className="stack g4">
               <span className="console-nav-group-title" style={{ padding: 0 }}>Pricing</span>
-              <div className="stack g4 console-panel" style={{ padding: 12, background: "#fafafa" }}>
+              <div className="stack g4 console-panel" style={{ padding: 12, background: "var(--c-bg)" }}>
                 <div className="c-fee-line">
                   <span className="row g6"><span className="c-fee-tag-official">Official</span> Government fee</span>
                   <strong>{selectedReq.billing.official ? rwf(selectedReq.billing.official) : "Confirmed per case"}</strong>
@@ -347,7 +347,7 @@ export function InboxView({
               style={{
                 padding: "12px 18px",
                 borderTop: "1px solid var(--c-border)",
-                background: "#fafafa",
+                background: "var(--c-bg)",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "flex-end",
@@ -452,7 +452,7 @@ export function InboxView({
                 style={{
                   padding: "12px 18px",
                   borderTop: "1px solid var(--c-border)",
-                  background: "#fafafa",
+                  background: "var(--c-bg)",
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "flex-end",

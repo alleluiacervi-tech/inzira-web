@@ -53,5 +53,17 @@ export const ICONS: Record<string, string> = {
  "c-other": "<circle cx=\"7\" cy=\"7\" r=\"2.5\"></circle><circle cx=\"17\" cy=\"7\" r=\"2.5\"></circle><circle cx=\"7\" cy=\"17\" r=\"2.5\"></circle><path d=\"M17 14v6M14 17h6\"></path>",
  "pause": "<path d=\"M9 6v12M15 6v12\"></path>",
  "c-car": "<path d=\"M3.5 16V12l2.2-5h12.6l2.2 5v4z\"></path><path d=\"M3.5 12h17\"></path><circle cx=\"7.5\" cy=\"16.5\" r=\"1.8\"></circle><circle cx=\"16.5\" cy=\"16.5\" r=\"1.8\"></circle>",
- "c-learn": "<path d=\"M2.5 9L12 4.5 21.5 9 12 13.5z\"></path><path d=\"M6.5 11.2v4.3c0 1.6 2.5 3 5.5 3s5.5-1.4 5.5-3v-4.3M21.5 9v5\"></path>"
+ "c-learn": "<path d=\"M2.5 9L12 4.5 21.5 9 12 13.5z\"></path><path d=\"M6.5 11.2v4.3c0 1.6 2.5 3 5.5 3s5.5-1.4 5.5-3v-4.3M21.5 9v5\"></path>",
+ "left": "<path d=\"M15 6l-6 6 6 6\"></path>",
+ "inbox": "<path d=\"M3 13l2.5-8h13L21 13v6a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z\"></path><path d=\"M3 13h5l1.5 2.5h5L16 13h5\"></path>",
+ "sun": "<circle cx=\"12\" cy=\"12\" r=\"4\"></circle><path d=\"M12 2.5v2M12 19.5v2M2.5 12h2M19.5 12h2M5.3 5.3l1.4 1.4M17.3 17.3l1.4 1.4M5.3 18.7l1.4-1.4M17.3 6.7l1.4-1.4\"></path>",
+ "briefcase": "<rect x=\"3\" y=\"7\" width=\"18\" height=\"13\" rx=\"2\"></rect><path d=\"M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2M3 13h18\"></path>",
+ "bookmark": "<path d=\"M6 4h12v17l-6-4-6 4z\"></path>",
+ "circle": "<circle cx=\"12\" cy=\"12\" r=\"7\"></circle>",
+ "check-circle": "<circle cx=\"12\" cy=\"12\" r=\"9\"></circle><path d=\"M8.5 12.5l2.5 2.5 4.5-5\"></path>",
+ "file-text": "<path d=\"M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z\"></path><path d=\"M14 3v5h5M9 13h6M9 17h4\"></path>"
 };
+
+// Alternative names used across the console.
+ICONS["alert-triangle"] = ICONS.alert;
+ICONS["message-square"] = ICONS.msg;

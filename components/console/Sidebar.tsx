@@ -90,7 +90,7 @@ export function Sidebar({
     <>
       {mobileOpen && (
         <div
-          className="console-sidepanel-backdrop d-hide"
+          className="console-sidepanel-backdrop c-mobile-only"
           onClick={onCloseMobile}
           style={{ zIndex: 39 }}
         />
@@ -107,7 +107,7 @@ export function Sidebar({
           {onCloseMobile && (
             <button
               type="button"
-              className="c-btn c-btn-ghost c-btn-sm c-btn-icon d-hide"
+              className="c-btn c-btn-ghost c-btn-sm c-btn-icon c-mobile-only"
               onClick={onCloseMobile}
               aria-label="Close navigation"
             >
@@ -154,7 +154,7 @@ export function Sidebar({
           style={{
             padding: "12px 16px",
             borderTop: "1px solid var(--c-border)",
-            background: "#fafafa",
+            background: "var(--c-bg)",
             fontSize: 12,
             color: "var(--c-text-muted)",
           }}

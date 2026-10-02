@@ -17,7 +17,7 @@ import {
   uploadCaseFile,
 } from "@/app/actions/agent";
 import { Icon } from "@/components/ui";
-import { fmtAgo, fmtMonth, fmtWhen, initials, rwf, shortName } from "@/lib/format";
+import { billOfficial, billOurs, fmtAgo, fmtMonth, fmtWhen, initials, rwf, shortName } from "@/lib/format";
 import type { Permission } from "@/lib/permissions";
 import { payStatus, stageLabel } from "@/lib/status";
 import type { Closed, RequestView, Staff, Stage } from "@/lib/types";
@@ -135,13 +135,17 @@ export function RequestDetailView({
               <PaymentStatusBadge status={payStatus(c.billing, now)} />
             </div>
 
-            <div className="row g12 wrapx" style={{ fontSize: 13, color: "var(--c-text-muted)" }}>
-              <Link href={`/console/clients/${c.profileId}`} className="linkish" style={{ color: "var(--c-text)", fontWeight: 600 }}>
-                {c.profile.name} ({c.profile.kind})
+            <div className="c-facts">
+              <Link href={`/console/clients/${c.profileId}`} className="c-ref-link" style={{ fontWeight: 600 }}>
+                {c.profile.name} <span className="c-caption">({c.profile.kind})</span>
               </Link>
-              <span>· Phone: {c.account.phone}</span>
-              <span>· Opened {fmtAgo(c.openedAt, now)} ({ageDays}d old)</span>
-              <span>· In {stageLabel(c, c.stage)}: {stageDays}d</span>
+              <span>{c.account.phone}</span>
+              <span>Opened {fmtAgo(c.openedAt, now)} · {ageDays}d</span>
+              <span>{stageDays}d in {stageLabel(c, c.stage)}</span>
+            </div>
+            <div className="c-fee-summary" aria-label="Fees on this request">
+              <span><span className="c-fee-tag-ours">Inzira</span><strong className="tnum">{billOurs(c.billing)}</strong></span>
+              <span><span className="c-fee-tag-official">Official</span><strong className="tnum">{billOfficial(c.billing)}</strong></span>
             </div>
           </div>
 
@@ -209,29 +213,33 @@ export function RequestDetailView({
           className="row between g12 wrapx"
           style={{
             padding: "10px 14px",
-            background: "#f9fafb",
+            background: "var(--c-bg)",
             border: "1px solid var(--c-border-subtle)",
             borderRadius: "var(--c-radius)",
           }}
         >
-          <div className="row g8 wrapx" style={{ fontSize: 13 }}>
-            <span style={{ fontWeight: 600, color: "var(--c-text-muted)" }}>Stage:</span>
+          <ol className="c-stepper" aria-label="Stage — choose a stage to move the case">
             {c.flow.map((st, idx) => {
               const active = c.stage === st;
-              const isPast = c.stageDates[st] && !active;
+              const isPast = !!c.stageDates[st] && !active && c.flow.indexOf(c.stage) > idx;
+              const state = active ? (finished ? "done" : "current") : isPast || finished ? "done" : "todo";
               return (
-                <button
-                  key={st}
-                  type="button"
-                  className={`c-btn c-btn-sm ${active ? "c-btn-primary" : isPast ? "c-btn-secondary" : "c-btn-ghost"}`}
-                  disabled={finished || active || busy || !can("updateStatus")}
-                  onClick={() => run(`Moved to ${stageLabel(c, st)}`, () => setStage(c.ref, st, "", true))}
-                >
-                  <span>{idx + 1}. {stageLabel(c, st)}</span>
-                </button>
+                <li key={st} className={`c-step is-${state}`}>
+                  <button
+                    type="button"
+                    className="c-step-btn"
+                    aria-current={active ? "step" : undefined}
+                    disabled={finished || active || busy || !can("updateStatus")}
+                    onClick={() => run(`Moved to ${stageLabel(c, st)}`, () => setStage(c.ref, st, "", true))}
+                    title={active ? "Current stage" : `Move to ${stageLabel(c, st)}`}
+                  >
+                    <span className="c-step-dot">{state === "done" ? <Icon name="check" size={12} stroke={2.6} /> : idx + 1}</span>
+                    <span className="c-step-label">{stageLabel(c, st)}</span>
+                  </button>
+                </li>
               );
             })}
-          </div>
+          </ol>
 
           <div className="row g6">
             <button
@@ -256,7 +264,7 @@ export function RequestDetailView({
       </div>
 
       {/* Tabs Bar */}
-      <div className="row g6 console-tabs" style={{ borderBottom: "1px solid var(--c-border)", paddingBottom: 2 }}>
+      <div className="row console-tabs c-tabs" role="tablist" aria-label="Request sections">
         {[
           { id: "overview", label: "Overview", icon: "home" },
           { id: "documents", label: `Documents (${c.documents.length})`, icon: "file" },
@@ -267,7 +275,9 @@ export function RequestDetailView({
           <button
             key={tab.id}
             type="button"
-            className={`c-btn ${activeTab === tab.id ? "c-btn-primary" : "c-btn-ghost"} c-btn-sm`}
+            role="tab"
+            aria-selected={activeTab === tab.id}
+            className="c-tab"
             onClick={() => setActiveTab(tab.id as any)}
           >
             <Icon name={tab.icon} size={14} />
@@ -512,8 +522,8 @@ export function RequestDetailView({
                       width: 28,
                       height: 28,
                       borderRadius: "50%",
-                      background: staff ? "var(--c-ember)" : "#e5e7eb",
-                      color: staff ? "#fff" : "#374151",
+                      background: staff ? "var(--c-ember)" : "var(--c-border)",
+                      color: staff ? "var(--c-surface)" : "var(--c-text)",
                       fontSize: 10,
                       fontWeight: 700,
                       display: "flex",
@@ -531,7 +541,7 @@ export function RequestDetailView({
                       style={{
                         padding: "8px 14px",
                         borderRadius: 8,
-                        background: staff ? "var(--c-ember-bg)" : "#f3f4f6",
+                        background: staff ? "var(--c-ember-bg)" : "var(--c-surface-hover)",
                         color: "var(--c-text)",
                         fontSize: 13.5,
                         lineHeight: 1.4,
@@ -546,7 +556,7 @@ export function RequestDetailView({
           </div>
 
           {!finished && (
-            <div className="stack g10" style={{ padding: "14px 18px", borderTop: "1px solid var(--c-border)", background: "#fafafa" }}>
+            <div className="stack g10" style={{ padding: "14px 18px", borderTop: "1px solid var(--c-border)", background: "var(--c-bg)" }}>
               <div className="row g6 wrapx">
                 <span style={{ fontSize: 12, fontWeight: 600, color: "var(--c-text-muted)" }}>Canned replies:</span>
                 {["Mwiriwe, please upload a clearer copy of your ID.", "Official application submitted, awaiting approval."].map((qk) => (
@@ -722,7 +732,7 @@ export function RequestDetailView({
                 <span style={{ fontSize: 13, color: "var(--c-text-muted)" }}>No internal notes yet.</span>
               )}
               {c.notes.map((n) => (
-                <div key={n.id} className="console-panel stack g4" style={{ padding: 10, background: "#fafafa" }}>
+                <div key={n.id} className="console-panel stack g4" style={{ padding: 10, background: "var(--c-bg)" }}>
                   <div className="row between g8" style={{ fontSize: 12, color: "var(--c-text-muted)" }}>
                     <strong>{n.name}</strong>
                     <span>{fmtWhen(n.at, now)}</span>

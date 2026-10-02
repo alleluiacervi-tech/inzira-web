@@ -24,13 +24,13 @@ export function Toast({
         <Icon
           name={type === "ok" ? "check" : type === "err" ? "alert" : "info"}
           size={16}
-          color={type === "ok" ? "#4ade80" : type === "err" ? "#f87171" : "#60a5fa"}
+          color={type === "ok" ? "var(--ok-on-dark)" : type === "err" ? "var(--err-on-dark)" : "var(--info-on-dark)"}
         />
         <span>{message}</span>
         <button
           type="button"
           onClick={onDismiss}
-          style={{ background: "none", border: "none", color: "#9ca3af", cursor: "pointer", padding: "0 0 0 4px", display: "inline-flex" }}
+          style={{ background: "none", border: "none", color: "var(--on-dark-muted)", cursor: "pointer", padding: "0 0 0 4px", display: "inline-flex" }}
           aria-label="Dismiss toast"
         >
           <Icon name="x" size={14} />

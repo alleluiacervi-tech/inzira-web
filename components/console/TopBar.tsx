@@ -58,37 +58,35 @@ export function TopBar({
   return (
     <>
       <header className="console-topbar">
-        {/* Left: Mobile hamburger & quick search button */}
-        <div className="row g10">
+        {/* Left: menu and logo on phones, search everywhere */}
+        <div className="row g8 c-topbar-left">
           <button
             type="button"
-            className="c-btn c-btn-ghost c-btn-sm c-btn-icon d-hide"
+            className="c-btn c-btn-ghost c-btn-icon c-topbar-menu c-mobile-only"
             onClick={onToggleMobileMenu}
             aria-label="Open sidebar menu"
           >
-            <Icon name="list" size={18} />
+            <Icon name="menu" size={20} />
           </button>
-
+          <Link href="/agent" className="c-topbar-logo c-mobile-only" aria-label="Inzira staff console home">
+            <LogoMark />
+          </Link>
           <button
             type="button"
-            className="row g8 c-btn c-btn-secondary c-btn-sm"
-            style={{ width: 220, justifyContent: "space-between", color: "var(--c-text-muted)" }}
+            className="c-btn c-btn-secondary c-btn-sm c-search-trigger"
             onClick={() => setSearchOpen(true)}
+            aria-label="Search requests, clients and references"
           >
-            <span className="row g6">
-              <Icon name="search" size={14} />
-              <span>Search...</span>
-            </span>
-            <kbd style={{ fontSize: 10, background: "#e5e7eb", padding: "1px 5px", borderRadius: 3, color: "#374151" }}>
-              ⌘K
-            </kbd>
+            <Icon name="search" size={15} />
+            <span className="c-search-label">Search…</span>
+            <kbd className="c-kbd">⌘K</kbd>
           </button>
         </div>
 
         {/* Right: Date Range (if provided), + New, Notifications, Profile */}
-        <div className="row g12">
+        <div className="row g12 c-topbar-right">
           {dateRange !== undefined && onDateRangeChange && (
-            <div className="row g4 console-panel" style={{ padding: 2, background: "#f3f4f6" }}>
+            <div className="row g4 console-panel" style={{ padding: 2, background: "var(--c-surface-hover)" }}>
               {[7, 30, 90].map((days) => (
                 <button
                   key={days}
@@ -103,7 +101,7 @@ export function TopBar({
                     padding: "3px 8px",
                     borderRadius: 4,
                     cursor: "pointer",
-                    boxShadow: dateRange === days ? "0 1px 3px rgba(0,0,0,0.08)" : "none",
+                    boxShadow: dateRange === days ? "0 1px 3px rgba(22, 24, 27, 0.08)" : "none",
                   }}
                 >
                   {days}d
@@ -157,7 +155,7 @@ export function TopBar({
                   width: 220,
                   padding: 12,
                   zIndex: 50,
-                  boxShadow: "0 8px 24px rgba(0,0,0,0.12)",
+                  boxShadow: "var(--shadow-pop)",
                 }}
               >
                 <div className="stack" style={{ gap: 2, paddingBottom: 8, borderBottom: "1px solid var(--c-border)" }}>

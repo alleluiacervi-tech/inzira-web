@@ -82,7 +82,6 @@ export function RequestsListView({
         </span>
       ),
       sortable: true,
-      width: 140,
     },
     {
       id: "client",
@@ -90,8 +89,8 @@ export function RequestsListView({
       accessor: (r) => r.profile.name,
       cell: (r) => (
         <div className="stack" style={{ gap: 1 }}>
-          <strong style={{ fontSize: 13 }}>{r.profile.name}</strong>
-          <span style={{ fontSize: 11.5, color: "var(--c-text-muted)" }}>{r.account.phone}</span>
+          <strong className="c-cell-clip" title={r.profile.name}>{r.profile.name}</strong>
+          <span className="c-cell-sub">{r.account.phone}</span>
         </div>
       ),
       sortable: true,
@@ -102,8 +101,8 @@ export function RequestsListView({
       accessor: (r) => r.name,
       cell: (r) => (
         <div className="stack" style={{ gap: 1 }}>
-          <span style={{ fontSize: 13, fontWeight: 500 }}>{r.name}</span>
-          <span style={{ fontSize: 11.5, color: "var(--c-text-muted)" }}>
+          <span className="c-cell-clip" style={{ fontWeight: 500 }} title={r.name}>{r.name}</span>
+          <span className="c-cell-sub c-cell-clip">
             {categories[r.service.category] || r.service.category} · {r.channel}
           </span>
         </div>
@@ -116,24 +115,9 @@ export function RequestsListView({
       accessor: (r) => r.agent?.name ?? "Unassigned",
       cell: (r) => (
         r.agent ? (
-          <span className="row g6" style={{ fontSize: 12.5 }}>
-            <span
-              style={{
-                width: 20,
-                height: 20,
-                borderRadius: "50%",
-                background: "#e5e7eb",
-                color: "#374151",
-                fontSize: 9,
-                fontWeight: 700,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-              }}
-            >
-              {initials(r.agent.name)}
-            </span>
-            <span>{shortName(r.agent.name)}</span>
+          <span className="row g6 nowrap" style={{ fontSize: 12.5 }} title={r.agent.name}>
+            <span className="c-avatar c-avatar-sm">{initials(r.agent.name)}</span>
+            <span>{r.agent.name.split(" ")[0]}</span>
           </span>
         ) : (
           <span style={{ color: "var(--c-ember)", fontSize: 12, fontWeight: 600 }}>Unassigned</span>
@@ -163,14 +147,13 @@ export function RequestsListView({
         const { stageDays, isSlaBreached } = calcMetrics(r);
         return (
           <span
-            className="tabular-nums"
-            style={{
-              fontSize: 12.5,
-              fontWeight: isSlaBreached ? 700 : 400,
-              color: isSlaBreached ? "var(--c-red)" : "inherit",
-            }}
+            className={`row g4 tabular-nums ${isSlaBreached ? "c-sla-late" : ""}`}
+            style={{ justifyContent: "flex-end", fontSize: 12.5 }}
+            title={isSlaBreached ? "Past the target time for this stage" : undefined}
           >
-            {stageDays}d {isSlaBreached && "⚠️"}
+            {isSlaBreached && <Icon name="alert" size={13} stroke={2.2} />}
+            {stageDays}d
+            {isSlaBreached && <span className="sr-only">, past target time</span>}
           </span>
         );
       },
@@ -184,6 +167,7 @@ export function RequestsListView({
       cell: (r) => <span className="tabular-nums mut" style={{ fontSize: 12.5 }}>{calcMetrics(r).ageDays}d</span>,
       sortable: true,
       align: "right",
+      defaultVisible: false,
     },
     {
       id: "ours",
@@ -487,7 +471,7 @@ export function RequestsListView({
       >
         {selectedReq && (
           <div className="stack g16">
-            <div className="row between g8 console-panel" style={{ padding: 12, background: "#fafafa" }}>
+            <div className="row between g8 console-panel" style={{ padding: 12, background: "var(--c-bg)" }}>
               <div className="stack" style={{ gap: 2 }}>
                 <span style={{ fontSize: 12, color: "var(--c-text-muted)" }}>Status</span>
                 <RequestStatusBadge r={selectedReq} viewer="staff" />
@@ -574,7 +558,7 @@ export function RequestsListView({
                 ))}
               </select>
             </div>
-            <div style={{ padding: "12px 18px", borderTop: "1px solid var(--c-border)", background: "#fafafa", display: "flex", justifyContent: "flex-end", gap: 8 }}>
+            <div style={{ padding: "12px 18px", borderTop: "1px solid var(--c-border)", background: "var(--c-bg)", display: "flex", justifyContent: "flex-end", gap: 8 }}>
               <button type="button" className="c-btn c-btn-secondary" onClick={() => setBulkAssignOpen(false)} disabled={busy}>Cancel</button>
               <button type="button" className="c-btn c-btn-primary" onClick={() => handleBulkAssign(targetAgentId)} disabled={busy}>
                 {busy ? "Saving..." : "Apply assignment"}
