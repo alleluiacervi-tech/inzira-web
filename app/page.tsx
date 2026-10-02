@@ -22,11 +22,13 @@ const PLANS = [
   { name: "Monthly tax declarations", price: "RWF 30,000", unit: "per month", desc: "For businesses that declare PAYE, income tax, tourism tax and related taxes every month.", items: ["Every monthly declaration prepared and filed", "We tell you each amount and the deadline", "Taxes paid by you straight to RRA, never through us", "One named agent who knows your business"], cta: "Start monthly declarations", href: "/services/monthly-tax-declarations", hl: true },
   { name: "Anything else online", price: "Agreed with you", unit: "before we start", desc: "Need another online government service? Tell us what it is.", items: ["We confirm the process with you first", "You agree our fee before anything starts", "Official fees still shown on their own line", "Same tracking and named agent"], cta: "Tell us what you need", href: "/start", hl: false },
 ];
-const TESTS = [
-  ["“I needed the e-title for my plot and had no idea where to start. They told me exactly what to send and kept me updated on WhatsApp.”", "Land owner · Kicukiro"],
-  ["“We registered our company and had the EBM installed the same month. The fee breakdown was clear from day one — no surprises.”", "Founder · [Company], Gasabo"],
-  ["“Our accountant left in March. Inzira now files our PAYE and other declarations every month and tells us what to pay before the deadline.”", "Manager · [Hotel], Musanze"],
+// Shown only once a review is real and the customer agreed to it being published (`consented: true`).
+const TESTS: { quote: string; name: string; who: string; consented: boolean }[] = [
+  { quote: "“I needed the e-title for my plot and had no idea where to start. They told me exactly what to send and kept me updated on WhatsApp.”", name: "[Customer name]", who: "Land owner · Kicukiro", consented: false },
+  { quote: "“We registered our company and had the EBM installed the same month. The fee breakdown was clear from day one — no surprises.”", name: "[Customer name]", who: "Founder · [Company], Gasabo", consented: false },
+  { quote: "“Our accountant left in March. Inzira now files our PAYE and other declarations every month and tells us what to pay before the deadline.”", name: "[Customer name]", who: "Manager · [Hotel], Musanze", consented: false },
 ];
+const REVIEWS = TESTS.filter((t) => t.consented);
 const FAQS = [
   ["Are you part of the government or Irembo?", "No. Inzira is a private, independent company. We help you use the official channels — Irembo, RRA, RDB, RURA and others — correctly. Official decisions are always made by the institution."],
   ["Why do I pay two fees?", "The official fee or tax goes to the institution, exactly as they set it — often you pay it to them directly. Our assistance fee pays for checking, preparing, submitting and following up. You always see both lines separately before you pay."],
@@ -58,6 +60,24 @@ function HeroVisual() {
   );
 }
 
+/** The hero illustration in one card, for screens where the full composition is hidden. */
+function HeroMini() {
+  return (
+    <div className="card shadow hero-mini stack g14" aria-hidden="true">
+      <div className="row between g10"><span className="m mut">INZ-2026-04802</span><Badge tone="info" label="With the institution" /></div>
+      <div className="stack g4"><span className="d" style={{ fontSize: 19 }}>Company registration</span><span className="mut" style={{ fontSize: 13.5 }}>Umucyo Tech Ltd · via RDB</span></div>
+      <div className="stack g6">
+        <div className="progress"><span style={{ width: "75%" }} /></div>
+        <span className="mut" style={{ fontSize: 12.5 }}>Step 3 of 4 · Submitted to RDB today, 09:40</span>
+      </div>
+      <div className="row between g10 wrapx" style={{ paddingTop: 12, borderTop: "1px solid var(--line-2)", fontSize: 13.5, rowGap: 10 }}>
+        <span className="row g8"><span className="av" style={{ width: 28, height: 28, fontSize: 11 }}>GI</span><span><strong>Grace</strong> is following up</span></span>
+        <span className="row g6 nowrap"><FeeTag kind="ours" /><strong className="fee-ours">RWF 10,000</strong></span>
+      </div>
+    </div>
+  );
+}
+
 export default async function Home() {
   const [services, categories] = await Promise.all([listServices(), listCategories()]);
   const catName = (id: string) => categories.find((c) => c.id === id)?.name ?? "";
@@ -65,7 +85,7 @@ export default async function Home() {
   return (
     <>
       <PublicNav />
-      <main>
+      <main className="home">
         <section className="hero wrap">
           <div className="stack g28">
             <span className="tag" style={{ alignSelf: "flex-start", height: 30, padding: "0 12px", background: "#fff", border: "1px solid var(--line)" }}><Icon name="shield" size={16} color="var(--ok)" /> Independent assistance service · {SITE.city}</span>
@@ -87,6 +107,7 @@ export default async function Home() {
               <Link className="tag" href="/services/e-title">E-title</Link>
               <Link className="tag" href="/services/ebm-installation">EBM installation</Link>
             </div>
+            <HeroMini />
           </div>
           <HeroVisual />
         </section>
@@ -165,20 +186,19 @@ export default async function Home() {
           </div>
         </section>
 
-        <section className="section wrap stack g32">
-          <div className="row between g16 wrapx" style={{ alignItems: "flex-end" }}>
+        {REVIEWS.length > 0 && (
+          <section className="section wrap stack g32">
             <div className="stack g12"><span className="eb">Customers</span><h2 className="d" style={{ fontSize: "clamp(26px, 3vw, 40px)" }}>In their words</h2></div>
-            <span className="tag" style={{ whiteSpace: "normal", height: "auto", padding: "4px 8px" }}>Sample copy — replace with verified, consented reviews</span>
-          </div>
-          <div className="grid cols-3 m-scroll">
-            {TESTS.map(([q, r]) => (
-              <figure key={r} className="card stack g20" style={{ padding: 28 }}>
-                <blockquote style={{ fontSize: 17, lineHeight: 1.55 }}>{q}</blockquote>
-                <figcaption className="row g12" style={{ marginTop: "auto" }}><span className="av" style={{ width: 40, height: 40 }}>··</span><span className="stack" style={{ gap: 2 }}><strong style={{ fontSize: 14.5 }}>[Customer name]</strong><span className="mut" style={{ fontSize: 13 }}>{r}</span></span></figcaption>
-              </figure>
-            ))}
-          </div>
-        </section>
+            <div className="grid cols-3 m-scroll">
+              {REVIEWS.map((t) => (
+                <figure key={t.quote} className="card stack g20" style={{ padding: 28 }}>
+                  <blockquote style={{ fontSize: 17, lineHeight: 1.55 }}>{t.quote}</blockquote>
+                  <figcaption className="row g12" style={{ marginTop: "auto" }}><span className="av" style={{ width: 40, height: 40 }}>{t.name.split(" ").map((w) => w[0]).join("").slice(0, 2)}</span><span className="stack" style={{ gap: 2 }}><strong style={{ fontSize: 14.5 }}>{t.name}</strong><span className="mut" style={{ fontSize: 13 }}>{t.who}</span></span></figcaption>
+                </figure>
+              ))}
+            </div>
+          </section>
+        )}
 
         <section id="faq" className="section wrap two-col">
           <div className="stack g16"><span className="eb">FAQ</span><h2 className="d h-2">Questions we hear every day</h2><p className="mut" style={{ fontSize: 16, lineHeight: 1.6 }}>Still unsure? <Link href="/start">Ask an agent</Link> — it’s free to ask.</p></div>

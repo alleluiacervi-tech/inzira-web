@@ -143,6 +143,23 @@ export default function StartForm({ service: s }: { service: Service | null }) {
           <span className="eb d-hide" style={{ fontSize: 11 }}>Step {step + 1} of {keys.length} · {names[key]}</span>
         </div>
 
+        {s && (
+          <details className="card fee-peek">
+            <summary className="row between g12">
+              <span className="stack" style={{ gap: 2, minWidth: 0 }}>
+                <span className="eb" style={{ fontSize: 10.5 }}>What you pay</span>
+                <strong className="nowrap" style={{ fontSize: 15 }}>{totalLabel(s)}</strong>
+              </span>
+              <span className="row g6 mut" style={{ fontSize: 13.5, fontWeight: 600 }}>Fee details <span className="chev"><Icon name="down" size={18} /></span></span>
+            </summary>
+            <div className="stack g12" style={{ paddingTop: 14 }}>
+              <FeeLines officialLabel="Official fee" official={officialLabel(s)} ours={oursLabel(s)} total={totalLabel(s)} totalLabel="Estimate" />
+              <p className="hint">{s.official.note}</p>
+              <p className="hint row g8" style={{ alignItems: "flex-start" }}><Icon name="shield" size={16} color="var(--ok)" /><span>You pay only after an agent has checked your documents.</span></p>
+            </div>
+          </details>
+        )}
+
         {key === "about" && (
           <div className="stack g20">
             <div className="stack g8"><h1 className="d" style={{ fontSize: 30, lineHeight: 1.15 }}>A few details about you</h1><p className="mut" style={{ fontSize: 15 }}>We use these exactly as they appear on the ID. It takes about 3 minutes.</p></div>
@@ -239,7 +256,7 @@ export default function StartForm({ service: s }: { service: Service | null }) {
       </div>
 
       {s ? (
-        <aside className="card stack g14 sticky-aside" style={{ padding: 20 }}>
+        <aside className="card stack g14 sticky-aside fee-aside" style={{ padding: 20 }}>
           <span className="eb" style={{ fontSize: 11 }}>Your request</span>
           <strong className="d" style={{ fontSize: 20 }}>{s.name}</strong>
           <span className="mut" style={{ fontSize: 13.5 }}>{s.via} · {s.time}</span>

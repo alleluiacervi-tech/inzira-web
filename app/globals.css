@@ -371,6 +371,8 @@ details[open] .chev { transform: rotate(180deg); }
 .hero { display: grid; grid-template-columns: minmax(0, 1fr) 540px; gap: 64px; align-items: center; padding-top: 72px; padding-bottom: 88px; }
 .hero-visual { position: relative; height: 520px; }
 @media (max-width: 1100px) { .hero { grid-template-columns: minmax(0, 1fr); padding-top: 40px; padding-bottom: 48px; } .hero-visual { display: none; } }
+.hero-mini { display: none; padding: 18px; max-width: 520px; }
+@media (max-width: 1100px) { .hero-mini { display: flex; } }
 .how { background: var(--ink); border-radius: var(--r-card); padding: clamp(28px, 5vw, 64px) clamp(20px, 4vw, 48px); display: flex; flex-direction: column; gap: 44px; }
 .how-step { display: flex; flex-direction: column; gap: 16px; padding: 28px 28px 32px; border-left: 1px solid var(--on-dark-line); }
 @media (max-width: 720px) { .how-step { padding: 20px 0 20px 18px; } }
@@ -435,6 +437,35 @@ details[open] .chev { transform: rotate(180deg); }
 .rev { display: grid; grid-template-columns: minmax(0, 360px) minmax(0, 1fr); gap: 36px; padding: 22px; align-items: start; }
 @media (max-width: 900px) { .rev { grid-template-columns: minmax(0, 1fr); } }
 
+/* ============ service cards ============ */
+/* The title link stretches over the whole card; the Start button sits above it. */
+.svc-card { position: relative; transition: border-color .15s, box-shadow .15s, transform .15s; }
+.svc-card:hover { border-color: var(--line-3); box-shadow: 0 10px 28px rgba(22, 24, 27, 0.07); }
+.svc-link::after { content: ""; position: absolute; inset: 0; border-radius: inherit; z-index: 0; }
+.svc-link:focus-visible { outline: none; }
+.svc-card:has(.svc-link:focus-visible) { outline: 3px solid var(--ember); outline-offset: 2px; }
+.svc-foot { margin-top: auto; padding-top: 4px; }
+.svc-more { display: inline-flex; align-items: center; gap: 6px; font-size: 14px; font-weight: 700; color: var(--ember-deep); }
+.svc-card:hover .svc-more svg { transform: translateX(3px); }
+.svc-more svg { transition: transform .15s; }
+.svc-start { position: relative; z-index: 1; }
+@media (prefers-reduced-motion: reduce) { .svc-card, .svc-more svg { transition: none; } }
+
+/* ============ start form: fee summary ============ */
+/* Where the side card would drop below the form, the price is a collapsible line above it instead. */
+.fee-peek { display: none; padding: 14px 16px; }
+@media (max-width: 1100px) { .fee-peek { display: block; } .fee-aside { display: none !important; } }
+
+/* ============ bottom sheet (phones) ============ */
+.sheet-bg { position: fixed; inset: 0; z-index: 70; background: var(--scrim); display: flex; align-items: flex-end; }
+.sheet { width: 100%; max-height: 88vh; display: flex; flex-direction: column; background: var(--paper); border-radius: 16px 16px 0 0; padding: 10px 16px calc(16px + env(safe-area-inset-bottom)); box-shadow: var(--shadow-overlay); animation: sheet-in .22s ease-out; }
+.sheet::before { content: ""; width: 40px; height: 4px; border-radius: 2px; background: var(--line-3); align-self: center; margin-bottom: 6px; }
+.sheet-body { overflow-y: auto; padding-bottom: 16px; }
+.sheet-body aside { width: 100% !important; }
+.sheet-foot { padding-top: 12px; border-top: 1px solid var(--line-2); }
+@keyframes sheet-in { from { transform: translateY(24px); opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .sheet { animation: none; } }
+
 /* ============ home: pricing, why, mobile rows ============ */
 .plan { background: #fff; border: 1px solid var(--line); border-radius: 8px; padding: 28px; color: var(--ink); }
 .plan-mut { color: var(--muted); }
@@ -455,3 +486,22 @@ details[open] .chev { transform: rotate(180deg); }
   .plan { padding: 22px; }
   .review { grid-template-columns: 96px minmax(0, 1fr); }
 }
+
+/* ============ motion ============ */
+/* Small and quick: content settles in, it never performs. Nothing moves for people who ask for less motion. */
+@media (prefers-reduced-motion: no-preference) {
+  .hero > .stack > * { animation: rise .5s cubic-bezier(.2, .7, .2, 1) both; }
+  .hero > .stack > :nth-child(2) { animation-delay: .05s; }
+  .hero > .stack > :nth-child(3) { animation-delay: .1s; }
+  .hero > .stack > :nth-child(n+4) { animation-delay: .15s; }
+  .hero-visual > * { animation: rise .6s cubic-bezier(.2, .7, .2, 1) both; }
+  .hero-visual > :nth-child(2) { animation-delay: .2s; }
+  .hero-visual > :nth-child(3) { animation-delay: .35s; }
+  .cat-card { transition: border-color .15s, box-shadow .15s, transform .15s; }
+  .cat-card:hover { transform: translateY(-2px); box-shadow: 0 10px 28px rgba(22, 24, 27, 0.07); }
+  /* Sections rise as they scroll into view, where the browser supports scroll-driven animation. */
+  @supports (animation-timeline: view()) {
+    .home > section:not(.hero) { animation: rise linear both; animation-timeline: view(); animation-range: entry 0% entry 30%; }
+  }
+}
+@keyframes rise { from { opacity: 0; transform: translateY(14px); } }

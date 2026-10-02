@@ -1,6 +1,6 @@
 "use client";
-import { PageError } from "@/components/PageStates";
+import { ConsoleError } from "@/components/console/ConsoleStates";
 
 export default function ErrorPage(props: { error: Error & { digest?: string }; reset: () => void }) {
-  return <PageError {...props} />;
+  return <ConsoleError {...props} />;
 }
