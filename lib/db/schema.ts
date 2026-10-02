@@ -62,6 +62,8 @@ export const accounts = pgTable("accounts", {
   whatsapp: boolean("whatsapp").notNull().default(true),
   languages: jsonb("languages").$type<string[]>().notNull().default(sql`'[]'::jsonb`),
   since: ts("since").notNull().defaultNow(),
+  /** Set when the customer deleted their account. Personal details are then wiped; financial records stay. */
+  deletedAt: ts("deleted_at"),
 });
 
 export const profiles = pgTable("profiles", {
@@ -302,4 +304,13 @@ export const rateLimits = pgTable("rate_limits", {
   key: text("key").primaryKey(),
   windowStart: ts("window_start").notNull(),
   count: integer("count").notNull(),
+});
+
+/** One row per run of the scheduled job, so the admin console can show when it last ran and what it did. */
+export const jobRuns = pgTable("job_runs", {
+  id: serial("id").primaryKey(),
+  at: ts("at").notNull().defaultNow(),
+  ok: boolean("ok").notNull(),
+  result: jsonb("result").$type<Record<string, unknown>>().notNull(),
+  ms: integer("ms").notNull(),
 });

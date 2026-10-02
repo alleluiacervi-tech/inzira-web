@@ -14,7 +14,8 @@
     "db:migrate": "tsx scripts/db.mts migrate",
     "db:seed": "tsx scripts/db.mts seed",
     "db:reset": "tsx scripts/db.mts reset",
-    "db:setup": "tsx scripts/db.mts setup"
+    "db:setup": "tsx scripts/db.mts setup",
+    "check:providers": "tsx scripts/check-providers.mts"
   },
   "engines": {
     "node": ">=20.0.0"

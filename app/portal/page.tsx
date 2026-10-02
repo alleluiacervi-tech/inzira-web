@@ -77,7 +77,7 @@ export default async function PortalHome() {
               </div>
             ))}
             <div id="account" className="card stack g8" style={{ padding: 18 }}>
-              <strong>Account</strong>
+              <span className="row between g12"><strong>Account</strong><Link className="lnk" href="/portal/account" style={{ fontSize: 14 }}>Manage</Link></span>
               <span className="mut" style={{ fontSize: 14 }}>{account.name} · {account.phone}</span>
               <span className="mut" style={{ fontSize: 14 }}>You can request for: {account.profiles.map((p) => (p.relation === "self" ? "yourself" : p.name)).join(", ")}</span>
             </div>

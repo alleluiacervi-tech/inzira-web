@@ -2,7 +2,9 @@
 import { randomBytes } from "node:crypto";
 import { and, eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
-import { consumeCode, normalisePhone, requireCustomerId, startSession } from "@/lib/auth";
+import { consumeCode, endSession, normalisePhone, requireCustomerId, startSession } from "@/lib/auth";
+import { redirect } from "next/navigation";
+import { deleteAccount, finishedWithDocuments, purgeDocuments } from "@/lib/privacy";
 import { iso } from "@/lib/db";
 import { rwf } from "@/lib/format";
 import { audit, db, event, fail, invoiceFor, nextNumber, notify, refFor, s, type Result } from "@/lib/mutate";
@@ -217,4 +219,57 @@ export async function cancelRequest(ref: string, reason: string): Promise<Result
   });
   revalidatePath("/portal", "layout");
   return { ok: true };
+}
+
+// ---------------- account ----------------
+const LANGUAGES = ["Kinyarwanda", "English", "French"] as const;
+
+/** Name, WhatsApp updates and preferred languages. The phone number is the sign-in, so support changes it. */
+export async function updateAccount(fd: FormData): Promise<Result> {
+  const accountId = await requireCustomerId("/portal/account");
+  const name = text(fd, "name").replace(/\s+/g, " ").slice(0, 120);
+  if (name.length < 2) return fail("Enter your full name.");
+  const languages = LANGUAGES.filter((l) => fd.getAll("languages").includes(l));
+  const whatsapp = fd.get("whatsapp") === "on";
+  const d = await db();
+  await d.transaction(async (tx) => {
+    await tx.update(s.accounts).set({ name, first: name.split(" ")[0], whatsapp, languages }).where(eq(s.accounts.id, accountId));
+    // The account holder's own profile carries the same name.
+    await tx.update(s.profiles).set({ name }).where(and(eq(s.profiles.accountId, accountId), eq(s.profiles.relation, "self")));
+    await audit(tx, { actor: name, role: "Customer", action: "Updated account details", entity: accountId });
+  });
+  revalidatePath("/portal", "layout");
+  return { ok: true };
+}
+
+/** Ends every session of this account, on every phone and computer, this one included. */
+export async function signOutEverywhere() {
+  const accountId = await requireCustomerId("/portal/account");
+  const d = await db();
+  await d.delete(s.sessions).where(and(eq(s.sessions.kind, "customer"), eq(s.sessions.subjectId, accountId)));
+  await audit(d, { actor: accountId, role: "Customer", action: "Signed out everywhere", entity: accountId });
+  await endSession();
+  redirect("/sign-in");
+}
+
+/** Deletes the documents the customer uploaded for requests that are finished. */
+export async function deleteMyDocuments(): Promise<Result<{ deleted: number }>> {
+  const accountId = await requireCustomerId("/portal/account");
+  const { refs } = await finishedWithDocuments(accountId);
+  if (!refs.length) return fail("There are no documents from finished requests to delete.");
+  const deleted = await purgeDocuments(refs, "at the customer’s request");
+  await audit(await db(), { actor: accountId, role: "Customer", action: "Deleted own documents", entity: `${deleted} file(s) · ${refs.join(", ")}` });
+  revalidatePath("/portal", "layout");
+  return { ok: true, deleted };
+}
+
+/** Deletes the account. The customer types DELETE to confirm; open requests must be finished first. */
+export async function deleteMyAccount(confirmation: string): Promise<Result> {
+  const accountId = await requireCustomerId("/portal/account");
+  if (confirmation.trim().toUpperCase() !== "DELETE") return fail("Type DELETE to confirm.");
+  const result = await deleteAccount(accountId);
+  if (!result.ok) return result;
+  await audit(await db(), { actor: accountId, role: "Customer", action: "Deleted account", entity: accountId });
+  await endSession();
+  redirect("/?account=deleted");
 }

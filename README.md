@@ -40,8 +40,9 @@ number.
 npm run typecheck
 npm run build && npm start   # production build; add INZIRA_DEMO=1 to keep demo codes and payments
 npm run smoke                # with the app running: every page loads, is styled, private pages need sign-in
-npm run flows                # with the app running in demo mode on a fresh database: 59 end-to-end checks
+npm run flows                # with the app running in demo mode on a fresh database: 87 end-to-end checks
                              # (needs Chrome and Node 22+)
+npm run check:providers      # with real keys set: tests SMS, MTN MoMo, Airtel Money and Blob storage end to end
 ```
 
 Run one server at a time from this folder: two servers, or a build while a server is running,
@@ -65,6 +66,8 @@ Copy `.env.example` to `.env.local`. None are needed for development.
 | `BLOB_READ_WRITE_TOKEN` | Vercel Blob read/write token for local or non-Vercel deployments. On Vercel, connect a private Blob store to use OIDC instead. |
 | `UPLOAD_DIR` | Local development upload directory (default `.data/uploads`). Production requires private Blob storage. |
 | `OWNER_NAME`, `OWNER_PHONE` | Used once by `npm run db:setup`. |
+| `DOC_RETENTION_DAYS` | Days after a request finishes before the customer's uploaded documents are deleted (default 90). |
+| `TEST_PHONE`, `TEST_AIRTEL_PHONE`, `CHECK_AMOUNT` | Used only by `npm run check:providers`. |
 
 ## Deploying
 
@@ -76,8 +79,11 @@ Copy `.env.example` to `.env.local`. None are needed for development.
 5. Set `SMS_PROVIDER` and its keys, `NEXT_PUBLIC_SITE_URL`, `CRON_SECRET`, and — once you have
    credentials — `PAYMENT_PROVIDER=live` with the MTN and Airtel keys. Point the Airtel callback URL in
    their portal at `https://<your site>/api/payments/callback`; MTN receives it with each prompt.
-6. The owner signs in, checks the official fees in Admin › Services & prices, and invites the team
-   in Admin › Roles & people.
+6. Run `TEST_PHONE=07… npm run check:providers` against the staging environment: it sends a real SMS,
+   a mobile money prompt per provider and a storage round trip through the site's own code.
+7. The owner signs in and opens **Admin › System**: every item should read Live. It sends a test SMS
+   and runs the daily job on demand. Then check the official fees in Admin › Services & prices and
+   invite the team in Admin › Roles & people.
 
 Schema changes: edit `lib/db/schema.ts`, run `npm run db:generate` to write a migration into
 `drizzle/`, commit it, and run `npm run db:migrate` when deploying.
@@ -89,8 +95,9 @@ app/
   actions/           server actions — every write (auth, customer, agent, admin). Each checks the
                      session and the role's permission, writes the timeline and the audit log.
   files/[id]/        serves an uploaded file to its owner or to staff allowed to download documents
-  api/cron           scheduled job (vercel.json, daily): settles payments, holds overdue requests
-                     with one SMS reminder, removes expired codes and sessions
+  api/cron           scheduled job (vercel.json, daily at 08:00 Kigali): settles payments, holds overdue
+                     requests with one SMS reminder, deletes old customer documents, texts each member
+                     of staff their summary, removes expired codes and sessions. Every run is recorded.
   api/payments/callback   mobile money callbacks — only trigger a re-check with the provider
   api/health         200 when the database answers, for uptime monitors
   …                  pages: server components that read through lib/repo
@@ -105,7 +112,9 @@ lib/
   sms.ts             SMS providers (console, Africa's Talking)
   payments.ts        mobile money providers (MTN MoMo, Airtel Money, simulator)
   billing.ts         settles a payment — the one place that decides paid or failed
-  jobs.ts            the scheduled tasks
+  jobs.ts            the scheduled tasks and the staff daily summary
+  privacy.ts         document retention, "delete my documents" and account deletion
+  system.ts          what Admin › System reports: which services are connected, live or in test mode
   ratelimit.ts       per-IP limits for codes, sign-in, tracking, new requests and payment prompts
   storage.ts         uploaded files (private Blob in production, local disk in development)
   types.ts           the domain model · status.ts, format.ts: how it is shown
@@ -147,9 +156,14 @@ by every server action.
   route checks customer ownership or staff permissions. Create and connect a private Blob store before deployment.
 - **Official fees, processing times and document lists** in the catalogue are drafts: check each with
   the institution, then mark the fee as checked in the admin console (customers see that date).
+- **Personal data.** Customers manage their details in Portal › Account, can delete the documents of
+  finished requests, and can delete their account once nothing is open. Uploaded documents are deleted
+  automatically `DOC_RETENTION_DAYS` after a request finishes. Payments and official receipts are kept
+  (anonymised when an account is deleted), as financial records must be. Have the privacy policy say so.
 - **Abuse protection.** Codes expire after 10 minutes, allow 5 attempts and one resend per 30 seconds
   per number, and every public action is rate-limited per IP (`lib/ratelimit.ts`). Responses carry
-  security headers; a Content Security Policy is not set yet.
+  security headers, including a Content Security Policy that only allows this site's own scripts, styles,
+  fonts and images.
 - **Scheduled job.** `vercel.json` runs `/api/cron` once a day (the most a Vercel Hobby plan allows).
   On a paid plan, run it every 10–15 minutes so abandoned payment prompts settle sooner.
 - **Backups** of the Postgres database, and a retention rule for uploaded documents.
@@ -157,3 +171,5 @@ by every server action.
   the footer links to (terms, privacy, refunds, complaints).
 - **Languages.** The EN/RW/FR switch is UI-only; all copy is English.
 - Not set up: ESLint (`npm run lint` has no config yet).
+- **Staff alerts** are a daily SMS summary. Nothing alerts staff the moment a customer replies; they see it
+  in the console.
