@@ -8,6 +8,8 @@ import { audit, db, event, fail, notify, s, type Result } from "@/lib/mutate";
 import { PERMISSIONS, ROLES, type Permission } from "@/lib/permissions";
 import { SITE } from "@/lib/site";
 import { sendSms } from "@/lib/sms";
+import { runAndRecord } from "@/lib/jobs";
+import { allow } from "@/lib/ratelimit";
 import type { Service, StaffRole } from "@/lib/types";
 
 /** The usual steps, for a new service that has none yet. */
@@ -136,4 +138,38 @@ export async function updateStaff(id: string, change: { role?: StaffRole; active
   });
   revalidatePath("/admin/roles");
   return { ok: true };
+}
+
+// ---------------- system ----------------
+/** Sends an SMS to the signed-in person's own phone, to check the provider end to end. */
+export async function sendTestSms(): Promise<Result<{ to: string }>> {
+  const a = await admin("manageStaff");
+  if ("error" in a) return fail(a.error!);
+  const { me, d } = a;
+  const [row] = await d.select({ phone: s.staff.phone }).from(s.staff).where(eq(s.staff.id, me.id));
+  if (!row?.phone) return fail("Your staff profile has no phone number.");
+  if (!(await allow(`test-sms:${me.id}`, 5, 60 * 60e3))) return fail("You’ve sent 5 test messages this hour. Try again later.");
+  try {
+    await sendSms(row.phone, `Inzira test: SMS is working. Sent ${new Date().toLocaleString("en-GB", { timeZone: "Africa/Kigali" })} Kigali time.`);
+  } catch (e) {
+    return fail(`The provider refused the message: ${e instanceof Error ? e.message : "unknown error"}.`);
+  }
+  await audit(d, { actor: me.name, role: me.role, action: "Sent test SMS", entity: `+250 ${row.phone}` });
+  return { ok: true, to: `+250 ${row.phone.replace(/^(\d{3})(\d{3})(\d{3})$/, "$1 $2 $3")}` };
+}
+
+/** Runs the scheduled job now, as the daily schedule would. */
+export async function runJobNow(): Promise<Result<{ summary: string }>> {
+  const a = await admin("manageStaff");
+  if ("error" in a) return fail(a.error!);
+  const { me, d } = a;
+  if (!(await allow(`run-job:${me.id}`, 6, 60 * 60e3))) return fail("The job has run 6 times this hour. Try again later.");
+  const r = await runAndRecord();
+  await audit(d, { actor: me.name, role: me.role, action: "Ran scheduled job", entity: r.ok ? "OK" : "Failed" });
+  revalidatePath("/admin/system");
+  if (!r.ok) return fail(`The job failed: ${String((r as { error?: unknown }).error ?? "unknown error")}`);
+  const n = (k: string, f: string) => Number(((r as unknown as Record<string, Record<string, unknown> | undefined>)[k] ?? {})[f] ?? 0);
+  const parts = ([["payments", "settled", "payment settled", "payments settled"], ["overdue", "held", "overdue request put on hold", "overdue requests put on hold"], ["retention", "deleted", "old document deleted", "old documents deleted"], ["digest", "sent", "staff summary sent", "staff summaries sent"]] as const)
+    .map(([k, f, one, many]) => [n(k, f), one, many] as const).filter(([c]) => c > 0).map(([c, one, many]) => `${c} ${c === 1 ? one : many}`);
+  return { ok: true, summary: parts.length ? `${parts.join(", ")}.` : "nothing needed doing." };
 }

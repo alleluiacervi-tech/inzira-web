@@ -420,6 +420,18 @@ details[open] .chev { transform: rotate(180deg); }
 .ex-bill strong { font-weight: 600; white-space: nowrap; }
 .ex-agent { display: flex; align-items: center; gap: 10px; padding-top: 12px; border-top: 1px solid var(--on-dark-line); color: var(--on-dark-2); }
 
+/* ============ customer account ============ */
+.acct { padding: clamp(18px, 3vw, 28px); display: flex; flex-direction: column; gap: 18px; }
+.acct-h { font-size: 19px; font-weight: 600; font-stretch: 104%; }
+.acct-p { font-size: 15.5px; line-height: 1.6; color: var(--ink-2); max-width: 620px; }
+.acct-static { display: flex; align-items: center; min-height: 48px; padding: 0 14px; border-radius: var(--r-ctl); background: var(--sand-2); border: 1px solid var(--line); font-size: 15px; }
+.acct-langs { border: 0; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.acct-list { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--line); }
+.acct-list li { display: grid; grid-template-columns: 36px minmax(0, 1fr); gap: 14px; align-items: center; padding: 14px 0; border-bottom: 1px solid var(--line); }
+.acct-ico { width: 36px; height: 36px; border-radius: 10px; background: var(--brand-tint); color: var(--brand); display: inline-flex; align-items: center; justify-content: center; }
+.acct-row { display: flex; justify-content: space-between; align-items: center; gap: 12px 20px; flex-wrap: wrap; padding: 16px 0 0; border-top: 1px solid var(--line); }
+.acct-danger strong { color: var(--err); }
+
 /* ============ service page ============ */
 .crumbs { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; font-size: 14.5px; color: var(--muted); }
 .crumbs a { color: var(--muted); text-decoration: none; }

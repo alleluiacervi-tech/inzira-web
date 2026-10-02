@@ -2,9 +2,9 @@
 // access is still checked by the authenticated file route before bytes are returned.
 // Without Blob credentials files go to local disk — allowed in development and in demo builds
 // (INZIRA_DEMO=1), refused in production.
-import { mkdir, readFile as read, writeFile } from "node:fs/promises";
+import { mkdir, readFile as read, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
-import { get, put } from "@vercel/blob";
+import { del, get, put } from "@vercel/blob";
 
 // On Vercel only /tmp is writable, so demo uploads there last as long as the instance does.
 const root = process.env.UPLOAD_DIR ?? (process.env.VERCEL ? "/tmp/inzira-uploads" : path.join(process.cwd(), ".data", "uploads"));
@@ -41,5 +41,12 @@ export async function readFile(key: string): Promise<Buffer | null> {
     return Buffer.from(await new Response(result.stream).arrayBuffer());
   }
   try { return await read(safe(pathname)); } catch { return null; }
+}
+/** Removes the stored bytes. Missing files are not an error: deleting twice is safe. */
+export async function deleteFile(key: string): Promise<void> {
+  const pathname = keyPath(key);
+  if (!pathname) return;
+  if (useBlob()) { await del(pathname); return; }
+  await rm(safe(pathname), { force: true });
 }
 export const humanSize = (n: number) => (n >= 1e6 ? `${(n / 1e6).toFixed(1)} MB` : `${Math.max(1, Math.round(n / 1e3))} KB`);

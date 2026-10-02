@@ -18,6 +18,7 @@ const NAV: Record<Kind, { items: Item[]; label: string }> = {
       { label: "Overview", icon: "home", href: "/portal" },
       { label: "My requests", icon: "list", href: "/portal/requests", match: "/portal/requests" },
       { label: "Documents", icon: "file", href: "/portal/documents" },
+      { label: "Account", icon: "user", href: "/portal/account" },
       { label: "Browse services", icon: "search", href: "/services" },
     ],
   },
@@ -125,7 +126,7 @@ export default function AppShell({ kind, who, unread = 0, other, children }: { k
           <Link href="/portal/requests" aria-current={path.startsWith("/portal/requests") ? "page" : undefined}><Icon name="list" size={22} />Requests</Link>
           <Link href="/services" className="tab-new" aria-label="Start a new request"><span><Icon name="plus" size={22} stroke={2.2} /></span>New</Link>
           <Link href="/portal/documents" aria-current={path === "/portal/documents" ? "page" : undefined}><Icon name="file" size={22} />Documents</Link>
-          <Link href="/portal#account"><Icon name="user" size={22} />Account</Link>
+          <Link href="/portal/account" aria-current={path === "/portal/account" ? "page" : undefined}><Icon name="user" size={22} />Account</Link>
         </nav>
       )}
     </div>

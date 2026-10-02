@@ -1,7 +1,7 @@
 import Link from "next/link";
 import PublicNav from "@/components/PublicNav";
 import Footer from "@/components/Footer";
-import { Icon, Plate } from "@/components/ui";
+import { Alert, Icon, Plate } from "@/components/ui";
 import { listServices } from "@/lib/repo";
 import { oursLabel, rwf } from "@/lib/format";
 import { OFFICES } from "@/lib/institutions";
@@ -77,13 +77,15 @@ function CaseCard() {
   );
 }
 
-export default async function Home() {
+export default async function Home({ searchParams }: { searchParams: Promise<{ account?: string }> }) {
+  const deleted = (await searchParams).account === "deleted";
   const services = await listServices();
   const priced = PRICE_LIST.map((slug) => services.find((s) => s.slug === slug)).filter((s): s is Service => !!s);
   return (
     <>
       <PublicNav />
       <main className="home">
+        {deleted && <div className="wrap" style={{ paddingTop: 20 }}><Alert kind="ok" title="Your account is deleted" live>Your details and documents are gone. Payment records stay, without your name or number.</Alert></div>}
         <section className="hero wrap" aria-labelledby="hero-h">
           <div className="stack g24 hero-copy">
             <p className="hero-for">For business owners and professionals in Rwanda</p>

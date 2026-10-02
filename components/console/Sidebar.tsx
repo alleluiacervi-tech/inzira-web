@@ -75,6 +75,7 @@ export function Sidebar({
       group: "System",
       items: [
         { label: "Audit logs", href: "/admin/audit", icon: "log", permission: "viewAudit", matchPrefix: "/admin/audit" },
+        { label: "System", href: "/admin/system", icon: "settings", permission: "manageStaff", matchPrefix: "/admin/system" },
       ],
     },
   ];

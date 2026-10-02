@@ -384,6 +384,49 @@ await step("delivered", async () => {
   await p.close();
 });
 
+// ---------- account, data rights and system ----------
+await step("account", async () => {
+  const p = await page();
+  await signIn(p, "788123456");
+  await p.go("/portal/account"); await waitFor(p, "Your details");
+  check("account: open requests block deleting the account", await p.has("Finish or cancel your") && (await p.ev(`[...document.querySelectorAll("button")].find((b) => b.textContent.trim() === "Delete account")?.disabled`)) === true);
+  await p.close();
+});
+await step("privacy", async () => {
+  const p = await page();
+  await signIn(p, "788555010");
+  await p.go("/portal/account"); await waitFor(p, "Your details");
+  check("privacy: finished requests' documents are counted", await p.has("1 file from 1 request"));
+  await p.set("#acct-name", "Test Person Renamed");
+  await p.ev(`[...document.querySelectorAll('input[name=languages]')].find((i) => i.value === "French").click()`);
+  await p.click("Save changes", "button"); await waitFor(p, "Saved");
+  await p.go("/portal/account"); await waitFor(p, "Your details");
+  check("account: details are saved", (await p.ev(`document.querySelector("#acct-name").value`)) === "Test Person Renamed" && (await p.ev(`document.querySelector('input[value=French]').checked`)) === true);
+  await p.click("Delete now", "button"); await sleep(200); await p.click("Yes, delete them", "button"); await waitFor(p, "1 file deleted"); await waitFor(p, "Nothing stored");
+  const purged = await p.has("1 file deleted") && await p.has("Nothing stored");
+  if (!purged) console.log("    page says:", (await p.ev(`document.querySelector("#acct-data")?.closest("section")?.innerText ?? ""`)).replace(/\s+/g, " ").slice(0, 400));
+  check("privacy: a customer can delete documents of finished requests", purged);
+  await p.click("Delete account", "button"); await sleep(300);
+  await p.set("#del-confirm", "DELETE"); await p.click("Delete my account", "button"); await waitPath(p, (path) => path === "/"); await waitFor(p, "Your account is deleted");
+  check("privacy: a customer can delete their account", await p.has("Your account is deleted"));
+  await p.go("/sign-in"); await p.set("#si-phone", "788 555 010"); await p.click("Send me a code"); await waitCode(p);
+  await p.set("#otp", await p.ev(`document.querySelector("[data-demo-code]")?.dataset.demoCode ?? ""`)); await p.click("Sign in", "button"); await waitFor(p, "don’t have an account");
+  check("privacy: a deleted account can no longer sign in", await p.has("don’t have an account"));
+  await p.close();
+});
+await step("system", async () => {
+  const p = await page();
+  await signIn(p, "780000008");
+  await p.go("/admin/system"); await waitFor(p, "Running the site");
+  check("system: the owner sees what is connected", await p.has("Running the site") && await p.has("Test mode") && await p.has("Company details"));
+  await p.click("Run the daily job now", "button"); await waitFor(p, "Job finished");
+  for (let i = 0; i < 40 && !(await p.ev(`[...document.querySelectorAll(".sys-row .c-badge")].some((b) => b.textContent.startsWith("OK"))`)); i++) await sleep(250);
+  check("system: the daily job runs and is recorded", await p.has("Job finished") && (await p.ev(`[...document.querySelectorAll(".sys-row .c-badge")].some((b) => b.textContent.startsWith("OK"))`)));
+  await p.click("Send me a test SMS", "button"); await waitFor(p, "Test SMS sent");
+  check("system: a test SMS can be sent", await p.has("Test SMS sent"));
+  await p.close();
+});
+
 // ---------- mobile navigation ----------
 await step("mobile", async () => {
   const p = await page(390);

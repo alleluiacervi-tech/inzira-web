@@ -7,6 +7,8 @@
 export const isDemo = () => process.env.INZIRA_DEMO === "1" || process.env.NODE_ENV !== "production";
 
 export async function sendSms(phone9: string, message: string): Promise<void> {
+  // Deleted accounts keep a placeholder instead of a number; never try to text it.
+  if (!/^7\d{8}$/.test(phone9)) throw new Error("Not a Rwandan mobile number; SMS not sent.");
   const provider = process.env.SMS_PROVIDER ?? (isDemo() ? "console" : "");
   const to = `+250${phone9}`;
   if (provider === "console") {

@@ -832,3 +832,14 @@ li:last-child > .c-attn { border-bottom: 0; }
   .console-nav-item { min-height: 44px; }
   .console-input, .console-select { min-height: 44px; font-size: 16px; }
 }
+
+/* ============ admin › system ============ */
+.sys-sum { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 14px; align-items: center; }
+@media (max-width: 720px) { .sys-sum { grid-template-columns: auto minmax(0, 1fr); } .sys-actions { grid-column: 1 / -1; } }
+.sys-row { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; padding: 14px 20px; border-bottom: 1px solid var(--c-border-subtle); }
+.sys-row:last-child { border-bottom: 0; }
+.sys-row .c-badge { flex-shrink: 0; display: inline-flex; align-items: center; gap: 5px; }
+.sys-fix { font-size: 13px; color: var(--c-text); background: var(--sand-2); border-radius: 6px; padding: 6px 10px; margin-top: 4px; align-self: flex-start; }
+.sys-msg { display: flex; align-items: flex-start; gap: 8px; font-size: 14px; padding: 12px 14px; border-radius: 8px; }
+.sys-msg.is-ok { background: var(--ok-bg); color: var(--ok); }
+.sys-msg.is-err { background: var(--err-bg); color: var(--err); }
