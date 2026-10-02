@@ -8,9 +8,9 @@ import { useDialog } from "./useDialog";
 const LINKS = [
   { href: "/services", label: "Services" },
   { href: "/#how", label: "How it works" },
-  { href: "/#pricing", label: "Pricing" },
-  { href: "/#business", label: "For businesses" },
-  { href: "/#faq", label: "Help" },
+  { href: "/#prices", label: "Prices" },
+  { href: "/#about", label: "About us" },
+  { href: "/track", label: "Track a request" },
 ];
 // Only languages the site is actually translated into. The switch appears once there are two or more:
 // add { code: "RW", name: "Kinyarwanda" } and { code: "FR", name: "Français" } when their copy exists.
@@ -31,7 +31,7 @@ export default function PublicNav() {
           <Logo />
           <nav aria-label="Main" className="pubnav-links">
             {LINKS.map((l) => (
-              <Link key={l.href} className="pub" href={l.href} aria-current={path.startsWith("/services") && l.href === "/services" ? "page" : undefined}>{l.label}</Link>
+              <Link key={l.href} className="pub" href={l.href} aria-current={(l.href === "/services" || l.href === "/track") && path.startsWith(l.href) ? "page" : undefined}>{l.label}</Link>
             ))}
           </nav>
         </div>
@@ -45,7 +45,7 @@ export default function PublicNav() {
             </div>
           )}
           <Link className="btn btn-g" href="/sign-in">Sign in</Link>
-          {/* On the start form and sign-in the page's own button is the main action; one yellow per screen. */}
+          {/* On the start form, sign-in and tracking the page's own button is the main action. */}
           {!busy && <Link className="btn btn-p" href="/services">Start a request</Link>}
         </div>
         <div className="row g4 nav-mob">
@@ -61,7 +61,6 @@ export default function PublicNav() {
           </div>
           <nav aria-label="Mobile" className="stack" style={{ padding: "8px 16px" }}>
             {LINKS.map((l) => <Link key={l.href} className="mm" href={l.href} onClick={() => setOpen(false)}>{l.label}<Icon name="right" size={18} /></Link>)}
-            <Link className="mm" href="/track" onClick={() => setOpen(false)}>Track a request<Icon name="right" size={18} /></Link>
           </nav>
           <div className="stack g10" style={{ padding: 16, marginTop: "auto", borderTop: "1px solid var(--line-2)" }}>
             <Link className="btn btn-p btn-lg" href="/services">Start a request</Link>

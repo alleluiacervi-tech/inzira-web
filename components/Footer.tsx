@@ -5,8 +5,8 @@ import { Icon, Logo } from "./ui";
 const COLS: [string, [string, string][]][] = [
   ["Services", [["RDB / Business registration", "/services?category=rdb"], ["Taxes", "/services?category=tax"], ["EBM", "/services?category=ebm"], ["Land services", "/services?category=land"]]],
   ["More", [["RURA / Transport", "/services?category=rura"], ["Irembo training", "/services?category=irembo"], ["Other online services", "/start"], ["All services", "/services"]]],
-  ["Company", [["How it works", "/#how"], ["Pricing", "/#pricing"], ["For businesses", "/#business"], ["Contact", "/#contact"]]],
-  ["Trust", [["Terms of service", "/#"], ["Privacy & data protection", "/#"], ["Refund policy", "/#"], ["Complaints", "/#"], ["Track a request", "/track"]]],
+  ["Company", [["About us", "/#about"], ["How it works", "/#how"], ["Prices", "/#prices"], ["Contact", "/#contact"]]],
+  ["Legal", [["Terms of service", "/#"], ["Privacy & data protection", "/#"], ["Refund policy", "/#"], ["Complaints", "/#"]]],
 ];
 
 export default function Footer() {
@@ -31,7 +31,7 @@ export default function Footer() {
       </div>
       <div className="row between g40 m-col" style={{ borderTop: "1px solid var(--on-dark-line)", paddingTop: 24, alignItems: "flex-start" }}>
         <p style={{ fontSize: 13, lineHeight: 1.6, maxWidth: 820, color: "var(--on-dark-muted)" }}>{DISCLAIMER}</p>
-        <span style={{ fontSize: 13, whiteSpace: "nowrap", color: "var(--on-dark-muted)" }}>© 2026 {SITE.legalName} · {SITE.companyCode}</span>
+        <span style={{ fontSize: 13, whiteSpace: "nowrap", color: "var(--on-dark-muted)" }}>© 2026 {SITE.legalName}, company code {SITE.companyCode}</span>
       </div>
     </footer>
   );

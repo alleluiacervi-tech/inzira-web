@@ -731,7 +731,7 @@ li:last-child > .c-attn { border-bottom: 0; }
 .c-step.is-done .c-step-dot { background: var(--brand); border-color: var(--brand); color: var(--mist); }
 .c-step.is-done .c-step-btn { color: var(--c-text); }
 .c-step.is-current .c-step-btn { background: var(--signal-tint); color: var(--ink); }
-.c-step.is-current .c-step-dot { background: var(--signal); border-color: var(--ink); color: var(--ink); }
+.c-step.is-current .c-step-dot { background: var(--signal); border-color: var(--signal-deep); color: var(--ink); }
 .c-tabs { gap: 2px; border-bottom: 1px solid var(--c-border); }
 .c-tab { display: inline-flex; align-items: center; gap: 6px; height: 40px; padding: 0 12px; margin-bottom: -1px; border: 0; border-bottom: 2px solid transparent; background: none; font: inherit; font-size: 13px; font-weight: 600; color: var(--c-text-muted); cursor: pointer; white-space: nowrap; }
 .c-tab:hover { color: var(--c-text); }
