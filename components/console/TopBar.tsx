@@ -86,7 +86,7 @@ export function TopBar({
         {/* Right: Date Range (if provided), + New, Notifications, Profile */}
         <div className="row g12 c-topbar-right">
           {dateRange !== undefined && onDateRangeChange && (
-            <div className="row g4 console-panel" style={{ padding: 2, background: "#f3f4f6" }}>
+            <div className="row g4 console-panel" style={{ padding: 2, background: "var(--c-surface-hover)" }}>
               {[7, 30, 90].map((days) => (
                 <button
                   key={days}
@@ -101,7 +101,7 @@ export function TopBar({
                     padding: "3px 8px",
                     borderRadius: 4,
                     cursor: "pointer",
-                    boxShadow: dateRange === days ? "0 1px 3px rgba(0,0,0,0.08)" : "none",
+                    boxShadow: dateRange === days ? "0 1px 3px rgba(22, 24, 27, 0.08)" : "none",
                   }}
                 >
                   {days}d
@@ -155,7 +155,7 @@ export function TopBar({
                   width: 220,
                   padding: 12,
                   zIndex: 50,
-                  boxShadow: "0 8px 24px rgba(0,0,0,0.12)",
+                  boxShadow: "var(--shadow-pop)",
                 }}
               >
                 <div className="stack" style={{ gap: 2, paddingBottom: 8, borderBottom: "1px solid var(--c-border)" }}>

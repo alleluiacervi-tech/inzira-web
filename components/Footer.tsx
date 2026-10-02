@@ -24,14 +24,14 @@ export default function Footer() {
         </div>
         {COLS.map(([t, items]) => (
           <div key={t} className="stack g12">
-            <span style={{ fontSize: 13, fontWeight: 700, color: "#F6F4EF" }}>{t}</span>
+            <span style={{ fontSize: 13, fontWeight: 700, color: "var(--on-dark)" }}>{t}</span>
             {items.map(([l, h]) => <Link key={l} className="ft" href={h}>{l}</Link>)}
           </div>
         ))}
       </div>
-      <div className="row between g40 m-col" style={{ borderTop: "1px solid #2E3136", paddingTop: 24, alignItems: "flex-start" }}>
-        <p style={{ fontSize: 13, lineHeight: 1.6, maxWidth: 820, color: "#B5B1A7" }}>{DISCLAIMER}</p>
-        <span style={{ fontSize: 13, whiteSpace: "nowrap", color: "#B5B1A7" }}>© 2026 {SITE.legalName} · {SITE.companyCode}</span>
+      <div className="row between g40 m-col" style={{ borderTop: "1px solid var(--on-dark-line)", paddingTop: 24, alignItems: "flex-start" }}>
+        <p style={{ fontSize: 13, lineHeight: 1.6, maxWidth: 820, color: "var(--on-dark-muted)" }}>{DISCLAIMER}</p>
+        <span style={{ fontSize: 13, whiteSpace: "nowrap", color: "var(--on-dark-muted)" }}>© 2026 {SITE.legalName} · {SITE.companyCode}</span>
       </div>
     </footer>
   );

@@ -83,7 +83,7 @@ export function ConfirmDialog({
           style={{
             padding: "12px 18px",
             borderTop: "1px solid var(--c-border)",
-            background: "#fafafa",
+            background: "var(--c-bg)",
             display: "flex",
             alignItems: "center",
             justifyContent: "flex-end",

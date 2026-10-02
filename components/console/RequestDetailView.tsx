@@ -209,7 +209,7 @@ export function RequestDetailView({
           className="row between g12 wrapx"
           style={{
             padding: "10px 14px",
-            background: "#f9fafb",
+            background: "var(--c-bg)",
             border: "1px solid var(--c-border-subtle)",
             borderRadius: "var(--c-radius)",
           }}
@@ -512,8 +512,8 @@ export function RequestDetailView({
                       width: 28,
                       height: 28,
                       borderRadius: "50%",
-                      background: staff ? "var(--c-ember)" : "#e5e7eb",
-                      color: staff ? "#fff" : "#374151",
+                      background: staff ? "var(--c-ember)" : "var(--c-border)",
+                      color: staff ? "var(--c-surface)" : "var(--c-text)",
                       fontSize: 10,
                       fontWeight: 700,
                       display: "flex",
@@ -531,7 +531,7 @@ export function RequestDetailView({
                       style={{
                         padding: "8px 14px",
                         borderRadius: 8,
-                        background: staff ? "var(--c-ember-bg)" : "#f3f4f6",
+                        background: staff ? "var(--c-ember-bg)" : "var(--c-surface-hover)",
                         color: "var(--c-text)",
                         fontSize: 13.5,
                         lineHeight: 1.4,
@@ -546,7 +546,7 @@ export function RequestDetailView({
           </div>
 
           {!finished && (
-            <div className="stack g10" style={{ padding: "14px 18px", borderTop: "1px solid var(--c-border)", background: "#fafafa" }}>
+            <div className="stack g10" style={{ padding: "14px 18px", borderTop: "1px solid var(--c-border)", background: "var(--c-bg)" }}>
               <div className="row g6 wrapx">
                 <span style={{ fontSize: 12, fontWeight: 600, color: "var(--c-text-muted)" }}>Canned replies:</span>
                 {["Mwiriwe, please upload a clearer copy of your ID.", "Official application submitted, awaiting approval."].map((qk) => (
@@ -722,7 +722,7 @@ export function RequestDetailView({
                 <span style={{ fontSize: 13, color: "var(--c-text-muted)" }}>No internal notes yet.</span>
               )}
               {c.notes.map((n) => (
-                <div key={n.id} className="console-panel stack g4" style={{ padding: 10, background: "#fafafa" }}>
+                <div key={n.id} className="console-panel stack g4" style={{ padding: 10, background: "var(--c-bg)" }}>
                   <div className="row between g8" style={{ fontSize: 12, color: "var(--c-text-muted)" }}>
                     <strong>{n.name}</strong>
                     <span>{fmtWhen(n.at, now)}</span>

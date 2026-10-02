@@ -36,15 +36,15 @@ export function Timeline({ events, now }: { events: RequestEvent[]; now?: string
                 width: 24,
                 height: 24,
                 borderRadius: "50%",
-                background: isRecent ? "var(--c-ember)" : "#e5e7eb",
-                color: isRecent ? "#fff" : "#4b5563",
+                background: isRecent ? "var(--c-ember)" : "var(--c-border)",
+                color: isRecent ? "var(--c-surface)" : "var(--c-text-muted)",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
                 fontSize: 10,
                 fontWeight: 700,
                 flexShrink: 0,
-                border: "2px solid #fff",
+                border: "2px solid var(--c-surface)",
               }}
             >
               {e.by === "system" ? <Icon name="settings" size={12} /> : initials(e.name || "Staff")}

@@ -296,7 +296,7 @@ export function DataTable<T extends { id?: string; ref?: string }>({
                   zIndex: 30,
                   padding: 12,
                   width: 200,
-                  boxShadow: "0 8px 24px rgba(0,0,0,0.12)",
+                  boxShadow: "var(--shadow-pop)",
                 }}
               >
                 <div className="row between" style={{ paddingBottom: 6, borderBottom: "1px solid var(--c-border)" }}>
@@ -497,7 +497,7 @@ export function DataTable<T extends { id?: string; ref?: string }>({
           {/* Totals Row (if any column specifies a total) */}
           {displayedColumns.some((c) => c.total) && (
             <tfoot>
-              <tr style={{ background: "#fafafa", fontWeight: 700, borderTop: "2px solid var(--c-border)" }}>
+              <tr style={{ background: "var(--c-bg)", fontWeight: 700, borderTop: "2px solid var(--c-border)" }}>
                 {bulkActions && <td />}
                 {displayedColumns.map((col) => (
                   <td key={col.id} className={col.align === "right" ? "num" : ""}>

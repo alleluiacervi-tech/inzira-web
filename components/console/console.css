@@ -1,39 +1,40 @@
 /* ================= Inzira Staff Console Design System ================= */
 .console-root {
-  --c-bg: #f8f9fa;
-  --c-surface: #ffffff;
-  --c-surface-hover: #f3f4f6;
-  --c-border: #e5e7eb;
-  --c-border-subtle: #f1f3f5;
-  --c-border-strong: #d1d5db;
-  --c-text: #111827;
-  --c-text-muted: #6b7280;
-  --c-text-subtle: #9ca3af;
-  
-  --c-ember: #c24a12;
-  --c-ember-hover: #a33c0c;
-  --c-ember-bg: #fff1eb;
-  --c-ember-border: #fed7aa;
+  /* Every console colour is an alias of a brand token in app/globals.css. Change colours there. */
+  --c-bg: var(--bone);
+  --c-surface: var(--paper);
+  --c-surface-hover: var(--sand-2);
+  --c-border: var(--line);
+  --c-border-subtle: var(--line-2);
+  --c-border-strong: var(--line-3);
+  --c-text: var(--ink);
+  --c-text-muted: var(--muted);
+  --c-text-subtle: var(--subtle);
 
-  --c-green: #15803d;
-  --c-green-bg: #f0fdf4;
-  --c-green-border: #bbf7d0;
+  --c-ember: var(--ember);
+  --c-ember-hover: var(--ember-deep);
+  --c-ember-bg: var(--ember-tint);
+  --c-ember-border: var(--ember-line);
 
-  --c-amber: #b45309;
-  --c-amber-bg: #fffbeb;
-  --c-amber-border: #fde68a;
+  --c-green: var(--ok);
+  --c-green-bg: var(--ok-bg);
+  --c-green-border: var(--ok-line);
 
-  --c-red: #b91c1c;
-  --c-red-bg: #fef2f2;
-  --c-red-border: #fecaca;
+  --c-amber: var(--warn);
+  --c-amber-bg: var(--warn-bg);
+  --c-amber-border: var(--warn-line);
 
-  --c-blue: #1d4ed8;
-  --c-blue-bg: #eff6ff;
-  --c-blue-border: #bfdbfe;
+  --c-red: var(--err);
+  --c-red-bg: var(--err-bg);
+  --c-red-border: var(--err-line);
 
-  --c-purple: #6d28d9;
-  --c-purple-bg: #f5f3ff;
-  --c-purple-border: #ddd6fe;
+  --c-blue: var(--info);
+  --c-blue-bg: var(--info-bg);
+  --c-blue-border: var(--info-line);
+
+  --c-purple: var(--violet);
+  --c-purple-bg: var(--violet-bg);
+  --c-purple-border: var(--violet-line);
 
   --c-radius: 6px;
   --c-radius-sm: 4px;
@@ -46,10 +47,6 @@
   display: flex;
   font-size: 13.5px;
   line-height: 1.45;
-}
-
-.tabular-nums {
-  font-variant-numeric: tabular-nums;
 }
 
 /* Layout Shell */
@@ -117,6 +114,7 @@
 }
 
 .console-stat-figure {
+  white-space: nowrap;
   font-size: 24px;
   font-weight: 700;
   letter-spacing: -0.02em;
@@ -297,7 +295,7 @@
 .c-badge-red { background: var(--c-red-bg); color: var(--c-red); border-color: var(--c-red-border); }
 .c-badge-blue { background: var(--c-blue-bg); color: var(--c-blue); border-color: var(--c-blue-border); }
 .c-badge-purple { background: var(--c-purple-bg); color: var(--c-purple); border-color: var(--c-purple-border); }
-.c-badge-neutral { background: #f3f4f6; color: #4b5563; border-color: #e5e7eb; }
+.c-badge-neutral { background: var(--neutral-bg); color: var(--neutral); border-color: var(--c-border); }
 .c-badge-ember { background: var(--c-ember-bg); color: var(--c-ember); border-color: var(--c-ember-border); }
 
 /* Table System */
@@ -317,7 +315,7 @@
 }
 
 .console-table thead {
-  background: #fafafa;
+  background: var(--c-bg);
   position: sticky;
   top: 0;
   z-index: 10;
@@ -351,6 +349,7 @@
 .console-table td.num, .console-table th.num {
   text-align: right;
   font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 
 /* Two-line fee layout */
@@ -368,8 +367,8 @@
   text-transform: uppercase;
   padding: 1px 4px;
   border-radius: 2px;
-  background: #e5e7eb;
-  color: #4b5563;
+  background: var(--c-surface-hover);
+  color: var(--c-text-muted);
 }
 
 .c-fee-tag-ours {
@@ -389,7 +388,7 @@
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  background: #f3f4f6;
+  background: var(--c-surface-hover);
   padding: 1px 6px;
   border-radius: var(--c-radius-sm);
   color: var(--c-text);
@@ -457,14 +456,14 @@
   align-items: center;
   justify-content: space-between;
   z-index: 20;
-  box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.05);
+  box-shadow: 0 -4px 12px rgba(22, 24, 27, 0.05);
 }
 
 /* SidePanel Slide-over */
 .console-sidepanel-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.3);
+  background: var(--scrim);
   z-index: 50;
   display: flex;
   justify-content: flex-end;
@@ -475,7 +474,7 @@
   max-width: 90vw;
   height: 100%;
   background: var(--c-surface);
-  box-shadow: -4px 0 24px rgba(0, 0, 0, 0.12);
+  box-shadow: -4px 0 24px rgba(22, 24, 27, 0.12);
   display: flex;
   flex-direction: column;
   overflow-y: auto;
@@ -492,7 +491,7 @@
 }
 
 .console-board-col {
-  background: #f3f4f6;
+  background: var(--c-surface-hover);
   border-radius: var(--c-radius);
   padding: 12px;
   display: flex;
@@ -527,14 +526,14 @@
 
 .console-card-item:hover {
   border-color: var(--c-border-strong);
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
+  box-shadow: 0 2px 6px rgba(22, 24, 27, 0.05);
 }
 
 /* Dialog */
 .console-dialog-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.4);
+  background: var(--scrim);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -548,7 +547,7 @@
   width: 100%;
   max-width: 480px;
   border: 1px solid var(--c-border);
-  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.12);
+  box-shadow: var(--shadow-overlay);
   overflow: hidden;
 }
 
@@ -564,8 +563,8 @@
 }
 
 .console-toast {
-  background: #111827;
-  color: #ffffff;
+  background: var(--ink);
+  color: var(--bone);
   padding: 10px 16px;
   border-radius: var(--c-radius);
   font-size: 13px;
@@ -573,7 +572,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  box-shadow: var(--shadow-pop);
   animation: slideUp 0.2s ease-out;
 }
 

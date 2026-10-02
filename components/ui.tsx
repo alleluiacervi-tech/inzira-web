@@ -146,7 +146,7 @@ export function Kpi({ label, value, delta, sub, icon, valueColor }: { label: str
   return (
     <div className="card stack g10" style={{ padding: "18px 20px" }}>
       <div className="row between g8"><span className="mut" style={{ fontSize: 13.5, fontWeight: 600 }}>{label}</span>{icon && <span className="kpi-ico"><Icon name={icon} size={17} /></span>}</div>
-      <span className="d" style={{ fontSize: 30, lineHeight: 1, color: valueColor }}>{value}</span>
+      <span className="d tnum nowrap" style={{ fontSize: 30, lineHeight: 1, color: valueColor }}>{value}</span>
       <div className="row g8">{delta && <span style={{ fontSize: 13, fontWeight: 600, color: "var(--ok)" }}>{delta}</span>}{sub && <span className="mut" style={{ fontSize: 13 }}>{sub}</span>}</div>
     </div>
   );

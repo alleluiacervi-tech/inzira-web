@@ -199,7 +199,7 @@ export function OverviewView({
               <span>Inzira Fee (Revenue)</span>
             </span>
             <span className="row g6">
-              <span style={{ width: 10, height: 10, background: "#9ca3af", borderRadius: 2 }} />
+              <span style={{ width: 10, height: 10, background: "var(--pass)", borderRadius: 2 }} />
               <span>Official Fee (Passed-through)</span>
             </span>
           </div>
@@ -231,7 +231,7 @@ export function OverviewView({
                       padding: "8px 10px",
                       fontSize: 11.5,
                       minWidth: 140,
-                      boxShadow: "0 4px 12px rgba(0,0,0,0.12)",
+                      boxShadow: "var(--shadow-pop)",
                     }}
                   >
                     <strong>{m.label}</strong>
@@ -240,16 +240,16 @@ export function OverviewView({
                       <strong className="tabular-nums">RWF {(m.ours * 1000).toLocaleString("en-US")}</strong>
                     </div>
                     <div className="row between g6">
-                      <span style={{ color: "#6b7280" }}>Official:</span>
+                      <span style={{ color: "var(--c-text-muted)" }}>Official:</span>
                       <strong className="tabular-nums">RWF {(m.official * 1000).toLocaleString("en-US")}</strong>
                     </div>
                   </div>
                 )}
 
                 {/* Stacked Bars */}
-                <div style={{ width: 36, display: "flex", flexDirection: "column-reverse", height: "100%", justifyContent: "flex-start", background: "#f3f4f6", borderRadius: 4, overflow: "hidden" }}>
+                <div style={{ width: 36, display: "flex", flexDirection: "column-reverse", height: "100%", justifyContent: "flex-start", background: "var(--c-surface-hover)", borderRadius: 4, overflow: "hidden" }}>
                   <div style={{ height: `${oursPct}%`, background: "var(--c-ember)", width: "100%" }} />
-                  <div style={{ height: `${offPct}%`, background: "#9ca3af", width: "100%" }} />
+                  <div style={{ height: `${offPct}%`, background: "var(--pass)", width: "100%" }} />
                 </div>
                 <span style={{ fontSize: 12, fontWeight: 500, marginTop: 6, color: "var(--c-text-muted)" }}>
                   {m.label}
@@ -272,7 +272,7 @@ export function OverviewView({
                   <strong>{name}</strong>
                   <span className="tabular-nums">{count} cases</span>
                 </div>
-                <div style={{ height: 6, background: "#f3f4f6", borderRadius: 3, overflow: "hidden" }}>
+                <div style={{ height: 6, background: "var(--c-surface-hover)", borderRadius: 3, overflow: "hidden" }}>
                   <div
                     style={{
                       height: "100%",
@@ -336,8 +336,8 @@ export function OverviewView({
                           width: 26,
                           height: 26,
                           borderRadius: "50%",
-                          background: "#e5e7eb",
-                          color: "#374151",
+                          background: "var(--c-border)",
+                          color: "var(--ink-2)",
                           fontSize: 10,
                           fontWeight: 700,
                           display: "flex",

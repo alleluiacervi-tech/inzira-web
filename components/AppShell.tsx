@@ -70,16 +70,16 @@ function Sidebar({ kind, path, who, other }: { kind: Kind; path: string; who: Wh
             <Link className="lnk" href={whatsappUrl()} style={{ fontSize: 14 }}>Contact support →</Link>
           </div>
         )}
-        <div className="row g10" style={{ padding: "12px 8px", borderTop: dark ? "1px solid #2E3136" : undefined }}>
+        <div className="row g10" style={{ padding: "12px 8px", borderTop: dark ? "1px solid var(--on-dark-line)" : undefined }}>
           <span className="av" style={dark ? { background: "var(--ember-light)", color: "var(--ink)" } : undefined}>{who.initials}</span>
           <div className="stack" style={{ gap: 2 }}>
-            <span style={{ fontWeight: 600, fontSize: 14, color: dark ? "#F6F4EF" : undefined }}>{who.name}</span>
-            <span style={{ fontSize: 12.5, color: dark ? "#B5B1A7" : "var(--muted)" }}>{who.sub}</span>
+            <span style={{ fontWeight: 600, fontSize: 14, color: dark ? "var(--on-dark)" : undefined }}>{who.name}</span>
+            <span style={{ fontSize: 12.5, color: dark ? "var(--on-dark-muted)" : "var(--muted)" }}>{who.sub}</span>
           </div>
         </div>
         <div className="row g6 wrapx" style={{ padding: "0 8px", fontSize: 12.5 }}>
-          {other && <a href={other.href} style={{ color: dark ? "#F08A4B" : "var(--ember-deep)", fontWeight: 600 }}>{other.label}</a>}
-          <form action={signOut} style={{ marginLeft: "auto" }}><button type="submit" className="linkish" style={{ color: dark ? "#B5B1A7" : "var(--muted)", fontWeight: 500 }}>Sign out</button></form>
+          {other && <a href={other.href} style={{ color: dark ? "var(--ember-light)" : "var(--ember-deep)", fontWeight: 600 }}>{other.label}</a>}
+          <form action={signOut} style={{ marginLeft: "auto" }}><button type="submit" className="linkish" style={{ color: dark ? "var(--on-dark-muted)" : "var(--muted)", fontWeight: 500 }}>Sign out</button></form>
         </div>
       </div>
     </aside>
@@ -99,7 +99,7 @@ export default function AppShell({ kind, who, unread = 0, other, children }: { k
       <div className="main">
         <header className={`mobtop ${dark ? "dark-top" : ""}`}>
           {dark ? (
-            <Link href={`/${kind}`} className="row g10" style={{ textDecoration: "none", color: "#F6F4EF" }}><LogoMark dark /><span className="d" style={{ fontSize: 18 }}>{NAV[kind].label}</span></Link>
+            <Link href={`/${kind}`} className="row g10" style={{ textDecoration: "none", color: "var(--on-dark)" }}><LogoMark dark /><span className="d" style={{ fontSize: 18 }}>{NAV[kind].label}</span></Link>
           ) : <Logo />}
           <div className="row g4">
             {kind === "customer" && (
@@ -107,7 +107,7 @@ export default function AppShell({ kind, who, unread = 0, other, children }: { k
                 <Icon name="bell" size={22} />{unread > 0 && <span style={{ position: "absolute", top: 10, right: 11, width: 8, height: 8, borderRadius: "50%", background: "var(--ember)" }} />}
               </Link>
             )}
-            <button className="btn btn-g btn-ico" type="button" aria-label="Open navigation" aria-expanded={drawer} onClick={() => setDrawer(true)} style={dark ? { color: "#F6F4EF" } : undefined}><Icon name="menu" size={22} /></button>
+            <button className="btn btn-g btn-ico" type="button" aria-label="Open navigation" aria-expanded={drawer} onClick={() => setDrawer(true)} style={dark ? { color: "var(--on-dark)" } : undefined}><Icon name="menu" size={22} /></button>
           </div>
         </header>
         {children}

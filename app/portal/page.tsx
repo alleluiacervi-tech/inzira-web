@@ -72,7 +72,7 @@ export default async function PortalHome() {
               <div key={m.id} className="card dark stack g12" style={{ padding: 20, borderColor: "var(--ink)" }}>
                 <span className="eb" style={{ color: "var(--ember-light)" }}>Coming up</span>
                 <strong style={{ fontSize: 16 }}>{m.title}</strong>
-                <p style={{ fontSize: 14, lineHeight: 1.5, color: "#C9C5BB" }}>{m.body}</p>
+                <p style={{ fontSize: 14, lineHeight: 1.5, color: "var(--on-dark-2)" }}>{m.body}</p>
                 <Link className="btn btn-p btn-sm" href={m.href}>{m.cta}</Link>
               </div>
             ))}

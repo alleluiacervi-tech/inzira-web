@@ -64,7 +64,7 @@ export function SidePanel({
             style={{
               padding: "14px 20px",
               borderTop: "1px solid var(--c-border)",
-              background: "#fafafa",
+              background: "var(--c-bg)",
               display: "flex",
               alignItems: "center",
               justifyContent: "flex-end",

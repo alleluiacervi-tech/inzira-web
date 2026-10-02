@@ -414,7 +414,7 @@ export function ClientDetailView({
           <h3 className="console-section-title" style={{ margin: 0 }}>All Messages History</h3>
           <div className="stack g10" style={{ maxHeight: 400, overflowY: "auto" }}>
             {client.messages.map((m) => (
-              <div key={m.id} className="console-panel stack g4" style={{ padding: 12, background: m.by === "customer" ? "#fff" : "var(--c-ember-bg)" }}>
+              <div key={m.id} className="console-panel stack g4" style={{ padding: 12, background: m.by === "customer" ? "var(--c-surface)" : "var(--c-ember-bg)" }}>
                 <div className="row between g8" style={{ fontSize: 12, color: "var(--c-text-muted)" }}>
                   <strong>{m.name || "Client"}</strong>
                   <span>{fmtWhen(m.at, now)}</span>
@@ -431,7 +431,7 @@ export function ClientDetailView({
           <h3 className="console-section-title" style={{ margin: 0 }}>Client-level Internal Notes</h3>
           <div className="stack g8" style={{ maxHeight: 300, overflowY: "auto" }}>
             {client.notes.map((n) => (
-              <div key={n.id} className="console-panel stack g4" style={{ padding: 12, background: "#fafafa" }}>
+              <div key={n.id} className="console-panel stack g4" style={{ padding: 12, background: "var(--c-bg)" }}>
                 <div className="row between g8" style={{ fontSize: 12, color: "var(--c-text-muted)" }}>
                   <strong>{n.name}</strong>
                   <span>{fmtWhen(n.at, now)}</span>

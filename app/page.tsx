@@ -110,12 +110,12 @@ export default async function Home() {
         <section id="how" className="wrap" style={{ paddingTop: 48 }}>
           <div className="how">
             <div className="row between g24 wrapx" style={{ alignItems: "flex-end" }}>
-              <div className="stack g12"><span className="eb" style={{ color: "var(--ember-light)" }}>How it works</span><h2 className="d h-2" style={{ color: "#F6F4EF", maxWidth: 640 }}>You don’t need to know which system to use.</h2></div>
+              <div className="stack g12"><span className="eb" style={{ color: "var(--ember-light)" }}>How it works</span><h2 className="d h-2" style={{ color: "var(--on-dark)", maxWidth: 640 }}>You don’t need to know which system to use.</h2></div>
               <Link className="btn btn-p" href="/services">Start a Service</Link>
             </div>
             <ol className="grid cols-4" style={{ gap: 0, listStyle: "none", margin: 0, padding: 0 }}>
               {HOW.map(([n, t, d]) => (
-                <li key={n} className="how-step"><span className="m" style={{ color: "var(--ember-light)", fontSize: 14 }}>{n}</span><h3 className="d" style={{ fontSize: 24, color: "#F6F4EF" }}>{t}</h3><p style={{ fontSize: 15, lineHeight: 1.6, color: "#C9C5BB" }}>{d}</p></li>
+                <li key={n} className="how-step"><span className="m" style={{ color: "var(--ember-light)", fontSize: 14 }}>{n}</span><h3 className="d" style={{ fontSize: 24, color: "var(--on-dark)" }}>{t}</h3><p style={{ fontSize: 15, lineHeight: 1.6, color: "var(--on-dark-2)" }}>{d}</p></li>
               ))}
             </ol>
           </div>

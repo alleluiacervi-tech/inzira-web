@@ -154,7 +154,7 @@ export function Sidebar({
           style={{
             padding: "12px 16px",
             borderTop: "1px solid var(--c-border)",
-            background: "#fafafa",
+            background: "var(--c-bg)",
             fontSize: 12,
             color: "var(--c-text-muted)",
           }}

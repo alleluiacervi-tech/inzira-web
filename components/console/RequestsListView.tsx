@@ -122,8 +122,8 @@ export function RequestsListView({
                 width: 20,
                 height: 20,
                 borderRadius: "50%",
-                background: "#e5e7eb",
-                color: "#374151",
+                background: "var(--c-border)",
+                color: "var(--ink-2)",
                 fontSize: 9,
                 fontWeight: 700,
                 display: "flex",
@@ -487,7 +487,7 @@ export function RequestsListView({
       >
         {selectedReq && (
           <div className="stack g16">
-            <div className="row between g8 console-panel" style={{ padding: 12, background: "#fafafa" }}>
+            <div className="row between g8 console-panel" style={{ padding: 12, background: "var(--c-bg)" }}>
               <div className="stack" style={{ gap: 2 }}>
                 <span style={{ fontSize: 12, color: "var(--c-text-muted)" }}>Status</span>
                 <RequestStatusBadge r={selectedReq} viewer="staff" />
@@ -574,7 +574,7 @@ export function RequestsListView({
                 ))}
               </select>
             </div>
-            <div style={{ padding: "12px 18px", borderTop: "1px solid var(--c-border)", background: "#fafafa", display: "flex", justifyContent: "flex-end", gap: 8 }}>
+            <div style={{ padding: "12px 18px", borderTop: "1px solid var(--c-border)", background: "var(--c-bg)", display: "flex", justifyContent: "flex-end", gap: 8 }}>
               <button type="button" className="c-btn c-btn-secondary" onClick={() => setBulkAssignOpen(false)} disabled={busy}>Cancel</button>
               <button type="button" className="c-btn c-btn-primary" onClick={() => handleBulkAssign(targetAgentId)} disabled={busy}>
                 {busy ? "Saving..." : "Apply assignment"}
