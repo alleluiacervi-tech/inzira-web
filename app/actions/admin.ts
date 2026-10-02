@@ -10,6 +10,16 @@ import { SITE } from "@/lib/site";
 import { sendSms } from "@/lib/sms";
 import type { Service, StaffRole } from "@/lib/types";
 
+/** The usual steps, for a new service that has none yet. */
+const defaultSteps = (channel: string, authority: string): Service["steps"] => [
+  { title: "You start the request", body: "Answer a few short questions. Takes about 3 minutes.", you: true },
+  { title: "We check your documents", body: "Your agent confirms everything is correct, usually within 2 working hours." },
+  { title: "You approve the fees", body: "You see the official fee and our fee separately, then pay by MoMo or Airtel Money.", you: true },
+  { title: `We submit via ${channel}`, body: "We submit through the official channel and share the official reference number with you." },
+  { title: `${authority} processes it`, body: "The institution reviews and decides. We follow up if it takes longer than usual." },
+  { title: "You receive the result", body: "Delivered to your portal, with official receipts." },
+];
+
 async function admin(perm: Permission) {
   const me = await getStaffUser();
   if (!me) return { error: "Your session has ended. Sign in again." } as const;
@@ -23,11 +33,13 @@ export async function saveService(v: Service, isNew = false): Promise<Result> {
   if ("error" in a) return fail(a.error!);
   const { me, d } = a;
   if (!v.name.trim()) return fail("Give the service a name.");
+  if (!v.summary.trim()) return fail("Write the “In simple terms” description customers read.");
+  if (!v.channel.trim() || !v.authority.trim()) return fail("Fill in the responsible authority and the official channel.");
   if (!/^[a-z0-9-]+$/.test(v.slug)) return fail("The service address can only use lowercase letters, numbers and dashes.");
   if (v.ours < 0 || (v.official.amount !== null && v.official.amount < 0)) return fail("Amounts can’t be negative.");
   const row = {
     slug: v.slug, name: v.name.trim(), aka: v.aka ?? null, category: v.category, authority: v.authority, channel: v.channel, via: v.via || `Via ${v.channel}`, summary: v.summary,
-    who: v.who, requirements: v.requirements, documents: v.documents.filter((x) => x.name.trim()), steps: v.steps, notes: v.notes,
+    who: v.who, requirements: v.requirements.filter((x) => x.trim()), documents: v.documents.filter((x) => x.name.trim()), steps: v.steps.length ? v.steps : defaultSteps(v.channel || "the official channel", v.authority || "The institution"), notes: v.notes,
     officialAmount: v.official.mode ? (v.official.mode === "none" ? 0 : null) : v.official.amount, officialMode: v.official.mode ?? null, officialLabel: v.official.label ?? null,
     officialNote: v.official.note, officialVerifiedAt: v.official.verifiedAt ?? null, ours: v.ours, oursUnit: v.oursUnit ?? null, time: v.time, docsShort: v.docsShort,
     popular: !!v.popular, audience: v.audience, purposes: v.purposes ?? null, purposeLabel: v.purposeLabel ?? null, noId: !!v.noId, flow: v.flow ?? null, stageLabels: v.stageLabels ?? null,

@@ -58,6 +58,14 @@ if (!failures.length) {
     if (!(res.status >= 300 && res.status < 400 && to.includes("/sign-in"))) fail(path, `expected a redirect to sign-in, got ${res.status} ${to}`);
     else console.log(`  ok   ${path} (asks to sign in)`);
   }
+  const health = await fetch(base + "/api/health");
+  if (health.status !== 200) fail("/api/health", `expected 200, got ${health.status}`); else console.log("  ok   /api/health");
+  const cron = await fetch(base + "/api/cron");
+  if (cron.status !== 401) fail("/api/cron", `must refuse callers without the secret, got ${cron.status}`); else console.log("  ok   /api/cron (needs the secret)");
+  const cb = await fetch(base + "/api/payments/callback", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" });
+  if (cb.status !== 200) fail("/api/payments/callback", `expected 200, got ${cb.status}`); else console.log("  ok   /api/payments/callback (accepts and re-checks)");
+  const headers = (await fetch(base + "/")).headers;
+  if (headers.get("x-frame-options") !== "DENY" || headers.get("x-content-type-options") !== "nosniff") fail("/", "security headers missing"); else console.log("  ok   security headers");
   const file = await fetch(base + "/files/anything");
   if (file.status !== 401) fail("/files/anything", `files must need a session, got ${file.status}`);
   else console.log("  ok   /files/… (needs a session)");
@@ -70,5 +78,5 @@ if (!failures.length) {
   }
 }
 
-console.log(failures.length ? `\n${failures.length} problem(s) on ${base}` : `\nAll ${ROUTES.length + PRIVATE.length + NOT_FOUND.length + 1} checks passed on ${base}`);
+console.log(failures.length ? `\n${failures.length} problem(s) on ${base}` : `\nAll ${ROUTES.length + PRIVATE.length + NOT_FOUND.length + 5} checks passed on ${base}`);
 process.exit(failures.length ? 1 : 0);

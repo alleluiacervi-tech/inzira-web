@@ -6,9 +6,12 @@ import { consumeCode, normalisePhone, requireCustomerId, startSession } from "@/
 import { iso } from "@/lib/db";
 import { rwf } from "@/lib/format";
 import { audit, db, event, fail, invoiceFor, nextNumber, notify, refFor, s, type Result } from "@/lib/mutate";
-import { methodFor, paymentProvider } from "@/lib/payments";
+import { reconcilePayment } from "@/lib/billing";
+import { methodFor, providerFor } from "@/lib/payments";
+import { SITE } from "@/lib/site";
 import { amountDue } from "@/lib/status";
 import { getService } from "@/lib/repo";
+import { TOO_MANY, allowIp } from "@/lib/ratelimit";
 import { ALLOWED, MAX_BYTES, humanSize, putFile } from "@/lib/storage";
 
 const id = (prefix: string) => `${prefix}-${randomBytes(6).toString("hex")}`;
@@ -36,6 +39,7 @@ export async function submitRequest(fd: FormData): Promise<Result<{ ref: string 
   const extra = fd.getAll("file-extra").filter((f): f is File => f instanceof File && f.size > 0);
   for (const f of [...files, ...extra]) { const bad = f && checkFile(f); if (bad) return fail(bad); }
 
+  if (!(await allowIp("request"))) return fail(TOO_MANY);
   const checked = await consumeCode(phone, text(fd, "code"));
   if (!checked.ok) return checked;
 
@@ -150,21 +154,26 @@ export async function startPayment(ref: string, phoneInput: string): Promise<Res
   const d = own.d;
   const [r] = await d.select().from(s.requests).where(eq(s.requests.ref, ref));
   if (r.quote === "estimate") return fail("Your agent has not confirmed the amounts yet.");
+  if (!(await allowIp("payment"))) return fail(TOO_MANY);
   const txs = await d.select().from(s.transactions).where(eq(s.transactions.ref, ref));
   const billing = { ...r, official: r.official, officialMode: r.officialMode ?? undefined, transactions: txs.map((t) => ({ ...t, at: iso(t.at)! })) } as never;
   const due = amountDue(billing);
   if (due <= 0) return fail("Nothing is due on this request.");
   const paidOfficial = txs.filter((t) => t.status === "paid").reduce((n, t) => n + t.official, 0);
   const official = Math.max(0, (r.official ?? 0) - paidOfficial);
-  let providerRef: string;
+  if (txs.some((t) => t.status === "pending")) return fail("A payment prompt is already waiting on your phone. Approve it, or wait a few minutes and try again.");
+  const receipt = txs.length ? `${r.invoice}-${txs.length + 1}` : r.invoice;
+  // Record the attempt first, so a callback that arrives quickly always finds it.
+  const [tx] = await d.insert(s.transactions).values({ ref, receipt, method: methodFor(phone), official, ours: due - official, status: "pending", payer: phone, providerRef: "" }).returning({ id: s.transactions.id });
   try {
-    providerRef = (await paymentProvider().requestToPay({ phone9: phone, amount: due, reference: r.invoice })).providerRef;
+    const callbackUrl = SITE.url.startsWith("http") ? `${SITE.url}/api/payments/callback?tx=${tx.id}` : undefined;
+    const { providerRef } = await providerFor(phone).requestToPay({ phone9: phone, amount: due, reference: receipt, callbackUrl });
+    await d.update(s.transactions).set({ providerRef }).where(eq(s.transactions.id, tx.id));
   } catch (e) {
-    console.error(e);
+    console.error("[payments]", e);
+    await d.update(s.transactions).set({ status: "failed" }).where(eq(s.transactions.id, tx.id));
     return fail("We couldn’t reach mobile money just now. Nothing was charged. Please try again.");
   }
-  const receipt = txs.length ? `${r.invoice}-${txs.length + 1}` : r.invoice;
-  const [tx] = await d.insert(s.transactions).values({ ref, receipt, method: methodFor(phone), official, ours: due - official, status: "pending", payer: phone, providerRef }).returning({ id: s.transactions.id });
   await d.update(s.requests).set({ quote: "approved" }).where(eq(s.requests.ref, ref));
   return { ok: true, txId: tx.id, receipt };
 }
@@ -176,19 +185,8 @@ export async function checkPayment(txId: number): Promise<Result<{ status: "pend
   if (!t) return fail("Payment not found.");
   const own = await ownRequest(t.ref);
   if (!own) return fail("Payment not found.");
-  if (t.status !== "pending") return { ok: true, status: t.status === "paid" ? "paid" : "failed" };
-  const status = await paymentProvider().status(t.providerRef ?? "");
-  if (status === "pending") return { ok: true, status };
-  await d.transaction(async (tx) => {
-    const [updated] = await tx.update(s.transactions).set({ status, at: new Date().toISOString() }).where(and(eq(s.transactions.id, txId), eq(s.transactions.status, "pending"))).returning();
-    if (!updated || status !== "paid") return;
-    const [r] = await tx.select().from(s.requests).where(eq(s.requests.ref, t.ref));
-    if (r.hold?.reason === "payment") await tx.update(s.requests).set({ hold: null }).where(eq(s.requests.ref, t.ref));
-    await event(tx, t.ref, "Payment received", "system", rwf(t.official + t.ours));
-    await notify(tx, t.ref, { icon: "check", title: `Payment received — ${rwf(t.official + t.ours)}${t.official ? ` (${rwf(t.official)} official + ${rwf(t.ours)} ours)` : ""}` });
-    await audit(tx, { actor: "System", role: "—", action: "Payment reconciled", entity: `${t.receipt} · ${rwf(t.official)} official + ${rwf(t.ours)} ours`, fee: true });
-  });
-  revalidatePath(`/portal/requests/${t.ref}`);
+  const status = (await reconcilePayment(txId)) ?? "failed";
+  if (status !== "pending") revalidatePath(`/portal/requests/${t.ref}`);
   return { ok: true, status };
 }
 
@@ -196,4 +194,27 @@ export async function markNotificationsRead() {
   const accountId = await requireCustomerId();
   await (await db()).update(s.notifications).set({ unread: false }).where(eq(s.notifications.accountId, accountId));
   revalidatePath("/portal", "layout");
+}
+
+/** A customer can cancel while nothing has been paid and nothing has been submitted. */
+export async function cancelRequest(ref: string, reason: string): Promise<Result> {
+  const own = await ownRequest(ref);
+  if (!own) return fail("Request not found.");
+  const d = own.d;
+  const [r] = await d.select().from(s.requests).where(eq(s.requests.ref, ref));
+  if (r.closed || r.stage === "completed") return fail("This request is already finished.");
+  if (r.stage === "institution") return fail("This request is already with the institution. Message your agent to stop it.");
+  const txs = await d.select().from(s.transactions).where(eq(s.transactions.ref, ref));
+  if (txs.some((t) => t.status === "paid" || t.status === "pending")) return fail("You have already paid for this request. Message your agent to cancel it and arrange a refund.");
+  const why = reason.trim().slice(0, 500);
+  await d.transaction(async (tx) => {
+    await tx.update(s.requests).set({
+      closed: { kind: "cancelled", at: new Date().toISOString(), reason: why ? `Cancelled by you: ${why}` : "Cancelled by you." },
+      hold: null, summary: { title: "Cancelled", body: "You cancelled this request. Nothing was charged." }, next: "Closed.",
+    }).where(eq(s.requests.ref, ref));
+    await event(tx, ref, "Cancelled by the customer", "customer", why || undefined);
+    await audit(tx, { actor: own.name, role: "Customer", action: "Cancelled request", entity: ref });
+  });
+  revalidatePath("/portal", "layout");
+  return { ok: true };
 }

@@ -30,7 +30,8 @@ export function db(): Promise<Db> {
 }
 
 async function open(): Promise<Db> {
-  if (process.env.NODE_ENV === "production" && !process.env.DATABASE_URL) {
+  // A production build needs real Postgres; only demo builds (INZIRA_DEMO=1) may use PGlite.
+  if (process.env.NODE_ENV === "production" && !process.env.DATABASE_URL && process.env.INZIRA_DEMO !== "1") {
     throw new Error("DATABASE_URL must point to a persistent Postgres database in production.");
   }
   if (process.env.DATABASE_URL) {

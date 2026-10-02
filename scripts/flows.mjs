@@ -38,9 +38,9 @@ let pass = 0; const fails = [];
 const check = (name, ok, extra = "") => { if (ok) { pass++; console.log("  ok   " + name); } else { fails.push(name); console.log("  FAIL " + name + (extra ? " — " + extra : "")); } };
 
 async function page(width = 1280) {
-  const t = await (await fetch(`http://127.0.0.1:${port}/json/new?about:blank`, { method: "PUT" })).json();
+  const t = await (await fetch(`http://127.0.0.1:${port}/json/new?about:blank`, { method: "PUT", signal: AbortSignal.timeout(15000) })).json();
   const ws = new WebSocket(t.webSocketDebuggerUrl);
-  await new Promise((res, rej) => { ws.onopen = res; ws.onerror = rej; });
+  await new Promise((res, rej) => { ws.onopen = res; ws.onerror = rej; setTimeout(() => rej(new Error("could not open a browser tab")), 15000); });
   let id = 0; const pending = new Map();
   ws.onmessage = (m) => { const d = JSON.parse(m.data); if (d.id && pending.has(d.id)) { pending.get(d.id)(d); pending.delete(d.id); } };
   // Every browser command gives up after 20 s, so a stall shows up as a failed check instead of a hang.
@@ -51,6 +51,8 @@ async function page(width = 1280) {
     ws.send(JSON.stringify({ id: i, method, params }));
   });
   await send("Page.enable"); await send("DOM.enable"); await send("Runtime.enable");
+  // A tab Chrome treats as in the background gets its timers and rendering throttled.
+  await send("Page.bringToFront"); await send("Emulation.setFocusEmulationEnabled", { enabled: true });
   await send("Emulation.setDeviceMetricsOverride", { width, height: 900, deviceScaleFactor: 1, mobile: width < 800 });
   const HELP = `window.__t = {
     set(sel, v) { const el = document.querySelector(sel); if (!el) throw new Error("no element " + sel); const proto = el.tagName === "TEXTAREA" ? HTMLTextAreaElement.prototype : el.tagName === "SELECT" ? HTMLSelectElement.prototype : HTMLInputElement.prototype; Object.getOwnPropertyDescriptor(proto, "value").set.call(el, v); el.dispatchEvent(new Event(el.tagName === "SELECT" ? "change" : "input", { bubbles: true })); return true; },
@@ -81,7 +83,11 @@ async function signIn(p, phone) {
   await p.set("#si-phone", phone); await p.click("Send me a code"); await sleep(800);
   const code = await p.ev(`document.querySelector("[data-demo-code]")?.dataset.demoCode ?? ""`);
   if (!code) throw new Error("no demo code shown (start the app with INZIRA_DEMO=1)");
-  await p.set("#otp", code); await p.click("Sign in", "button"); await sleep(2500); await p.help();
+  await p.set("#otp", code); await p.click("Sign in", "button"); await waitPath(p, (path) => path !== "/sign-in"); await sleep(500); await p.help();
+}
+/** Waits until the address matches, up to 10 seconds. */
+async function waitPath(p, ok) {
+  for (let i = 0; i < 40 && !ok(await p.ev("location.pathname")); i++) await sleep(250);
 }
 /** Waits until the page shows `text` (after a save and refresh), up to 10 seconds. */
 async function waitFor(p, text) {
@@ -91,7 +97,7 @@ async function waitFor(p, text) {
 async function waitGone(p, text) {
   for (let i = 0; i < 40 && (await p.has(text)); i++) await sleep(250);
 }
-const step = async (name, fn) => { try { await fn(); } catch (e) { check(name, false, e.message.split("\n")[0]); } };
+const step = async (name, fn) => { console.log(`# ${name}`); try { await fn(); } catch (e) { check(name, false, e.message.split("\n")[0]); } };
 
 // ---------- public ----------
 await step("track", async () => {
@@ -143,12 +149,15 @@ await step("start", async () => {
   check("start: texts a code to confirm the number", await p.has("Enter the code we sent you") && await p.has("+250 788 555 010"));
   await p.set("#otp", "111111"); await p.click("Confirm and send request"); await sleep(1000);
   check("start: a wrong code is refused", await p.has("not right"));
-  await p.set("#otp", await p.ev(`document.querySelector("[data-demo-code]").dataset.demoCode`)); await p.click("Confirm and send request"); await sleep(2500);
+  await p.set("#otp", await p.ev(`document.querySelector("[data-demo-code]").dataset.demoCode`)); await p.click("Confirm and send request"); await waitFor(p, "Request received");
+  if (!(await p.has("Request received"))) console.log("    page says:", (await p.ev(`document.querySelector("main")?.innerText ?? ""`)).slice(0, 300).replace(/\s+/g, " "));
   const ref = await p.ev(`document.querySelector("h1 + p strong")?.textContent ?? ""`);
   check("start: creates the request with a new reference", await p.has("Request received") && /^INZ-\d{4}-\d{5}$/.test(ref), ref);
   check("start: the draft is cleared after sending", (await p.ev(`sessionStorage.getItem("inzira:start:land-spouse-update")`)) === null);
-  await p.click("See my request"); await sleep(2500);
+  await p.click("See my request"); await waitFor(p, "We married in August.");
   check("start: the new customer is signed in and sees the request", await p.has("Add or remove a spouse in the land register") && await p.has("We married in August.") && await p.has("id_photo.png"));
+  await p.click("Cancel this request", "summary"); await sleep(300); await p.click("Cancel request", "button"); await waitFor(p, "Cancelled by you");
+  check("cancel: a customer can cancel before paying", await p.has("Cancelled by you") && !(await p.has("Cancel this request")));
   await p.go("/start/irembo-training");
   check("training: no national ID is asked for", (await p.ev(`document.querySelector("#f-nid") === null && !!document.querySelector('[aria-label^="Step 1 of 3"]')`)));
   await p.close();
@@ -173,10 +182,10 @@ await step("customer", async () => {
   check("pay: a declined prompt says nothing was charged", await p.has("didn’t go through") && await p.has("Nothing was charged"));
   await p.click("Try again"); await sleep(200); await p.set("#mm", "788 123 456"); await p.click("Send payment prompt"); await sleep(5500);
   check("pay: success shows a receipt", await p.has("Payment received") && await p.has("INZ-R-22107"));
-  await p.click("Done"); await sleep(2500);
+  await p.click("Done"); await waitFor(p, "Paid RWF 20,000");
   check("pay: the request now reads Paid, from the database", await p.has("Paid RWF 20,000") && !(await p.has("Review and pay")));
   await p.go("/portal/requests/INZ-2026-04817");
-  await p.set("#rm", "I will send a new photo this afternoon."); await p.click("Send message"); await sleep(2500);
+  await p.set("#rm", "I will send a new photo this afternoon."); await p.click("Send message"); await waitFor(p, "I will send a new photo this afternoon.");
   check("messages: a sent message stays after reload", await p.has("I will send a new photo this afternoon."));
   await p.go("/portal/documents");
   check("documents: opens on the rejected document", (await p.ev(`document.querySelector(".sticky-aside .eb").textContent`)) === "Replace document");
@@ -203,17 +212,17 @@ await step("agent", async () => {
   check("agent: sees the customer's message", await p.has("Here is our product list"));
   await p.click("Reject with reason"); await sleep(200); await p.set("#rj", "The prices are cut off on page 2. Please send the full list."); await p.click("Send rejection"); await waitFor(p, "We need a new copy");
   check("agent: rejecting a document puts the case on hold, saved", await p.has("We need a new copy: Product & price list") && await p.has("Waiting on customer"));
-  await p.click("Clear hold"); await sleep(2500);
+  await p.click("Clear hold"); await waitGone(p, "We need a new copy");
   check("agent: clearing the hold", !(await p.has("We need a new copy")));
   await p.set("#mi", "Could you confirm the VAT rate for bottled water?"); await p.click("Send and wait on customer"); await waitFor(p, "Your agent needs something from you");
   check("agent: send-and-wait creates a hold with the question", await p.has("Your agent needs something from you"));
-  await p.set("#rf", "EBM-2026-5512"); await p.click("Mark submitted"); await sleep(2500);
+  await p.set("#rf", "EBM-2026-5512"); await p.click("Mark submitted"); await waitFor(p, "Mark resubmitted");
   check("agent: marking submitted moves to With the institution and clears the hold", !(await p.has("Your agent needs something from you")) && (await p.ev(`document.querySelector("#st").value`)) === "institution");
   await p.set("#sf", "15000"); await sleep(200);
   check("agent: an agent can't change our fee", await p.has("Needs a supervisor") && (await p.ev(`[...document.querySelectorAll("button")].find((b) => b.textContent === "Save fees")?.disabled`)) === true);
   await p.go("/agent/intake"); await p.click("Open case"); await sleep(200);
   check("intake: needs a name and number", await p.has("Enter the customer’s name"));
-  await p.set("#in-name", "Walk-in Customer"); await p.set("#in-phone", "788 321 654"); await p.click("Open case"); await sleep(2500);
+  await p.set("#in-name", "Walk-in Customer"); await p.set("#in-phone", "788 321 654"); await p.click("Open case"); await waitFor(p, "opened");
   check("intake: opens a real case", await p.has("opened") && /INZ-\d{4}-\d{5}/.test(await p.ev("document.body.innerText")));
   await p.close();
 });
@@ -227,7 +236,15 @@ await step("patrick", async () => {
   check("review: the agent can open the uploaded file", (await p.ev(`[...document.querySelectorAll('a[href^="/files/"]')].length`)) > 0);
   await p.click("Approve"); await waitGone(p, "Returned · waiting on customer");
   check("review: approving the last missing document clears the hold", !(await p.has("Returned · waiting on customer")) && await p.has("With the institution"));
+  await p.set("#dn", "E-title — Aline Uwase");
+  let node = await p.send("DOM.querySelector", { nodeId: (await p.send("DOM.getDocument")).result.root.nodeId, selector: 'section[aria-labelledby="out-h"] input[type=file]' });
+  await p.send("DOM.setFileInputFiles", { nodeId: node.result.nodeId, files: [png] }); await waitFor(p, "Delivered · customer notified");
+  await waitFor(p, "E-title — Aline Uwase");
+  check("deliver: the agent attaches the final document", await p.has("E-title — Aline Uwase"));
   await p.go("/agent/cases/INZ-2026-04821");
+  node = await p.send("DOM.querySelector", { nodeId: (await p.send("DOM.getDocument")).result.root.nodeId, selector: 'section[aria-labelledby="fee-h"] input[type=file]' });
+  await p.send("DOM.setFileInputFiles", { nodeId: node.result.nodeId, files: [png] }); await waitFor(p, "Official receipt: attached");
+  check("receipt: the official receipt is attached", await p.has("Official receipt: attached"));
   check("quote: can't send fees without the official fee", await p.has("Enter the official fee for this case first"));
   await p.set("#of", "12000"); await sleep(200); await p.click("Send fees to customer"); await waitFor(p, "Fees sent. Waiting");
   check("quote: fees are saved and sent", await p.has("Fees sent. Waiting for the customer"));
@@ -243,7 +260,7 @@ await step("admin", async () => {
   check("services: unchecked official fees are flagged", await p.has("official fees not yet checked"));
   await p.click("Edit Company registration"); await sleep(400);
   check("services: the editor shows the price list fee", (await p.ev(`document.querySelector("#e6").value`)) === "10000");
-  await p.set("#e6", "12000"); await p.click("Mark as checked today"); await sleep(200); await p.click("Save changes"); await sleep(2500);
+  await p.set("#e6", "12000"); await p.click("Mark as checked today"); await sleep(200); await p.click("Save changes"); await waitFor(p, "Company registration updated");
   check("services: saving a price change", await p.has("Company registration updated"));
   await p.go("/services/company-registration");
   check("services: customers see the new price straight away", await p.has("RWF 12,000") && await p.has("Official fee last checked"));
@@ -259,6 +276,19 @@ await step("admin", async () => {
   check("people: inviting adds a person", await p.has("New Colleague"));
   await p.click("Sign out", "button"); await sleep(2000);
   check("sign out: back to sign-in", (await p.ev("location.pathname")) === "/sign-in");
+  await p.close();
+});
+
+// ---------- Aline again: the delivered document ----------
+await step("delivered", async () => {
+  const p = await page();
+  await signIn(p, "788123456");
+  await p.go("/portal/requests/INZ-2026-04817");
+  const link = await p.ev(`[...document.querySelectorAll('a[href^="/files/"]')].find((a) => a.closest("section")?.textContent.includes("E-title — Aline Uwase"))?.getAttribute("href") ?? ""`);
+  check("delivered: the customer sees the final document", await p.has("E-title — Aline Uwase") && !!link);
+  check("delivered: and can download it", link ? (await p.ev(`fetch(${JSON.stringify(link)}).then((r) => r.status)`)) === 200 : false);
+  await p.go("/portal");
+  check("delivered: the customer was notified", await p.has("E-title — Aline Uwase is ready in your portal"));
   await p.close();
 });
 

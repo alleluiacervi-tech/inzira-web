@@ -53,11 +53,14 @@ Copy `.env.example` to `.env.local`. None are needed for development.
 
 | Variable | What it does |
 | --- | --- |
-| `DATABASE_URL` | Persistent Postgres connection string. Required in production; PGlite is for local development only. |
+| `DATABASE_URL` | Persistent Postgres connection string. Required in production; PGlite is for local development and `INZIRA_DEMO=1` builds only. |
 | `DB_AUTO_MIGRATE=1` | Apply migrations when the server starts (otherwise run `npm run db:migrate`). |
-| `INZIRA_DEMO=1` | Allow the console SMS and payment simulator in a production build (staging, demos). Never on the live site. |
+| `INZIRA_DEMO=1` | Demo/staging builds: allows the console SMS, the payment simulator, PGlite and local file storage in a production build. Never on the live site. |
 | `SMS_PROVIDER` | `africastalking` to send real SMS (`AT_USERNAME`, `AT_API_KEY`, optional `AT_SENDER_ID`). |
-| `PAYMENT_PROVIDER` | Only `simulator` exists today. See "Before launch". |
+| `PAYMENT_PROVIDER` | `live` for real mobile money (MTN numbers → MTN MoMo, 072/073 → Airtel Money), or `simulator` for demos. |
+| `MTN_MOMO_*` | `MTN_MOMO_SUBSCRIPTION_KEY`, `MTN_MOMO_API_USER`, `MTN_MOMO_API_KEY`, `MTN_MOMO_ENVIRONMENT` (`sandbox` or the live name MTN gives you, e.g. `mtnrwanda`), `MTN_MOMO_BASE_URL` (live base URL from MTN), `MTN_MOMO_CURRENCY` (default `RWF`; the sandbox uses `EUR`). |
+| `AIRTEL_*` | `AIRTEL_CLIENT_ID`, `AIRTEL_CLIENT_SECRET`, `AIRTEL_BASE_URL` (`https://openapiuat.airtel.africa` for testing, `https://openapi.airtel.africa` live). |
+| `CRON_SECRET` | Protects `/api/cron`. Vercel sends it automatically to scheduled jobs. |
 | `NEXT_PUBLIC_SITE_URL` | The public address, used in SMS links. |
 | `BLOB_READ_WRITE_TOKEN` | Vercel Blob read/write token for local or non-Vercel deployments. On Vercel, connect a private Blob store to use OIDC instead. |
 | `UPLOAD_DIR` | Local development upload directory (default `.data/uploads`). Production requires private Blob storage. |
@@ -70,7 +73,9 @@ Copy `.env.example` to `.env.local`. None are needed for development.
 3. Apply the schema: `npm run db:migrate`.
 4. Load the catalogue and the first owner, without sample data:
    `OWNER_NAME="…" OWNER_PHONE="07…" npm run db:setup`.
-5. Set `SMS_PROVIDER` and its keys, and `NEXT_PUBLIC_SITE_URL`.
+5. Set `SMS_PROVIDER` and its keys, `NEXT_PUBLIC_SITE_URL`, `CRON_SECRET`, and — once you have
+   credentials — `PAYMENT_PROVIDER=live` with the MTN and Airtel keys. Point the Airtel callback URL in
+   their portal at `https://<your site>/api/payments/callback`; MTN receives it with each prompt.
 6. The owner signs in, checks the official fees in Admin › Services & prices, and invites the team
    in Admin › Roles & people.
 
@@ -84,6 +89,10 @@ app/
   actions/           server actions — every write (auth, customer, agent, admin). Each checks the
                      session and the role's permission, writes the timeline and the audit log.
   files/[id]/        serves an uploaded file to its owner or to staff allowed to download documents
+  api/cron           scheduled job (vercel.json, daily): settles payments, holds overdue requests
+                     with one SMS reminder, removes expired codes and sessions
+  api/payments/callback   mobile money callbacks — only trigger a re-check with the provider
+  api/health         200 when the database answers, for uptime monitors
   …                  pages: server components that read through lib/repo
 components/          screens and building blocks (client components call app/actions)
 lib/
@@ -94,7 +103,10 @@ lib/
   auth.ts            phone + SMS code sign-in, sessions (hashed, httpOnly cookie), staff permissions
   permissions.ts     the permission list and the starting roles matrix
   sms.ts             SMS providers (console, Africa's Talking)
-  payments.ts        mobile money providers (simulator)
+  payments.ts        mobile money providers (MTN MoMo, Airtel Money, simulator)
+  billing.ts         settles a payment — the one place that decides paid or failed
+  jobs.ts            the scheduled tasks
+  ratelimit.ts       per-IP limits for codes, sign-in, tracking, new requests and payment prompts
   storage.ts         uploaded files (private Blob in production, local disk in development)
   types.ts           the domain model · status.ts, format.ts: how it is shown
   mock/              the catalogue and the sample data used to seed a database
@@ -124,9 +136,11 @@ by every server action.
 
 ## Before launch
 
-- **Mobile money.** Connect MTN MoMo (Collection API) and Airtel Money in `lib/payments.ts` once Inzira
-  has API credentials; until then only the simulator exists, and production refuses payments. Refunds
-  are recorded in the admin console but the money is sent back from the provider's dashboard.
+- **Mobile money.** MTN MoMo and Airtel Money are written from their published APIs but have not been
+  run against either provider. Get sandbox credentials, set `PAYMENT_PROVIDER=live` on a staging
+  build, and pay a few requests end to end before taking real money. Without a provider, production
+  refuses payments. Refunds are recorded in the admin console; the money itself is sent back from the
+  provider's dashboard.
 - **SMS.** The Africa's Talking integration is written but has not been tested against a live account —
   send a test message first. WhatsApp messages are not sent yet.
 - **File storage.** Production uploads use private Vercel Blob and are delivered only after the file
@@ -134,7 +148,10 @@ by every server action.
 - **Official fees, processing times and document lists** in the catalogue are drafts: check each with
   the institution, then mark the fee as checked in the admin console (customers see that date).
 - **Abuse protection.** Codes expire after 10 minutes, allow 5 attempts and one resend per 30 seconds
-  per number; add rate limiting per IP (e.g. at your host or CDN) for sign-in and request tracking.
+  per number, and every public action is rate-limited per IP (`lib/ratelimit.ts`). Responses carry
+  security headers; a Content Security Policy is not set yet.
+- **Scheduled job.** `vercel.json` runs `/api/cron` once a day (the most a Vercel Hobby plan allows).
+  On a paid plan, run it every 10–15 minutes so abandoned payment prompts settle sooner.
 - **Backups** of the Postgres database, and a retention rule for uploaded documents.
 - **Placeholders:** company details in `lib/site.ts`, the sample testimonials, and the four legal pages
   the footer links to (terms, privacy, refunds, complaints).

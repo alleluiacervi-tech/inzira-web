@@ -10,6 +10,7 @@ import { STAGE_LABEL } from "@/lib/status";
 import { SITE } from "@/lib/site";
 import { sendSms } from "@/lib/sms";
 import { getService } from "@/lib/repo";
+import { ALLOWED, MAX_BYTES, humanSize, putFile } from "@/lib/storage";
 import { STAGES, type Closed, type Hold, type Stage } from "@/lib/types";
 
 /** Loads a case for the signed-in staff member, if they may see it and hold `perm`. */
@@ -174,7 +175,8 @@ export async function sendQuote(ref: string): Promise<Result> {
   if (r.ours <= 0) return fail("Set our fee for this case first.");
   const officialText = r.officialMode === "none" ? "no official fee" : r.officialMode ? "official fee paid by you directly" : `official ${rwf(r.official ?? 0)}`;
   await d.transaction(async (tx) => {
-    await tx.update(s.requests).set({ quote: "confirmed" }).where(eq(s.requests.ref, ref));
+    // Fees are due three days after they are sent, unless a date was already agreed.
+    await tx.update(s.requests).set({ quote: "confirmed", dueAt: r.dueAt ?? new Date(Date.now() + 3 * 864e5).toISOString() }).where(eq(s.requests.ref, ref));
     await event(tx, ref, "Fees confirmed", me.id, `${officialText} + our fee ${rwf(r.ours)}`);
     await notify(tx, ref, { icon: "card", title: `Fees confirmed for ${ref}: ${officialText} + our fee ${rwf(r.ours)}`, sms: `fees confirmed: ${officialText} + our fee ${rwf(r.ours)}. Approve and pay in your portal.` });
     await audit(tx, { actor: me.name, role: me.role, action: "Sent quote", entity: `${ref} · ${officialText} + ${rwf(r.ours)}`, fee: true });
@@ -229,4 +231,47 @@ export async function createIntake(input: { slug: string; name: string; phone: s
   sendSms(phone, `Inzira: your request ${ref} (${service.name}) is open. Track it or sign in with this number at ${SITE.url}.`).catch((e) => console.error("[sms]", e));
   revalidatePath("/agent");
   return { ok: true, ref };
+}
+
+/** Files an agent adds to a case:
+ *  - "deliverable": the final document from the institution, delivered to the customer's portal;
+ *  - "receipt": the institution's official receipt for the fee we passed on;
+ *  - "document": a customer document received in person or on WhatsApp, filed against the checklist. */
+export async function uploadCaseFile(fd: FormData): Promise<Result> {
+  const ref = String(fd.get("ref") ?? "");
+  const kind = String(fd.get("kind") ?? "") as "deliverable" | "receipt" | "document";
+  const file = fd.get("file");
+  const perm = kind === "deliverable" ? "complete" : kind === "receipt" ? "recordOfficial" : "reviewDocs";
+  const w = await work(ref, perm);
+  if ("error" in w) return fail(w.error!);
+  const { me, d, r } = w;
+  if (!(file instanceof File) || !file.size) return fail("Choose a file first.");
+  if (file.size > MAX_BYTES) return fail("That file is larger than 10 MB.");
+  if (!ALLOWED.test(file.type)) return fail("Please upload a PDF, JPG or PNG.");
+  const name = String(fd.get("name") ?? "").trim() || file.name;
+  const docId = String(fd.get("docId") ?? "");
+  const fileId = `f-${randomBytes(6).toString("hex")}`;
+  await putFile(`${ref}/${fileId}`, new Uint8Array(await file.arrayBuffer()), file.type);
+  await d.transaction(async (tx) => {
+    await tx.insert(s.files).values({ id: fileId, ref, storageKey: `${ref}/${fileId}`, name: file.name, mime: file.type, bytes: file.size, uploadedBy: me.id });
+    if (kind === "deliverable") {
+      await tx.insert(s.deliverables).values({ id: `${ref}-o${randomBytes(3).toString("hex")}`, ref, name, issuedAt: now(), issuedBy: r.channel, fileId });
+      await event(tx, ref, "Document delivered", me.id, name);
+      await notify(tx, ref, { icon: "check", title: `${name} is ready in your portal`, sms: `${name} is ready. Download it from your portal.` });
+      await audit(tx, { actor: me.name, role: me.role, action: "Delivered document", entity: `${ref} · ${name}` });
+    } else if (kind === "receipt") {
+      await tx.update(s.requests).set({ officialReceipt: "attached" }).where(eq(s.requests.ref, ref));
+      await event(tx, ref, "Official receipt attached", me.id);
+      await audit(tx, { actor: me.name, role: me.role, action: "Attached official receipt", entity: `${ref} · ${file.name}`, fee: true });
+    } else {
+      const [doc] = docId ? await tx.select().from(s.requestDocuments).where(eq(s.requestDocuments.id, docId)) : [];
+      if (doc && doc.ref !== ref) throw new Error("wrong case");
+      const fields = { status: "received" as const, fileId, fileName: file.name, fileSize: humanSize(file.size), uploadedAt: now(), note: null, reviewedAt: null, reviewedBy: null };
+      if (doc) await tx.update(s.requestDocuments).set(fields).where(eq(s.requestDocuments.id, doc.id));
+      else await tx.insert(s.requestDocuments).values({ id: `${ref}-x${randomBytes(3).toString("hex")}`, ref, position: 99, name, group: "Other", required: false, ...fields });
+      await event(tx, ref, "Document added by agent", me.id, doc?.name ?? name);
+      await audit(tx, { actor: me.name, role: me.role, action: "Added document", entity: `${ref} · ${doc?.name ?? name}` });
+    }
+  });
+  return done(ref);
 }

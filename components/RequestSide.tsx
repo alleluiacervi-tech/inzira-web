@@ -1,7 +1,7 @@
 "use client";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { checkPayment, sendMessage, startPayment } from "@/app/actions/customer";
+import { cancelRequest, checkPayment, sendMessage, startPayment } from "@/app/actions/customer";
 import { billOfficial, billOurs, billTotal, fmtDay, fmtWhen, initials, rwf } from "@/lib/format";
 import { amountDue, paidSplit, payStatus } from "@/lib/status";
 import type { Billing, Message } from "@/lib/types";
@@ -168,5 +168,32 @@ function PayDialog({ reqRef, b, due, phone, onClose }: { reqRef: string; b: Bill
         )}
       </div>
     </div>
+  );
+}
+
+/** Shown while a request can still be cancelled by the customer: before payment and submission. */
+export function CancelRequest({ reqRef }: { reqRef: string }) {
+  const router = useRouter();
+  const [reason, setReason] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  return (
+    <details className="card" style={{ padding: 18 }}>
+      <summary className="row between g8"><strong style={{ fontSize: 15 }}>Cancel this request</strong><span className="chev"><Icon name="down" size={18} /></span></summary>
+      <form className="stack g10" style={{ paddingTop: 14 }} onSubmit={async (e) => {
+        e.preventDefault();
+        setBusy(true); setError("");
+        const r = await cancelRequest(reqRef, reason).catch(() => ({ ok: false as const, error: "Not saved. Check your connection and try again." }));
+        setBusy(false);
+        if (!r.ok) { setError(r.error); return; }
+        router.refresh();
+      }}>
+        <p className="hint">Nothing has been charged, so cancelling costs nothing.</p>
+        <label htmlFor="cx">Why are you cancelling? <span className="mut" style={{ fontWeight: 400 }}>(optional)</span></label>
+        <textarea id="cx" className="in" rows={2} value={reason} onChange={(e) => setReason(e.target.value)} />
+        {error && <span className="err-text" role="alert"><Icon name="alert" size={15} /> {error}</span>}
+        <button className="btn btn-danger btn-sm" type="submit" disabled={busy} style={{ alignSelf: "flex-start" }}>{busy ? "Cancelling…" : "Cancel request"}</button>
+      </form>
+    </details>
   );
 }
