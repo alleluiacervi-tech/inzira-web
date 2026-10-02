@@ -9,7 +9,7 @@ import "./globals.css";
 const sans = Archivo({ subsets: ["latin"], axes: ["wdth"], variable: "--f-sans", display: "swap" });
 
 export const metadata: Metadata = {
-  title: { default: "Inzira — your paperwork, walked for you", template: "%s · Inzira" },
+  title: { default: "Inzira — government paperwork, handled for you", template: "%s · Inzira" },
   description:
     "Independent professional help in Rwanda with RDB business registration, taxes, EBM, land services, RURA vehicle authorisations and Irembo. Not a government website.",
   // Lets shared links point at the absolute address of the preview image.

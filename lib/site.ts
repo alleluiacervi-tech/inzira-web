@@ -7,7 +7,8 @@ export const SITE = {
   phone: "+250 7XX XXX XXX",
   /** Digits only, with country code (e.g. 2507XXXXXXXX). Empty until the real number exists. */
   whatsapp: "",
-  companyCode: "[Company code / TIN]",
+  companyCode: "[Company code]",
+  tin: "[TIN]",
   hours: "Mon–Fri 8:00–18:00 · Sat 9:00–13:00",
   responseTime: "2 working hours",
   /** Public address of the site, used in SMS links. */

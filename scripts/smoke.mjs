@@ -10,12 +10,12 @@ const base = (process.argv[2] ?? "http://localhost:3000").replace(/\/$/, "");
 
 /** [path, ...text that must appear in the HTML] */
 const ROUTES = [
-  ["/", "walked for you.", "Two lines on every bill. Always.", "RURA / Transport"],
+  ["/", "handled while you work.", "Two lines on every bill. Always.", "Rwanda Utilities Regulatory Authority"],
   ["/services", "Find the service you need", "Company registration", "Monthly business tax declarations"],
   ["/services?category=tax", "Trading licence declaration"],
-  ["/services/company-registration", "Official government fee", "Our service / assistance fee", "Required documents"],
+  ["/services/company-registration", "Official government fee", "Our service / assistance fee", "Filed with the Rwanda Development Board"],
   ["/services/property-tax-declaration", "per UPI, per year", "Tax as assessed"],
-  ["/services/irembo-training", "per month", "Delivered by"],
+  ["/services/irembo-training", "per month", "Training by Inzira"],
   ["/start", "A few details about you", "Free to ask"],
   ["/start/company-registration", "A few details about you", "Company registration"],
   ["/sign-in", "Sign in to your portal"],

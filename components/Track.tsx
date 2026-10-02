@@ -49,9 +49,17 @@ export default function Track() {
             <h2 className="d" style={{ fontSize: 22 }}>{found.name}</h2>
             <span className="mut" style={{ fontSize: 14 }}>{found.via}</span>
           </div>
+          {found.hold ? (
+            <div className="needs" role="status">
+              <span className="row g10"><span className="needs-dot" aria-hidden="true"><Icon name="alert" size={15} stroke={2.4} /></span><strong style={{ fontSize: 16.5 }}>We need one thing from you</strong></span>
+              <p style={{ fontSize: 15.5, lineHeight: 1.55 }}>{found.hold.title}</p>
+              <Link className="btn btn-p btn-lg" href="/sign-in">Sign in to respond</Link>
+            </div>
+          ) : (
+            <div className="stack g4"><span className="req-next" style={{ color: "var(--muted)" }}>Next step</span><span style={{ fontSize: 15, lineHeight: 1.5 }}>{found.next}</span></div>
+          )}
           <StageTimeline r={found} viewer="customer" />
-          <div className="stack g4"><span className="req-next" style={{ color: found.hold ? "var(--ember-deep)" : "var(--muted)" }}>{found.hold ? "Your action" : "Next step"}</span><span style={{ fontSize: 15, lineHeight: 1.5 }}>{found.hold ? found.hold.title : found.next}</span></div>
-          <div className="row g10 wrapx"><Link className="btn btn-d" href="/sign-in">Sign in for details</Link></div>
+          {!found.hold && <div className="row g10 wrapx"><Link className="btn btn-s" href="/sign-in">Sign in for details</Link></div>}
           <p className="hint row g8" style={{ alignItems: "flex-start" }}><Icon name="lock" size={16} /><span>Documents, messages and payments are only shown after you sign in.</span></p>
         </section>
       )}

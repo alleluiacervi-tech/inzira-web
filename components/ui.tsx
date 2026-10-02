@@ -22,7 +22,7 @@ export function LogoMark({ dark = false }: { dark?: boolean }) {
       <rect width="30" height="30" rx="8" fill={dark ? "#f3f5fa" : "#142850"} />
       <path d="M8 22.5c0-6 14-5 14-11.5" fill="none" stroke={dark ? "#142850" : "#dde4f0"} strokeWidth="2.6" strokeLinecap="round" />
       <circle cx="8" cy="22.5" r="2.1" fill={dark ? "#142850" : "#dde4f0"} />
-      <circle cx="22" cy="9" r="3.4" fill="#F2C230" stroke={dark ? "#142850" : "#142850"} strokeWidth="1.4" />
+      <circle cx="22" cy="9" r="3.4" fill="#D4A53A" stroke="#142850" strokeWidth="1.4" />
     </svg>
   );
 }
@@ -37,6 +37,11 @@ export function Logo({ dark = false, href = "/" }: { dark?: boolean; href?: stri
 }
 
 // ---------------- status badges ----------------
+/** An institution's name as a plain text label (never its logo). */
+export function Plate({ code, size }: { code: string; size?: "sm" }) {
+  return <span className={`plate ${code.length > 4 ? "plate-word" : ""} ${size === "sm" ? "plate-sm" : ""}`} aria-hidden="true">{code}</span>;
+}
+
 export function Badge({ tone, label }: { tone: Tone; label: string }) {
   return <span className={`b t-${tone}`}>{label}</span>;
 }
