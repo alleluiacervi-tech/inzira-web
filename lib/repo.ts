@@ -6,7 +6,7 @@ import { db, iso, schema as s } from "./db";
 import { fmtDay, phoneDigits, shortName } from "./format";
 import { PERMISSION_GROUPS, PERMISSIONS, ROLES, type Permission } from "./permissions";
 import { amountDue, isOpen, payStatus } from "./status";
-import { STAGES, type Account, type AuditEntry, type Category, type CustomerRequest, type LibraryDoc, type Notification, type Profile, type Request, type RequestView, type Service, type Staff, type TrackResult } from "./types";
+import { STAGES, type Account, type AuditEntry, type Category, type ClientDetail, type ClientSummary, type CustomerRequest, type LibraryDoc, type Message, type Note, type Notification, type Profile, type Request, type RequestEvent, type RequestView, type SavedView, type Service, type Staff, type Stage, type StageTarget, type TrackResult } from "./types";
 
 export const getNow = async () => new Date().toISOString();
 const DAY = 864e5;
@@ -171,6 +171,7 @@ export async function trackRequest(ref: string, phone: string): Promise<TrackRes
 // ---------------- staff ----------------
 /** The signed-in member of staff. */
 const plain = ({ permissions: _p, ...rest }: Staff & { permissions: Set<Permission> }): Staff => rest;
+export const getStaffUser = async (next = "/console"): Promise<Staff> => plain(await requireStaff(next));
 export const getAgent = async (): Promise<Staff> => plain(await requireStaff("/agent"));
 export const getAdmin = async (): Promise<Staff> => plain(await requireStaff("/admin"));
 /** What the signed-in member of staff may do, for screens that enable or hide controls. */
@@ -178,16 +179,28 @@ export const getMyPermissions = async (): Promise<Permission[]> => [...(await re
 export async function listStaff(): Promise<(Staff & { phone: string | null })[]> {
   return (await db()).select().from(s.staff).orderBy(asc(s.staff.name));
 }
+
 /** Cases this person may see: everything with "View all cases", otherwise their own. */
 export async function listCases(): Promise<RequestView[]> {
   const me = await requireStaff("/agent");
   const all = me.permissions.has("viewAll");
   return (await loadRequests(all ? undefined : eq(s.requests.agentId, me.id))).sort(byUpdated);
 }
+
 export async function getCase(ref: string): Promise<RequestView | undefined> {
   const me = await requireStaff(`/agent/cases/${ref}`);
   const [v] = await loadRequests(eq(s.requests.ref, ref));
   if (!v || (!me.permissions.has("viewAll") && v.agentId !== me.id)) return undefined;
+  return v;
+}
+
+export async function getRequest(ref: string): Promise<RequestView | undefined> {
+  const me = await requireStaff(`/console/requests/${ref}`);
+  const [v] = await loadRequests(eq(s.requests.ref, ref));
+  if (!v) return undefined;
+  if (!me.permissions.has("viewAll") && v.agentId && v.agentId !== me.id && me.role === "Agent") {
+    return undefined;
+  }
   return v;
 }
 
@@ -211,45 +224,457 @@ export async function getAgentFees() {
   return { period: "Last 5 weeks, by week", ours: rwfShort(ours), official: rwfShort(official), weekly: weeks };
 }
 
-// ---------------- admin ----------------
-export async function getAdminOverview() {
+// ---------------- console: clients ----------------
+export async function listClients(): Promise<ClientSummary[]> {
   const d = await db();
-  const now = Date.now(), since30 = now - 30 * DAY, monthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1).getTime();
-  const [cases, accountRows, txs, cats] = await Promise.all([
+  const [profs, accs, tagsRows, allRequests] = await Promise.all([
+    d.select().from(s.profiles),
+    d.select().from(s.accounts),
+    d.select().from(s.clientTags),
+    loadRequests(),
+  ]);
+
+  const accMap = new Map(accs.map((a) => [a.id, a]));
+  const tagsByProfile = new Map<string, string[]>();
+  for (const t of tagsRows) {
+    tagsByProfile.set(t.profileId, [...(tagsByProfile.get(t.profileId) ?? []), t.tag]);
+  }
+
+  return profs.map((p) => {
+    const acc = accMap.get(p.accountId);
+    const pReqs = allRequests.filter((r) => r.profileId === p.id);
+    const open = pReqs.filter(isOpen).length;
+    const total = pReqs.length;
+
+    let totalPaidOurs = 0;
+    let totalPaidOfficial = 0;
+    let balanceDue = 0;
+
+    for (const r of pReqs) {
+      for (const t of r.billing.transactions) {
+        if (t.status === "paid") {
+          totalPaidOurs += t.ours;
+          totalPaidOfficial += t.official;
+        }
+      }
+      if (isOpen(r)) {
+        balanceDue += amountDue(r.billing);
+      }
+    }
+
+    const lastActivity = pReqs.map((r) => r.updatedAt).sort((a, b) => Date.parse(b) - Date.parse(a))[0] ?? (acc?.since ? iso(acc.since)! : new Date().toISOString());
+
+    return {
+      id: p.id,
+      accountId: p.accountId,
+      name: p.name,
+      kind: p.kind,
+      phone: acc ? `+250 ${acc.phone.replace(/^(\d{3})(\d{3})(\d{3})$/, "$1 $2 $3")}` : "",
+      district: p.district ?? undefined,
+      nationalId: p.nationalId ?? undefined,
+      idMasked: p.idMasked ?? undefined,
+      tin: p.tin ?? undefined,
+      tinMasked: p.tinMasked ?? undefined,
+      openRequests: open,
+      totalRequests: total,
+      totalPaidOurs,
+      totalPaidOfficial,
+      balanceDue,
+      lastActivity,
+      tags: tagsByProfile.get(p.id) ?? [],
+      since: acc ? iso(acc.since)! : new Date().toISOString(),
+    };
+  });
+}
+
+export async function getClient(profileId: string): Promise<ClientDetail | undefined> {
+  const clients = await listClients();
+  const summary = clients.find((c) => c.id === profileId);
+  if (!summary) return undefined;
+
+  const d = await db();
+  const [profRow] = await d.select().from(s.profiles).where(eq(s.profiles.id, profileId));
+  if (!profRow) return undefined;
+
+  const [accRow] = await d.select().from(s.accounts).where(eq(s.accounts.id, profRow.accountId));
+  if (!accRow) return undefined;
+
+  const clientNotesRows = await d.select().from(s.clientNotes).where(eq(s.clientNotes.profileId, profileId)).orderBy(desc(s.clientNotes.at));
+  const staffRows = await d.select().from(s.staff);
+
+  const account: Account = {
+    ...accRow,
+    phone: `+250 ${accRow.phone.replace(/^(\d{3})(\d{3})(\d{3})$/, "$1 $2 $3")}`,
+    since: iso(accRow.since)!,
+  };
+
+  const profile: Profile = {
+    ...profRow,
+    relation: profRow.relation ?? undefined,
+    idMasked: profRow.idMasked ?? undefined,
+    nationalId: profRow.nationalId ?? undefined,
+    tin: profRow.tin ?? undefined,
+    tinMasked: profRow.tinMasked ?? undefined,
+    district: profRow.district ?? undefined,
+  };
+
+  const requests = await loadRequests(eq(s.requests.profileId, profileId));
+
+  const documents: LibraryDoc[] = [];
+  const messages: Message[] = [];
+  const events: RequestEvent[] = [];
+  const notes: Note[] = [];
+
+  for (const n of clientNotesRows) {
+    const staffMember = staffRows.find((st) => st.id === n.by);
+    notes.push({
+      id: String(n.id),
+      at: iso(n.at)!,
+      by: n.by,
+      name: staffMember?.name ?? "Staff",
+      body: n.body,
+    });
+  }
+
+  for (const r of requests) {
+    for (const d of r.documents) {
+      documents.push({
+        key: d.id,
+        ref: r.ref,
+        name: d.name,
+        group: d.group,
+        status: d.status,
+        meta: `For ${r.ref} · ${d.status}`,
+        fileId: d.file?.id,
+      });
+    }
+    for (const o of r.deliverables) {
+      documents.push({
+        key: o.id,
+        ref: r.ref,
+        name: o.name,
+        group: "Certificates",
+        status: "issued",
+        meta: `Delivered for ${r.ref}`,
+        fileId: o.fileId,
+      });
+    }
+    messages.push(...r.messages);
+    events.push(...r.events);
+    notes.push(...r.notes);
+  }
+
+  messages.sort((a, b) => Date.parse(a.at) - Date.parse(b.at));
+  events.sort((a, b) => Date.parse(b.at) - Date.parse(a.at));
+  notes.sort((a, b) => Date.parse(b.at) - Date.parse(a.at));
+
+  return {
+    ...summary,
+    account,
+    profile,
+    requests,
+    documents,
+    messages,
+    notes,
+    events,
+  };
+}
+
+// ---------------- console: saved views & targets ----------------
+export async function listSavedViews(entity: "requests" | "clients"): Promise<SavedView[]> {
+  const d = await db();
+  const rows = await d.select().from(s.savedViews).where(eq(s.savedViews.entity, entity)).orderBy(asc(s.savedViews.createdAt));
+  return rows.map((r) => ({
+    id: r.id,
+    entity: r.entity,
+    name: r.name,
+    filters: r.filters,
+    columns: r.columns ?? undefined,
+    sort: r.sort ?? undefined,
+    isDefault: r.isDefault,
+    staffId: r.staffId,
+  }));
+}
+
+export async function listStageTargets(): Promise<Record<Stage, number>> {
+  const d = await db();
+  const rows = await d.select().from(s.stageTargets);
+  const defaults: Record<Stage, number> = { received: 2, checking: 4, preparing: 24, institution: 72, completed: 0 };
+  for (const r of rows) {
+    defaults[r.stage] = r.targetHours;
+  }
+  return defaults;
+}
+
+// ---------------- console: global search ----------------
+export async function searchGlobal(q: string) {
+  const term = q.trim().toLowerCase();
+  if (!term) return { requests: [], clients: [], services: [] };
+
+  const [cases, clients, services] = await Promise.all([
+    loadRequests(),
+    listClients(),
+    listServices({ includeHidden: true }),
+  ]);
+
+  const matchingRequests = cases.filter((c) =>
+    c.ref.toLowerCase().includes(term) ||
+    (c.officialRef && c.officialRef.toLowerCase().includes(term)) ||
+    c.name.toLowerCase().includes(term) ||
+    c.profile.name.toLowerCase().includes(term)
+  ).slice(0, 8);
+
+  const matchingClients = clients.filter((cl) =>
+    cl.name.toLowerCase().includes(term) ||
+    cl.phone.replace(/\s+/g, "").includes(term.replace(/\s+/g, "")) ||
+    (cl.district && cl.district.toLowerCase().includes(term))
+  ).slice(0, 8);
+
+  const matchingServices = services.filter((sv) =>
+    sv.name.toLowerCase().includes(term) ||
+    (sv.aka && sv.aka.toLowerCase().includes(term)) ||
+    sv.summary.toLowerCase().includes(term)
+  ).slice(0, 8);
+
+  return {
+    requests: matchingRequests.map((r) => ({ ref: r.ref, name: r.name, client: r.profile.name, stage: r.stage })),
+    clients: matchingClients.map((c) => ({ id: c.id, name: c.name, phone: c.phone, kind: c.kind })),
+    services: matchingServices.map((s) => ({ slug: s.slug, name: s.name, category: s.category })),
+  };
+}
+
+// ---------------- console: needs attention ----------------
+export async function getNeedsAttentionCounts() {
+  const now = new Date().toISOString();
+  const [cases, services, targets] = await Promise.all([
+    loadRequests(),
+    listServices({ includeHidden: true }),
+    listStageTargets(),
+  ]);
+
+  const open = cases.filter(isOpen);
+
+  // 1. New submissions to assign
+  const unassigned = open.filter((r) => r.stage === "received" && !r.agentId);
+
+  // 2. Overdue payments
+  const overdue = open.filter((r) => payStatus(r.billing, now) === "overdue");
+
+  // 3. Past target time (SLA)
+  const slaBreached = open.filter((r) => {
+    const stageEntered = r.stageDates[r.stage];
+    if (!stageEntered) return false;
+    const targetHours = targets[r.stage] ?? 24;
+    if (targetHours <= 0) return false;
+    const hoursElapsed = (Date.now() - Date.parse(stageEntered)) / (3600 * 1000);
+    return hoursElapsed > targetHours;
+  });
+
+  // 4. Waiting on client > 3 days
+  const waiting3d = open.filter((r) => {
+    if (!r.hold) return false;
+    const days = (Date.now() - Date.parse(r.hold.since)) / DAY;
+    return days >= 3;
+  });
+
+  // 5. Official fees not checked
+  const uncheckedOfficial = services.filter((s) => !s.official.mode && !s.official.verifiedAt);
+
+  // 6. Official receipts missing
+  const missingReceipts = open.filter((r) =>
+    !r.billing.officialMode &&
+    r.billing.officialReceipt !== "attached" &&
+    (r.stage === "preparing" || r.stage === "institution" || r.stage === "completed")
+  );
+
+  return {
+    unassigned: unassigned.length,
+    overdue: overdue.length,
+    slaBreached: slaBreached.length,
+    waiting3d: waiting3d.length,
+    uncheckedOfficial: uncheckedOfficial.length,
+    missingReceipts: missingReceipts.length,
+  };
+}
+
+// ---------------- console: agent my day ----------------
+export async function getMyDayData(agentId?: string) {
+  const me = agentId ? { id: agentId } : await requireStaff();
+  const now = new Date().toISOString();
+  const [cases, targets] = await Promise.all([
+    loadRequests(eq(s.requests.agentId, me.id)),
+    listStageTargets(),
+  ]);
+
+  const open = cases.filter(isOpen);
+
+  // 1. Follow-ups due today
+  const todayFollowUps = open.filter((c) => {
+    if (!c.followUp) return false;
+    const fuDate = new Date(c.followUp.at).toDateString();
+    const todayDate = new Date().toDateString();
+    return fuDate === todayDate;
+  });
+
+  // 2. Cases near or past SLA target
+  const slaCases = open.filter((c) => {
+    const stageEntered = c.stageDates[c.stage];
+    if (!stageEntered) return false;
+    const targetHours = targets[c.stage] ?? 24;
+    if (targetHours <= 0) return false;
+    const hoursElapsed = (Date.now() - Date.parse(stageEntered)) / (3600 * 1000);
+    return hoursElapsed >= targetHours * 0.75; // 75% or over target time
+  }).map((c) => {
+    const stageEntered = c.stageDates[c.stage]!;
+    const targetHours = targets[c.stage] ?? 24;
+    const hoursElapsed = (Date.now() - Date.parse(stageEntered)) / (3600 * 1000);
+    return {
+      case: c,
+      hoursElapsed: Math.round(hoursElapsed),
+      targetHours,
+      breached: hoursElapsed > targetHours,
+    };
+  });
+
+  // 3. Clients who replied
+  const clientReplies = open.filter((c) => {
+    const lastMsg = c.messages[c.messages.length - 1];
+    return lastMsg && lastMsg.by === "customer";
+  });
+
+  // 4. Documents waiting for review
+  const pendingDocs = open.flatMap((c) =>
+    c.documents.filter((d) => d.status === "received").map((d) => ({ case: c, doc: d }))
+  );
+
+  return {
+    todayFollowUps,
+    slaCases,
+    clientReplies,
+    pendingDocs,
+    openCasesCount: open.length,
+  };
+}
+
+// ---------------- admin / overview ----------------
+export async function getAdminOverview(rangeDays = 30) {
+  const d = await db();
+  const now = Date.now();
+  const since = now - rangeDays * DAY;
+  const prevSince = since - rangeDays * DAY;
+  const monthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1).getTime();
+
+  const [cases, accountRows, txs, cats, needsAttention] = await Promise.all([
     loadRequests(),
     d.select({ since: s.accounts.since }).from(s.accounts),
     d.select().from(s.transactions),
     listCategories(),
+    getNeedsAttentionCounts(),
   ]);
+
   const open = cases.filter(isOpen);
   const t = (v: string) => Date.parse(iso(v)!);
-  const paid30 = txs.filter((x) => x.status === "paid" && t(x.at) >= since30);
-  const refunded30 = txs.filter((x) => x.status === "refunded" && t(x.at) >= since30);
-  const ours = paid30.reduce((n, x) => n + x.ours, 0), official = paid30.reduce((n, x) => n + x.official, 0);
-  const prevOurs = txs.filter((x) => x.status === "paid" && t(x.at) >= since30 - 30 * DAY && t(x.at) < since30).reduce((n, x) => n + x.ours, 0);
+
+  const paidInRange = txs.filter((x) => x.status === "paid" && t(x.at) >= since);
+  const paidPrevRange = txs.filter((x) => x.status === "paid" && t(x.at) >= prevSince && t(x.at) < since);
+  const refundedInRange = txs.filter((x) => x.status === "refunded" && t(x.at) >= since);
+
+  const ours = paidInRange.reduce((n, x) => n + x.ours, 0);
+  const prevOurs = paidPrevRange.reduce((n, x) => n + x.ours, 0);
+  const official = paidInRange.reduce((n, x) => n + x.official, 0);
+  const gross = ours + official;
+
+  const openedInRange = cases.filter((r) => Date.parse(r.openedAt) >= since);
+  const openedPrevRange = cases.filter((r) => Date.parse(r.openedAt) >= prevSince && Date.parse(r.openedAt) < since);
+
+  const completedInRange = cases.filter((r) => r.stage === "completed" && r.stageDates.completed && Date.parse(r.stageDates.completed) >= since);
+  const completedPrevRange = cases.filter((r) => r.stage === "completed" && r.stageDates.completed && Date.parse(r.stageDates.completed) >= prevSince && Date.parse(r.stageDates.completed) < since);
+
   const pending = open.filter((r) => r.billing.quote !== "estimate" && amountDue(r.billing) > 0);
+  const totalBalanceDue = pending.reduce((n, r) => n + amountDue(r.billing), 0);
+
+  // Delta helpers: meaningful percentage only when baseline >= 5
+  const deltaStr = (current: number, previous: number) => {
+    const diff = current - previous;
+    const sign = diff >= 0 ? "+" : "";
+    if (previous >= 5) {
+      const pct = Math.round((diff / previous) * 100);
+      return `${sign}${diff} (${sign}${pct}%) vs prev ${rangeDays}d`;
+    }
+    return `${sign}${diff} vs prev ${rangeDays}d`;
+  };
+
+  const revenueDelta = prevOurs >= 50000
+    ? `${ours >= prevOurs ? "+" : ""}${rwfShort(ours - prevOurs)} (${ours >= prevOurs ? "+" : ""}${Math.round(((ours - prevOurs) / prevOurs) * 100)}%) vs prev ${rangeDays}d`
+    : "";
+
+  // Monthly trend for last 6 months
   const months = Array.from({ length: 6 }, (_, i) => {
-    const start = new Date(new Date().getFullYear(), new Date().getMonth() - 5 + i, 1), end = new Date(start.getFullYear(), start.getMonth() + 1, 1);
+    const start = new Date(new Date().getFullYear(), new Date().getMonth() - 5 + i, 1);
+    const end = new Date(start.getFullYear(), start.getMonth() + 1, 1);
     const inMonth = txs.filter((x) => x.status === "paid" && t(x.at) >= start.getTime() && t(x.at) < end.getTime());
-    return { label: start.toLocaleString("en-GB", { month: "short", timeZone: "Africa/Kigali" }), official: thousands(inMonth.reduce((n, x) => n + x.official, 0)), ours: thousands(inMonth.reduce((n, x) => n + x.ours, 0)) };
+    return {
+      label: start.toLocaleString("en-GB", { month: "short", timeZone: "Africa/Kigali" }),
+      official: thousands(inMonth.reduce((n, x) => n + x.official, 0)),
+      ours: thousands(inMonth.reduce((n, x) => n + x.ours, 0)),
+    };
   });
-  const recent = cases.filter((r) => Date.parse(r.openedAt) >= since30);
+
   const popularMap = new Map<string, { n: number; cat: string }>();
-  for (const r of recent) popularMap.set(r.service.name, { n: (popularMap.get(r.service.name)?.n ?? 0) + 1, cat: cats.find((c) => c.id === r.service.category)?.short ?? "" });
+  for (const r of openedInRange) {
+    popularMap.set(r.service.name, {
+      n: (popularMap.get(r.service.name)?.n ?? 0) + 1,
+      cat: cats.find((c) => c.id === r.service.category)?.short ?? "",
+    });
+  }
+
+  // Stage distribution
+  const stageCounts: Record<Stage, number> = { received: 0, checking: 0, preparing: 0, institution: 0, completed: 0 };
+  for (const r of open) {
+    if (stageCounts[r.stage] !== undefined) stageCounts[r.stage]++;
+  }
+
   return {
-    period: "Last 30 days",
-    customers: { value: accountRows.length.toLocaleString("en-US"), delta: `+${accountRows.filter((a) => t(a.since) >= monthStart).length}` },
-    activeCases: { value: open.length, needCustomer: open.filter((r) => r.hold).length },
-    completed: { value: cases.filter((r) => r.stage === "completed" && r.stageDates.completed && Date.parse(r.stageDates.completed) >= since30).length, delta: "" },
-    pending: { value: rwfShort(pending.reduce((n, r) => n + amountDue(r.billing), 0)), invoices: pending.length, overdue: pending.filter((r) => payStatus(r.billing, new Date().toISOString()) === "overdue").length },
+    period: rangeDays === 7 ? "Last 7 days" : rangeDays === 90 ? "Last 90 days" : "Last 30 days",
+    rangeDays,
+    needsAttention,
+    customers: {
+      value: accountRows.length.toLocaleString("en-US"),
+      delta: `+${accountRows.filter((a) => t(a.since) >= monthStart).length} this month`,
+    },
+    activeCases: {
+      value: open.length,
+      needCustomer: open.filter((r) => r.hold).length,
+    },
+    opened: {
+      value: openedInRange.length,
+      delta: deltaStr(openedInRange.length, openedPrevRange.length),
+    },
+    completed: {
+      value: completedInRange.length,
+      delta: deltaStr(completedInRange.length, completedPrevRange.length),
+    },
+    pending: {
+      value: rwfShort(totalBalanceDue),
+      rawAmount: totalBalanceDue,
+      invoices: pending.length,
+      overdue: pending.filter((r) => payStatus(r.billing, new Date().toISOString()) === "overdue").length,
+    },
     revenue: {
-      ours: rwfShort(ours), delta: prevOurs ? `${ours >= prevOurs ? "+" : ""}${Math.round(((ours - prevOurs) / prevOurs) * 100)}% vs the 30 days before` : "",
-      official: rwfShort(official), gross: rwfShort(ours + official),
-      refunds: rwfShort(refunded30.reduce((n, x) => n + x.ours + x.official, 0)), refundNote: `${refunded30.length} ${refunded30.length === 1 ? "refund" : "refunds"}`,
+      ours: rwfShort(ours),
+      rawOurs: ours,
+      delta: revenueDelta,
+      official: rwfShort(official),
+      rawOfficial: official,
+      gross: rwfShort(gross),
+      refunds: rwfShort(refundedInRange.reduce((n, x) => n + x.ours + x.official, 0)),
+      refundCount: refundedInRange.length,
     },
     monthly: months,
+    stageCounts,
     byCategory: cats.filter((c) => !c.href).map((c) => [c.name, open.filter((r) => r.service.category === c.id).length] as [string, number]).filter(([, n]) => n > 0).sort((a, b) => b[1] - a[1]),
     popular: [...popularMap.entries()].sort((a, b) => b[1].n - a[1].n).slice(0, 5).map(([n, v]) => [n, v.n, v.cat] as [string, number, string]),
+    recentActivity: cases.flatMap((c) => c.events.map((e) => ({ ...e, ref: c.ref, clientName: c.profile.name }))).sort((a, b) => Date.parse(b.at) - Date.parse(a.at)).slice(0, 10),
   };
 }
 
@@ -262,10 +687,11 @@ export async function getAgentPerformance() {
     const days = done.map((r) => (Date.parse(r.stageDates.completed!) - Date.parse(r.openedAt)) / DAY);
     const firstTime = done.filter((r) => !r.events.some((e) => e.title.startsWith("Returned"))).length;
     return {
-      ...p, active: mine.filter(isOpen).length, completed: done.filter((r) => Date.parse(r.stageDates.completed!) >= since30).length,
+      ...p,
+      active: mine.filter(isOpen).length,
+      completed: done.filter((r) => Date.parse(r.stageDates.completed!) >= since30).length,
       turnaround: days.length ? `${(days.reduce((a, b) => a + b, 0) / days.length).toFixed(1)} days` : "—",
       firstTime: done.length ? `${Math.round((firstTime / done.length) * 100)}%` : "—",
-      rating: "—",
     };
   });
 }
@@ -274,10 +700,12 @@ export async function listAudit(): Promise<AuditEntry[]> {
   const rows = await (await db()).select().from(s.audit).orderBy(desc(s.audit.at), desc(s.audit.id)).limit(200);
   return rows.map((a) => ({ at: iso(a.at)!, actor: a.actor, role: a.role, action: a.action, entity: a.entity, source: a.source, fee: a.fee }));
 }
+
 export async function listRoles() {
   const people = await listStaff();
   return ROLES.map((r) => ({ ...r, count: people.filter((p) => p.role === r.name && p.active).length }));
 }
+
 /** The roles matrix: for each permission, whether each role (in the order of ROLES) has it. */
 export async function getPermissionMatrix() {
   const rows = await (await db()).select().from(s.rolePermissions);
@@ -290,3 +718,6 @@ export async function whoIsSignedIn() {
   const session = await getSession();
   return session?.kind ?? null;
 }
+
+export { loadRequests };
+

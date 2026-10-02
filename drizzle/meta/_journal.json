@@ -15,6 +15,13 @@
       "when": 1790895405397,
       "tag": "0001_rate_limits",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1790926800000,
+      "tag": "0002_staff_console",
+      "breakpoints": true
     }
   ]
 }

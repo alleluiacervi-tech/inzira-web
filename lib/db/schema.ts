@@ -73,6 +73,8 @@ export const profiles = pgTable("profiles", {
   idMasked: text("id_masked"),
   /** The full national ID number. Staff screens only; customers and the public see idMasked. */
   nationalId: text("national_id"),
+  tinMasked: text("tin_masked"),
+  tin: text("tin"),
   district: text("district"),
 }, (t) => [index("profiles_account_idx").on(t.accountId)]);
 
@@ -185,7 +187,7 @@ export const transactions = pgTable("transactions", {
   ref: text("ref").notNull().references(() => requests.ref),
   receipt: text("receipt").notNull(),
   at: ts("at").notNull().defaultNow(),
-  method: text("method").$type<"MTN MoMo" | "Airtel Money" | "Bank transfer" | "Card">().notNull(),
+  method: text("method").$type<"MTN MoMo" | "Airtel Money" | "Bank transfer" | "Card" | "Cash">().notNull(),
   official: integer("official").notNull(),
   ours: integer("ours").notNull(),
   status: text("status").$type<"pending" | "paid" | "failed" | "refunded">().notNull(),
@@ -235,6 +237,40 @@ export const audit = pgTable("audit", {
   entity: text("entity").notNull(),
   source: text("source").notNull(),
   fee: boolean("fee").notNull().default(false),
+});
+
+// ---------------- console extensions ----------------
+export const clientTags = pgTable("client_tags", {
+  id: serial("id").primaryKey(),
+  profileId: text("profile_id").notNull().references(() => profiles.id),
+  tag: text("tag").notNull(),
+  createdAt: ts("created_at").notNull().defaultNow(),
+}, (t) => [index("client_tags_profile_idx").on(t.profileId)]);
+
+export const clientNotes = pgTable("client_notes", {
+  id: serial("id").primaryKey(),
+  profileId: text("profile_id").notNull().references(() => profiles.id),
+  at: ts("at").notNull().defaultNow(),
+  by: text("by").notNull(),
+  body: text("body").notNull(),
+}, (t) => [index("client_notes_profile_idx").on(t.profileId)]);
+
+export const savedViews = pgTable("saved_views", {
+  id: text("id").primaryKey(),
+  entity: text("entity").$type<"requests" | "clients">().notNull(),
+  name: text("name").notNull(),
+  filters: jsonb("filters").$type<Record<string, unknown>>().notNull(),
+  columns: jsonb("columns").$type<string[]>(),
+  sort: jsonb("sort").$type<{ col: string; dir: "asc" | "desc" }>(),
+  isDefault: boolean("is_default").notNull().default(false),
+  staffId: text("staff_id").references(() => staff.id),
+  createdAt: ts("created_at").notNull().defaultNow(),
+});
+
+export const stageTargets = pgTable("stage_targets", {
+  stage: text("stage").$type<Stage>().primaryKey(),
+  targetHours: integer("target_hours").notNull(),
+  updatedAt: ts("updated_at").notNull().defaultNow(),
 });
 
 // ---------------- sign-in ----------------

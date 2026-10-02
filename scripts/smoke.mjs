@@ -22,7 +22,24 @@ const ROUTES = [
   ["/track", "Track a request"],
 ];
 /** Signed-in areas: without a session they must send people to sign in. */
-const PRIVATE = ["/portal", "/portal/requests", "/portal/documents", "/agent", "/agent/intake", "/agent/cases/INZ-2026-04817", "/admin", "/admin/services", "/admin/payments", "/admin/roles", "/admin/audit"];
+const PRIVATE = [
+  "/portal",
+  "/portal/requests",
+  "/portal/documents",
+  "/agent",
+  "/agent/intake",
+  "/agent/cases/INZ-2026-04817",
+  "/admin",
+  "/admin/services",
+  "/admin/payments",
+  "/admin/roles",
+  "/admin/audit",
+  "/console/inbox",
+  "/console/requests",
+  "/console/clients",
+  "/console/my-day",
+  "/console/overview",
+];
 const NOT_FOUND = ["/services/does-not-exist", "/services/criminal-record-certificate", "/start/does-not-exist"];
 
 const failures = [];

@@ -6,7 +6,8 @@ import { mkdir, readFile as read, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { get, put } from "@vercel/blob";
 
-const root = process.env.UPLOAD_DIR ?? path.join(process.cwd(), ".data", "uploads");
+// On Vercel only /tmp is writable, so demo uploads there last as long as the instance does.
+const root = process.env.UPLOAD_DIR ?? (process.env.VERCEL ? "/tmp/inzira-uploads" : path.join(process.cwd(), ".data", "uploads"));
 const keyPath = (key: string) => key.split("/").map((part) => part.replace(/[^a-zA-Z0-9._-]/g, "_")).filter((part) => part && part !== "." && part !== "..").join("/");
 const safe = (key: string) => path.join(root, keyPath(key));
 const hasBlobCredentials = () => !!process.env.BLOB_READ_WRITE_TOKEN || (!!process.env.BLOB_STORE_ID && !!process.env.VERCEL_OIDC_TOKEN);
