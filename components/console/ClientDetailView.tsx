@@ -184,7 +184,7 @@ export function ClientDetailView({
       </div>
 
       {/* Tabs */}
-      <div className="row g6 console-tabs" style={{ borderBottom: "1px solid var(--c-border)", paddingBottom: 2 }}>
+      <div className="row console-tabs c-tabs" role="tablist" aria-label="Client sections">
         {[
           { id: "overview", label: "Overview", icon: "home" },
           { id: "requests", label: `Requests (${client.requests.length})`, icon: "list" },
@@ -197,7 +197,9 @@ export function ClientDetailView({
           <button
             key={tab.id}
             type="button"
-            className={`c-btn ${activeTab === tab.id ? "c-btn-primary" : "c-btn-ghost"} c-btn-sm`}
+            role="tab"
+            aria-selected={activeTab === tab.id}
+            className="c-tab"
             onClick={() => setActiveTab(tab.id as any)}
           >
             <Icon name={tab.icon} size={14} />

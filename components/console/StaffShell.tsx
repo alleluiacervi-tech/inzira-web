@@ -6,6 +6,7 @@ import { TopBar } from "./TopBar";
 import { RecordPaymentModal } from "./RecordPaymentModal";
 import { AddClientModal } from "./AddClientModal";
 import { Toast } from "./Toast";
+import { StaffTabBar } from "./StaffTabBar";
 import "./console.css";
 
 export default function StaffShell({
@@ -57,6 +58,7 @@ export default function StaffShell({
           <main className="console-content">
             {children}
           </main>
+          <StaffTabBar user={user} permissions={permissions} inboxCount={inboxCount} />
         </div>
       </div>
 
