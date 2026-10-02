@@ -1,32 +1,42 @@
 import { ImageResponse } from "next/og";
 
 // The preview shown when a link to the site is shared on WhatsApp, Facebook, LinkedIn or X.
-export const alt = "Inzira — Government & business services, made easier";
+export const alt = "Inzira — your paperwork, walked for you";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
+
+const STOPS = ["You tell us", "Documents checked", "With RDB", "Delivered"];
 
 export default function OpengraphImage() {
   return new ImageResponse(
     (
-      <div style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column", justifyContent: "space-between", background: "#F6F4EF", padding: "72px 80px", color: "#16181B" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 20 }}>
-          <svg width="72" height="72" viewBox="0 0 30 30">
-            <rect width="30" height="30" rx="7" fill="#16181B" />
-            <path d="M8.5 20.5L15 9.5l6.5 11" fill="none" stroke="#F08A4B" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" />
-            <circle cx="15" cy="21" r="2" fill="#F6F4EF" />
-          </svg>
-          <span style={{ fontSize: 52, letterSpacing: "-0.03em" }}>inzira</span>
-        </div>
-        <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
-          <div style={{ display: "flex", flexDirection: "column", fontSize: 78, lineHeight: 1.02, letterSpacing: "-0.04em" }}>
-            <span>Government &amp; business</span>
-            <span style={{ display: "flex", gap: 22 }}>services,<span style={{ color: "#C24A12" }}>made easier.</span></span>
+      <div style={{ width: "100%", height: "100%", display: "flex", background: "#142850", color: "#f3f5fa", padding: "72px 80px" }}>
+        <div style={{ display: "flex", flexDirection: "column", justifyContent: "space-between", flex: 1 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 18 }}>
+            <svg width="64" height="64" viewBox="0 0 30 30">
+              <rect width="30" height="30" rx="8" fill="#f3f5fa" />
+              <path d="M8 22.5c0-6 14-5 14-11.5" fill="none" stroke="#142850" strokeWidth="2.6" strokeLinecap="round" />
+              <circle cx="8" cy="22.5" r="2.1" fill="#142850" />
+              <circle cx="22" cy="9" r="3.4" fill="#F2C230" stroke="#142850" strokeWidth="1.4" />
+            </svg>
+            <span style={{ fontSize: 48 }}>inzira</span>
           </div>
-          <span style={{ fontSize: 30, color: "#3A3C40" }}>RDB · Taxes · EBM · Land · RURA · Irembo — help in Kigali</span>
+          <div style={{ display: "flex", flexDirection: "column", gap: 22 }}>
+            <div style={{ display: "flex", flexDirection: "column", fontSize: 80, lineHeight: 1.02, letterSpacing: "-0.03em" }}>
+              <span>Your paperwork,</span>
+              <span>walked for you.</span>
+            </div>
+            <span style={{ fontSize: 28, color: "#c4ccdd", maxWidth: 640 }}>RDB, RRA, EBM, land, RURA and Irembo, handled by a named agent in Kigali.</span>
+          </div>
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 14, fontSize: 24, color: "#5E5C55" }}>
-          <div style={{ width: 14, height: 14, borderRadius: 7, background: "#1E6B3A" }} />
-          <span>Independent assistance company · official fees always shown separately</span>
+        <div style={{ display: "flex", flexDirection: "column", justifyContent: "center", width: 300, position: "relative" }}>
+          <div style={{ position: "absolute", left: 13, top: 120, bottom: 120, width: 6, background: "#2a3d66", borderRadius: 3 }} />
+          {STOPS.map((s, i) => (
+            <div key={s} style={{ display: "flex", alignItems: "center", gap: 22, height: 96 }}>
+              <div style={{ width: 32, height: 32, borderRadius: 16, display: "flex", background: i === 2 ? "#F2C230" : i < 2 ? "#dde4f0" : "#142850", border: i > 2 ? "4px solid #4a5b82" : "4px solid #142850" }} />
+              <span style={{ fontSize: 28, color: i === 2 ? "#f3f5fa" : "#9ba6be" }}>{s}</span>
+            </div>
+          ))}
         </div>
       </div>
     ),

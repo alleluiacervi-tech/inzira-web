@@ -10,7 +10,7 @@ const base = (process.argv[2] ?? "http://localhost:3000").replace(/\/$/, "");
 
 /** [path, ...text that must appear in the HTML] */
 const ROUTES = [
-  ["/", "made easier.", "Two lines on every bill. Always.", "RURA / Transport"],
+  ["/", "walked for you.", "Two lines on every bill. Always.", "RURA / Transport"],
   ["/services", "Find the service you need", "Company registration", "Monthly business tax declarations"],
   ["/services?category=tax", "Trading licence declaration"],
   ["/services/company-registration", "Official government fee", "Our service / assistance fee", "Required documents"],

@@ -54,9 +54,9 @@ function Sidebar({ kind, path, who, other }: { kind: Kind; path: string; who: Wh
     <aside className={`side ${dark ? "side-dark" : "side-light"}`}>
       <div className="stack g10" style={{ padding: "0 8px" }}>
         <Logo dark={dark} />
-        {dark && <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: ".1em", textTransform: "uppercase", color: "var(--ember-light)" }}>{n.label}</span>}
+        {dark && <span style={{ fontSize: 12.5, fontWeight: 600, color: "var(--on-dark-2)" }}>{n.label}</span>}
       </div>
-      {kind === "customer" && <Link className="btn btn-p btn-block" href="/services"><Icon name="plus" size={18} /> Start new service</Link>}
+      {kind === "customer" && <Link className="btn btn-brand btn-block" href="/services"><Icon name="plus" size={18} /> Start a new request</Link>}
       <nav aria-label={n.label} className="stack" style={{ gap: 2 }}>
         {n.items.map((it) => (
           <Link key={it.href} className="nav-a" href={it.href} aria-current={isActive(path, it) ? "page" : undefined}><Icon name={it.icon} size={19} /><span>{it.label}</span></Link>
@@ -123,7 +123,7 @@ export default function AppShell({ kind, who, unread = 0, other, children }: { k
         <nav className="tabbar" aria-label="App">
           <Link href="/portal" aria-current={path === "/portal" ? "page" : undefined}><Icon name="home" size={22} />Home</Link>
           <Link href="/portal/requests" aria-current={path.startsWith("/portal/requests") ? "page" : undefined}><Icon name="list" size={22} />Requests</Link>
-          <Link href="/services" className="tab-new" aria-label="Start new service"><span><Icon name="plus" size={22} stroke={2.2} /></span>New</Link>
+          <Link href="/services" className="tab-new" aria-label="Start a new request"><span><Icon name="plus" size={22} stroke={2.2} /></span>New</Link>
           <Link href="/portal/documents" aria-current={path === "/portal/documents" ? "page" : undefined}><Icon name="file" size={22} />Documents</Link>
           <Link href="/portal#account"><Icon name="user" size={22} />Account</Link>
         </nav>

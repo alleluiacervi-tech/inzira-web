@@ -19,6 +19,7 @@ const LANGS: { code: string; name: string }[] = [{ code: "EN", name: "English" }
 export default function PublicNav() {
   const path = usePathname();
   const [open, setOpen] = useState(false);
+  const busy = path.startsWith("/start") || path.startsWith("/sign-in") || path.startsWith("/track");
   const [lang, setLang] = useState("EN");
   useEffect(() => setOpen(false), [path]);
   const dialog = useDialog<HTMLDivElement>(open, () => setOpen(false));
@@ -44,7 +45,8 @@ export default function PublicNav() {
             </div>
           )}
           <Link className="btn btn-g" href="/sign-in">Sign in</Link>
-          <Link className="btn btn-p" href="/services">Start a Service <Icon name="arrow" size={18} /></Link>
+          {/* On the start form and sign-in the page's own button is the main action; one yellow per screen. */}
+          {!busy && <Link className="btn btn-p" href="/services">Start a request</Link>}
         </div>
         <div className="row g4 nav-mob">
           <Link className="btn btn-g btn-sm" href="/sign-in">Sign in</Link>
@@ -62,7 +64,7 @@ export default function PublicNav() {
             <Link className="mm" href="/track" onClick={() => setOpen(false)}>Track a request<Icon name="right" size={18} /></Link>
           </nav>
           <div className="stack g10" style={{ padding: 16, marginTop: "auto", borderTop: "1px solid var(--line-2)" }}>
-            <Link className="btn btn-p btn-lg" href="/services">Start a Service</Link>
+            <Link className="btn btn-p btn-lg" href="/services">Start a request</Link>
             <Link className="btn btn-s btn-lg" href="/sign-in">Sign in</Link>
             {LANGS.length > 1 && (
               <div className="row g8" role="group" aria-label="Language" style={{ justifyContent: "center", paddingTop: 6 }}>

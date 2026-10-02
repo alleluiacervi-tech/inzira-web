@@ -100,8 +100,9 @@
 
 /* Typography */
 .console-page-title {
-  font-size: 20px;
-  font-weight: 600;
+  font-stretch: 110%;
+  font-size: 21px;
+  font-weight: 700;
   letter-spacing: -0.015em;
   color: var(--c-text);
   margin: 0;
@@ -126,8 +127,7 @@
 .console-nav-group-title {
   font-size: 11px;
   font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
+  letter-spacing: 0;
   color: var(--c-text-muted);
   padding: 14px 16px 6px;
 }
@@ -297,6 +297,8 @@
 .c-badge-purple { background: var(--c-purple-bg); color: var(--c-purple); border-color: var(--c-purple-border); }
 .c-badge-neutral { background: var(--neutral-bg); color: var(--neutral); border-color: var(--c-border); }
 .c-badge-ember { background: var(--c-ember-bg); color: var(--c-ember); border-color: var(--c-ember-border); }
+/* Waiting on the customer: the same yellow that marks "needs you" on the customer side. */
+.c-badge-signal { background: var(--signal-tint); color: var(--act); border-color: var(--signal-deep); }
 
 /* Table System */
 .console-table-container {
@@ -364,7 +366,6 @@
 .c-fee-tag-official {
   font-size: 10px;
   font-weight: 700;
-  text-transform: uppercase;
   padding: 1px 4px;
   border-radius: 2px;
   background: var(--c-surface-hover);
@@ -374,7 +375,6 @@
 .c-fee-tag-ours {
   font-size: 10px;
   font-weight: 700;
-  text-transform: uppercase;
   padding: 1px 4px;
   border-radius: 2px;
   background: var(--c-ember-bg);
@@ -593,7 +593,7 @@
 
 /* ================= Page building blocks (shared by console pages) ================= */
 .c-page-head { display: flex; justify-content: space-between; align-items: flex-end; gap: 16px; flex-wrap: wrap; }
-.c-eyebrow { font-size: 11.5px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--c-ember); }
+.c-eyebrow { font-size: 13px; font-weight: 600; letter-spacing: 0; color: var(--brand-2); }
 .c-caption { font-size: 12.5px; color: var(--c-text-muted); line-height: 1.45; }
 .c-grid-stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
 .c-grid-2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; align-items: start; }
@@ -723,15 +723,15 @@ li:last-child > .c-attn { border-bottom: 0; }
 .c-stepper { list-style: none; margin: 0; padding: 0; display: flex; align-items: center; flex-wrap: wrap; gap: 4px 0; }
 .c-step { display: flex; align-items: center; }
 .c-step + .c-step::before { content: ""; width: 20px; height: 2px; background: var(--c-border-strong); margin: 0 4px; border-radius: 1px; }
-.c-step.is-done + .c-step::before, .c-step.is-current::before { background: var(--c-green); }
+.c-step.is-done + .c-step::before, .c-step.is-current::before { background: var(--brand); }
 .c-step-btn { display: inline-flex; align-items: center; gap: 7px; height: 32px; padding: 0 10px 0 4px; border: 0; border-radius: 999px; background: transparent; font: inherit; font-size: 12.5px; font-weight: 600; color: var(--c-text-muted); cursor: pointer; }
 .c-step-btn:hover:not(:disabled) { background: var(--c-surface-hover); color: var(--c-text); }
 .c-step-btn:disabled { cursor: default; }
 .c-step-dot { width: 22px; height: 22px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; background: var(--c-surface); border: 1.5px solid var(--c-border-strong); color: var(--c-text-muted); font-variant-numeric: tabular-nums; flex-shrink: 0; }
-.c-step.is-done .c-step-dot { background: var(--c-green); border-color: var(--c-green); color: #fff; }
+.c-step.is-done .c-step-dot { background: var(--brand); border-color: var(--brand); color: var(--mist); }
 .c-step.is-done .c-step-btn { color: var(--c-text); }
-.c-step.is-current .c-step-btn { background: var(--c-ember-bg); color: var(--c-ember-hover); }
-.c-step.is-current .c-step-dot { background: var(--c-ember); border-color: var(--c-ember); color: #fff; }
+.c-step.is-current .c-step-btn { background: var(--signal-tint); color: var(--ink); }
+.c-step.is-current .c-step-dot { background: var(--signal); border-color: var(--ink); color: var(--ink); }
 .c-tabs { gap: 2px; border-bottom: 1px solid var(--c-border); }
 .c-tab { display: inline-flex; align-items: center; gap: 6px; height: 40px; padding: 0 12px; margin-bottom: -1px; border: 0; border-bottom: 2px solid transparent; background: none; font: inherit; font-size: 13px; font-weight: 600; color: var(--c-text-muted); cursor: pointer; white-space: nowrap; }
 .c-tab:hover { color: var(--c-text); }
@@ -820,7 +820,7 @@ li:last-child > .c-attn { border-bottom: 0; }
   .c-tabbar-item { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; min-height: 52px; font-size: 11px; font-weight: 600; color: var(--c-text-muted); text-decoration: none; }
   .c-tabbar-item[aria-current="page"] { color: var(--c-ember); }
   .c-tabbar-ico { position: relative; display: inline-flex; }
-  .c-tabbar-item.is-accent .c-tabbar-ico { width: 44px; height: 44px; margin-top: -18px; border-radius: 14px; background: var(--c-ember); color: #fff; align-items: center; justify-content: center; box-shadow: 0 6px 16px rgba(194, 74, 18, 0.28); }
+  .c-tabbar-item.is-accent .c-tabbar-ico { width: 44px; height: 44px; margin-top: -18px; border-radius: 14px; background: var(--c-ember); color: #fff; align-items: center; justify-content: center; box-shadow: 0 6px 16px rgba(20, 40, 80, 0.28); }
   .c-tabbar-item.is-accent { color: var(--c-text); }
   .c-tabbar-badge { position: absolute; top: -5px; right: -9px; min-width: 17px; height: 17px; padding: 0 4px; border-radius: 999px; background: var(--c-ember); color: #fff; font-size: 10px; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; border: 2px solid var(--c-surface); }
 }

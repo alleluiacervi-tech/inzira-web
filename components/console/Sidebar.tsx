@@ -100,8 +100,8 @@ export function Sidebar({
         <div className="row between" style={{ padding: "16px 18px", borderBottom: "1px solid var(--c-border)" }}>
           <div className="stack" style={{ gap: 2 }}>
             <Logo href="/admin" />
-            <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: ".08em", textTransform: "uppercase", color: "var(--c-ember)" }}>
-              Staff Console
+            <span style={{ fontSize: 12.5, fontWeight: 600, color: "var(--c-text-muted)" }}>
+              Staff console
             </span>
           </div>
           {onCloseMobile && (
