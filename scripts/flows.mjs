@@ -344,7 +344,7 @@ await step("console", async () => {
   // 4. Clients directory & Client profile
   await p.go("/console/clients");
   check("console: clients directory loads", await p.has("Client Directory") && await p.has("Aline Uwase"));
-  await p.click("Aline Uwase"); await sleep(600); await p.help();
+  await p.click("Aline Uwase"); await waitPath(p, (path) => path.startsWith("/console/clients/")); await waitFor(p, "National ID"); await p.help();
   check("console: client profile loads with tabs", (await p.ev("location.pathname")).includes("/console/clients/") && await p.has("National ID"));
   
   // Privacy reveal
