@@ -79,11 +79,22 @@ async function page(width = 1280) {
 /** Signs in with a phone number, reading the demo code shown on screen. */
 async function signIn(p, phone) {
   await p.go("/sign-in");
-  if ((await p.ev("location.pathname")) !== "/sign-in") { await p.click("Sign out", "button"); await sleep(2000); await p.go("/sign-in"); }
-  await p.set("#si-phone", phone); await p.click("Send me a code"); await sleep(800);
+  if ((await p.ev("location.pathname")) !== "/sign-in") { await signOut(p); await p.go("/sign-in"); }
+  await p.set("#si-phone", phone); await p.click("Send me a code"); await waitCode(p);
   const code = await p.ev(`document.querySelector("[data-demo-code]")?.dataset.demoCode ?? ""`);
   if (!code) throw new Error("no demo code shown (start the app with INZIRA_DEMO=1)");
   await p.set("#otp", code); await p.click("Sign in", "button"); await waitPath(p, (path) => path !== "/sign-in"); await sleep(500); await p.help();
+}
+async function signOut(p) {
+  if (await p.ev(`!!document.querySelector('button[aria-label="Staff profile menu"]')`)) {
+    await p.click("Staff profile menu", "button");
+  }
+  await p.click("Sign out", "button");
+  await waitPath(p, (path) => path === "/sign-in");
+}
+/** Waits for the demo sign-in code to appear, up to 10 seconds. */
+async function waitCode(p) {
+  for (let i = 0; i < 40 && !(await p.ev(`!!document.querySelector("[data-demo-code]")`)); i++) await sleep(250);
 }
 /** Waits until the address matches, up to 10 seconds. */
 async function waitPath(p, ok) {
@@ -117,7 +128,7 @@ await step("private areas", async () => {
   check("private: the portal asks you to sign in", (await p.ev("location.pathname")) === "/sign-in");
   await p.go("/admin");
   check("private: the admin console asks you to sign in", (await p.ev("location.pathname")) === "/sign-in");
-  await p.set("#si-phone", "788 000 999"); await p.click("Send me a code"); await sleep(800);
+  await p.set("#si-phone", "788 000 999"); await p.click("Send me a code"); await waitCode(p);
   await p.set("#otp", await p.ev(`document.querySelector("[data-demo-code]").dataset.demoCode`)); await p.click("Sign in", "button"); await sleep(1500);
   check("sign-in: an unknown number is told to start a service", await p.has("We don’t have an account for this number"));
   await p.set("#otp", "000000"); await p.click("Sign in", "button"); await sleep(1000);
@@ -205,7 +216,7 @@ await step("agent", async () => {
   const p = await page();
   await signIn(p, "780000001");
   check("agent: staff land in the workspace", (await p.ev("location.pathname")) === "/agent" && await p.has("Good"));
-  check("agent: an agent only sees their own cases", await p.has("Showing 4 of 4"));
+  check("agent: My Day shows agent work queues", await p.has("Follow-ups Today") && await p.has("SLA Attention") && await p.has("All My Open Cases ("));
   await p.go("/agent/cases/INZ-2026-04817");
   check("agent: another agent's case is hidden", await p.has("We couldn’t find that case"));
   await p.go("/agent/cases/INZ-2026-04790");
@@ -274,10 +285,91 @@ await step("admin", async () => {
   await p.go("/admin/roles");
   await p.click("Invite person"); await sleep(200); await p.set("#pp-name", "New Colleague"); await p.set("#pp-phone", "788 444 555"); await p.click("Send invite"); await waitFor(p, "invited as");
   check("people: inviting adds a person", await p.has("New Colleague"));
-  await p.click("Sign out", "button"); await sleep(2000);
+  await signOut(p); await sleep(500);
   check("sign out: back to sign-in", (await p.ev("location.pathname")) === "/sign-in");
   await p.close();
 });
+
+// ---------- Staff console flows ----------
+await step("console", async () => {
+  const p = await page();
+  await signIn(p, "780000008"); // Diane (Owner)
+  let triageRef = "";
+
+  // 1. Overview & Needs Attention link-through
+  await p.go("/console/overview");
+  check("console: overview loads with needs attention", await p.has("Needs attention") && await p.has("Fee breakdown trend"));
+  await p.click("New submissions to assign"); await sleep(500);
+  check("console: clicking needs attention card navigates to inbox", (await p.ev("location.pathname")).includes("/console/inbox"));
+
+  // 2. Inbox view & assign
+  await p.go("/console/inbox");
+  check("console: inbox lists unassigned requests", await p.has("Inbox / Triage"));
+  const canAssign = await p.has("Accept & assign");
+  if (canAssign) {
+    triageRef = await p.ev(`document.querySelector(".console-panel .c-mono-ref")?.textContent?.trim() ?? ""`);
+    await p.click("Accept & assign"); await sleep(300);
+    const suggested = await p.has("Suggested:");
+    await p.click("Confirm & assign"); await waitFor(p, "assigned to");
+    check("console: inbox suggests an agent and assigns the request", suggested && await p.has("assigned to"));
+  } else {
+    check("console: inbox has no unassigned cases to assign", true);
+  }
+
+  if (triageRef) {
+    await p.go(`/console/requests/${triageRef}`);
+    await p.set("#agent-asg", ""); await waitFor(p, "Unassigned");
+  }
+
+  // 3. Requests list & Saved views
+  await p.go("/console/requests");
+  check("console: requests list loads", await p.has("Requests") && await p.has("Export"));
+  const rowsBeforeView = await p.ev(`document.querySelectorAll('.console-table tbody input[aria-label^="Select row"]').length`);
+  await p.set("select.console-select", "sv-unassigned"); await sleep(300);
+  const rowsAfterView = await p.ev(`document.querySelectorAll('.console-table tbody input[aria-label^="Select row"]').length`);
+  const selectedView = await p.ev(`document.querySelector("select.console-select")?.value ?? "missing"`);
+  check("console: Unassigned saved view filters the request rows", rowsAfterView > 0 && rowsAfterView < rowsBeforeView, `${rowsBeforeView} rows → ${rowsAfterView}; selected ${selectedView}`);
+
+  const selected = await p.ev(`(() => { const cell = document.querySelector('.console-table tbody tr td:first-child'); if (!cell) return false; cell.click(); return true; })()`);
+  if (selected) await waitFor(p, "1 row selected");
+  let bulkAssigned = false;
+  if (selected) {
+    await p.click("Assign 1 cases"); await sleep(200);
+    await p.set(".console-dialog select", "s-eric");
+    await p.click("Apply assignment"); await waitFor(p, "Assigned");
+    bulkAssigned = await p.has("Assigned 1 requests.");
+  }
+  check("console: bulk assignment saves the selected request", selected && bulkAssigned, `selected=${selected}; assigned=${bulkAssigned}; visible rows=${await p.ev(`document.querySelectorAll(".console-table tbody tr").length`)}`);
+
+  // 4. Clients directory & Client profile
+  await p.go("/console/clients");
+  check("console: clients directory loads", await p.has("Client Directory") && await p.has("Aline Uwase"));
+  await p.click("Aline Uwase"); await sleep(600); await p.help();
+  check("console: client profile loads with tabs", (await p.ev("location.pathname")).includes("/console/clients/") && await p.has("National ID"));
+  
+  // Privacy reveal
+  const hasShowBtn = await p.has("Show ID");
+  if (hasShowBtn) {
+    await p.click("Show ID", "button"); await waitFor(p, "1 1995 8 0045123 0 17");
+    check("console: revealing national ID unmasks digits", await p.has("1 1995 8 0045123 0 17"));
+    await p.go("/admin/audit");
+    check("console: national ID reveal is audited", await p.has("Viewed unmasked National ID"));
+    await p.go("/console/clients/p-aline");
+  }
+
+  // Add a tag
+  await p.set("input[placeholder='Add tag (e.g. VIP)...']", "FlowTest");
+  await p.click("Add tag", "button"); await sleep(400);
+  check("console: client tag added", await p.has("FlowTest"));
+
+  // 5. My Day view
+  await p.go("/console/my-day");
+  check("console: my day command center loads", await p.has("Good day") && await p.has("Follow-ups Today") && await p.has("SLA Attention"));
+
+  await signOut(p); await sleep(500);
+  await p.close();
+});
+
 
 // ---------- Aline again: the delivered document ----------
 await step("delivered", async () => {

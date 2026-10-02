@@ -1,16 +1,40 @@
 import type { Metadata } from "next";
-import AppShell from "@/components/AppShell";
+import StaffShell from "@/components/console/StaffShell";
 import { NoAccess } from "@/components/PageStates";
-import { initials } from "@/lib/format";
-import { getAdmin, getMyPermissions } from "@/lib/repo";
+import { getAdmin, getMyPermissions, loadRequests } from "@/lib/repo";
+import { isOpen } from "@/lib/status";
 
-export const metadata: Metadata = { title: { default: "Admin console", template: "%s · Inzira admin" }, robots: { index: false } };
+export const metadata: Metadata = {
+  title: { default: "Admin console", template: "%s · Inzira admin" },
+  robots: { index: false },
+};
+
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
-  const [me, perms] = await Promise.all([getAdmin(), getMyPermissions()]);
-  const allowed = ["editServices", "manageStaff", "refund", "viewAudit"].some((p) => perms.includes(p as never));
+  const [me, perms, cases] = await Promise.all([
+    getAdmin(),
+    getMyPermissions(),
+    loadRequests(),
+  ]);
+
+  const allowed =
+    ["editServices", "manageStaff", "refund", "viewAudit"].some((p) =>
+      perms.includes(p as never)
+    ) ||
+    me.role === "Owner" ||
+    me.role === "Administrator" ||
+    me.role === "Finance";
+
+  const inboxCount = cases.filter((c) => !c.agentId && c.stage === "received").length;
+  const openCasesCount = cases.filter((c) => c.agentId === me.id && isOpen(c)).length;
+
   return (
-    <AppShell kind="admin" who={{ initials: initials(me.name), name: me.name, sub: me.title }} other={{ label: "Agent workspace", href: "/agent" }}>
+    <StaffShell
+      user={me}
+      permissions={perms}
+      inboxCount={inboxCount}
+      openCasesCount={openCasesCount}
+    >
       {allowed ? children : <NoAccess what="the admin console" />}
-    </AppShell>
+    </StaffShell>
   );
 }

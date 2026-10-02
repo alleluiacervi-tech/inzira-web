@@ -17,19 +17,19 @@ export const ACCOUNTS: Account[] = [
   acc("acc-ubumwe", "Clarisse Mukamurenzi", "+250 784 663 201", "2026-09-28"),
 ];
 
-export const PROFILES: Profile[] = [
-  { id: "p-aline", accountId: "acc-aline", kind: "person", name: "Aline Uwase", relation: "self", idMasked: "1 1995 8 •••• 0 17", district: "Gasabo · Kacyiru" },
-  { id: "p-umucyo", accountId: "acc-aline", kind: "business", name: "Umucyo Tech Ltd", district: "Gasabo · Kacyiru" },
-  { id: "p-ineza", accountId: "acc-aline", kind: "person", name: "Ineza K.", relation: "family", district: "Gasabo · Kacyiru" },
-  { id: "p-jc", accountId: "acc-jc", kind: "person", name: "Jean Claude Habimana", relation: "self", idMasked: "1 1987 8 •••• 1 42", district: "Bugesera · Nyamata" },
-  { id: "p-kff", accountId: "acc-kff", kind: "business", name: "Kigali Fresh Foods Ltd", district: "Nyarugenge · Muhima" },
-  { id: "p-hope", accountId: "acc-hope", kind: "organization", name: "Hope Nursery School", district: "Kicukiro · Niboye" },
-  { id: "p-chantal", accountId: "acc-chantal", kind: "person", name: "Chantal Mukeshimana", relation: "self", idMasked: "1 1990 7 •••• 0 63", district: "Gasabo · Remera" },
-  { id: "p-nyamirambo", accountId: "acc-nyamirambo", kind: "business", name: "Nyamirambo Hardware Ltd", district: "Nyarugenge · Nyamirambo" },
-  { id: "p-musanze", accountId: "acc-musanze", kind: "organization", name: "Musanze Coffee Cooperative", district: "Musanze · Muhoza" },
-  { id: "p-emmanuel", accountId: "acc-emmanuel", kind: "person", name: "Emmanuel Nsengimana", relation: "self", idMasked: "1 1992 8 •••• 0 08", district: "Kicukiro · Kagarama" },
-  { id: "p-inema", accountId: "acc-inema", kind: "business", name: "Inema Traders", district: "Gasabo · Kimironko" },
-  { id: "p-ubumwe", accountId: "acc-ubumwe", kind: "business", name: "Ubumwe Cyber Café", district: "Gasabo · Kimironko" },
+export const PROFILES: (Profile & { nationalId?: string; tin?: string; tinMasked?: string })[] = [
+  { id: "p-aline", accountId: "acc-aline", kind: "person", name: "Aline Uwase", relation: "self", idMasked: "1 1995 8 •••• 0 17", nationalId: "1 1995 8 0045123 0 17", district: "Gasabo · Kacyiru" },
+  { id: "p-umucyo", accountId: "acc-aline", kind: "business", name: "Umucyo Tech Ltd", tinMasked: "109 ••• 456", tin: "109876456", district: "Gasabo · Kacyiru" },
+  { id: "p-ineza", accountId: "acc-aline", kind: "person", name: "Ineza K.", relation: "family", idMasked: "1 2012 7 •••• 0 88", nationalId: "1 2012 7 0012934 0 88", district: "Gasabo · Kacyiru" },
+  { id: "p-jc", accountId: "acc-jc", kind: "person", name: "Jean Claude Habimana", relation: "self", idMasked: "1 1987 8 •••• 1 42", nationalId: "1 1987 8 0021345 1 42", district: "Bugesera · Nyamata" },
+  { id: "p-kff", accountId: "acc-kff", kind: "business", name: "Kigali Fresh Foods Ltd", tinMasked: "102 ••• 991", tin: "102345991", district: "Nyarugenge · Muhima" },
+  { id: "p-hope", accountId: "acc-hope", kind: "organization", name: "Hope Nursery School", tinMasked: "108 ••• 312", tin: "108543312", district: "Kicukiro · Niboye" },
+  { id: "p-chantal", accountId: "acc-chantal", kind: "person", name: "Chantal Mukeshimana", relation: "self", idMasked: "1 1990 7 •••• 0 63", nationalId: "1 1990 7 0034129 0 63", district: "Gasabo · Remera" },
+  { id: "p-nyamirambo", accountId: "acc-nyamirambo", kind: "business", name: "Nyamirambo Hardware Ltd", tinMasked: "101 ••• 774", tin: "101890774", district: "Nyarugenge · Nyamirambo" },
+  { id: "p-musanze", accountId: "acc-musanze", kind: "organization", name: "Musanze Coffee Cooperative", tinMasked: "104 ••• 223", tin: "104671223", district: "Musanze · Muhoza" },
+  { id: "p-emmanuel", accountId: "acc-emmanuel", kind: "person", name: "Emmanuel Nsengimana", relation: "self", idMasked: "1 1992 8 •••• 0 08", nationalId: "1 1992 8 0054231 0 08", district: "Kicukiro · Kagarama" },
+  { id: "p-inema", accountId: "acc-inema", kind: "business", name: "Inema Traders", tinMasked: "106 ••• 882", tin: "106321882", district: "Gasabo · Kimironko" },
+  { id: "p-ubumwe", accountId: "acc-ubumwe", kind: "business", name: "Ubumwe Cyber Café", tinMasked: "105 ••• 661", tin: "105432661", district: "Gasabo · Kimironko" },
 ];
 
 export const STAFF: Staff[] = [

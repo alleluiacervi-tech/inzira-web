@@ -53,13 +53,15 @@ export type Service = {
   visible: boolean;
 };
 
+export type { Permission } from "./permissions";
+
 // ---------------- people ----------------
 /** An account is one login (a phone number). It can hold several profiles. */
 export type Account = { id: string; name: string; first: string; phone: string; whatsapp: boolean; languages: string[]; since: string };
 /** Who a request is for: the account holder, a family member, or a business they act for. */
 export type Profile = {
   id: string; accountId: string; kind: "person" | "business" | "organization"; name: string;
-  relation?: "self" | "family"; idMasked?: string; district?: string;
+  relation?: "self" | "family"; idMasked?: string; nationalId?: string | null; tin?: string | null; tinMasked?: string | null; district?: string; phone?: string; email?: string;
 };
 export type StaffRole = "Owner" | "Administrator" | "Supervisor" | "Agent" | "Finance" | "Quality reviewer";
 export type Staff = { id: string; name: string; role: StaffRole; team: string; title: string; active: boolean };
@@ -100,8 +102,8 @@ export type RequestEvent = { at: string; title: string; by?: string; name?: stri
 export type Message = { id: string; at: string; by: string; name?: string; body: string };
 export type Note = { id: string; at: string; by: string; name?: string; body: string };
 
-export type PayMethod = "MTN MoMo" | "Airtel Money" | "Bank transfer" | "Card";
-export type Transaction = { receipt: string; at: string; method: PayMethod; official: number; ours: number; status: "pending" | "paid" | "failed" | "refunded" };
+export type PayMethod = "MTN MoMo" | "Airtel Money" | "Bank transfer" | "Card" | "Cash";
+export type Transaction = { receipt: string; at: string; method: PayMethod; official: number; ours: number; status: "pending" | "paid" | "failed" | "refunded"; payer?: string; providerRef?: string };
 export type Billing = {
   invoice: string;
   /** null until the agent has confirmed what the institution charges for this case. */
@@ -178,3 +180,58 @@ export type TrackResult = {
   ref: string; name: string; via: string; stage: Stage; stageDates: Request["stageDates"]; flow: Stage[]; labels: Partial<Record<Stage, string>>;
   hold?: Pick<Hold, "reason" | "title" | "since" | "returned">; closed?: Closed; next: string;
 };
+
+// ---------------- console extensions ----------------
+export type SavedView = {
+  id: string;
+  entity: "requests" | "clients";
+  name: string;
+  filters: Record<string, unknown>;
+  columns?: string[];
+  sort?: { col: string; dir: "asc" | "desc" };
+  isDefault?: boolean;
+  staffId?: string | null;
+};
+
+export type StageTarget = {
+  stage: Stage;
+  targetHours: number;
+};
+
+export type ClientTag = {
+  id: number;
+  profileId: string;
+  tag: string;
+};
+
+export type ClientSummary = {
+  id: string; // profileId
+  accountId: string;
+  name: string;
+  kind: "person" | "business" | "organization";
+  phone: string;
+  district?: string;
+  nationalId?: string;
+  idMasked?: string;
+  tin?: string;
+  tinMasked?: string;
+  openRequests: number;
+  totalRequests: number;
+  totalPaidOurs: number;
+  totalPaidOfficial: number;
+  balanceDue: number;
+  lastActivity: string;
+  tags: string[];
+  since: string;
+};
+
+export type ClientDetail = ClientSummary & {
+  account: Account;
+  profile: Profile;
+  requests: RequestView[];
+  documents: LibraryDoc[];
+  messages: Message[];
+  notes: Note[];
+  events: RequestEvent[];
+};
+

@@ -71,6 +71,42 @@ export async function seed(db: Db) {
       if (b.transactions.length) await tx.insert(s.transactions).values(b.transactions.map((t) => ({ ref: r.ref, ...t })));
     }
 
+    // Default stage SLA targets (in hours)
+    await tx.insert(s.stageTargets).values([
+      { stage: "received", targetHours: 2 },
+      { stage: "checking", targetHours: 4 },
+      { stage: "preparing", targetHours: 24 },
+      { stage: "institution", targetHours: 72 },
+      { stage: "completed", targetHours: 0 },
+    ]);
+
+    // Initial saved views
+    await tx.insert(s.savedViews).values([
+      { id: "sv-unassigned", entity: "requests", name: "Unassigned", filters: { unassigned: true }, isDefault: false },
+      { id: "sv-waiting-3d", entity: "requests", name: "Waiting on client over 3 days", filters: { waitingDays: 3 }, isDefault: false },
+      { id: "sv-overdue-pay", entity: "requests", name: "Payment overdue", filters: { paymentStatus: "overdue" }, isDefault: false },
+      { id: "sv-institution-7d", entity: "requests", name: "With institution over 7 days", filters: { stage: "institution", stageDays: 7 }, isDefault: false },
+      { id: "sv-completed-week", entity: "requests", name: "Completed this week", filters: { stage: "completed", period: "week" }, isDefault: false },
+      { id: "sv-cancelled", entity: "requests", name: "Cancelled", filters: { closed: "cancelled" }, isDefault: false },
+    ]);
+
+    // Client tags & notes
+    await tx.insert(s.clientTags).values([
+      { profileId: "p-aline", tag: "VIP" },
+      { profileId: "p-aline", tag: "Tech" },
+      { profileId: "p-umucyo", tag: "Corporate" },
+      { profileId: "p-kff", tag: "Business" },
+      { profileId: "p-kff", tag: "Repeat" },
+      { profileId: "p-musanze", tag: "Cooperative" },
+      { profileId: "p-ubumwe", tag: "Cyber" },
+      { profileId: "p-inema", tag: "Retail" },
+    ]);
+
+    await tx.insert(s.clientNotes).values([
+      { profileId: "p-aline", by: "s-eric", body: "Prefers communication via WhatsApp in English." },
+      { profileId: "p-kff", by: "s-grace", body: "Requested consolidated monthly tax invoices." },
+    ]);
+
     await tx.insert(s.notifications).values(NOTIFICATIONS.map((n) => ({ accountId: "acc-aline", icon: n.icon, title: n.title, at: n.at, unread: !!n.unread, href: n.href })));
     await tx.insert(s.reminders).values(REMINDERS.map((m) => ({ accountId: m.accountId, title: m.title, body: m.body, cta: m.cta, href: m.href })));
     await tx.insert(s.audit).values([...AUDIT].reverse());
