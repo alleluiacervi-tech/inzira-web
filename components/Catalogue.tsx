@@ -3,7 +3,8 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import { billingKind } from "@/lib/format";
 import type { Audience, Category, Service } from "@/lib/types";
-import { Icon, ServiceCard } from "./ui";
+import { ServiceRows } from "./PriceList";
+import { Icon } from "./ui";
 import { useDialog } from "./useDialog";
 
 type FeeKind = ReturnType<typeof billingKind>;
@@ -18,7 +19,6 @@ export default function Catalogue({ services, categories, initialQuery, initialC
   const sheet = useDialog<HTMLDivElement>(showFilters, () => setShowFilters(false));
 
   const toggle = <T,>(arr: T[], v: T) => (arr.includes(v) ? arr.filter((x) => x !== v) : [...arr, v]);
-  const catName = (id: string) => categories.find((c) => c.id === id)?.name ?? "";
 
   const results = useMemo(() => {
     const term = q.trim().toLowerCase();
@@ -61,7 +61,7 @@ export default function Catalogue({ services, categories, initialQuery, initialC
     <>
       <section className="wrap stack g24" style={{ paddingTop: 40, paddingBottom: 28, borderBottom: "1px solid var(--line)" }}>
         <nav aria-label="Breadcrumb" className="mut row g8" style={{ fontSize: 14 }}><Link href="/">Home</Link><span>/</span><span>Services</span></nav>
-        <div className="stack g10"><h1 className="d h-1">Find the service you need</h1><p className="mut" style={{ fontSize: 17 }}>Every price shows the official fee and our fee separately. Need something not listed? <Link href="/start">Ask us</Link>.</p></div>
+        <div className="stack g10"><h1 className="d h-1">Find the service you need</h1><p className="mut" style={{ fontSize: 17 }}>Our fee for each service, fixed before we start. Open a service for the official fee and the documents you need. Not listed? <Link href="/start">Ask us</Link>.</p></div>
         <form className="card searchbox" style={{ maxWidth: 900 }} role="search" onSubmit={(e) => e.preventDefault()}>
           <Icon name="search" size={22} />
           <label htmlFor="cq" className="sr-only">What service do you need?</label>
@@ -106,7 +106,7 @@ export default function Catalogue({ services, categories, initialQuery, initialC
             </div>
           )}
           {results.length ? (
-            <div className="grid cols-3">{results.map((s) => <ServiceCard key={s.slug} s={s} category={catName(s.category)} />)}</div>
+            <ServiceRows services={results} />
           ) : (
             <div className="card stack g12" style={{ padding: "40px 24px", alignItems: "center", textAlign: "center" }}>
               <span style={{ width: 56, height: 56, borderRadius: "50%", background: "var(--bone)", display: "flex", alignItems: "center", justifyContent: "center" }}><Icon name="search" size={26} /></span>

@@ -4,7 +4,7 @@ import { Icon, Logo } from "./ui";
 
 const COLS: [string, [string, string][]][] = [
   ["Services", [["Business registration (RDB)", "/services?category=rdb"], ["Taxes and EBM (RRA)", "/services?category=tax"], ["Land (NLA)", "/services?category=land"], ["Transport (RURA)", "/services?category=rura"], ["Irembo training", "/services?category=irembo"], ["All services", "/services"]]],
-  ["Company", [["About us", "/#about"], ["How it works", "/#how"], ["Prices", "/#prices"], ["Questions", "/#faq"]]],
+  ["Company", [["Services and fees", "/#prices"], ["How it works", "/#how"], ["Questions", "/#faq"], ["Contact", "/#talk"]]],
   ["Your request", [["Start a request", "/services"], ["Track a request", "/track"], ["Sign in", "/sign-in"], ["Describe your situation", "/start"]]],
 ];
 

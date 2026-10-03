@@ -1,8 +1,7 @@
 import Link from "next/link";
 import type { CSSProperties, ReactNode } from "react";
 import { ICONS } from "./icons";
-import { fmtDay, officialLabel, oursLabel, shortTime } from "@/lib/format";
-import { officeFor } from "@/lib/institutions";
+import { fmtDay } from "@/lib/format";
 import { DOC_STATUS, PAY_STATUS, flowOf, holdLabel, requestStatus, stageIndex, stageLabel, type PayStatus, type Viewer } from "@/lib/status";
 import type { Category, CustomerRequest, DocStatus, Progress, Service, Tone } from "@/lib/types";
 
@@ -91,31 +90,6 @@ export function FeeLines({ officialLabel: ol, official, ours, total, totalLabel:
       <div className="row between g12"><span className="row g8"><FeeTag kind="ours" /> Assistance fee</span><strong className="fee-ours nowrap">{ours}</strong></div>
       {total && <div className="row between g12" style={{ paddingTop: 10, borderTop: "1px solid var(--line-2)" }}><strong>{tl}</strong><strong className="d fig" style={{ fontSize: 18, textAlign: "right" }}>{total}</strong></div>}
     </div>
-  );
-}
-
-/** A catalogue entry. The whole card opens the service details; "Start request" is the one action. */
-export function ServiceCard({ s }: { s: Service; category?: string }) {
-  const office = officeFor(s.category);
-  return (
-    <article className="svc-card">
-      <div className="tile-top">
-        {office ? <span className="tile-office">{office.code}</span> : <span className="tile-office">Inzira</span>}
-        <span className="tile-time"><Icon name="clock" size={14} />{shortTime(s.time)}</span>
-      </div>
-      <div className="stack g4">
-        <h3 className="tile-name"><Link href={`/services/${s.slug}`} className="svc-link">{s.name}</Link></h3>
-        <span className="tile-aka">{s.via}</span>
-      </div>
-      <dl className="svc-fees">
-        <div><dt>Official fee</dt><dd>{officialLabel(s)}</dd></div>
-        <div><dt>Our fee</dt><dd className="fig">{oursLabel(s)}</dd></div>
-      </dl>
-      <div className="svc-foot">
-        <span className="svc-more" aria-hidden="true">Details</span>
-        <Link className="btn btn-s btn-sm svc-start" href={`/start/${s.slug}`} aria-label={`Start request: ${s.name}`}>Start request</Link>
-      </div>
-    </article>
   );
 }
 
