@@ -17,7 +17,7 @@ export default function OpengraphImage() {
               <rect width="30" height="30" rx="8" fill="#f3f5fa" />
               <path d="M8 22.5c0-6 14-5 14-11.5" fill="none" stroke="#142850" strokeWidth="2.6" strokeLinecap="round" />
               <circle cx="8" cy="22.5" r="2.1" fill="#142850" />
-              <circle cx="22" cy="9" r="3.4" fill="#D4A53A" stroke="#142850" strokeWidth="1.4" />
+              <circle cx="22" cy="9" r="3.4" fill="#C9962E" stroke="#142850" strokeWidth="1.4" />
             </svg>
             <span style={{ fontSize: 48 }}>inzira</span>
           </div>
@@ -33,7 +33,7 @@ export default function OpengraphImage() {
           <div style={{ position: "absolute", left: 13, top: 120, bottom: 120, width: 6, background: "#2a3d66", borderRadius: 3 }} />
           {STOPS.map((s, i) => (
             <div key={s} style={{ display: "flex", alignItems: "center", gap: 22, height: 96 }}>
-              <div style={{ width: 32, height: 32, borderRadius: 16, display: "flex", background: i === 2 ? "#D4A53A" : i < 2 ? "#dde4f0" : "#142850", border: i > 2 ? "4px solid #4a5b82" : "4px solid #142850" }} />
+              <div style={{ width: 32, height: 32, borderRadius: 16, display: "flex", background: i === 2 ? "#C9962E" : i < 2 ? "#dde4f0" : "#142850", border: i > 2 ? "4px solid #4a5b82" : "4px solid #142850" }} />
               <span style={{ fontSize: 28, color: i === 2 ? "#f3f5fa" : "#9ba6be" }}>{s}</span>
             </div>
           ))}

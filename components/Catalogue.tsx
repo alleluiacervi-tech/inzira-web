@@ -51,8 +51,8 @@ export default function Catalogue({ services, categories, initialQuery, initialC
       </fieldset>
       <div className="card stack g10" style={{ padding: 18 }}>
         <strong>Not sure what you need?</strong>
-        <p className="hint">Describe your situation and an agent will tell you which procedure applies — free, before you commit.</p>
-        <Link className="btn btn-d btn-sm" href="/start">Describe my situation</Link>
+        <p className="hint">Describe your situation and we’ll tell you which procedure applies and what it costs, free and before you commit.</p>
+        <Link className="btn btn-p btn-sm" href="/start">Describe my situation</Link>
       </div>
     </aside>
   );
@@ -67,7 +67,7 @@ export default function Catalogue({ services, categories, initialQuery, initialC
           <label htmlFor="cq" className="sr-only">What service do you need?</label>
           <input id="cq" value={q} onChange={(e) => setQ(e.target.value)} placeholder="What service do you need?" autoComplete="off" />
           {q && <button type="button" className="btn btn-g btn-ico" aria-label="Clear search" onClick={() => setQ("")}><Icon name="x" size={18} /></button>}
-          <button className="btn btn-d btn-lg m-hide" type="submit">Search</button>
+          <button className="btn btn-p btn-lg m-hide" type="submit">Search</button>
         </form>
         <div className="chips-scroll" role="group" aria-label="Category">
           <button type="button" className={`chip ${cat === "all" ? "chip-on" : ""}`} aria-pressed={cat === "all"} onClick={() => setCat("all")}>All services</button>
@@ -110,8 +110,8 @@ export default function Catalogue({ services, categories, initialQuery, initialC
           ) : (
             <div className="card stack g12" style={{ padding: "40px 24px", alignItems: "center", textAlign: "center" }}>
               <span style={{ width: 56, height: 56, borderRadius: "50%", background: "var(--bone)", display: "flex", alignItems: "center", justifyContent: "center" }}><Icon name="search" size={26} /></span>
-              <strong>No matching service — yet</strong>
-              <span className="hint" style={{ maxWidth: 420 }}>Our catalogue grows every week. Describe what you need and an agent will find the right procedure for you.</span>
+              <strong>{q ? <>No service matches “{q}”</> : "No service matches these filters"}</strong>
+              <span className="hint" style={{ maxWidth: 420 }}>Describe what you need and we’ll find the right procedure for you.</span>
               <div className="row g8 wrapx" style={{ justifyContent: "center" }}><button type="button" className="btn btn-s btn-sm" onClick={() => { setQ(""); setCat("all"); setAud([]); setFees([]); }}>Clear filters</button><Link className="btn btn-p btn-sm" href="/start">Describe what I need</Link></div>
             </div>
           )}

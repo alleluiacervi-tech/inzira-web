@@ -53,6 +53,11 @@ export const officialLabel = (s: Service) => {
   if (o.mode === "direct") return o.label ?? "Paid by you directly";
   return o.amount === null ? o.label ?? "To be confirmed" : o.amount === 0 ? "Free" : rwf(o.amount);
 };
+/** A service's time estimate, short enough for a card: "1–2 working days", "Monthly, by the 15th". */
+export function shortTime(time: string) {
+  const t = time.replace(/^Usually /, "").replace(/^Filed within (\d+) working days of your documents$/, "Filed within $1 working days").replace(/^Before the 15th, every month$/, "Monthly, by the 15th");
+  return t.charAt(0).toUpperCase() + t.slice(1);
+}
 export const oursLabel = (s: Service) => rwf(s.ours) + unit(s.oursUnit);
 export const totalLabel = (s: Service) => {
   const o = s.official;

@@ -1,7 +1,8 @@
 import Link from "next/link";
 import type { CSSProperties, ReactNode } from "react";
 import { ICONS } from "./icons";
-import { fmtDay, officialLabel, oursLabel, totalLabel } from "@/lib/format";
+import { fmtDay, officialLabel, oursLabel, shortTime } from "@/lib/format";
+import { officeFor } from "@/lib/institutions";
 import { DOC_STATUS, PAY_STATUS, flowOf, holdLabel, requestStatus, stageIndex, stageLabel, type PayStatus, type Viewer } from "@/lib/status";
 import type { Category, CustomerRequest, DocStatus, Progress, Service, Tone } from "@/lib/types";
 
@@ -22,7 +23,7 @@ export function LogoMark({ dark = false }: { dark?: boolean }) {
       <rect width="30" height="30" rx="8" fill={dark ? "#f3f5fa" : "#142850"} />
       <path d="M8 22.5c0-6 14-5 14-11.5" fill="none" stroke={dark ? "#142850" : "#dde4f0"} strokeWidth="2.6" strokeLinecap="round" />
       <circle cx="8" cy="22.5" r="2.1" fill={dark ? "#142850" : "#dde4f0"} />
-      <circle cx="22" cy="9" r="3.4" fill="#D4A53A" stroke="#142850" strokeWidth="1.4" />
+      <circle cx="22" cy="9" r="3.4" fill="#C9962E" stroke="#142850" strokeWidth="1.4" />
     </svg>
   );
 }
@@ -31,7 +32,7 @@ export function Logo({ dark = false, href = "/" }: { dark?: boolean; href?: stri
   return (
     <Link href={href} className="row g10" style={{ textDecoration: "none", color: dark ? "var(--on-dark)" : "var(--brand)" }} aria-label="Inzira home">
       <LogoMark dark={dark} />
-      <span className="d" style={{ fontSize: 22, fontWeight: 800, fontStretch: "118%", letterSpacing: "-0.03em" }}>inzira</span>
+      <span className="d" style={{ fontSize: 23, fontWeight: 800, letterSpacing: "-0.035em" }}>inzira</span>
     </Link>
   );
 }
@@ -93,32 +94,25 @@ export function FeeLines({ officialLabel: ol, official, ours, total, totalLabel:
   );
 }
 
-function FeeMini({ s }: { s: Service }) {
-  return (
-    <dl className="fee-mini">
-      <div><dt>Official fee</dt><dd>{officialLabel(s)}</dd></div>
-      <div><dt className="fee-ours">Our fee</dt><dd className="fee-ours">{oursLabel(s)}</dd></div>
-      <div><dt>Est. total</dt><dd>{totalLabel(s)}</dd></div>
-    </dl>
-  );
-}
-
 /** A catalogue entry. The whole card opens the service details; "Start request" is the one action. */
-export function ServiceCard({ s, category }: { s: Service; category: string }) {
+export function ServiceCard({ s }: { s: Service; category?: string }) {
+  const office = officeFor(s.category);
   return (
-    <article className="card card-pad stack g16 svc-card">
-      <div className="row between g10"><span className="eb" style={{ fontSize: 11 }}>{category}</span>{s.popular && <span className="tag tag-ember">Popular</span>}</div>
-      <div className="stack g6">
-        <h3 className="d" style={{ fontSize: 19, lineHeight: 1.25 }}><Link href={`/services/${s.slug}`} className="lnk svc-link">{s.name}</Link></h3>
-        <span className="mut" style={{ fontSize: 13.5 }}>{s.via}</span>
+    <article className="svc-card">
+      <div className="tile-top">
+        {office ? <span className="tile-office">{office.code}</span> : <span className="tile-office">Inzira</span>}
+        <span className="tile-time"><Icon name="clock" size={14} />{shortTime(s.time)}</span>
       </div>
-      <div className="stack g8" style={{ fontSize: 13.5, color: "var(--ink-2)" }}>
-        <span className="row g8"><Icon name="clock" size={16} /> {s.time}<span className="mut">· estimate</span></span>
-        <span className="row g8" style={{ alignItems: "flex-start" }}><Icon name="file" size={16} /> {s.docsShort}</span>
+      <div className="stack g4">
+        <h3 className="tile-name"><Link href={`/services/${s.slug}`} className="svc-link">{s.name}</Link></h3>
+        <span className="tile-aka">{s.via}</span>
       </div>
-      <FeeMini s={s} />
-      <div className="row between g12 svc-foot">
-        <span className="svc-more" aria-hidden="true">Details <Icon name="arrow" size={15} /></span>
+      <dl className="svc-fees">
+        <div><dt>Official fee</dt><dd>{officialLabel(s)}</dd></div>
+        <div><dt>Our fee</dt><dd className="fig">{oursLabel(s)}</dd></div>
+      </dl>
+      <div className="svc-foot">
+        <span className="svc-more" aria-hidden="true">Details</span>
         <Link className="btn btn-s btn-sm svc-start" href={`/start/${s.slug}`} aria-label={`Start request: ${s.name}`}>Start request</Link>
       </div>
     </article>

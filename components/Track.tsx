@@ -33,7 +33,7 @@ export default function Track() {
   return (
     <div className="stack g24">
       <form className="stack g20" onSubmit={submit}>
-        <div className="stack g8"><h1 className="d" style={{ fontSize: 30, lineHeight: 1.15 }}>Track a request</h1><p className="mut" style={{ fontSize: 15 }}>Enter the reference we sent you by SMS and the phone number on the request. No sign-in needed.</p></div>
+        <div className="stack g8"><h1 className="h-flow">Track a request</h1><p className="mut" style={{ fontSize: 15 }}>Enter the reference we sent you by SMS and the phone number on the request. No sign-in needed.</p></div>
         <div className="field"><label htmlFor="tr-ref">Reference</label><input id="tr-ref" className="in m" style={{ fontSize: 15 }} value={ref} onChange={(e) => setRef(e.target.value)} placeholder="INZ-2026-04817" autoCapitalize="characters" autoComplete="off" /></div>
         <div className="field"><label htmlFor="tr-phone">Phone number</label>
           <div className="row g8"><span className="in in-prefix" aria-hidden="true">+250</span><input id="tr-phone" className="in" inputMode="tel" autoComplete="tel-national" placeholder="788 123 456" value={phone} onChange={(e) => setPhone(e.target.value)} /></div>

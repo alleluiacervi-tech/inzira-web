@@ -104,7 +104,7 @@ export default function StartForm({ service: s }: { service: Service | null }) {
       <section className="wrap" style={{ paddingTop: 64, paddingBottom: 96 }}>
         <div className="card stack g16" style={{ maxWidth: 560, margin: "0 auto", padding: 32, alignItems: "center", textAlign: "center" }}>
           <span style={{ width: 64, height: 64, borderRadius: "50%", background: "var(--ok-bg)", color: "var(--ok)", display: "flex", alignItems: "center", justifyContent: "center" }}><Icon name="check" size={32} /></span>
-          <h1 className="d" style={{ fontSize: 30 }}>Request received</h1>
+          <h1 className="h-flow">Request received</h1>
           <p style={{ fontSize: 16, lineHeight: 1.55 }}>Your reference is <strong className="m" style={{ fontSize: 15 }}>{ref}</strong>. An agent will {s ? "check your documents" : "read what you sent"} and contact you on <strong>+250 {prettyMobile(f.phone)}</strong> within {SITE.responseTime}.</p>
           <p className="hint">Your number is confirmed, so your portal is ready. You won’t be charged until you approve the fees.</p>
           <div className="row g10 wrapx" style={{ justifyContent: "center" }}><Link className="btn btn-d" href={`/portal/requests/${ref}`}>See my request</Link><Link className="btn btn-s" href="/services">Browse more services</Link></div>
@@ -162,7 +162,7 @@ export default function StartForm({ service: s }: { service: Service | null }) {
 
         {key === "about" && (
           <div className="stack g20">
-            <div className="stack g8"><h1 className="d" style={{ fontSize: 30, lineHeight: 1.15 }}>A few details about you</h1><p className="mut" style={{ fontSize: 15 }}>We use these exactly as they appear on the ID. It takes about 3 minutes.</p></div>
+            <div className="stack g8"><h1 className="h-flow">A few details about you</h1><p className="mut" style={{ fontSize: 15 }}>We use these exactly as they appear on the ID. It takes about 3 minutes.</p></div>
             <fieldset className="stack g10" style={{ border: 0, margin: 0, padding: 0 }}>
               <legend className="label" style={{ marginBottom: 10 }}>Who is this request for?</legend>
               <div className="grid cols-3" style={{ gap: 10 }}>
@@ -187,7 +187,7 @@ export default function StartForm({ service: s }: { service: Service | null }) {
 
         {key === "request" && (
           <div className="stack g20">
-            <div className="stack g8"><h1 className="d" style={{ fontSize: 30, lineHeight: 1.15 }}>{s ? "Tell us about the request" : "Describe what you need"}</h1><p className="mut" style={{ fontSize: 15 }}>{s ? "This helps us prepare it correctly the first time." : "In your own words — English, Kinyarwanda or French. An agent will match it to the right procedure."}</p></div>
+            <div className="stack g8"><h1 className="h-flow">{s ? "Tell us about the request" : "Describe what you need"}</h1><p className="mut" style={{ fontSize: 15 }}>{s ? "This helps us prepare it correctly the first time." : "In your own words, in English, Kinyarwanda or French. We’ll match it to the right procedure."}</p></div>
             {s?.purposes && (
               <fieldset className="stack g10" style={{ border: 0, margin: 0, padding: 0 }}>
                 <legend className="label" style={{ marginBottom: 10 }}>{s.purposeLabel ?? "What is it for?"}</legend>
@@ -203,7 +203,7 @@ export default function StartForm({ service: s }: { service: Service | null }) {
 
         {key === "docs" && (
           <div className="stack g20">
-            <div className="stack g8"><h1 className="d" style={{ fontSize: 30, lineHeight: 1.15 }}>Add your documents</h1><p className="mut" style={{ fontSize: 15 }}>Photos from your phone are fine. You can also skip this and send them to your agent later.</p></div>
+            <div className="stack g8"><h1 className="h-flow">Add your documents</h1><p className="mut" style={{ fontSize: 15 }}>Photos from your phone are fine. You can also skip this and send them to your agent later.</p></div>
             {docList.map((d) => (
               <div key={d.name} className="card stack g12" style={{ padding: 16 }}>
                 <div className="row between g12"><div className="stack" style={{ gap: 3 }}><strong>{d.name}</strong><span className="hint">{d.detail}</span></div>{files[d.name] ? <span className="b t-teal">Added</span> : d.required ? <span className="b t-neutral">Required</span> : <span className="tag">{s ? "If applicable" : "Optional"}</span>}</div>
@@ -228,7 +228,7 @@ export default function StartForm({ service: s }: { service: Service | null }) {
 
         {key === "review" && (
           <div className="stack g20">
-            <div className="stack g8"><h1 className="d" style={{ fontSize: 30, lineHeight: 1.15 }}>Check and send</h1><p className="mut" style={{ fontSize: 15 }}>An agent will check everything before any payment is taken.</p></div>
+            <div className="stack g8"><h1 className="h-flow">Check and send</h1><p className="mut" style={{ fontSize: 15 }}>An agent will check everything before any payment is taken.</p></div>
             <div className="card" style={{ padding: 18 }}>
               <dl className="review">
                 <dt>Service</dt><dd>{s ? s.name : "Not sure yet — an agent will advise"}</dd>
