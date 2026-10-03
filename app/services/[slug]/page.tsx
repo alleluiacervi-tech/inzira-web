@@ -3,7 +3,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import PublicNav from "@/components/PublicNav";
 import Footer from "@/components/Footer";
-import { Alert, FeeBreakdown, Icon, Plate, ServiceCard } from "@/components/ui";
+import { Alert, FeeBreakdown, Icon, Plate } from "@/components/ui";
+import { ServiceRows } from "@/components/PriceList";
 import { officeFor } from "@/lib/institutions";
 import { fmtDate, officialLabel, oursLabel, totalLabel } from "@/lib/format";
 import { getService, listCategories, listServices } from "@/lib/repo";
@@ -95,7 +96,7 @@ export default async function ServiceDetail({ params }: { params: Promise<{ slug
         </section>
         <section className="wrap stack g18" style={{ paddingBottom: 80 }}>
           <h2 className="d h-3">Often requested together</h2>
-          <div className="grid cols-4 m-scroll">{related.map((r) => <ServiceCard key={r.slug} s={r} category={catName(r.category)} />)}</div>
+          <div style={{ maxWidth: 860 }}><ServiceRows services={related} /></div>
         </section>
       </main>
       <Footer />

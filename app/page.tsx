@@ -3,11 +3,10 @@ import PublicNav from "@/components/PublicNav";
 import Footer from "@/components/Footer";
 import { Alert, Icon } from "@/components/ui";
 import { listServices } from "@/lib/repo";
-import { rwf, shortTime } from "@/lib/format";
-import { OFFICES, officeFor } from "@/lib/institutions";
-import { isSet, mailUrl, SITE, telUrl } from "@/lib/site";
+import { OFFICES } from "@/lib/institutions";
+import { SITE } from "@/lib/site";
 import { ContactList } from "@/components/Contact";
-import type { Service } from "@/lib/types";
+import { PriceList } from "@/components/PriceList";
 
 /** One example request on its way through RDB. The current step is the only gold thing on the page. */
 const CASE_STEPS: { title: string; meta: string; state: "done" | "now" | "next" }[] = [
@@ -17,9 +16,6 @@ const CASE_STEPS: { title: string; meta: string; state: "done" | "now" | "next" 
   { title: "Certificate delivered", meta: "Expected in 1 to 2 working days", state: "next" },
 ];
 
-/** The services most people come for, one or more per institution. */
-const FEATURED = ["company-registration", "monthly-tax-declarations", "trading-licence-declaration", "ebm-installation", "e-title", "rura-vehicle-authorisation"];
-
 const STEPS = [
   ["Tell us what you need", "Pick a service, or describe your situation in English, Kinyarwanda or French. Asking is free."],
   ["We check your documents", "You hear exactly what is missing before anything is filed. Most rejections start here."],
@@ -27,13 +23,8 @@ const STEPS = [
   ["You receive the result", "The certificate and the official receipt arrive in your account and on WhatsApp."],
 ];
 
-const COMMITMENTS = [
-  ["file-text", "Official receipts, always", "Every official payment comes with the institution’s own receipt, in your name."],
-  ["lock", "Private documents", "Only the person handling your request can open them, and you can delete them once the work is done."],
-  ["user", "One person, start to finish", "The same agent handles your request throughout, and you can call or message them directly."],
-];
-
 const FAQS = [
+  ["Who is Inzira?", `${SITE.legalName} is a private Rwandan company in ${SITE.city}. Our team prepares, files and follows up government procedures for businesses and professionals who would rather spend their time on their work. You can always do these procedures yourself; we save you the queues, the forms and the follow-up.`],
   ["Are you part of the government or Irembo?", "No. Inzira is a private, independent company. We use the official channels on your behalf: Irembo, RRA, RDB, RURA and others. Every decision is made by the institution."],
   ["Why are there two fees?", "The official fee or tax goes to the institution, exactly as they set it, and often you pay it to them directly. Our fee pays for checking, preparing, filing and following up. You see both before you pay."],
   ["Can you guarantee my application is approved?", "No one can; only the institution decides. We make sure your request is complete and correct when it is filed, and we follow it up."],
@@ -72,46 +63,9 @@ function CaseFile() {
   );
 }
 
-function ServiceTile({ s }: { s: Service }) {
-  const office = officeFor(s.category);
-  return (
-    <li>
-      <Link href={`/services/${s.slug}`} className="tile">
-        <span className="tile-top">
-          {office && <span className="tile-office">{office.code}</span>}
-          <span className="tile-time"><Icon name="clock" size={14} />{shortTime(s.time)}</span>
-        </span>
-        <span className="stack" style={{ gap: 4 }}>
-          <strong className="tile-name">{s.name}</strong>
-          <span className="tile-aka">{s.aka ?? s.via}</span>
-        </span>
-        <span className="tile-foot">
-          <span className="stack" style={{ gap: 1 }}>
-            <span className="tile-label">Our fee</span>
-            <span><strong className="tile-fee fig">{rwf(s.ours)}</strong>{s.oursUnit && <span className="tile-unit"> {s.oursUnit}</span>}</span>
-          </span>
-          <span className="tile-go" aria-hidden="true"><Icon name="right" size={18} /></span>
-        </span>
-      </Link>
-    </li>
-  );
-}
-
 export default async function Home({ searchParams }: { searchParams: Promise<{ account?: string }> }) {
   const deleted = (await searchParams).account === "deleted";
   const services = await listServices();
-  const featured = FEATURED.map((slug) => services.find((s) => s.slug === slug)).filter((s): s is Service => !!s);
-  const example = services.find((s) => s.slug === "company-registration");
-  const record: [string, string, string?][] = ([
-    ["Registered name", SITE.legalName],
-    ["Company code", SITE.companyCode],
-    ["Tax number (TIN)", SITE.tin],
-    ["Office", isSet(SITE.address) ? `${SITE.address}, ${SITE.city}` : `${SITE.city}, Rwanda`],
-    ["Phone and WhatsApp", SITE.phone, telUrl()],
-    ["Email", SITE.email, mailUrl()],
-    ["Opening hours", SITE.hours.replace(" · ", ", ")],
-    ["Replies", `Within ${SITE.responseTime}`],
-  ] as [string, string, string?][]).filter(([, v]) => isSet(v));
 
   return (
     <>
@@ -126,7 +80,7 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ a
               <p className="top-lead">Company registration, taxes, EBM, land titles and RURA permits for businesses in Rwanda. We check your documents, file them through the official channel and follow up until it’s done.</p>
               <div className="top-ctas">
                 <Link className="btn btn-p btn-lg" href="/services">Start a request</Link>
-                <Link className="btn btn-ghost-light btn-lg" href="#services">See services and fees</Link>
+                <Link className="btn btn-ghost-light btn-lg" href="#prices">See services and fees</Link>
               </div>
               <ul className="top-facts">
                 <li><Icon name="clock" size={17} />Reply within {SITE.responseTime}</li>
@@ -147,30 +101,24 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ a
           </div>
         </section>
 
-        <section id="services" className="sec" aria-labelledby="services-h">
-          <div className="wrap stack g32">
-            <header className="sec-head">
-              <div className="stack g12">
-                <h2 id="services-h" className="h-2">What we handle</h2>
-                <p className="sec-lead">A fixed fee for each service, agreed before we start. The official fee is always shown separately.</p>
+        <section id="prices" className="sec" aria-labelledby="prices-h">
+          <div className="wrap fees">
+            <header className="fees-head">
+              <h2 id="prices-h" className="h-2">Services and fees</h2>
+              <p className="sec-lead">Our fee for each service is fixed and agreed before we start.</p>
+              <p className="fees-note">The official fee is set by the institution and shown on each service before you pay. Usually you pay it to them directly, with the receipt in your name. When it passes through us, it is never marked up.</p>
+              <div className="fees-ctas m-hide">
+                <Link className="btn btn-p" href="/services">Start a request</Link>
+                <Link className="btn btn-s" href="/start">My service isn’t listed</Link>
               </div>
-              <Link className="btn btn-s m-hide" href="/services">All {services.length} services</Link>
             </header>
-            <ul className="tiles">{featured.map((s) => <ServiceTile key={s.slug} s={s} />)}</ul>
-            <Link className="btn btn-s btn-lg d-hide" href="/services">See all {services.length} services</Link>
-            <nav className="offices" aria-label="Services by institution">
-              <span className="offices-label">Browse by institution</span>
-              <div className="offices-list">
-                {OFFICES.map((o) => {
-                  const n = services.filter((s) => (o.cats as readonly string[]).includes(s.category)).length;
-                  return (
-                    <Link key={o.code} href={o.href} className="office">
-                      <strong>{o.code}</strong><span>{o.area}</span>{n > 1 && <span className="office-n fig">{n}</span>}
-                    </Link>
-                  );
-                })}
+            <div className="stack g24">
+              <PriceList services={services} />
+              <div className="fees-ctas d-hide">
+                <Link className="btn btn-p btn-lg" href="/services">Start a request</Link>
+                <Link className="btn btn-s btn-lg" href="/start">My service isn’t listed</Link>
               </div>
-            </nav>
+            </div>
           </div>
         </section>
 
@@ -178,7 +126,7 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ a
           <div className="wrap stack g40">
             <div className="stack g12" style={{ maxWidth: 620 }}>
               <h2 id="how-h" className="h-2">How it works</h2>
-              <p className="sec-lead">Four steps, and only the first one needs you. You approve every fee before anything is paid.</p>
+              <p className="sec-lead">Four steps, and only the first one needs you. One person handles your request from start to finish.</p>
             </div>
             <ol className="steps4">
               {STEPS.map(([t, d], i) => (
@@ -189,52 +137,6 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ a
                 </li>
               ))}
             </ol>
-          </div>
-        </section>
-
-        <section id="prices" className="sec" aria-labelledby="prices-h">
-          <div className="wrap split2">
-            <div className="stack g20">
-              <h2 id="prices-h" className="h-2">Two fees, both shown before you pay.</h2>
-              <p className="sec-lead">The official fee is set by the institution. Usually you pay it to them directly, and the receipt is in your name. When it passes through us, it is never marked up.</p>
-              <ul className="checks">
-                <li><Icon name="check" size={18} stroke={2.4} />Our fee is fixed and listed for every service</li>
-                <li><Icon name="check" size={18} stroke={2.4} />Nothing is added after you approve</li>
-                <li><Icon name="check" size={18} stroke={2.4} />A receipt for every payment, by MoMo or Airtel Money</li>
-              </ul>
-            </div>
-            <figure className="quote" aria-labelledby="quote-cap">
-              <header className="quote-head"><strong>Company registration</strong><span className="mut">Example quote</span></header>
-              <div className="quote-row">
-                <span className="stack" style={{ gap: 3 }}><strong>Official fee</strong><span className="mut">Paid by you to RDB, receipt in your name</span></span>
-                <span className="quote-amt">Set by RDB</span>
-              </div>
-              <div className="quote-row">
-                <span className="stack" style={{ gap: 3 }}><strong>Inzira service fee</strong><span className="mut">Checking, filing and follow-up</span></span>
-                <span className="quote-amt fig">{rwf(example?.ours ?? 10000)}</span>
-              </div>
-              <div className="quote-total"><span>You pay Inzira</span><strong className="fig">{rwf(example?.ours ?? 10000)}</strong></div>
-              <figcaption id="quote-cap" className="quote-cap">Every service page shows both fees before you start.</figcaption>
-            </figure>
-          </div>
-        </section>
-
-        <section id="about" className="sec sec-ledger" aria-labelledby="about-h">
-          <div className="wrap stack" style={{ gap: "clamp(40px, 5vw, 64px)" }}>
-            <div className="split2">
-              <div className="stack g20">
-                <h2 id="about-h" className="h-2">Check who you’re dealing with.</h2>
-                <p className="sec-lead">Inzira is a registered Rwandan company with an office in {SITE.city}. You can always do these procedures yourself; we save you the queues, the forms and the follow-up.</p>
-              </div>
-              <dl className="record">
-                {record.map(([k, v, href]) => <div key={k}><dt>{k}</dt><dd className={k === "Company code" || k === "Tax number (TIN)" || k === "Phone and WhatsApp" ? "fig" : undefined}>{href ? <a href={href}>{v}</a> : v}</dd></div>)}
-              </dl>
-            </div>
-            <ul className="commit">
-              {COMMITMENTS.map(([i, t, d]) => (
-                <li key={t}><span className="commit-ico"><Icon name={i} size={20} /></span><span className="stack g6"><strong>{t}</strong><span className="mut">{d}</span></span></li>
-              ))}
-            </ul>
           </div>
         </section>
 
@@ -256,10 +158,9 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ a
           <div className="wrap close-grid">
             <div className="stack g20">
               <h2 id="cta-h" className="h-2">Talk to a person before you start.</h2>
-              <p className="sec-lead">Asking is free. Tell us what you need on WhatsApp, by phone or by email, and we’ll tell you the procedure, the documents and both fees. You approve every fee before you pay.</p>
+              <p className="sec-lead">Tell us what you need on WhatsApp, by phone or by email. We’ll tell you the procedure, the documents and both fees, free and before you commit.</p>
               <div className="close-ctas">
                 <Link className="btn btn-p btn-lg" href="/services">Start a request</Link>
-                <Link className="btn btn-s btn-lg" href="/start">Describe your situation</Link>
               </div>
             </div>
             <div className="contact-card">

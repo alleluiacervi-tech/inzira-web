@@ -8,9 +8,9 @@ import { useDialog } from "./useDialog";
 
 const LINKS = [
   { href: "/services", label: "Services" },
+  { href: "/#prices", label: "Fees" },
   { href: "/#how", label: "How it works" },
-  { href: "/#prices", label: "Prices" },
-  { href: "/#about", label: "About us" },
+  { href: "/#talk", label: "Contact" },
   { href: "/track", label: "Track a request" },
 ];
 // Only languages the site is actually translated into. The switch appears once there are two or more:
