@@ -2,6 +2,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
+import { ContactList } from "./Contact";
 import { Icon, Logo } from "./ui";
 import { useDialog } from "./useDialog";
 
@@ -62,6 +63,10 @@ export default function PublicNav() {
           <nav aria-label="Mobile" className="stack" style={{ padding: "8px 16px" }}>
             {LINKS.map((l) => <Link key={l.href} className="mm" href={l.href} onClick={() => setOpen(false)}>{l.label}<Icon name="right" size={18} /></Link>)}
           </nav>
+          <div className="stack g10" style={{ padding: "8px 16px 0" }}>
+            <span className="hint" style={{ fontSize: 14 }}>Talk to us</span>
+            <ContactList />
+          </div>
           <div className="stack g10" style={{ padding: 16, marginTop: "auto", borderTop: "1px solid var(--line-2)" }}>
             <Link className="btn btn-p btn-lg" href="/services">Start a request</Link>
             <Link className="btn btn-s btn-lg" href="/sign-in">Sign in</Link>

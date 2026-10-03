@@ -68,7 +68,7 @@ function Sidebar({ kind, path, who, other }: { kind: Kind; path: string; who: Wh
           <div className="card stack g8" style={{ padding: 16 }}>
             <strong style={{ fontSize: 14 }}>Need a hand?</strong>
             <span className="hint">Call or WhatsApp your agent. We reply within 2 working hours.</span>
-            <Link className="lnk" href={whatsappUrl()} style={{ fontSize: 14 }}>Contact support →</Link>
+            <Link className="lnk row g6" href={whatsappUrl()} style={{ fontSize: 14 }}><Icon name="whatsapp" size={16} />Contact support</Link>
           </div>
         )}
         <div className="row g10" style={{ padding: "12px 8px", borderTop: dark ? "1px solid var(--on-dark-line)" : undefined }}>

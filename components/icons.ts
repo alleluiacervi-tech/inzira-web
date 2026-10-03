@@ -1,5 +1,8 @@
 // Stroke icons (24px grid, currentColor). Original, generic glyphs.
 export const ICONS: Record<string, string> = {
+ "call": "<path d=\"M5.2 3.8h3.3l1.6 4.1-2.1 1.3a11.5 11.5 0 0 0 6.8 6.8l1.3-2.1 4.1 1.6v3.3a1.4 1.4 0 0 1-1.5 1.4A16.6 16.6 0 0 1 3.8 5.3a1.4 1.4 0 0 1 1.4-1.5z\"></path>",
+ "mail": "<rect x=\"3\" y=\"5\" width=\"18\" height=\"14\" rx=\"2.5\"></rect><path d=\"M3.8 7l8.2 6 8.2-6\"></path>",
+ "whatsapp": "<path d=\"M3.6 20.4l1.2-4.1a8.6 8.6 0 1 1 3.1 3l-4.3 1.1z\"></path><path fill=\"currentColor\" stroke=\"none\" d=\"M9 8.3c.2-.4.5-.6.9-.6h.5c.3 0 .5.1.6.4l.7 1.6c.1.3 0 .5-.1.7l-.6.7c.5 1 1.3 1.8 2.3 2.3l.7-.6c.2-.2.5-.2.7-.1l1.6.7c.3.1.4.3.4.6v.5c0 .4-.2.7-.6.9-.6.3-1.4.4-2.1.2-2.1-.7-3.8-2.4-4.5-4.5-.2-.7-.1-1.5.2-2.1z\"></path>",
  "search": "<circle cx=\"11\" cy=\"11\" r=\"7\"></circle><path d=\"M20 20l-3.5-3.5\"></path>",
  "arrow": "<path d=\"M5 12h14M13 6l6 6-6 6\"></path>",
  "arrow-l": "<path d=\"M19 12H5M11 6l-6 6 6 6\"></path>",

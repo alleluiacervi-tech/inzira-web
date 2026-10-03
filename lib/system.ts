@@ -3,7 +3,7 @@
 import { and, desc, eq, isNull, sql } from "drizzle-orm";
 import { db, iso, schema as s } from "./db";
 import { RETENTION_DAYS } from "./privacy";
-import { SITE } from "./site";
+import { isSet, SITE } from "./site";
 
 export type CheckState = "ready" | "test" | "missing";
 export type Check = { key: string; name: string; state: CheckState; detail: string; fix?: string };
@@ -63,7 +63,7 @@ function storage(): Check {
 }
 
 function site(): Check[] {
-  const placeholders = (["address", "phone", "companyCode", "tin"] as const).filter((k) => SITE[k].includes("[") || SITE[k].includes("X"));
+  const placeholders = (["address", "phone", "companyCode", "tin"] as const).filter((k) => !isSet(SITE[k]));
   const out: Check[] = [
     process.env.NEXT_PUBLIC_SITE_URL
       ? { key: "url", name: "Website address", state: "ready", detail: process.env.NEXT_PUBLIC_SITE_URL }

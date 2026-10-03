@@ -79,7 +79,7 @@ export default async function RequestPage({ params }: { params: Promise<{ ref: s
             <div className="card row g14" style={{ padding: 18 }}>
               <span className="av" style={{ width: 48, height: 48, fontSize: 15 }}>{initials(agent)}</span>
               <div className="stack grow" style={{ gap: 3 }}><span className="eb" style={{ fontSize: 10.5 }}>Your agent</span><strong style={{ fontSize: 16 }}>{agent}</strong><span className="mut" style={{ fontSize: 13 }}>{r.agent?.team ?? "Being assigned"} · replies in about 1 hour</span></div>
-              <Link className="btn btn-s btn-ico" href={whatsappUrl(`Hello, this is about ${r.ref}.`)} aria-label={`Call or WhatsApp about ${r.ref}`}><Icon name="phone" size={19} /></Link>
+              <Link className="btn btn-s btn-ico" href={whatsappUrl(`Hello, this is about ${r.ref}.`)} aria-label={`WhatsApp us about ${r.ref}`}><Icon name="whatsapp" size={19} /></Link>
             </div>
             <PaymentPanel reqRef={r.ref} billing={r.billing} now={now} phone={r.account.phone} />
             <section className="card stack g4" style={{ padding: 18 }} aria-labelledby="act-h">

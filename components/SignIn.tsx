@@ -30,7 +30,7 @@ export default function SignIn({ next }: { next?: string }) {
       setDemoCode(r.demoCode);
       setSent(true);
     }}>
-      <div className="stack g8"><h1 className="d" style={{ fontSize: 30, lineHeight: 1.15 }}>Sign in to your portal</h1><p className="mut" style={{ fontSize: 15 }}>Use the phone number you gave us. We’ll send a code by SMS — there’s no password.</p></div>
+      <div className="stack g8"><h1 className="h-flow">Sign in to your portal</h1><p className="mut" style={{ fontSize: 15 }}>Use the phone number you gave us. We’ll send a code by SMS. There’s no password.</p></div>
       <div className="field"><label htmlFor="si-phone">Phone number</label>
         <div className="row g8"><span className="in in-prefix" aria-hidden="true">+250</span><input id="si-phone" className={`in ${error ? "in-err" : ""}`} inputMode="tel" autoComplete="tel-national" placeholder="788 123 456" value={phone} autoFocus onChange={(e) => { setPhone(e.target.value); setError(""); }} aria-describedby="si-err" /></div>
         {error && <span className="err-text" id="si-err" role="alert"><Icon name="alert" size={15} /> {error}</span>}
