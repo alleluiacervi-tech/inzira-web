@@ -7,7 +7,13 @@ import { Icon } from "./ui";
 
 /** Sign-in is a phone number and a code sent by SMS: no password to remember.
  *  Staff and customers use the same page; staff land in their workspace. */
-export default function SignIn({ next }: { next?: string }) {
+const DEMOS: [string, string][] = [
+  ["788123456", "Aline · customer"],
+  ["780000001", "Eric · agent"],
+  ["780000008", "Diane · owner"],
+];
+
+export default function SignIn({ next, demo = false }: { next?: string; demo?: boolean }) {
   const [phone, setPhone] = useState("");
   const [sent, setSent] = useState(false);
   const [demoCode, setDemoCode] = useState<string>();
@@ -30,7 +36,8 @@ export default function SignIn({ next }: { next?: string }) {
       setDemoCode(r.demoCode);
       setSent(true);
     }}>
-      <div className="stack g8"><h1 className="h-flow">Sign in to your portal</h1><p className="mut" style={{ fontSize: 15 }}>Use the phone number you gave us. We’ll send a code by SMS. There’s no password.</p></div>
+      <div className="stack g8"><h1 className="h-flow">Sign in to your portal</h1><p className="mut" style={{ fontSize: 15 }}>{demo ? "Demo: no text is sent. Choose a sample number, then use the code shown on the next screen." : "Use the phone number you gave us. We’ll send a code by SMS. There’s no password."}</p></div>
+      {demo && <div className="row g8 wrapx">{DEMOS.map(([number, label]) => <button key={number} type="button" className="btn btn-s btn-sm" onClick={() => { setPhone(number); setError(""); }}>{label}</button>)}</div>}
       <div className="field"><label htmlFor="si-phone">Phone number</label>
         <div className="row g8"><span className="in in-prefix" aria-hidden="true">+250</span><input id="si-phone" className={`in ${error ? "in-err" : ""}`} inputMode="tel" autoComplete="tel-national" placeholder="788 123 456" value={phone} autoFocus onChange={(e) => { setPhone(e.target.value); setError(""); }} aria-describedby="si-err" /></div>
         {error && <span className="err-text" id="si-err" role="alert"><Icon name="alert" size={15} /> {error}</span>}

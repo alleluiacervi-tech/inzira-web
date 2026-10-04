@@ -7,7 +7,7 @@ import { redirect } from "next/navigation";
 import { cache } from "react";
 import { db, iso, schema as s } from "./db";
 import type { Permission } from "./permissions";
-import { isDemo, sendSms } from "./sms";
+import { sendsRealSms, sendSms } from "./sms";
 import type { Staff } from "./types";
 
 const COOKIE = "inzira_session";
@@ -37,10 +37,11 @@ export async function issueCode(phoneInput: string): Promise<{ ok: true; demoCod
     await sendSms(phone, `Inzira: your code is ${code}. It expires in 10 minutes. Never share it.`);
   } catch (e) {
     console.error(e);
+    await d.delete(s.otpCodes).where(eq(s.otpCodes.phone, phone));
     return { ok: false, error: "We couldn’t send the SMS. Please try again in a minute." };
   }
-  // Demo mode shows the code on screen because no real SMS is sent.
-  return isDemo() && !process.env.SMS_PROVIDER ? { ok: true, demoCode: code } : { ok: true };
+  // Without a live SMS provider the code is shown on screen, including on a deployed demo.
+  return sendsRealSms() ? { ok: true } : { ok: true, demoCode: code };
 }
 
 export async function consumeCode(phoneInput: string, code: string): Promise<{ ok: true; phone: string } | { ok: false; error: string }> {
