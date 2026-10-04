@@ -1,10 +1,12 @@
 // Fills an empty database with the catalogue and the sample customers, staff and requests from
 // lib/mock. Used automatically for the development database, or with `npm run db:seed`.
+import { inArray } from "drizzle-orm";
 import { CATEGORIES, SERVICES } from "../mock/catalogue";
 import { ACCOUNTS, PROFILES, STAFF } from "../mock/people";
 import { AUDIT, NOTIFICATIONS, REQUESTS } from "../mock/requests";
 import { REMINDERS } from "../mock/admin";
 import { DEFAULT_MATRIX, ROLES, type Permission } from "../permissions";
+import { sendsRealSms } from "../sms";
 import { putFile } from "../storage";
 import type { Db } from "./index";
 import * as s from "./schema";
@@ -148,4 +150,31 @@ export async function seed(db: Db) {
     await tx.insert(s.reminders).values(REMINDERS.map((m) => ({ accountId: m.accountId, title: m.title, body: m.body, cta: m.cta, href: m.href })));
     await tx.insert(s.audit).values([...AUDIT].reverse());
   });
+}
+
+/** Makes the documented sample numbers able to sign in while SMS is not connected.
+ *  Skipped once Africa's Talking is the provider, and it never overwrites an existing number. */
+export async function ensureDemoSignIns(database: Db) {
+  if (sendsRealSms()) return;
+  const accountPhones = ACCOUNTS.map((a) => digits(a.phone));
+  const staffPhones = Object.values(STAFF_PHONES);
+  const [haveAccounts, haveStaff, perm] = await Promise.all([
+    database.select({ phone: s.accounts.phone }).from(s.accounts).where(inArray(s.accounts.phone, accountPhones)),
+    database.select({ phone: s.staff.phone }).from(s.staff).where(inArray(s.staff.phone, staffPhones)),
+    database.select({ role: s.rolePermissions.role }).from(s.rolePermissions).limit(1),
+  ]);
+  const takenAccounts = new Set(haveAccounts.map((a) => a.phone));
+  const takenStaff = new Set(haveStaff.map((p) => p.phone));
+  const accounts = ACCOUNTS.filter((a) => !takenAccounts.has(digits(a.phone))).map((a) => ({ ...a, phone: digits(a.phone) }));
+  if (accounts.length) await database.insert(s.accounts).values(accounts).onConflictDoNothing();
+  const present = new Set((await database.select({ id: s.accounts.id }).from(s.accounts).where(inArray(s.accounts.id, ACCOUNTS.map((a) => a.id)))).map((a) => a.id));
+  const profiles = PROFILES.filter((p) => present.has(p.accountId));
+  if (profiles.length) await database.insert(s.profiles).values(profiles).onConflictDoNothing();
+  const staff = STAFF.filter((p) => STAFF_PHONES[p.id] && !takenStaff.has(STAFF_PHONES[p.id])).map((p) => ({ ...p, phone: STAFF_PHONES[p.id] }));
+  if (staff.length) await database.insert(s.staff).values(staff).onConflictDoNothing();
+  if (!perm.length) {
+    await database.insert(s.rolePermissions).values(
+      (Object.keys(DEFAULT_MATRIX) as Permission[]).flatMap((permission) => ROLES.map((r, i) => ({ role: r.name, permission, allowed: DEFAULT_MATRIX[permission][i] === "1" }))),
+    ).onConflictDoNothing();
+  }
 }

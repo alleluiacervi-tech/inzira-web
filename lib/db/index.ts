@@ -15,7 +15,7 @@ import { drizzle as drizzlePglite } from "drizzle-orm/pglite";
 import { migrate as migratePglite } from "drizzle-orm/pglite/migrator";
 import { Pool } from "pg";
 import * as schema from "./schema";
-import { seed } from "./seed";
+import { ensureDemoSignIns, seed } from "./seed";
 
 export type Db = PgDatabase<PgQueryResultHKT, typeof schema>;
 export { schema };
@@ -38,6 +38,7 @@ async function open(): Promise<Db> {
     const pool = new Pool({ connectionString: process.env.DATABASE_URL, max: Number(process.env.DB_POOL_MAX ?? 5) });
     const d = drizzlePg(pool, { schema }) as unknown as Db;
     if (process.env.DB_AUTO_MIGRATE === "1") await migratePg(d as never, { migrationsFolder });
+    await ensureDemoSignIns(d);
     return d;
   }
   const dir = process.env.PGLITE_DIR ?? (process.env.VERCEL ? "memory://" : path.join(process.cwd(), ".data", "pglite"));
@@ -47,6 +48,7 @@ async function open(): Promise<Db> {
   await migratePglite(d as never, { migrationsFolder });
   const empty = (await d.select({ id: schema.categories.id }).from(schema.categories).limit(1)).length === 0;
   if (empty && process.env.DB_AUTO_SEED !== "0") await seed(d);
+  await ensureDemoSignIns(d);
   return d;
 }
 
