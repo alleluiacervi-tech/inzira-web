@@ -5,6 +5,7 @@ import { ACCOUNTS, PROFILES, STAFF } from "../mock/people";
 import { AUDIT, NOTIFICATIONS, REQUESTS } from "../mock/requests";
 import { REMINDERS } from "../mock/admin";
 import { DEFAULT_MATRIX, ROLES, type Permission } from "../permissions";
+import { putFile } from "../storage";
 import type { Db } from "./index";
 import * as s from "./schema";
 
@@ -17,6 +18,20 @@ export const STAFF_PHONES: Record<string, string> = {
 };
 
 type Tx = Parameters<Parameters<Db["transaction"]>[0]>[0];
+
+/** Tiny stand-ins so every seeded upload and issued document can be opened. */
+const PNG = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==", "base64");
+const JPEG = Buffer.from("/9j/4AAQSkZJRgABAQAAAQABAAD/2wCEAAkGBxAQEBAQEA8PEA8QDw8PDw8PDw8PDw8PFREWFhURExUYHSggGBolGxUVITEhJSkrLi4uFx8zODMtNygtLisBCgoKDg0OGhAQGy0lHyUtLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLf/AABEIAAMABAAMBIgACEQEDEQH/xAAbAAABBQEBAAAAAAAAAAAAAAAEAQIDBQYBB//EABQQAQAAAAAAAAAAAAAAAAAAAAD/xAAUAQEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIQAxAAAAH0P//EABQQAQAAAAAAAAAAAAAAAAAAAAD/2gAIAQEAAQUCf//EABQRAQAAAAAAAAAAAAAAAAAAAAD/2gAIAQMBAT8Bf//EABQRAQAAAAAAAAAAAAAAAAAAAAD/2gAIAQIBAT8Bf//EABQQAQAAAAAAAAAAAAAAAAAAAAD/2gAIAQEABj8Cf//Z", "base64");
+const PDF = Buffer.from("%PDF-1.1\n1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj\n2 0 obj<</Type/Pages/Count 1/Kids[3 0 R]>>endobj\n3 0 obj<</Type/Page/Parent 2 0 R/MediaBox[0 0 200 80]>>endobj\ntrailer<</Root 1 0 R>>\n%%EOF\n");
+
+type SeedFile = { id: string; ref: string; name: string; mime: string; bytes: Uint8Array; at: string; by: string };
+
+function mockBlob(name: string): { mime: string; bytes: Uint8Array } {
+  const ext = name.toLowerCase().split(".").pop() ?? "";
+  if (ext === "png") return { mime: "image/png", bytes: PNG };
+  if (ext === "jpg" || ext === "jpeg" || ext === "webp" || ext === "heic" || ext === "heif") return { mime: "image/jpeg", bytes: JPEG };
+  return { mime: "application/pdf", bytes: PDF };
+}
 
 /** What every database needs: categories, the service catalogue with our prices, the default
  *  permissions and the running numbers. No customers. */
@@ -45,7 +60,9 @@ export async function setupProduction(db: Db, owner: { name: string; phone: stri
 
 /** Development and demos: the catalogue plus the sample customers, staff and requests. */
 export async function seed(db: Db) {
+  const files: SeedFile[] = [];
   await db.transaction(async (tx) => {
+    files.length = 0;
     await catalogue(tx);
     await tx.insert(s.accounts).values(ACCOUNTS.map((a) => ({ ...a, phone: digits(a.phone) })));
     await tx.insert(s.profiles).values(PROFILES);
@@ -60,15 +77,35 @@ export async function seed(db: Db) {
         invoice: b.invoice, official: b.official, officialMode: b.officialMode, officialLabel: b.officialLabel, ours: b.ours, oursStandard: b.oursStandard,
         oursUnit: b.oursUnit, oursNote: b.oursNote, quote: b.quote, dueAt: b.dueAt, officialReceipt: b.officialReceipt,
       });
-      if (r.documents.length) await tx.insert(s.requestDocuments).values(r.documents.map((d, i) => ({
-        id: d.id, ref: r.ref, position: i, name: d.name, group: d.group, required: d.required, status: d.status,
-        fileName: d.file?.name, fileSize: d.file?.size, uploadedAt: d.file?.uploadedAt, note: d.note, reviewedAt: d.reviewedAt, reviewedBy: d.reviewedBy,
-      })));
-      if (r.deliverables.length) await tx.insert(s.deliverables).values(r.deliverables.map((d) => ({ ...d, ref: r.ref })));
+      if (r.documents.length) await tx.insert(s.requestDocuments).values(r.documents.map((d, i) => {
+        const fileId = d.file ? `file-${d.id}` : null;
+        if (d.file && fileId) {
+          const blob = mockBlob(d.file.name);
+          files.push({ id: fileId, ref: r.ref, name: d.file.name, mime: blob.mime, bytes: blob.bytes, at: d.file.uploadedAt, by: d.reviewedBy ?? r.agentId ?? "system" });
+        }
+        return {
+          id: d.id, ref: r.ref, position: i, name: d.name, group: d.group, required: d.required, status: d.status, fileId,
+          fileName: d.file?.name, fileSize: d.file?.size, uploadedAt: d.file?.uploadedAt, note: d.note, reviewedAt: d.reviewedAt, reviewedBy: d.reviewedBy,
+        };
+      }));
+      if (r.deliverables.length) await tx.insert(s.deliverables).values(r.deliverables.map((d) => {
+        const fileId = `file-${d.id}`;
+        const name = `${d.name}.pdf`;
+        const blob = mockBlob(name);
+        files.push({ id: fileId, ref: r.ref, name, mime: blob.mime, bytes: blob.bytes, at: d.issuedAt, by: d.issuedBy });
+        return { ...d, ref: r.ref, fileId };
+      }));
       if (r.messages.length) await tx.insert(s.messages).values(r.messages.map((m) => ({ ref: r.ref, at: m.at, by: m.by, body: m.body })));
       if (r.notes.length) await tx.insert(s.notes).values(r.notes.map((n) => ({ ref: r.ref, at: n.at, by: n.by, body: n.body })));
       if (r.events.length) await tx.insert(s.events).values([...r.events].reverse().map((e) => ({ ref: r.ref, at: e.at, title: e.title, by: e.by, body: e.body })));
       if (b.transactions.length) await tx.insert(s.transactions).values(b.transactions.map((t) => ({ ref: r.ref, ...t })));
+    }
+
+    if (files.length) {
+      await tx.insert(s.files).values(files.map((f) => ({
+        id: f.id, ref: f.ref, storageKey: `${f.ref}/${f.id}`, name: f.name, mime: f.mime, bytes: f.bytes.byteLength, uploadedAt: f.at, uploadedBy: f.by,
+      })));
+      for (const f of files) await putFile(`${f.ref}/${f.id}`, f.bytes, f.mime);
     }
 
     // Default stage SLA targets (in hours)
