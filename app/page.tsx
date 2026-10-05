@@ -80,7 +80,7 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ a
               <p className="top-lead">Company registration, taxes, EBM, land titles and RURA permits for businesses in Rwanda. We check your documents, file them through the official channel and follow up until it’s done.</p>
               <div className="top-ctas">
                 <Link className="btn btn-p btn-lg" href="/services">Start a request</Link>
-                <Link className="btn btn-ghost-light btn-lg" href="#prices">See services and fees</Link>
+                <Link className="btn btn-s btn-lg" href="#prices">See services and fees</Link>
               </div>
               <ul className="top-facts">
                 <li><Icon name="clock" size={17} />Reply within {SITE.responseTime}</li>
