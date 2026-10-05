@@ -55,7 +55,7 @@ Copy `.env.example` to `.env.local`. None are needed for development.
 | Variable | What it does |
 | --- | --- |
 | `DATABASE_URL` | Persistent Postgres connection string. Required in production; PGlite is for local development and `INZIRA_DEMO=1` builds only. |
-| `DB_AUTO_MIGRATE=1` | Apply migrations when the server starts (otherwise run `npm run db:migrate`). |
+| `DB_AUTO_MIGRATE=0` | Skip applying migrations on startup. By default the server applies `drizzle/` when it starts. |
 | `INZIRA_DEMO=1` | Demo/staging builds: allows the console SMS, the payment simulator, PGlite and local file storage in a production build. Never on the live site. |
 | `SMS_PROVIDER` | `africastalking` to send real SMS (`AT_USERNAME`, `AT_API_KEY`, optional `AT_SENDER_ID`). |
 | `PAYMENT_PROVIDER` | `live` for real mobile money (MTN numbers → MTN MoMo, 072/073 → Airtel Money), or `simulator` for demos. |
@@ -73,7 +73,7 @@ Copy `.env.example` to `.env.local`. None are needed for development.
 
 1. Create a persistent Postgres database (for example Neon, Supabase or Railway) and set `DATABASE_URL`.
 2. Create a **private** Vercel Blob store and connect it to this Vercel project. Vercel supplies the OIDC environment variables. For local or non-Vercel use, set `BLOB_READ_WRITE_TOKEN`.
-3. Apply the schema: `npm run db:migrate`.
+3. Schema in `drizzle/` is applied when the server starts. Set `DB_AUTO_MIGRATE=0` only if a release step runs `npm run db:migrate` first.
 4. Load the catalogue and the first owner, without sample data:
    `OWNER_NAME="…" OWNER_PHONE="07…" npm run db:setup`.
 5. Set `SMS_PROVIDER` and its keys, `NEXT_PUBLIC_SITE_URL`, `CRON_SECRET`, and — once you have
@@ -86,7 +86,7 @@ Copy `.env.example` to `.env.local`. None are needed for development.
    invite the team in Admin › Roles & people.
 
 Schema changes: edit `lib/db/schema.ts`, run `npm run db:generate` to write a migration into
-`drizzle/`, commit it, and run `npm run db:migrate` when deploying.
+`drizzle/`, commit it, and deploy. The next startup applies it.
 
 ## Structure
 
