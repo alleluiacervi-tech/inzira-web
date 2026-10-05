@@ -21,7 +21,7 @@ async function database(): Promise<Check> {
     return { key: "db", name, state: "missing", detail: "The database is not answering.", fix: "Check DATABASE_URL and that the database is running." };
   }
   if (process.env.DATABASE_URL) return { key: "db", name, state: "ready", detail: "Postgres is connected and answering." };
-  return { key: "db", name, state: "test", detail: "Built-in test database. Data is lost when the server restarts on Vercel.", fix: "Set DATABASE_URL to a persistent Postgres database (Neon, Supabase or Railway) and run npm run db:migrate." };
+  return { key: "db", name, state: "test", detail: "Built-in test database. Data is lost when the server restarts on Vercel.", fix: "Set DATABASE_URL to a persistent Postgres database (Neon, Supabase or Railway). The server applies the schema when it starts." };
 }
 
 function sms(): Check {
