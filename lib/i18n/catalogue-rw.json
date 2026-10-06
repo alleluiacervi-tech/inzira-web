@@ -1,0 +1,1388 @@
+{
+  "categories": {
+    "rdb": {
+      "name": "RDB / Kwandikisha ubucuruzi",
+      "short": "RDB",
+      "desc": "Kwandikisha, guhindura amakuru cyangwa gukurikirana iby'ubucuruzi bwawe cyangwa kompanyi yawe."
+    },
+    "tax": {
+      "name": "Imisoro",
+      "short": "Imisoro",
+      "desc": "Patente, umusoro ku mutungo utimukanwa, umusoro ku binyabiziga n'imenyekanisha rya buri kwezi."
+    },
+    "ebm": {
+      "name": "EBM",
+      "short": "EBM",
+      "desc": "Gushyirirwaho imashini ya EBM no kwiga kuyikoresha."
+    },
+    "land": {
+      "name": "Serivisi z'ubutaka",
+      "short": "Ubutaka",
+      "desc": "Ibyangombwa by'ubutaka bya elegitoronike (e-title), guhindura uwo mwashakanye mu gitabo cy'ubutaka no kuvanga ibibanza."
+    },
+    "rura": {
+      "name": "RURA / Gutwara abantu n'ibintu",
+      "short": "RURA",
+      "desc": "Uruhushya rwo gutwara abantu cyangwa ibicuruzwa ku binyabiziga."
+    },
+    "irembo": {
+      "name": "Amahugurwa ya Irembo",
+      "short": "Irembo",
+      "desc": "Kwiga kwikoreshereza Irembo ubwawe — kuri interineti cyangwa ku biro byacu."
+    },
+    "other": {
+      "name": "Izindi serivisi zo kuri interineti",
+      "short": "Izindi",
+      "desc": "Hari indi serivisi yo kuri interineti ukeneye? Tubanza kumvikana nawe uko bikorwa n'ikiguzi cyacu."
+    }
+  },
+  "offices": {
+    "RDB": {
+      "name": "Ikigo cy'igihugu gishinzwe iterambere (RDB)",
+      "area": "Kwandikisha ubucuruzi",
+      "does": "Kwandikisha ubucuruzi bw'umuntu ku giti cye cyangwa kompanyi, guhindura amakuru, no gutanga raporo y'umwaka"
+    },
+    "RRA": {
+      "name": "Urwego rw'Imisoro (RRA)",
+      "area": "Imisoro na EBM",
+      "does": "Patente, TIN, imenyekanisha rya buri kwezi n'iry'umwaka, gushyiraho EBM n'amahugurwa yo kuyikoresha"
+    },
+    "NLA": {
+      "name": "Ikigo cy'igihugu gishinzwe ubutaka (NLA)",
+      "area": "Ubutaka, bikorerwa kuri Irembo",
+      "does": "Icyangombwa cy'ubutaka cya elegitoronike (e-title), kongeramo cyangwa gukuramo uwo mwashakanye mu gitabo cy'ubutaka, no kuvanga ibibanza"
+    },
+    "RURA": {
+      "name": "Ikigo cy'igihugu gishinzwe amabwiriza (RURA)",
+      "area": "Gutwara abantu n'ibintu",
+      "does": "Uruhushya rwo gutwara abantu n'ibicuruzwa ku binyabiziga, no guhagarika uruhushya by'agateganyo"
+    },
+    "Irembo": {
+      "name": "Irembo",
+      "area": "Urubuga rwa serivisi za leta",
+      "does": "Turagusabira kuri uru rubuga, cyangwa tukakwigisha wowe n'abakozi bawe kurwikoreshereza"
+    }
+  },
+  "services": {
+    "enterprise-registration": {
+      "name": "Kwandikisha ubucuruzi bw'umuntu ku giti cye",
+      "aka": "Kwandikisha ubucuruzi mu mazina yawe bwite",
+      "summary": "Andikisha ubucuruzi mu mazina yawe bwite kugira ngo ukore mu buryo bwemewe n'amategeko, ufungure konti ya banki y'ubucuruzi, unahabwe numero ya TIN. Tugufasha gusuzuma imyirondoro yawe, tukarangiza kwandikisha muri RDB, hanyuma tukakoherereza icyangombwa cy'ubucuruzi.",
+      "authority": "Ikigo cy'igihugu gishinzwe iterambere (RDB)",
+      "channel": "Kwandikisha kuri interineti muri RDB",
+      "via": "Binyuze mu kwandikisha kuri interineti muri RDB",
+      "time": "Bikunze gufata iminsi 1–2 y'akazi",
+      "timeShort": "Iminsi 1–2 y'akazi",
+      "docsShort": "Indangamuntu, amakuru y'ubucuruzi",
+      "who": [
+        {
+          "title": "Abacuruzi n'abafite amaduka",
+          "body": "Amaduka, ibibanza byo mu masoko, n'ubucuruzi buciriritse bwo kurangura."
+        },
+        {
+          "title": "Abakora ku giti cyabo",
+          "body": "Abajyanama, abanditsi cyangwa abashushanya, n'abatekinisiye."
+        },
+        {
+          "title": "Ubucuruzi buto bwa serivisi",
+          "body": "Amasaluni, abadozi, n'amagaraje asana."
+        }
+      ],
+      "requirements": [
+        "Indangamuntu y'u Rwanda, cyangwa pasiporo n'uruhushya rwo gutura mu Rwanda",
+        "Izina ry'ubucuruzi n'ibyo ukora",
+        "Aho ubucuruzi bukorera (akarere, umurenge, akagari)"
+      ],
+      "documents": [
+        {
+          "name": "Indangamuntu",
+          "detail": "Ifoto igaragara neza y'impande zombi, cyangwa ipaji ya pasiporo iriho umwirondoro"
+        },
+        {
+          "name": "Icyemezo cy'aho ubucuruzi bukorera",
+          "detail": "Amasezerano y'ubukode cyangwa ibaruwa ya nyir'inzu, niba ubifite"
+        }
+      ],
+      "steps": [
+        {
+          "title": "Utangira ubusabe",
+          "body": "Subiza ibibazo bike byoroshye. Bitwara nk'iminota 3 gusa."
+        },
+        {
+          "title": "Dusuzuma inyandiko zawe",
+          "body": "Umuhagarikizi wawe asuzuma ko byose byujuje ibyangombwa, ubusanzwe mu masaha 2 y'akazi."
+        },
+        {
+          "title": "Wemeza amafaranga yo kwishyura",
+          "body": "Ubona amafaranga y'urwego n'ay'ubufasha bwacu bitandukanye, hanyuma ukishyura ukoresheje MoMo cyangwa Airtel Money."
+        },
+        {
+          "title": "Tubyohereza muri RDB",
+          "body": "Tubyohereza binyuze mu nzira yemewe tukaguha numero y'ubusabe yo gukurikirana."
+        },
+        {
+          "title": "RDB irabisuzuma",
+          "body": "RDB isuzuma ubusabe bwawe igafata icyemezo. Iyo bitinze kurenza bisanzwe turabikurikirana."
+        },
+        {
+          "title": "Uhabwa igisubizo",
+          "body": "Ucyakira kuri konte yawe yo kuri Inzira no kuri WhatsApp, hamwe n'inyemezabwishyu z'urwego."
+        }
+      ],
+      "notes": [],
+      "officialNote": "Ashyirwaho na RDB. Umuhagarikizi wawe akwemeza amafaranga nyayo mbere y'uko ugira icyo wishyura."
+    },
+    "company-registration": {
+      "name": "Kwandikisha kompanyi",
+      "aka": "Kompanyi y'ubucuruzi y'abantu ku giti cyabo · LTD",
+      "summary": "Andikisha kompanyi yigenga (LTD) kugira ngo ucuruze mu buryo bwemewe, ufungure konti ya banki ya kompanyi, unahabwe numero ya TIN. Tugufasha gusuzuma ko izina rya kompanyi ribonetse, gutegura amategeko shingiro n'imyirondoro y'abanyamigabane, no kohereza ubusabe bwo kwandikisha muri RDB.",
+      "authority": "Ikigo cy'igihugu gishinzwe iterambere (RDB)",
+      "channel": "Kwandikisha kuri interineti muri RDB",
+      "via": "Binyuze mu kwandikisha kuri interineti muri RDB",
+      "time": "Bikunze gufata iminsi 1–2 y'akazi",
+      "timeShort": "Iminsi 1–2 y'akazi",
+      "docsShort": "Indangamuntu z'abanyamigabane n'abayobozi, aho ikorera",
+      "who": [
+        {
+          "title": "Abatangiza ubucuruzi bushya",
+          "body": "Abafungura kompanyi bwa mbere."
+        },
+        {
+          "title": "Abari basanzwe bacuruza ku giti cyabo",
+          "body": "Abava ku bucuruzi bw'umuntu ku giti cye bajya muri kompanyi."
+        },
+        {
+          "title": "Abashoramari b'abanyamahanga",
+          "body": "Abashaka gufungura kompanyi mu Rwanda."
+        }
+      ],
+      "requirements": [
+        "Izina wifuza kwita kompanyi (turakugenzurira niba riboneka)",
+        "Nibura umunyamigabane umwe n'umuyobozi umwe",
+        "Aderesi yemewe kompanyi ibarizwaho mu Rwanda"
+      ],
+      "documents": [
+        {
+          "name": "Indangamuntu z'abanyamigabane n'abayobozi",
+          "detail": "Indangamuntu cyangwa pasiporo ya buri muntu"
+        },
+        {
+          "name": "Icyemezo cy'aho kompanyi ikorera",
+          "detail": "Amasezerano y'ubukode, icyangombwa cy'ubutaka cyangwa ibaruwa y'aho ikorera"
+        },
+        {
+          "name": "Imigabane n'uko igabanyije",
+          "detail": "Uko imigabane igabanijwe ku ijana hagati y'abanyamigabane"
+        }
+      ],
+      "steps": [
+        {
+          "title": "Utangira ubusabe",
+          "body": "Subiza ibibazo bike byoroshye. Bitwara nk'iminota 3 gusa."
+        },
+        {
+          "title": "Dusuzuma inyandiko zawe",
+          "body": "Umuhagarikizi wawe asuzuma ko byose byujuje ibyangombwa, ubusanzwe mu masaha 2 y'akazi."
+        },
+        {
+          "title": "Wemeza amafaranga yo kwishyura",
+          "body": "Ubona amafaranga y'urwego n'ay'ubufasha bwacu bitandukanye, hanyuma ukishyura ukoresheje MoMo cyangwa Airtel Money."
+        },
+        {
+          "title": "Tubyohereza muri RDB",
+          "body": "Tubyohereza binyuze mu nzira yemewe tukaguha numero y'ubusabe yo gukurikirana."
+        },
+        {
+          "title": "RDB irabisuzuma",
+          "body": "RDB isuzuma ubusabe bwawe igafata icyemezo. Iyo bitinze kurenza bisanzwe turabikurikirana."
+        },
+        {
+          "title": "Uhabwa igisubizo",
+          "body": "Ucyakira kuri konte yawe yo kuri Inzira no kuri WhatsApp, hamwe n'inyemezabwishyu z'urwego."
+        }
+      ],
+      "notes": [
+        {
+          "title": "Ibyo gukora nyuma yo kwandikisha",
+          "body": "Kompanyi nyinshi nshya ziba zikeneye no kwaka Patente, ndetse niba zitanga inyemezabwishyu zigakenera EBM. Tubigufashamo byose ku murongo ukwiye."
+        }
+      ],
+      "officialNote": "Ashyirwaho na RDB. Umuhagarikizi wawe akwemeza amafaranga nyayo mbere y'uko ugira icyo wishyura."
+    },
+    "business-amendment": {
+      "name": "Guhindura amakuru y'ubucuruzi",
+      "aka": "Guhindura amakuru ya kompanyi cyangwa ay'ubucuruzi",
+      "summary": "Hindura amakuru RDB ibitse ku bucuruzi bwawe — aho bukorera, ibyo bukora, abayobozi, abanyamigabane cyangwa izina ryabwo. Tugutegurira impinduka ziri kumwe n'inyandiko zose zibigaragaza, hanyuma tukazohereza muri RDB.",
+      "authority": "Ikigo cy'igihugu gishinzwe iterambere (RDB)",
+      "channel": "Kwandikisha kuri interineti muri RDB",
+      "via": "Binyuze mu kwandikisha kuri interineti muri RDB",
+      "time": "Bikunze gufata iminsi mike y'akazi",
+      "timeShort": "Iminsi mike y'akazi",
+      "docsShort": "Icyangombwa, umwanzuro, indangamuntu nshya",
+      "who": [
+        {
+          "title": "Kompanyi zahinduye abayobozi cyangwa ba nyirazo",
+          "body": "Abanyamigabane bashya cyangwa abayobozi bashya."
+        },
+        {
+          "title": "Ubucuruzi bwimukiye ahandi",
+          "body": "Aderesi nshya cyangwa akarere gashya."
+        },
+        {
+          "title": "Ubucuruzi bwaguwe",
+          "body": "Ibyo bukora bishya cyangwa izina rishya."
+        }
+      ],
+      "requirements": [
+        "Kodi ya kompanyi yawe cyangwa icyangombwa cy'ubucuruzi bw'umuntu ku giti cye",
+        "Ibyahindutse n'igihe impinduka zatangiriye gukurikizwa",
+        "Kuri kompanyi: umwanzuro w'abanyamigabane cyangwa w'inama y'ubutegetsi wemeza izo mpinduka"
+      ],
+      "documents": [
+        {
+          "name": "Icyangombwa cya kompanyi cyangwa icy'ubucuruzi",
+          "detail": "Cyangwa kodi ya kompanyi yawe"
+        },
+        {
+          "name": "Umwanzuro wemeza impinduka",
+          "detail": "Inyandiko y'umwanzuro yashyizweho umukono, kuri kompanyi"
+        },
+        {
+          "name": "Indangamuntu z'abayobozi cyangwa abanyamigabane bashya",
+          "detail": "Iyo hari abantu bashya bongewemo gusa"
+        }
+      ],
+      "steps": [
+        {
+          "title": "Utangira ubusabe",
+          "body": "Subiza ibibazo bike byoroshye. Bitwara nk'iminota 3 gusa."
+        },
+        {
+          "title": "Dusuzuma inyandiko zawe",
+          "body": "Umuhagarikizi wawe asuzuma ko byose byujuje ibyangombwa, ubusanzwe mu masaha 2 y'akazi."
+        },
+        {
+          "title": "Wemeza amafaranga yo kwishyura",
+          "body": "Ubona amafaranga y'urwego n'ay'ubufasha bwacu bitandukanye, hanyuma ukishyura ukoresheje MoMo cyangwa Airtel Money."
+        },
+        {
+          "title": "Tubyohereza muri RDB",
+          "body": "Tubyohereza binyuze mu nzira yemewe tukaguha numero y'ubusabe yo gukurikirana."
+        },
+        {
+          "title": "RDB irabisuzuma",
+          "body": "RDB isuzuma ubusabe bwawe igafata icyemezo. Iyo bitinze kurenza bisanzwe turabikurikirana."
+        },
+        {
+          "title": "Uhabwa igisubizo",
+          "body": "Ucyakira kuri konte yawe yo kuri Inzira no kuri WhatsApp, hamwe n'inyemezabwishyu z'urwego."
+        }
+      ],
+      "notes": [],
+      "officialNote": "Ashyirwaho na RDB. Umuhagarikizi wawe akwemeza amafaranga nyayo mbere y'uko ugira icyo wishyura.",
+      "purposes": [
+        "Guhindura aho ikorera",
+        "Umuyobozi mushya cyangwa ucyuye igihe",
+        "Guhindura abanyamigabane",
+        "Guhindura ibyo ikora",
+        "Guhindura izina"
+      ]
+    },
+    "annual-return-filing": {
+      "name": "Gutanga raporo y'umwaka ya kompanyi",
+      "summary": "Buri mwaka kompanyi zigaragariza RDB amakuru yazo binyuze muri raporo y'umwaka. Tugufasha kuyitegura dukoresheje inyandiko zawe, tugasuzuma ko abayobozi, abanyamigabane n'aho ikorera bitagize igihinduka, hanyuma tukayishyikiriza RDB mu izina ryawe.",
+      "authority": "Ikigo cy'igihugu gishinzwe iterambere (RDB)",
+      "channel": "Kwandikisha kuri interineti muri RDB",
+      "via": "Binyuze mu kwandikisha kuri interineti muri RDB",
+      "time": "Bikunze gufata iminsi 1–2 y'akazi",
+      "timeShort": "Iminsi 1–2 y'akazi",
+      "docsShort": "Icyangombwa cya kompanyi, impinduka niba zihari",
+      "who": [
+        {
+          "title": "Kompanyi zigenga zanditse",
+          "body": "Buri kompanyi yanditse igomba gutanga iyi raporo rimwe mu mwaka."
+        },
+        {
+          "title": "Ba nyir'ubucuruzi bahuze",
+          "body": "Abashaka kwirinda gucikanwa n'itariki ntarengwa."
+        },
+        {
+          "title": "Kompanyi zagize impinduka",
+          "body": "Abungutse abayobozi cyangwa abanyamigabane bashya muri uwo mwaka."
+        }
+      ],
+      "requirements": [
+        "Kodi ya kompanyi yawe cyangwa icyangombwa cyayo",
+        "Impinduka zose zabaye ku bayobozi, abanyamigabane cyangwa aho ikorera muri uwo mwaka"
+      ],
+      "documents": [
+        {
+          "name": "Icyangombwa cya kompanyi",
+          "detail": "Cyangwa kodi ya kompanyi yawe"
+        },
+        {
+          "name": "Impinduka zabaye mu mwaka",
+          "detail": "Abayobozi bashya, abanyamigabane cyangwa aho ikorera, niba bihari"
+        }
+      ],
+      "steps": [
+        {
+          "title": "Utangira ubusabe",
+          "body": "Subiza ibibazo bike byoroshye. Bitwara nk'iminota 3 gusa."
+        },
+        {
+          "title": "Dusuzuma inyandiko zawe",
+          "body": "Umuhagarikizi wawe asuzuma ko byose byujuje ibyangombwa, ubusanzwe mu masaha 2 y'akazi."
+        },
+        {
+          "title": "Wemeza amafaranga yo kwishyura",
+          "body": "Ubona amafaranga y'urwego n'ay'ubufasha bwacu bitandukanye, hanyuma ukishyura ukoresheje MoMo cyangwa Airtel Money."
+        },
+        {
+          "title": "Tubyohereza muri RDB",
+          "body": "Tubyohereza binyuze mu nzira yemewe tukaguha numero y'ubusabe yo gukurikirana."
+        },
+        {
+          "title": "RDB irabisuzuma",
+          "body": "RDB isuzuma ubusabe bwawe igafata icyemezo. Iyo bitinze kurenza bisanzwe turabikurikirana."
+        },
+        {
+          "title": "Uhabwa igisubizo",
+          "body": "Ucyakira kuri konte yawe yo kuri Inzira no kuri WhatsApp, hamwe n'inyemezabwishyu z'urwego."
+        }
+      ],
+      "notes": [
+        {
+          "title": "Ntubirangaze ngo ukererwe",
+          "body": "Gutanga raporo y'umwaka wakererewe bishobora gutuma ucibwa amande. Tubwire itariki kompanyi yawe yandikiweho kugira ngo tujye tukwibutsa buri mwaka."
+        }
+      ],
+      "officialNote": "Ashyirwaho na RDB. Umuhagarikizi wawe akwemeza amafaranga nyayo mbere y'uko ugira icyo wishyura."
+    },
+    "trading-licence-registration": {
+      "name": "Kwandikisha Patente",
+      "aka": "Patente · uruhushya rw'ubucuruzi",
+      "summary": "Andikisha ubucuruzi bwawe ku musoro wa Patente wishyurwa uturere ku bikorwa by'ubucuruzi. Tugufasha kwandikisha buri hantu hose ukorera, kugira ngo ubucuruzi bwawe butangire bwubahirije amategeko neza.",
+      "authority": "Urwego rw'Imisoro (RRA), ku karere kawe",
+      "channel": "RRA",
+      "via": "Binyuze muri RRA · umusoro w'akarere",
+      "time": "Bikunze gufata iminsi 1–3 y'akazi",
+      "timeShort": "Iminsi 1–3 y'akazi",
+      "docsShort": "TIN, aho ubucuruzi bukorera",
+      "who": [
+        {
+          "title": "Ubucuruzi bushya",
+          "body": "Bugezeho kwandikwa muri RDB."
+        },
+        {
+          "title": "Amashami mashya",
+          "body": "Abafungura iduka rya kabiri cyangwa ibiro bishya."
+        },
+        {
+          "title": "Abakoraga mu kajagari",
+          "body": "Abifuza gukora mu buryo bwemewe n'amategeko."
+        }
+      ],
+      "requirements": [
+        "Numero ya TIN (uhabwa iyo wandikishije muri RDB)",
+        "Aderesi n'ibyo ukora kuri buri hantu ukorera"
+      ],
+      "documents": [
+        {
+          "name": "Icyemezo cya TIN cyangwa icya kompanyi",
+          "detail": "Kopi igaragara neza"
+        },
+        {
+          "name": "Amasezerano y'ubukode cyangwa icyemezo cy'aho mukorera",
+          "detail": "Kuri buri hantu mukorera, niba ubifite"
+        }
+      ],
+      "steps": [
+        {
+          "title": "Utangira ubusabe",
+          "body": "Subiza ibibazo bike byoroshye. Bitwara nk'iminota 3 gusa."
+        },
+        {
+          "title": "Dusuzuma inyandiko zawe",
+          "body": "Umuhagarikizi wawe asuzuma ko byose byujuje ibyangombwa, ubusanzwe mu masaha 2 y'akazi."
+        },
+        {
+          "title": "Wemeza amafaranga yo kwishyura",
+          "body": "Ubona amafaranga y'urwego n'ay'ubufasha bwacu bitandukanye, hanyuma ukishyura ukoresheje MoMo cyangwa Airtel Money."
+        },
+        {
+          "title": "Tubyohereza muri RRA",
+          "body": "Tubyohereza binyuze mu nzira yemewe tukaguha numero y'ubusabe yo gukurikirana."
+        },
+        {
+          "title": "RRA irabisuzuma",
+          "body": "RRA isuzuma ubusabe bwawe igafata icyemezo. Iyo bitinze kurenza bisanzwe turabikurikirana."
+        },
+        {
+          "title": "Uhabwa igisubizo",
+          "body": "Ucyakira kuri konte yawe yo kuri Inzira no kuri WhatsApp, hamwe n'inyemezabwishyu z'urwego."
+        }
+      ],
+      "notes": [],
+      "officialNote": "Umusoro wa Patente ugenwa n'ibyo ukora n'aho ukorera. Uwushyura wowe ubwawe kuri RRA y'akarere kawe; tubanza kukumenyesha umubare wawo mbere."
+    },
+    "property-tax-tin": {
+      "name": "Gufata TIN y'umusoro ku mutungo utimukanwa",
+      "aka": "Numero y'umusoreshwa ku bafite ubutaka n'inzu",
+      "summary": "Niba ufite ubutaka cyangwa inzu, ukeneye numero ya TIN kugira ngo umenyekanishe unishyure umusoro ku mutungo utimukanwa. Tukwandikisha muri RRA hanyuma tukakoherereza numero yawe ya TIN.",
+      "authority": "Urwego rw'Imisoro (RRA)",
+      "channel": "RRA",
+      "via": "Binyuze muri RRA",
+      "time": "Bikunze gufata iminsi 1–2 y'akazi",
+      "timeShort": "Iminsi 1–2 y'akazi",
+      "docsShort": "Indangamuntu, UPI",
+      "who": [
+        {
+          "title": "Abafite ubutaka",
+          "body": "Ibibanza byo mu mujyi cyangwa mu cyaro."
+        },
+        {
+          "title": "Abafite inzu",
+          "body": "Inzu zo kubamo n'izikodeshwa."
+        },
+        {
+          "title": "Abazungura",
+          "body": "Abasigiwe umutungo utimukanwa n'ababyeyi cyangwa bene wabo."
+        }
+      ],
+      "requirements": [
+        "Indangamuntu yawe",
+        "Numero ya UPI ya buri mutungo utimukanwa utunze"
+      ],
+      "documents": [
+        {
+          "name": "Indangamuntu",
+          "detail": "Ifoto igaragara neza y'impande zombi, cyangwa ipaji ya pasiporo iriho umwirondoro"
+        },
+        {
+          "name": "UPI ya buri mutungo",
+          "detail": "Numero ibarizwa ku cyangombwa cy'ubutaka cyangwa kuri e-title"
+        }
+      ],
+      "steps": [
+        {
+          "title": "Utangira ubusabe",
+          "body": "Subiza ibibazo bike byoroshye. Bitwara nk'iminota 3 gusa."
+        },
+        {
+          "title": "Dusuzuma inyandiko zawe",
+          "body": "Umuhagarikizi wawe asuzuma ko byose byujuje ibyangombwa, ubusanzwe mu masaha 2 y'akazi."
+        },
+        {
+          "title": "Wemeza amafaranga yo kwishyura",
+          "body": "Ubona amafaranga y'urwego n'ay'ubufasha bwacu bitandukanye, hanyuma ukishyura ukoresheje MoMo cyangwa Airtel Money."
+        },
+        {
+          "title": "Tubyohereza muri RRA",
+          "body": "Tubyohereza binyuze mu nzira yemewe tukaguha numero y'ubusabe yo gukurikirana."
+        },
+        {
+          "title": "RRA irabisuzuma",
+          "body": "RRA isuzuma ubusabe bwawe igafata icyemezo. Iyo bitinze kurenza bisanzwe turabikurikirana."
+        },
+        {
+          "title": "Uhabwa igisubizo",
+          "body": "Ucyakira kuri konte yawe yo kuri Inzira no kuri WhatsApp, hamwe n'inyemezabwishyu z'urwego."
+        }
+      ],
+      "notes": [],
+      "officialNote": "Ashyirwaho na RRA. Umuhagarikizi wawe akwemeza amafaranga nyayo mbere y'uko ugira icyo wishyura."
+    },
+    "vehicle-income-tax-declaration": {
+      "name": "Kumenyekanisha umusoro ku musaruro w'ibinyabiziga",
+      "summary": "Ibinyabiziga bitwara abantu cyangwa ibintu bibyaza umusaruro byishyura umusoro ku musaruro buri mwaka. Tugutegurira imenyekanisha tukaryoherereza RRA, tukakubwira neza amafaranga yo kwishyura n'itariki ntarengwa.",
+      "authority": "Urwego rw'Imisoro (RRA)",
+      "channel": "RRA e-Tax",
+      "via": "Binyuze muri RRA e-Tax",
+      "time": "Bimenyekanishwa mu minsi 2 y'akazi uhereye igihe waduhereye inyandiko",
+      "timeShort": "Bimenyekanishwa mu minsi 2 y'akazi",
+      "docsShort": "TIN, ikarita y'umuhondo y'ikinyabiziga",
+      "who": [
+        {
+          "title": "Abafite tagisi na moto",
+          "body": "Abatwara abagenzi."
+        },
+        {
+          "title": "Abafite amakamyo",
+          "body": "Abatwara imizigo n'ibicuruzwa."
+        },
+        {
+          "title": "Koperative na kompanyi",
+          "body": "Abafite ibinyabiziga byinshi."
+        }
+      ],
+      "requirements": [
+        "Numero yawe ya TIN",
+        "Ibiranga buri kinyabiziga"
+      ],
+      "documents": [
+        {
+          "name": "TIN",
+          "detail": "Numero cyangwa icyemezo cya TIN"
+        },
+        {
+          "name": "Ikarita y'ikinyabiziga",
+          "detail": "Ikarita y'umuhondo kuri buri kinyabiziga"
+        },
+        {
+          "name": "Uruhushya rwa RURA",
+          "detail": "Niba ikinyabiziga kirusanganywe"
+        }
+      ],
+      "steps": [
+        {
+          "title": "Twoherereze inyandiko zawe",
+          "body": "TIN yawe n'amakarita y'umuhondo y'ibinyabiziga — amafoto cyangwa dosiye zo muri terefone byose biremewe."
+        },
+        {
+          "title": "Dutegura imenyekanisha",
+          "body": "Umuhagarikizi wawe agenzura imibare agategura imenyekanisha ryoherezwa muri RRA."
+        },
+        {
+          "title": "Wemeza ikiguzi cyacu",
+          "body": "Ishyura ukoresheje MoMo cyangwa Airtel Money. Nta kintu cyoherezwa muri RRA utabyemeje."
+        },
+        {
+          "title": "Tubimenyekanisha muri RRA",
+          "body": "Mbere y'itariki ntarengwa. Uhabwa inyandiko yemeza ko wamenyekanishije kuri konte yawe."
+        },
+        {
+          "title": "Uwishyura umusoro usabwa",
+          "body": "Tukumenyesha amafaranga nyayo n'uburyo uyishyura wowe ubwawe kuri RRA. Ntabwo anyura mu maboko yacu."
+        }
+      ],
+      "notes": [],
+      "officialNote": "Umusoro ugenwa n'ubwoko bw'ikinyabiziga. Uwushyura wowe ubwawe kuri RRA; tukumenyesha umubare wawo mbere y'itariki ntarengwa."
+    },
+    "trading-licence-declaration": {
+      "name": "Kumenyekanisha Patente",
+      "aka": "Imenyekanisha rya Patente ry'umwaka",
+      "summary": "Buri mwaka, abacuruzi bamenyekanisha umusoro wa Patente kuri buri hantu hose bakorera. Tugutegurira imenyekanisha, tukaryoherereza RRA, tukakubwira amafaranga ugomba kwishyura n'itariki ntarengwa.",
+      "authority": "Urwego rw'Imisoro (RRA), ku karere kawe",
+      "channel": "RRA e-Tax",
+      "via": "Binyuze muri RRA e-Tax · umusoro w'akarere",
+      "time": "Bimenyekanishwa mu minsi 2 y'akazi uhereye igihe waduhereye inyandiko",
+      "timeShort": "Bimenyekanishwa mu minsi 2 y'akazi",
+      "docsShort": "TIN, aho ubucuruzi bukorera",
+      "who": [
+        {
+          "title": "Amaduka n'ibiro",
+          "body": "Imenyekanisha rimwe kuri buri hantu hakorerwa ubucuruzi."
+        },
+        {
+          "title": "Ubucuruzi bufite amashami",
+          "body": "Ahantu henshi hihariye hagomba kumenyekanishwa."
+        },
+        {
+          "title": "Uwashyikiriwe n'igihe ataramenyekanisha umwaka ushize",
+          "body": "Turagufasha gusubira ku murongo."
+        }
+      ],
+      "requirements": [
+        "Numero yawe ya TIN",
+        "Buri hantu ukorera n'ibikorwa uhakorera"
+      ],
+      "documents": [
+        {
+          "name": "TIN",
+          "detail": "Numero cyangwa icyemezo cya TIN"
+        },
+        {
+          "name": "Imenyekanisha ry'umwaka ushize",
+          "detail": "Niba urifite"
+        }
+      ],
+      "steps": [
+        {
+          "title": "Twoherereze inyandiko zawe",
+          "body": "TIN yawe n'aho ukorera hose — amafoto cyangwa dosiye zo muri terefone byose biremewe."
+        },
+        {
+          "title": "Dutegura imenyekanisha",
+          "body": "Umuhagarikizi wawe agenzura imibare agategura imenyekanisha ryoherezwa muri RRA."
+        },
+        {
+          "title": "Wemeza ikiguzi cyacu",
+          "body": "Ishyura ukoresheje MoMo cyangwa Airtel Money. Nta kintu cyoherezwa muri RRA utabyemeje."
+        },
+        {
+          "title": "Tubimenyekanisha muri RRA",
+          "body": "Mbere y'itariki ntarengwa. Uhabwa inyandiko yemeza ko wamenyekanishije kuri konte yawe."
+        },
+        {
+          "title": "Uwishyura umusoro usabwa",
+          "body": "Tukumenyesha amafaranga nyayo n'uburyo uyishyura wowe ubwawe kuri RRA. Ntabwo anyura mu maboko yacu."
+        }
+      ],
+      "notes": [],
+      "officialNote": "Ugenwa n'akarere kawe hagendewe ku bikorwa ukora n'aho ukorera. Uwushyura wowe ubwawe kuri RRA; tubanza kukumenyesha umubare wawo mbere."
+    },
+    "monthly-tax-declarations": {
+      "name": "Kumenyekanisha imisoro ya buri kwezi y'ubucuruzi",
+      "aka": "PAYE · umusoro ku nyungu · umusoro ku bukerarugendo n'indi misoro bifitanye isano",
+      "summary": "Ku bucuruzi bumenyekanisha imisoro buri kwezi — umusoro ku mishahara y'abakozi (PAYE), umusoro ku nyungu, umusoro ku bukerarugendo n'indi misoro ifitanye isano na yo. Tugutegurira buri menyekanisha dukoresheje inyandiko zawe, tukaryoherereza RRA ku gihe, tukakubwira neza amafaranga ugomba kwishyura.",
+      "authority": "Urwego rw'Imisoro (RRA)",
+      "channel": "RRA e-Tax",
+      "via": "Binyuze muri RRA e-Tax",
+      "time": "Mbere y'itariki ya 15, buri kwezi",
+      "timeShort": "Buri kwezi, mbere ya 15",
+      "docsShort": "Urutonde rw'imishahara, inyandiko z'ibyo winjije n'ibyo wasohoye",
+      "who": [
+        {
+          "title": "Abakoresha bafite abakozi",
+          "body": "Umusoro wa PAYE ku mishahara y'abakozi buri kwezi."
+        },
+        {
+          "title": "Amahoteli, amaresitora n'abakora mu bukerarugendo",
+          "body": "Umusoro ku bukerarugendo n'indi misoro bifitanye isano."
+        },
+        {
+          "title": "Ubucuruzi buciriritse budafite umucungamutungo",
+          "body": "Gukurikiza amategeko y'imisoro utiriwe uha akazi umucungamutungo uhoraho."
+        }
+      ],
+      "requirements": [
+        "Numero ya TIN ikora neza kandi yanditse ku misoro wishyura",
+        "Urutonde rw'imishahara n'inyandiko z'ibyo wagurishije n'ibyo waguze by'ukwezi",
+        "Kwinjira muri konte yawe ya RRA e-Tax (turakuyobora)"
+      ],
+      "documents": [
+        {
+          "name": "Urutonde rw'imishahara y'ukwezi",
+          "detail": "Amazina y'abakozi, imishahara n'amafaranga y'inyongera bahabwa"
+        },
+        {
+          "name": "Inyandiko z'ibyagurishijwe n'ibyaguzwe",
+          "detail": "Inyemezabwishyu cyangwa raporo ya EBM"
+        },
+        {
+          "name": "Inyandiko z'umusoro ku bukerarugendo",
+          "detail": "Niba ubucuruzi bwawe busabwa kwishyura uyu musoro gusa"
+        }
+      ],
+      "steps": [
+        {
+          "title": "Twoherereze inyandiko zawe",
+          "body": "Urutonde rw'imishahara n'inyandiko z'ibyagurishijwe by'ukwezi — amafoto cyangwa dosiye zo muri terefone byose biremewe."
+        },
+        {
+          "title": "Dutegura imenyekanisha",
+          "body": "Umuhagarikizi wawe agenzura imibare agategura imenyekanisha ryoherezwa muri RRA."
+        },
+        {
+          "title": "Wemeza ikiguzi cyacu",
+          "body": "Ishyura ukoresheje MoMo cyangwa Airtel Money. Nta kintu cyoherezwa muri RRA utabyemeje."
+        },
+        {
+          "title": "Tubimenyekanisha muri RRA",
+          "body": "Mbere y'itariki ntarengwa. Uhabwa inyandiko yemeza ko wamenyekanishije kuri konte yawe."
+        },
+        {
+          "title": "Uwishyura umusoro usabwa",
+          "body": "Tukumenyesha amafaranga nyayo n'uburyo uyishyura wowe ubwawe kuri RRA. Ntabwo anyura mu maboko yacu."
+        }
+      ],
+      "notes": [
+        {
+          "title": "Itariki ntarengwa ya buri kwezi",
+          "body": "Imenyekanisha ryinshi rya buri kwezi rigomba gutangwa mbere y'itariki ya 15 y'ukwezi gukurikira. Twoherereze inyandiko mbere y'itariki ya 10 kugira ngo tubone umwanya wo kuzisuzuma neza."
+        }
+      ],
+      "officialNote": "Imisoro usabwa kwishyura uyishyura wowe ubwawe kuri RRA. Tukumenyesha buri mubare wose mbere y'itariki ntarengwa."
+    },
+    "property-tax-declaration": {
+      "name": "Kumenyekanisha umusoro ku mutungo utimukanwa",
+      "aka": "Umusoro ku butaka n'inzu",
+      "summary": "Abafite ubutaka n'inzu bamenyekanisha umusoro ku mutungo utimukanwa buri mwaka, kuri buri kibanza. Tugutegurira imenyekanisha kuri buri UPI, tukaryoherereza RRA, tukakubwira amafaranga yo kwishyura. Ikiguzi cyacu cyishyurwa kuri buri UPI.",
+      "authority": "Urwego rw'Imisoro (RRA), ku karere kawe",
+      "channel": "RRA e-Tax",
+      "via": "Binyuze muri RRA e-Tax · umusoro w'akarere",
+      "time": "Bimenyekanishwa mu minsi 2 y'akazi uhereye igihe waduhereye inyandiko",
+      "timeShort": "Bimenyekanishwa mu minsi 2 y'akazi",
+      "docsShort": "TIN, UPI ya buri mutungo",
+      "who": [
+        {
+          "title": "Abafite ubutaka",
+          "body": "Imenyekanisha rimwe kuri buri kibanza (UPI)."
+        },
+        {
+          "title": "Ba nyir'amazu akodeshwa",
+          "body": "Inzu zikodeshwa zo guturamo n'inyubako z'ubucuruzi."
+        },
+        {
+          "title": "Imiryango",
+          "body": "Ibibanza byinshi byanditse ku muntu umwe."
+        }
+      ],
+      "requirements": [
+        "Numero ya TIN (turayigushakira niba utayifite)",
+        "UPI ya buri mutungo utimukanwa",
+        "Icyo buri mutungo ukoreshwa"
+      ],
+      "documents": [
+        {
+          "name": "TIN",
+          "detail": "Numero cyangwa icyemezo cya TIN"
+        },
+        {
+          "name": "UPI ya buri mutungo",
+          "detail": "Irebwa ku cyangombwa cy'ubutaka cyangwa kuri e-title"
+        }
+      ],
+      "steps": [
+        {
+          "title": "Twoherereze inyandiko zawe",
+          "body": "TIN yawe na UPI ya buri mutungo — amafoto cyangwa dosiye zo muri terefone byose biremewe."
+        },
+        {
+          "title": "Dutegura imenyekanisha",
+          "body": "Umuhagarikizi wawe agenzura imibare agategura imenyekanisha ryoherezwa muri RRA."
+        },
+        {
+          "title": "Wemeza ikiguzi cyacu",
+          "body": "Ishyura ukoresheje MoMo cyangwa Airtel Money. Nta kintu cyoherezwa muri RRA utabyemeje."
+        },
+        {
+          "title": "Tubimenyekanisha muri RRA",
+          "body": "Mbere y'itariki ntarengwa. Uhabwa inyandiko yemeza ko wamenyekanishije kuri konte yawe."
+        },
+        {
+          "title": "Uwishyura umusoro usabwa",
+          "body": "Tukumenyesha amafaranga nyayo n'uburyo uyishyura wowe ubwawe kuri RRA. Ntabwo anyura mu maboko yacu."
+        }
+      ],
+      "notes": [],
+      "officialNote": "Ugenwa n'akarere kawe kuri buri mutungo. Uwushyura wowe ubwawe kuri RRA; tubanza kukumenyesha umubare wawo mbere."
+    },
+    "ebm-installation": {
+      "name": "Gusaba no gushyiraho EBM",
+      "aka": "Imashini ya EBM itanga inyemezabwishyu",
+      "summary": "Bona imashini ya EBM kugira ngo buri kintu cyose ugurishije gitangirwe inyemezabwishyu yemewe. Tugusabira EBM muri RRA, tukayikwinShiriramo no kuyitunganya dushyiramo ibicuruzwa byawe n'imisoro yabyo, tukanagenzura ko inyemezabwishyu zawe za mbere ziteguye neza.",
+      "authority": "Urwego rw'Imisoro (RRA)",
+      "channel": "RRA EBM",
+      "via": "Binyuze muri RRA EBM",
+      "time": "Bikunze gufata iminsi 3–5 y'akazi",
+      "timeShort": "Iminsi 3–5 y'akazi",
+      "docsShort": "TIN, urutonde rw'ibicuruzwa",
+      "who": [
+        {
+          "title": "Ubucuruzi bwanditse kuri TVA",
+          "body": "Inyemezabwishyu za EBM zitegetswe ku bucuruzi bwose buri kuri TVA."
+        },
+        {
+          "title": "Amaduka n'amaresitora",
+          "body": "Ubucuruzi bugurisha kenshi ku munsi."
+        },
+        {
+          "title": "Abatanga serivisi",
+          "body": "Abajyanama, ibigo bikora iby'ikoranabuhanga n'itangazamakuru, n'abubatsi."
+        }
+      ],
+      "requirements": [
+        "Numero ya TIN ikora",
+        "Amakuru y'ubucuruzi bwawe n'urutonde rw'ibicuruzwa cyangwa serivisi utanga",
+        "Mudasobwa cyangwa icyuma kigezweho kishyirwamo porogaramu ya EBM"
+      ],
+      "documents": [
+        {
+          "name": "Icyemezo cya TIN",
+          "detail": "Cyangwa numero yawe ya TIN"
+        },
+        {
+          "name": "Urutonde rw'ibicuruzwa n'ibiciro",
+          "detail": "Dosiye ya Excel cyangwa ifoto byose biremewe"
+        }
+      ],
+      "steps": [
+        {
+          "title": "Utangira ubusabe",
+          "body": "Subiza ibibazo bike byoroshye. Bitwara nk'iminota 3 gusa."
+        },
+        {
+          "title": "Dusuzuma inyandiko zawe",
+          "body": "Umuhagarikizi wawe asuzuma ko byose byujuje ibyangombwa, ubusanzwe mu masaha 2 y'akazi."
+        },
+        {
+          "title": "Wemeza amafaranga yo kwishyura",
+          "body": "Ubona amafaranga y'urwego n'ay'ubufasha bwacu bitandukanye, hanyuma ukishyura ukoresheje MoMo cyangwa Airtel Money."
+        },
+        {
+          "title": "Tubyohereza muri RRA EBM",
+          "body": "Tubyohereza binyuze mu nzira yemewe tukaguha numero y'ubusabe yo gukurikirana."
+        },
+        {
+          "title": "RRA irabisuzuma",
+          "body": "RRA isuzuma ubusabe bwawe igafata icyemezo. Iyo bitinze kurenza bisanzwe turabikurikirana."
+        },
+        {
+          "title": "Uhabwa igisubizo",
+          "body": "Ucyakira kuri konte yawe yo kuri Inzira no kuri WhatsApp, hamwe n'inyemezabwishyu z'urwego."
+        }
+      ],
+      "notes": [
+        {
+          "title": "Gukoresha porogaramu cyangwa akamashini kigenga",
+          "body": "Ubucuruzi bwinshi bukoresha porogaramu ya EBM yo muri mudasobwa. Niba ukeneye akamashini ka EBM kigenga, kagurwa ku bacuruzi babiherewe uburenganzira — tubanza kukwemeza ikiguzi cyako mbere."
+        }
+      ],
+      "officialNote": "Ashyirwaho na RRA. Umuhagarikizi wawe akwemeza amafaranga nyayo mbere y'uko ugira icyo wishyura."
+    },
+    "ebm-training": {
+      "name": "Amahugurwa yo gukoresha EBM",
+      "summary": "Amahugurwa yimbitse yo kwitoza wowe n'abakozi bawe ku ikoreshwa rya EBM: gusohora inyemezabwishyu, gukosora amakosa, gusohora raporo z'umunsi, n'inyandiko RRA isaba kubika.",
+      "authority": "Inzira",
+      "channel": "Amahugurwa atangwa na Inzira",
+      "via": "Amahugurwa atangwa na Inzira",
+      "time": "Amasaha yumvikanwaho nawe",
+      "timeShort": "Amasaha yumvikanwaho nawe",
+      "docsShort": "Nta nyandiko zisabwa",
+      "who": [
+        {
+          "title": "Abatangiye gukoresha EBM bashya",
+          "body": "Abakivaho gushyirirwaho EBM."
+        },
+        {
+          "title": "Abacungamutungo n'abakiriza amafaranga bashya",
+          "body": "Abakozi bashinzwe gusohora inyemezabwishyu."
+        },
+        {
+          "title": "Ba nyir'ubucuruzi",
+          "body": "Abifuza kujya bagenzura ibyacurujwe n'imikoreshereze yayo ubwabo."
+        }
+      ],
+      "requirements": [
+        "Kuba ufite EBM yamaze gushyirwaho",
+        "Abakozi bazajya basohora inyemezabwishyu"
+      ],
+      "documents": [],
+      "steps": [
+        {
+          "title": "Wiyandikisha guhugurwa",
+          "body": "Tubwire abazitabira n'aho mwifuza guhugurirwa: kuri interineti cyangwa ku biro byacu."
+        },
+        {
+          "title": "Tugena ingengabihe y'amahugurwa",
+          "body": "Umuhuguzi wawe agena nawe amatariki n'amasaha binyuze kuri WhatsApp."
+        },
+        {
+          "title": "Wishyura ikiguzi cyacu",
+          "body": "Ishyura ukoresheje MoMo cyangwa Airtel Money. Nta mafaranga ya leta asabwa."
+        },
+        {
+          "title": "Wiga witoza mu bikorwa",
+          "body": "Kwiga mukora ku ngero zifatika z'ubucuruzi, ku muvuduko ukubereye, no kubona umwanya uhagije wo kubaza ibibazo."
+        }
+      ],
+      "notes": [],
+      "officialNote": "Nta mafaranga ya leta asabwa. Iyi ni serivisi itangwa na Inzira.",
+      "purposeLabel": "Wifuza guhugurirwa he?",
+      "purposes": [
+        "Kuri interineti",
+        "Ku biro bya Inzira",
+        "Aho ari ho hose bimbereye kimwe"
+      ],
+      "stageLabels": {
+        "preparing": "Ingengabihe yemejwe"
+      }
+    },
+    "e-title": {
+      "name": "Icyangombwa cy'ubutaka cya elegitoronike (e-title)",
+      "aka": "Icyangombwa cy'ubutaka cyo muri mudasobwa",
+      "summary": "Bona icyangombwa cy'ubutaka bwawe cya elegitoronike (e-title). Tugufasha kugenzura numero ya UPI n'imyirondoro y'ubutaka, tugasaba binyuze kuri Irembo, hanyuma tukakoherereza e-title yawe imaze gusohoka.",
+      "authority": "Ubuyobozi bw'ubutaka",
+      "channel": "Irembo",
+      "via": "Binyuze kuri Irembo · ubuyobozi bw'ubutaka",
+      "time": "Bikunze gufata iminsi mike y'akazi",
+      "timeShort": "Iminsi mike y'akazi",
+      "docsShort": "Indangamuntu ya nyirabwo, UPI",
+      "who": [
+        {
+          "title": "Abanyabutaka",
+          "body": "Abakeneye icyangombwa cyabo cy'ubutaka mu buryo bwa elegitoronike."
+        },
+        {
+          "title": "Abaguzi n'abagurisha",
+          "body": "Abitegura kugura, kugurisha cyangwa guhererekanya ubutaka."
+        },
+        {
+          "title": "Abasaba inguzanyo",
+          "body": "Amabanki asaba icyangombwa cy'ubutaka ho ingwate."
+        }
+      ],
+      "requirements": [
+        "Numero ya UPI y'ubutaka",
+        "Indangamuntu ya buri muntu wese wanditse kuri ubwo butaka"
+      ],
+      "documents": [
+        {
+          "name": "Indangamuntu ya buri nyirabwo",
+          "detail": "Ifoto igaragara neza y'impande zombi"
+        },
+        {
+          "name": "UPI cyangwa icyangombwa cy'ubutaka cya kera",
+          "detail": "Numero ya UPI cyangwa ifoto y'icyangombwa cy'ubutaka"
+        }
+      ],
+      "steps": [
+        {
+          "title": "Utangira ubusabe",
+          "body": "Subiza ibibazo bike byoroshye. Bitwara nk'iminota 3 gusa."
+        },
+        {
+          "title": "Dusuzuma inyandiko zawe",
+          "body": "Umuhagarikizi wawe asuzuma ko byose byujuje ibyangombwa, ubusanzwe mu masaha 2 y'akazi."
+        },
+        {
+          "title": "Wemeza amafaranga yo kwishyura",
+          "body": "Ubona amafaranga y'urwego n'ay'ubufasha bwacu bitandukanye, hanyuma ukishyura ukoresheje MoMo cyangwa Airtel Money."
+        },
+        {
+          "title": "Tubyohereza kuri Irembo",
+          "body": "Tubyohereza binyuze mu nzira yemewe tukaguha numero y'ubusabe yo gukurikirana."
+        },
+        {
+          "title": "Ubuyobozi bw'ubutaka burabisuzuma",
+          "body": "Urwego rubishinzwe rusuzuma ubusabe bwawe igafata icyemezo. Iyo bitinze kurenza bisanzwe turabikurikirana."
+        },
+        {
+          "title": "Uhabwa igisubizo",
+          "body": "Ucyakira kuri konte yawe yo kuri Inzira no kuri WhatsApp, hamwe n'inyemezabwishyu z'urwego."
+        }
+      ],
+      "notes": [],
+      "officialNote": "Fagitire ya Irembo y'ubuyobozi bw'ubutaka uyishyura wowe ubwawe, ukoresheje MoMo cyangwa Airtel Money. Tubanza kukumenyesha umubare wayo mbere."
+    },
+    "land-spouse-update": {
+      "name": "Kongeramo cyangwa gukuramo uwo mwashakanye mu gitabo cy'ubutaka",
+      "summary": "Vugurura abantu banditswe ku cyangombwa cy'ubutaka nyuma yo gushyingirwa, gutandukana byemewe n'amategeko, cyangwa nyuma y'uko uwo mwashakanye yitabye Imana. Tugutegurira ubusabe buri kumwe n'inyandiko zose zibigaragaza, hanyuma tukabusaba mu izina ryawe.",
+      "authority": "Ubuyobozi bw'ubutaka",
+      "channel": "Irembo",
+      "via": "Binyuze kuri Irembo · ubuyobozi bw'ubutaka",
+      "time": "Bikunze gufata ibyumweru 1–2",
+      "timeShort": "Ibyumweru 1–2",
+      "docsShort": "Indangamuntu, icyemezo cy'ishyingirwa cyangwa ikindi cyemezo, UPI",
+      "who": [
+        {
+          "title": "Abashakanye bashya",
+          "body": "Abashaka kongera uwo bashakanye ku cyangombwa cy'ubutaka."
+        },
+        {
+          "title": "Abatandukanye byemewe n'amategeko",
+          "body": "Abashaka gukuraho uwo batandukanye ku cyangombwa."
+        },
+        {
+          "title": "Abapfakazi n'abapfakazi b'abagabo",
+          "body": "Nyuma y'uko uwo bashakanye yitabye Imana."
+        }
+      ],
+      "requirements": [
+        "Numero ya UPI y'ubutaka",
+        "Indangamuntu z'abarebwa n'iki cyemezo",
+        "Inyandiko yemeza impinduka yabayeho"
+      ],
+      "documents": [
+        {
+          "name": "Indangamuntu z'abashakanye bombi",
+          "detail": "Amafoto agaragara neza y'impande zombi"
+        },
+        {
+          "name": "Inyandiko yemeza impinduka",
+          "detail": "Icyemezo cy'ishyingirwa, icyemezo cy'urukiko cyo gutandukana cyangwa icyemezo cy'urupfu"
+        },
+        {
+          "name": "UPI cyangwa icyangombwa cy'ubutaka",
+          "detail": "Numero ya UPI cyangwa ifoto y'icyangombwa cy'ubutaka"
+        }
+      ],
+      "steps": [
+        {
+          "title": "Utangira ubusabe",
+          "body": "Subiza ibibazo bike byoroshye. Bitwara nk'iminota 3 gusa."
+        },
+        {
+          "title": "Dusuzuma inyandiko zawe",
+          "body": "Umuhagarikizi wawe asuzuma ko byose byujuje ibyangombwa, ubusanzwe mu masaha 2 y'akazi."
+        },
+        {
+          "title": "Wemeza amafaranga yo kwishyura",
+          "body": "Ubona amafaranga y'urwego n'ay'ubufasha bwacu bitandukanye, hanyuma ukishyura ukoresheje MoMo cyangwa Airtel Money."
+        },
+        {
+          "title": "Tubyohereza kuri Irembo",
+          "body": "Tubyohereza binyuze mu nzira yemewe tukaguha numero y'ubusabe yo gukurikirana."
+        },
+        {
+          "title": "Ubuyobozi bw'ubutaka burabisuzuma",
+          "body": "Urwego rubishinzwe rusuzuma ubusabe bwawe igafata icyemezo. Iyo bitinze kurenza bisanzwe turabikurikirana."
+        },
+        {
+          "title": "Uhabwa igisubizo",
+          "body": "Ucyakira kuri konte yawe yo kuri Inzira no kuri WhatsApp, hamwe n'inyemezabwishyu z'urwego."
+        }
+      ],
+      "notes": [
+        {
+          "title": "Birasaba ko abantu bombi babyemeza",
+          "body": "Ibiro by'ubutaka bishobora gusaba ko abashakanye bombi bemeza izo mpinduka. Tukubwira neza buri muntu icyo asabwa gukora mbere yo kohereza ubusabe."
+        }
+      ],
+      "officialNote": "Fagitire ya Irembo y'ubuyobozi bw'ubutaka uyishyura wowe ubwawe. Tubanza kukumenyesha umubare wayo mbere.",
+      "purposes": [
+        "Kongeramo uwo mwashakanye nyuma yo gushyingirwa",
+        "Gukuramo uwo mwashakanye nyuma yo gutandukana",
+        "Gukuramo uwo mwashakanye nyuma y'uko yitabye Imana"
+      ]
+    },
+    "land-merging": {
+      "name": "Kuvanga ibibanza",
+      "aka": "Guhuza ibibanza bikavamo UPI imwe",
+      "summary": "Huza ibibanza byegeranye utunze bibemo ikibanza kimwe gifite UPI imwe. Tugufasha gusuzuma ibyo bibanza, gutegura ubusabe no kubukurikirana kugeza icyangombwa gishya gisohotse.",
+      "authority": "Ubuyobozi bw'ubutaka",
+      "channel": "Irembo",
+      "via": "Binyuze kuri Irembo · ubuyobozi bw'ubutaka",
+      "time": "Bikunze gufata ibyumweru 2–4",
+      "timeShort": "Ibyumweru 2–4",
+      "docsShort": "UPI z'ibibanza, indangamuntu za ba nyirabyo",
+      "who": [
+        {
+          "title": "Abafite ibibanza byegeranye",
+          "body": "Abifuza kubiha icyangombwa kimwe cy'ubutaka."
+        },
+        {
+          "title": "Abubatsi",
+          "body": "Abitegura kubaka umushinga munini w'inyubako."
+        },
+        {
+          "title": "Imiryango",
+          "body": "Abahuza ibibanza bahaweho umurage."
+        }
+      ],
+      "requirements": [
+        "Ibibanza biteganye cyangwa bikoranaho",
+        "Byanditse kuri nyirabyo umwe cyangwa ku bantu bamwe",
+        "Numero ya UPI ya buri kibanza cyose"
+      ],
+      "documents": [
+        {
+          "name": "UPI ya buri kibanza",
+          "detail": "Cyangwa ifoto y'icyangombwa cy'ubutaka cya buri kibanza"
+        },
+        {
+          "name": "Indangamuntu za ba nyirabyo",
+          "detail": "Amafoto agaragara neza y'impande zombi"
+        },
+        {
+          "name": "Ikarita ngero y'ubutaka",
+          "detail": "Iyo ibisabwe n'ibiro by'ubutaka gusa"
+        }
+      ],
+      "steps": [
+        {
+          "title": "Utangira ubusabe",
+          "body": "Subiza ibibazo bike byoroshye. Bitwara nk'iminota 3 gusa."
+        },
+        {
+          "title": "Dusuzuma inyandiko zawe",
+          "body": "Umuhagarikizi wawe asuzuma ko byose byujuje ibyangombwa, ubusanzwe mu masaha 2 y'akazi."
+        },
+        {
+          "title": "Wemeza amafaranga yo kwishyura",
+          "body": "Ubona amafaranga y'urwego n'ay'ubufasha bwacu bitandukanye, hanyuma ukishyura ukoresheje MoMo cyangwa Airtel Money."
+        },
+        {
+          "title": "Tubyohereza kuri Irembo",
+          "body": "Tubyohereza binyuze mu nzira yemewe tukaguha numero y'ubusabe yo gukurikirana."
+        },
+        {
+          "title": "Ubuyobozi bw'ubutaka burabisuzuma",
+          "body": "Urwego rubishinzwe rusuzuma ubusabe bwawe igafata icyemezo. Iyo bitinze kurenza bisanzwe turabikurikirana."
+        },
+        {
+          "title": "Uhabwa igisubizo",
+          "body": "Ucyakira kuri konte yawe yo kuri Inzira no kuri WhatsApp, hamwe n'inyemezabwishyu z'urwego."
+        }
+      ],
+      "notes": [
+        {
+          "title": "Amafaranga y'urwego agendera ku miterere y'ibibanza",
+          "body": "Tubanza kukwemeza amafaranga y'urwego, n'uko ukeneye umupiganji w'ubutaka (surveyeur), mbere y'uko ugira icyo wishyura."
+        }
+      ],
+      "officialNote": "Ashyirwaho n'ubuyobozi bw'ubutaka. Umuhagarikizi wawe akwemeza amafaranga nyayo mbere y'uko ugira icyo wishyura."
+    },
+    "rura-vehicle-authorisation": {
+      "name": "Uruhushya rwo gutwara abantu n'ibintu ku kinyabiziga (RURA)",
+      "aka": "Uruhushya rwa RURA rwo gutwara abagenzi cyangwa imizigo",
+      "summary": "Bona uruhushya rwa RURA ikinyabiziga gisabwa kugira ngo gitware abantu cyangwa ibicuruzwa kibyaza umusaruro. Tugutegurira ubusabe, tukabwohereza muri RURA, tukanabukurikirana kugeza uruhushya rusohotse.",
+      "authority": "Ikigo cy'igihugu gishinzwe amabwiriza (RURA)",
+      "channel": "Serivisi zo kuri interineti za RURA",
+      "via": "Binyuze muri serivisi zo kuri interineti za RURA",
+      "time": "Bikunze gufata iminsi mike y'akazi",
+      "timeShort": "Iminsi mike y'akazi",
+      "docsShort": "Ikarita y'umuhondo, indangamuntu ya nyiracyo",
+      "who": [
+        {
+          "title": "Abafite tagisi na moto",
+          "body": "Abatwara abagenzi."
+        },
+        {
+          "title": "Abafite amakamyo",
+          "body": "Abatwara imizigo n'ibicuruzwa."
+        },
+        {
+          "title": "Kompanyi zitwara abantu n'ibintu",
+          "body": "Abafite ibinyabiziga byinshi icyarimwe."
+        }
+      ],
+      "requirements": [
+        "Ikarita y'ikinyabiziga (ikarita y'umuhondo)",
+        "Indangamuntu ya nyiracyo cyangwa icyangombwa cya kompanyi",
+        "Ubwishingizi n'icyangombwa cyo gusuzumisha ikinyabiziga (kontroli) biteganyijwe"
+      ],
+      "documents": [
+        {
+          "name": "Ikarita y'ikinyabiziga",
+          "detail": "Ikarita y'umuhondo"
+        },
+        {
+          "name": "Indangamuntu ya nyiracyo cyangwa icyangombwa cya kompanyi",
+          "detail": "Kopi igaragara neza"
+        },
+        {
+          "name": "Ibyangombwa by'ubwishingizi na kontroli",
+          "detail": "Turakumenyesha ibyo ubwoko bw'ikinyabiziga cyawe gisabwa"
+        }
+      ],
+      "steps": [
+        {
+          "title": "Utangira ubusabe",
+          "body": "Subiza ibibazo bike byoroshye. Bitwara nk'iminota 3 gusa."
+        },
+        {
+          "title": "Dusuzuma inyandiko zawe",
+          "body": "Umuhagarikizi wawe asuzuma ko byose byujuje ibyangombwa, ubusanzwe mu masaha 2 y'akazi."
+        },
+        {
+          "title": "Wemeza amafaranga yo kwishyura",
+          "body": "Ubona amafaranga y'urwego n'ay'ubufasha bwacu bitandukanye, hanyuma ukishyura ukoresheje MoMo cyangwa Airtel Money."
+        },
+        {
+          "title": "Tubyohereza muri RURA",
+          "body": "Tubyohereza binyuze mu nzira yemewe tukaguha numero y'ubusabe yo gukurikirana."
+        },
+        {
+          "title": "RURA irabisuzuma",
+          "body": "RURA isuzuma ubusabe bwawe igafata icyemezo. Iyo bitinze kurenza bisanzwe turabikurikirana."
+        },
+        {
+          "title": "Uhabwa igisubizo",
+          "body": "Ucyakira kuri konte yawe yo kuri Inzira no kuri WhatsApp, hamwe n'inyemezabwishyu z'urwego."
+        }
+      ],
+      "notes": [],
+      "officialNote": "Ashyirwaho na RURA hagendewe ku bwoko bw'ikinyabiziga cyawe. Uyishyura wowe ubwawe kuri RURA; tubanza kukumenyesha umubare wayo mbere."
+    },
+    "rura-authorisation-suspension": {
+      "name": "Guhagarika by'agateganyo uruhushya rwa RURA rw'ikinyabiziga",
+      "summary": "Hagarika by'agateganyo uruhushya rwa RURA rw'ikinyabiziga igihe kidakora — kubera ko gisanwa, kigiye kugurishwa cyangwa kigiye kumara igihe kidakora. Tukwoherereza ubusabe muri RURA tukanakwemeza bimaze gukorwa.",
+      "authority": "Ikigo cy'igihugu gishinzwe amabwiriza (RURA)",
+      "channel": "Serivisi zo kuri interineti za RURA",
+      "via": "Binyuze muri serivisi zo kuri interineti za RURA",
+      "time": "Bikunze gufata iminsi 1–3 y'akazi",
+      "timeShort": "Iminsi 1–3 y'akazi",
+      "docsShort": "Uruhushya rwa RURA, ikarita y'umuhondo",
+      "who": [
+        {
+          "title": "Ibinyabiziga biri gusanwa",
+          "body": "Ibinyabiziga bimaze igihe bidakora biri mu igaraje."
+        },
+        {
+          "title": "Ibinyabiziga bigiye kugurishwa",
+          "body": "Mbere y'uko bihindurirwa nyirabyo."
+        },
+        {
+          "title": "Abakora mu bihe byihariye",
+          "body": "Abahagaritse ibikorwa byo gutwara abantu n'ibintu by'agateganyo."
+        }
+      ],
+      "requirements": [
+        "Amakuru y'uruhushya rusanganywe",
+        "Ikarita y'ikinyabiziga",
+        "Impamvu n'itariki ikinyabiziga gihagarikiraho gukora"
+      ],
+      "documents": [
+        {
+          "name": "Uruhushya rwa RURA rusanganywe",
+          "detail": "Cyangwa numero yarwo"
+        },
+        {
+          "name": "Ikarita y'ikinyabiziga",
+          "detail": "Ikarita y'umuhondo"
+        }
+      ],
+      "steps": [
+        {
+          "title": "Utangira ubusabe",
+          "body": "Subiza ibibazo bike byoroshye. Bitwara nk'iminota 3 gusa."
+        },
+        {
+          "title": "Dusuzuma inyandiko zawe",
+          "body": "Umuhagarikizi wawe asuzuma ko byose byujuje ibyangombwa, ubusanzwe mu masaha 2 y'akazi."
+        },
+        {
+          "title": "Wemeza amafaranga yo kwishyura",
+          "body": "Ubona amafaranga y'urwego n'ay'ubufasha bwacu bitandukanye, hanyuma ukishyura ukoresheje MoMo cyangwa Airtel Money."
+        },
+        {
+          "title": "Tubyohereza muri RURA",
+          "body": "Tubyohereza binyuze mu nzira yemewe tukaguha numero y'ubusabe yo gukurikirana."
+        },
+        {
+          "title": "RURA irabisuzuma",
+          "body": "RURA isuzuma ubusabe bwawe igafata icyemezo. Iyo bitinze kurenza bisanzwe turabikurikirana."
+        },
+        {
+          "title": "Uhabwa igisubizo",
+          "body": "Ucyakira kuri konte yawe yo kuri Inzira no kuri WhatsApp, hamwe n'inyemezabwishyu z'urwego."
+        }
+      ],
+      "notes": [],
+      "officialNote": "Ashyirwaho na RURA. Umuhagarikizi wawe akwemeza amafaranga nyayo mbere y'uko ugira icyo wishyura."
+    },
+    "other-online-service": {
+      "name": "Izindi serivisi zo kuri interineti",
+      "aka": "Uko bikorwa n'ikiguzi byumvikanwaho nawe",
+      "summary": "Serivisi itari mu rutonde rw'iziri muri kataloge yacu. Umuhagarikizi wawe agufasha kumenya inzira bikorwamo tukumvikana nawe ikiguzi cyacu mbere y'uko hagira igikorwa.",
+      "authority": "Bizemezwa",
+      "channel": "Bizemezwa",
+      "via": "Uko bikorwa byumvikanwaho nawe",
+      "time": "Byumvikanwaho nawe",
+      "timeShort": "Byumvikanwaho nawe",
+      "docsShort": "Umuhagarikizi wawe arabikubwira",
+      "who": [],
+      "requirements": [],
+      "documents": [],
+      "steps": [
+        {
+          "title": "Utangira ubusabe",
+          "body": "Subiza ibibazo bike byoroshye. Bitwara nk'iminota 3 gusa."
+        },
+        {
+          "title": "Dusuzuma inyandiko zawe",
+          "body": "Umuhagarikizi wawe asuzuma ko byose byujuje ibyangombwa, ubusanzwe mu masaha 2 y'akazi."
+        },
+        {
+          "title": "Wemeza amafaranga yo kwishyura",
+          "body": "Ubona amafaranga y'urwego n'ay'ubufasha bwacu bitandukanye, hanyuma ukishyura ukoresheje MoMo cyangwa Airtel Money."
+        },
+        {
+          "title": "Tubyohereza mu nzira zemewe",
+          "body": "Tubyohereza binyuze mu nzira yemewe tukaguha numero y'ubusabe yo gukurikirana."
+        },
+        {
+          "title": "Urwego rubishinzwe rurabisuzuma",
+          "body": "Urwego rubishinzwe rusuzuma ubusabe bwawe igafata icyemezo. Iyo bitinze kurenza bisanzwe turabikurikirana."
+        },
+        {
+          "title": "Uhabwa igisubizo",
+          "body": "Ucyakira kuri konte yawe yo kuri Inzira no kuri WhatsApp, hamwe n'inyemezabwishyu z'urwego."
+        }
+      ],
+      "notes": [],
+      "officialNote": "Ashyirwaho n'urwego rubishinzwe. Umuhagarikizi wawe akwemeza amafaranga nyayo mbere y'uko ugira icyo wishyura."
+    },
+    "irembo-training": {
+      "name": "Amahugurwa ya Irembo",
+      "aka": "Kwiga kwikoreshereza serivisi za Irembo ubwawe",
+      "summary": "Iga gukoresha Irembo nta nkomyi: kumenya gushaka serivisi ikwiye, kuzuza ubusabe, kwishyura fagitire, no gukurikirana ibisubizo. Amahugurwa atangwa kuri interineti cyangwa ku biro byacu, kandi ikiguzi cyishyurwa buri kwezi.",
+      "authority": "Inzira",
+      "channel": "Amahugurwa atangwa na Inzira",
+      "via": "Kuri interineti cyangwa ku biro byacu",
+      "time": "Kuri interineti cyangwa ku biro byacu",
+      "timeShort": "Kuri interineti cyangwa ku biro byacu",
+      "docsShort": "Nta nyandiko zisabwa",
+      "who": [
+        {
+          "title": "Abafite ibiro by'ikoranabuhanga n'abafasha abandi",
+          "body": "Abasabira serivisi abakiriya."
+        },
+        {
+          "title": "Abakozi bo mu biro",
+          "body": "Abasabira serivisi ikigo cyangwa kompanyi bakorera."
+        },
+        {
+          "title": "Abantu ku giti cyabo",
+          "body": "Abifuza kujya bikorera serivisi zose ubwabo."
+        }
+      ],
+      "requirements": [
+        "Terefone cyangwa mudasobwa ifite interineti",
+        "Imeli cyangwa numero ya terefone yo gukoresha kuri konte yawe ya Irembo"
+      ],
+      "documents": [],
+      "steps": [
+        {
+          "title": "Wiyandikisha guhugurwa",
+          "body": "Tubwire abazitabira n'aho mwifuza guhugurirwa: kuri interineti cyangwa ku biro byacu."
+        },
+        {
+          "title": "Tugena ingengabihe y'amahugurwa",
+          "body": "Umuhuguzi wawe agena nawe amatariki n'amasaha binyuze kuri WhatsApp."
+        },
+        {
+          "title": "Wishyura ikiguzi cyacu",
+          "body": "Ishyura ukoresheje MoMo cyangwa Airtel Money. Nta mafaranga ya leta asabwa."
+        },
+        {
+          "title": "Wiga witoza mu bikorwa",
+          "body": "Kwiga mukora ku ngero zifatika z'ubucuruzi, ku muvuduko ukubereye, no kubona umwanya uhagije wo kubaza ibibazo."
+        }
+      ],
+      "notes": [],
+      "officialNote": "Nta mafaranga ya leta asabwa. Iyi ni serivisi itangwa na Inzira.",
+      "purposeLabel": "Wifuza guhugurirwa he?",
+      "purposes": [
+        "Kuri interineti",
+        "Ku biro bya Inzira",
+        "Aho ari ho hose bimbereye kimwe"
+      ],
+      "stageLabels": {
+        "preparing": "Ingengabihe yemejwe"
+      }
+    }
+  },
+  "units": {
+    "per year": "ku mwaka",
+    "per month": "buri kwezi",
+    "per UPI, per year": "ku UPI ku mwaka"
+  },
+  "officialPhrases": {
+    "None": "Nta mafaranga",
+    "Free": "Ku buntu",
+    "Official fee": "Amafaranga y'urwego",
+    "Irembo fee": "Amafaranga ya Irembo",
+    "RURA fee": "Amafaranga ya RURA",
+    "Set by your district": "Bigengwa n'akarere kawe",
+    "RDB registration fee": "Amafaranga yo kwandikisha muri RDB",
+    "RRA software EBM": "Porogaramu ya EBM ya RRA",
+    "RRA TIN registration": "Kwandikisha TIN muri RRA",
+    "Land administration fees": "Amafaranga y'ubuyobozi bw'ubutaka",
+    "RDB amendment fee": "Amafaranga yo guhindura amakuru muri RDB",
+    "Property tax": "Umusoro ku mutungo",
+    "Taxes due": "Imisoro isabwa",
+    "Vehicle income tax": "Umusoro ku kinyabiziga",
+    "you pay the Irembo bill": "wishyura fagitire ya Irembo",
+    "paid by you to RRA": "ubishyura wowe muri RRA",
+    "paid by you to RURA": "ubishyura wowe muri RURA",
+    "To be confirmed": "Bizemezwa",
+    "Paid by you directly": "Ubishyura wowe ku rwego",
+    "Tax as assessed": "Umusoro nk'uko wasuzumwe",
+    "tax due": "umusoro usabwa",
+    "official fee": "amafaranga y'urwego"
+  }
+}

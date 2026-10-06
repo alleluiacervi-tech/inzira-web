@@ -162,8 +162,12 @@ export async function listMyReminders() {
 export async function trackRequest(ref: string, phone: string): Promise<TrackResult | null> {
   const [v] = await loadRequests(eq(s.requests.ref, ref.trim().toUpperCase()));
   if (!v || phoneDigits(v.account.phone) !== phoneDigits(phone)) return null;
+  const { getLocale } = await import("./i18n/locale");
+  const { localizeService, requestTitle } = await import("./i18n/present");
+  const locale = await getLocale();
+  const local = localizeService(v.service, locale);
   return {
-    ref: v.ref, name: v.name, via: v.service.via, stage: v.stage, stageDates: v.stageDates, flow: v.flow, labels: v.labels, closed: v.closed, next: v.next,
+    ref: v.ref, name: requestTitle(v.name, v.service, locale), via: local.via, stage: v.stage, stageDates: v.stageDates, flow: v.flow, labels: v.labels, closed: v.closed, next: v.next,
     hold: v.hold && { reason: v.hold.reason, title: v.hold.title, since: v.hold.since, returned: v.hold.returned },
   };
 }

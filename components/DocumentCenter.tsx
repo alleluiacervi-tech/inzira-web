@@ -2,8 +2,12 @@
 import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
 import { uploadDocument } from "@/app/actions/customer";
+import { trError } from "@/lib/i18n/errors";
+import { text } from "@/lib/i18n/messages";
+import { displayDocName } from "@/lib/i18n/present";
 import { DOC_STATUS } from "@/lib/status";
 import type { LibraryDoc } from "@/lib/types";
+import { useI18n } from "./I18n";
 import { DocBadge, DocCard, Icon } from "./ui";
 
 const GROUP_ICON: Record<string, string> = { Identification: "c-id", "Business documents": "c-biz", "Tax documents": "c-tax", "Land documents": "c-land", Certificates: "c-comp", Other: "c-other" };
@@ -11,7 +15,13 @@ const TABS: ("all" | LibraryDoc["status"])[] = ["all", "required", "received", "
 const MAX = 10 * 1024 * 1024;
 
 export default function DocumentCenter({ initial: docs }: { initial: LibraryDoc[] }) {
+  const { locale, t: tr } = useI18n();
   const router = useRouter();
+  const groupName = (g: string) => {
+    const next = text(locale, `groups.${g}`);
+    return next === `groups.${g}` ? g : next;
+  };
+  const tabName = (k: (typeof TABS)[number]) => (k === "all" ? tr("doc.All") : text(locale, `doc.${DOC_STATUS[k].label}`));
   const [tab, setTab] = useState<(typeof TABS)[number]>("all");
   // Start on whatever the customer most needs to do: replace a rejected file, else upload a missing one.
   const [target, setTarget] = useState(() => (docs.find((d) => d.action === "replace") ?? docs.find((d) => d.action === "upload"))?.key ?? null);
@@ -25,15 +35,15 @@ export default function DocumentCenter({ initial: docs }: { initial: LibraryDoc[
   const pick = async (f: File | undefined) => {
     setError(""); setDone("");
     if (!f || !t) return;
-    if (f.size > MAX) { setError("That file is larger than 10 MB. Try a photo instead of a scan, or compress the PDF."); return; }
-    if (!/^(image\/|application\/pdf)/.test(f.type)) { setError("Please upload a PDF, JPG or PNG."); return; }
+    if (f.size > MAX) { setError(tr("docs.tooBig")); return; }
+    if (!/^(image\/|application\/pdf)/.test(f.type)) { setError(tr("docs.type")); return; }
     setBusy(f.name);
     const fd = new FormData();
     fd.set("docId", t.key);
     fd.set("file", f);
-    const r = await uploadDocument(fd).catch(() => ({ ok: false as const, error: "The upload didn’t finish. Check your connection and try again." }));
+    const r = await uploadDocument(fd).catch(() => ({ ok: false as const, error: tr("docs.fail") }));
     setBusy(null);
-    if (!r.ok) { setError(r.error); return; }
+    if (!r.ok) { setError(trError(locale, r.error)); return; }
     setDone(f.name);
     router.refresh();
   };
@@ -46,22 +56,22 @@ export default function DocumentCenter({ initial: docs }: { initial: LibraryDoc[
   return (
     <div className="split" style={{ ["--aside" as string]: "400px", gap: 28 }}>
       <div className="stack g20">
-        <div className="chips-scroll" role="group" aria-label="Filter by status">
+        <div className="chips-scroll" role="group" aria-label={tr("docs.filter")}>
           {TABS.map((k) => (
             <button key={k} type="button" className={`chip chip-sm ${tab === k ? "chip-on" : ""}`} aria-pressed={tab === k} onClick={() => setTab(k)}>
-              {k === "all" ? "All" : DOC_STATUS[k].label} <span style={{ opacity: 0.7 }}>{count(k)}</span>
+              {tabName(k)} <span style={{ opacity: 0.7 }}>{count(k)}</span>
             </button>
           ))}
         </div>
-        {groups.length === 0 && <div className="card stack g8" style={{ padding: 32, alignItems: "center", textAlign: "center" }}><Icon name="file" size={26} /><strong>{docs.length ? "Nothing here" : "No documents yet"}</strong><span className="hint">{docs.length ? "No documents with this status." : "Documents you send us and certificates we deliver will appear here."}</span></div>}
+        {groups.length === 0 && <div className="card stack g8" style={{ padding: 32, alignItems: "center", textAlign: "center" }}><Icon name="file" size={26} /><strong>{docs.length ? tr("docs.nothing") : tr("docs.empty")}</strong><span className="hint">{docs.length ? tr("docs.noneStatus") : tr("docs.emptyHint")}</span></div>}
         {groups.map((g) => (
-          <section key={g} className="stack g10" aria-label={g}>
-            <div className="row g10"><Icon name={GROUP_ICON[g] ?? "file"} size={20} /><h2 style={{ fontSize: 15, fontWeight: 700 }}>{g}</h2></div>
+          <section key={g} className="stack g10" aria-label={groupName(g)}>
+            <div className="row g10"><Icon name={GROUP_ICON[g] ?? "file"} size={20} /><h2 style={{ fontSize: 15, fontWeight: 700 }}>{groupName(g)}</h2></div>
             {shown.filter((d) => d.group === g).map((d) => (
-              <DocCard key={d.key} name={d.name} meta={d.meta} badge={<DocBadge s={d.status} />}
+              <DocCard key={d.key} name={displayDocName(d.name, locale)} meta={d.meta} badge={<DocBadge s={d.status} />}
                 action={d.action === "replace" || d.action === "upload"
-                  ? <button className={`btn btn-sm ${d.action === "replace" ? "btn-p" : "btn-s"}`} type="button" aria-label={`${d.action === "replace" ? "Replace" : "Upload"} ${d.name}`} onClick={() => choose(d.key)}>{d.action === "replace" ? "Replace" : <><Icon name="upload" size={16} /> Upload</>}</button>
-                  : d.fileId ? <a className="btn btn-s btn-sm btn-ico" href={`/files/${d.fileId}`} target="_blank" rel="noopener" aria-label={`Open ${d.name}`}><Icon name="download" size={17} /></a> : undefined} />
+                  ? <button className={`btn btn-sm ${d.action === "replace" ? "btn-p" : "btn-s"}`} type="button" aria-label={`${d.action === "replace" ? tr("request.replace") : tr("request.upload")} ${displayDocName(d.name, locale)}`} onClick={() => choose(d.key)}>{d.action === "replace" ? tr("request.replace") : <><Icon name="upload" size={16} /> {tr("request.upload")}</>}</button>
+                  : d.fileId ? <a className="btn btn-s btn-sm btn-ico" href={`/files/${d.fileId}`} target="_blank" rel="noopener" aria-label={tr("docs.open", { name: displayDocName(d.name, locale) })}><Icon name="download" size={17} /></a> : undefined} />
             ))}
           </section>
         ))}
@@ -70,23 +80,23 @@ export default function DocumentCenter({ initial: docs }: { initial: LibraryDoc[
       <div ref={panel} className={`card shadow stack g18 sticky-aside ${docs.some((d) => d.action === "replace") ? "m-first" : ""}`} style={{ padding: 22, top: 24 }}>
         {t ? (
           <>
-            <div className="stack g6"><span className="eb" style={{ fontSize: 11 }}>{t.status === "rejected" ? "Replace document" : t.status === "received" ? "Uploaded" : "Upload document"}</span><h2 className="d" style={{ fontSize: 20 }}>{t.name}</h2><span className="row g8 wrapx"><DocBadge s={t.status} /><span className="mut" style={{ fontSize: 13 }}>{t.meta}</span></span></div>
+            <div className="stack g6"><span className="eb" style={{ fontSize: 11 }}>{t.status === "rejected" ? tr("docs.replace") : t.status === "received" ? tr("docs.uploaded") : tr("docs.upload")}</span><h2 className="d" style={{ fontSize: 20 }}>{displayDocName(t.name, locale)}</h2><span className="row g8 wrapx"><DocBadge s={t.status} /><span className="mut" style={{ fontSize: 13 }}>{t.meta}</span></span></div>
             <label htmlFor="up" onDragOver={(e) => { e.preventDefault(); setDrag(true); }} onDragLeave={() => setDrag(false)} onDrop={(e) => { e.preventDefault(); setDrag(false); pick(e.dataTransfer.files[0]); }}
               className={`drop stack g10 ${drag ? "drop-on" : ""}`} aria-disabled={!!busy}>
               <span className="drop-ico">{busy ? <span className="spin spin-dark" /> : <Icon name="upload" size={22} />}</span>
-              <strong style={{ fontSize: 15 }}>{busy ? `Uploading ${busy}…` : "Drop a file here, take a photo or choose one"}</strong><span className="hint">{busy ? "Keep this page open" : "PDF, JPG or PNG · up to 10 MB"}</span>{!busy && <span className="btn btn-s btn-sm">Choose file</span>}
+              <strong style={{ fontSize: 15 }}>{busy ? tr("docs.uploading", { name: busy }) : tr("docs.drop")}</strong><span className="hint">{busy ? tr("docs.keepOpen") : tr("docs.types")}</span>{!busy && <span className="btn btn-s btn-sm">{tr("docs.choose")}</span>}
               <input id="up" type="file" accept="image/*,application/pdf" className="sr-only" disabled={!!busy} onChange={(e) => { pick(e.target.files?.[0]); e.target.value = ""; }} />
             </label>
-            {error && <div className="alert t-err" role="alert"><Icon name="alert" size={20} /><div className="alert-body"><strong>We couldn’t upload that file</strong><span>{error}</span></div></div>}
-            {done && <div className="alert t-ok" role="status"><Icon name="check" size={20} /><div className="alert-body"><strong>Uploaded</strong><span>{done} was sent to your agent for review. You’ll get a message once it’s checked.</span></div></div>}
+            {error && <div className="alert t-err" role="alert"><Icon name="alert" size={20} /><div className="alert-body"><strong>{tr("docs.failTitle")}</strong><span>{error}</span></div></div>}
+            {done && <div className="alert t-ok" role="status"><Icon name="check" size={20} /><div className="alert-body"><strong>{tr("docs.okTitle")}</strong><span>{tr("docs.okBody", { name: done })}</span></div></div>}
           </>
         ) : (
-          <div className="stack g8"><span className="eb" style={{ fontSize: 11 }}>Nothing to upload</span><h2 className="d" style={{ fontSize: 20 }}>You’re up to date</h2><p className="hint">When a request needs a document, it appears in the list with an Upload button.</p></div>
+          <div className="stack g8"><span className="eb" style={{ fontSize: 11 }}>{tr("docs.noneUpload")}</span><h2 className="d" style={{ fontSize: 20 }}>{tr("docs.upToDate")}</h2><p className="hint">{tr("docs.upToDateHint")}</p></div>
         )}
-        <div className="stack g8"><strong style={{ fontSize: 14 }}>For a photo that passes first time</strong>
-          <ul className="stack g6" style={{ margin: 0, paddingLeft: 18, fontSize: 14, lineHeight: 1.45, color: "var(--ink-2)" }}><li>Lay the document flat in daylight, no flash</li><li>All four corners visible</li><li>Numbers readable when you zoom in</li></ul>
+        <div className="stack g8"><strong style={{ fontSize: 14 }}>{tr("docs.photo")}</strong>
+          <ul className="stack g6" style={{ margin: 0, paddingLeft: 18, fontSize: 14, lineHeight: 1.45, color: "var(--ink-2)" }}><li>{tr("docs.tip1")}</li><li>{tr("docs.tip2")}</li><li>{tr("docs.tip3")}</li></ul>
         </div>
-        <p className="hint row g8"><Icon name="lock" size={16} /><span>Only you, your agent and our quality team can open your files.</span></p>
+        <p className="hint row g8"><Icon name="lock" size={16} /><span>{tr("docs.private")}</span></p>
       </div>
     </div>
   );

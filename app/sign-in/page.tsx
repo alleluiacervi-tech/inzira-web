@@ -3,9 +3,13 @@ import { redirect } from "next/navigation";
 import PublicNav from "@/components/PublicNav";
 import SignIn from "@/components/SignIn";
 import { getSession } from "@/lib/auth";
+import { getLocale } from "@/lib/i18n/locale";
+import { text } from "@/lib/i18n/messages";
 import { sendsRealSms } from "@/lib/sms";
 
-export const metadata: Metadata = { title: "Sign in" };
+export async function generateMetadata(): Promise<Metadata> {
+  return { title: text(await getLocale(), "meta.signInTitle") };
+}
 
 export default async function SignInPage({ searchParams }: { searchParams: Promise<{ next?: string }> }) {
   const [{ next }, session] = await Promise.all([searchParams, getSession()]);
