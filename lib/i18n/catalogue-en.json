@@ -1,0 +1,1373 @@
+{
+  "categories": {
+    "rdb": {
+      "name": "RDB / Business registration",
+      "short": "RDB",
+      "desc": "Register, change or keep your enterprise or company up to date."
+    },
+    "tax": {
+      "name": "Taxes",
+      "short": "Taxes",
+      "desc": "Trading licence, property tax, vehicle income tax and monthly declarations."
+    },
+    "ebm": {
+      "name": "EBM",
+      "short": "EBM",
+      "desc": "Get an Electronic Billing Machine installed and learn to use it."
+    },
+    "land": {
+      "name": "Land services",
+      "short": "Land",
+      "desc": "E-titles, spouse changes in the land register and merging plots."
+    },
+    "rura": {
+      "name": "RURA / Transport",
+      "short": "RURA",
+      "desc": "Authorisations for vehicles that carry passengers or goods."
+    },
+    "irembo": {
+      "name": "Irembo training",
+      "short": "Irembo",
+      "desc": "Learn to use Irembo yourself — online or at our office."
+    },
+    "other": {
+      "name": "Other online services",
+      "short": "Other",
+      "desc": "Need something else done online? We agree the process and our fee with you first."
+    }
+  },
+  "offices": {
+    "RDB": {
+      "name": "Rwanda Development Board",
+      "area": "Business registration",
+      "does": "Register an enterprise or company, change its details, file the annual return"
+    },
+    "RRA": {
+      "name": "Rwanda Revenue Authority",
+      "area": "Taxes and EBM",
+      "does": "Trading licence, TIN, monthly and yearly declarations, EBM installation and training"
+    },
+    "NLA": {
+      "name": "National Land Authority",
+      "area": "Land, filed on Irembo",
+      "does": "E-titles, adding or removing a spouse in the land register, merging plots"
+    },
+    "RURA": {
+      "name": "Rwanda Utilities Regulatory Authority",
+      "area": "Transport",
+      "does": "Authorisations for passenger and goods vehicles, and their suspension"
+    },
+    "Irembo": {
+      "name": "Irembo",
+      "area": "Government services portal",
+      "does": "We file through it for you, or train you and your staff to use it yourselves"
+    }
+  },
+  "services": {
+    "enterprise-registration": {
+      "name": "Enterprise registration",
+      "aka": "Sole proprietorship · business in your own name",
+      "summary": "Register a business in your own name (a sole proprietorship) so you can trade legally, open a business bank account and get a TIN. We check your details, complete the RDB registration for you and send you the certificate.",
+      "authority": "Rwanda Development Board (RDB)",
+      "channel": "RDB online registration",
+      "via": "Via RDB online registration",
+      "time": "Usually 1–2 working days",
+      "timeShort": "1–2 working days",
+      "docsShort": "National ID, business details",
+      "who": [
+        {
+          "title": "Traders & shop owners",
+          "body": "Shops, market stalls, small wholesale."
+        },
+        {
+          "title": "Freelancers",
+          "body": "Consultants, designers, technicians."
+        },
+        {
+          "title": "Small service businesses",
+          "body": "Salons, tailors, repair workshops."
+        }
+      ],
+      "requirements": [
+        "A Rwandan national ID, or a passport and residence permit",
+        "The name and activity of your business",
+        "Where the business operates (district, sector, cell)"
+      ],
+      "documents": [
+        {
+          "name": "National ID",
+          "detail": "Clear photo of both sides, or the passport data page"
+        },
+        {
+          "name": "Proof of business address",
+          "detail": "Lease or a letter from the owner, if you have one"
+        }
+      ],
+      "steps": [
+        {
+          "title": "You start the request",
+          "body": "Answer a few short questions. Takes about 3 minutes."
+        },
+        {
+          "title": "We check your documents",
+          "body": "Your agent confirms everything is correct, usually within 2 working hours."
+        },
+        {
+          "title": "You approve the fees",
+          "body": "You see the official fee and our fee separately, then pay by MoMo or Airtel Money."
+        },
+        {
+          "title": "We submit via RDB",
+          "body": "We submit through the official channel and share the official reference number with you."
+        },
+        {
+          "title": "RDB processes it",
+          "body": "The institution reviews and decides. We follow up if it takes longer than usual."
+        },
+        {
+          "title": "You receive the result",
+          "body": "Delivered to your portal and WhatsApp, with official receipts."
+        }
+      ],
+      "notes": [],
+      "officialNote": "Set by RDB. Your agent confirms the exact amount before you pay anything."
+    },
+    "company-registration": {
+      "name": "Company registration",
+      "aka": "Private limited company · LTD",
+      "summary": "Register a private limited company so you can trade, open a business bank account and get a TIN. We check your company name, prepare the articles of association and shareholder details, and submit the registration to RDB for you.",
+      "authority": "Rwanda Development Board (RDB)",
+      "channel": "RDB online registration",
+      "via": "Via RDB online registration",
+      "time": "Usually 1–2 working days",
+      "timeShort": "1–2 working days",
+      "docsShort": "IDs of shareholders & directors, address",
+      "who": [
+        {
+          "title": "New founders",
+          "body": "Starting a company for the first time."
+        },
+        {
+          "title": "Growing sole traders",
+          "body": "Moving from an enterprise to a company."
+        },
+        {
+          "title": "Foreign investors",
+          "body": "Setting up a Rwandan company."
+        }
+      ],
+      "requirements": [
+        "A proposed company name (we check it is available)",
+        "At least one shareholder and one director",
+        "A registered address in Rwanda"
+      ],
+      "documents": [
+        {
+          "name": "IDs of shareholders & directors",
+          "detail": "National ID or passport for each person"
+        },
+        {
+          "name": "Proof of company address",
+          "detail": "Lease, title or host letter"
+        },
+        {
+          "name": "Shareholding split",
+          "detail": "Who owns what percentage"
+        }
+      ],
+      "steps": [
+        {
+          "title": "You start the request",
+          "body": "Answer a few short questions. Takes about 3 minutes."
+        },
+        {
+          "title": "We check your documents",
+          "body": "Your agent confirms everything is correct, usually within 2 working hours."
+        },
+        {
+          "title": "You approve the fees",
+          "body": "You see the official fee and our fee separately, then pay by MoMo or Airtel Money."
+        },
+        {
+          "title": "We submit via RDB",
+          "body": "We submit through the official channel and share the official reference number with you."
+        },
+        {
+          "title": "RDB processes it",
+          "body": "The institution reviews and decides. We follow up if it takes longer than usual."
+        },
+        {
+          "title": "You receive the result",
+          "body": "Delivered to your portal and WhatsApp, with official receipts."
+        }
+      ],
+      "notes": [
+        {
+          "title": "Next steps after registration",
+          "body": "Most new companies also need a trading licence and, if they issue invoices, an EBM. We can do both in the right order."
+        }
+      ],
+      "officialNote": "Set by RDB. Your agent confirms the exact amount before you pay anything."
+    },
+    "business-amendment": {
+      "name": "Business amendment",
+      "aka": "Change of company or enterprise details",
+      "summary": "Change the details RDB holds about your business — address, activity, directors, shareholders or name. We prepare the amendment with the right supporting documents and submit it to RDB.",
+      "authority": "Rwanda Development Board (RDB)",
+      "channel": "RDB online registration",
+      "via": "Via RDB online registration",
+      "time": "Usually a few working days",
+      "timeShort": "A few working days",
+      "docsShort": "Certificate, decision, new IDs",
+      "who": [
+        {
+          "title": "Companies changing hands",
+          "body": "New shareholders or directors."
+        },
+        {
+          "title": "Businesses that moved",
+          "body": "A new address or district."
+        },
+        {
+          "title": "Businesses that grew",
+          "body": "New activities or a new name."
+        }
+      ],
+      "requirements": [
+        "Your company code or enterprise certificate",
+        "What is changing, and from when",
+        "For companies: the shareholders’ or board decision approving the change"
+      ],
+      "documents": [
+        {
+          "name": "Company or enterprise certificate",
+          "detail": "Or your company code"
+        },
+        {
+          "name": "Decision approving the change",
+          "detail": "Signed resolution, for companies"
+        },
+        {
+          "name": "IDs of new directors or shareholders",
+          "detail": "Only if people are being added"
+        }
+      ],
+      "steps": [
+        {
+          "title": "You start the request",
+          "body": "Answer a few short questions. Takes about 3 minutes."
+        },
+        {
+          "title": "We check your documents",
+          "body": "Your agent confirms everything is correct, usually within 2 working hours."
+        },
+        {
+          "title": "You approve the fees",
+          "body": "You see the official fee and our fee separately, then pay by MoMo or Airtel Money."
+        },
+        {
+          "title": "We submit via RDB",
+          "body": "We submit through the official channel and share the official reference number with you."
+        },
+        {
+          "title": "RDB processes it",
+          "body": "The institution reviews and decides. We follow up if it takes longer than usual."
+        },
+        {
+          "title": "You receive the result",
+          "body": "Delivered to your portal and WhatsApp, with official receipts."
+        }
+      ],
+      "notes": [],
+      "officialNote": "Set by RDB. Your agent confirms the exact amount before you pay anything.",
+      "purposes": [
+        "Change of address",
+        "New or departing director",
+        "Change of shareholders",
+        "Change of activity",
+        "Change of name"
+      ]
+    },
+    "annual-return-filing": {
+      "name": "Annual return filing",
+      "summary": "Companies confirm their details to RDB once a year with an annual return. We prepare it from your records, check that directors, shareholders and address are still right, and file it for you.",
+      "authority": "Rwanda Development Board (RDB)",
+      "channel": "RDB online registration",
+      "via": "Via RDB online registration",
+      "time": "Usually 1–2 working days",
+      "timeShort": "1–2 working days",
+      "docsShort": "Company certificate, any changes",
+      "who": [
+        {
+          "title": "Private companies",
+          "body": "Every registered company files once a year."
+        },
+        {
+          "title": "Busy founders",
+          "body": "Who don’t want to miss the deadline."
+        },
+        {
+          "title": "Companies that changed",
+          "body": "New directors or shareholders during the year."
+        }
+      ],
+      "requirements": [
+        "Your company code or certificate",
+        "Any changes to directors, shareholders or address during the year"
+      ],
+      "documents": [
+        {
+          "name": "Company certificate",
+          "detail": "Or your company code"
+        },
+        {
+          "name": "Changes during the year",
+          "detail": "New directors, shareholders or address, if any"
+        }
+      ],
+      "steps": [
+        {
+          "title": "You start the request",
+          "body": "Answer a few short questions. Takes about 3 minutes."
+        },
+        {
+          "title": "We check your documents",
+          "body": "Your agent confirms everything is correct, usually within 2 working hours."
+        },
+        {
+          "title": "You approve the fees",
+          "body": "You see the official fee and our fee separately, then pay by MoMo or Airtel Money."
+        },
+        {
+          "title": "We submit via RDB",
+          "body": "We submit through the official channel and share the official reference number with you."
+        },
+        {
+          "title": "RDB processes it",
+          "body": "The institution reviews and decides. We follow up if it takes longer than usual."
+        },
+        {
+          "title": "You receive the result",
+          "body": "Delivered to your portal and WhatsApp, with official receipts."
+        }
+      ],
+      "notes": [
+        {
+          "title": "Don’t leave it late",
+          "body": "Late annual returns can bring penalties. Tell us when your company was registered and we’ll remind you each year."
+        }
+      ],
+      "officialNote": "Set by RDB. Your agent confirms the exact amount before you pay anything."
+    },
+    "trading-licence-registration": {
+      "name": "Trading licence registration",
+      "aka": "Patente",
+      "summary": "Register your business for the trading licence tax that districts charge on business activity. We register each place you operate, so your business is set up correctly from the start.",
+      "authority": "Rwanda Revenue Authority (RRA), for your district",
+      "channel": "RRA",
+      "via": "Via RRA · district tax",
+      "time": "Usually 1–3 working days",
+      "timeShort": "1–3 working days",
+      "docsShort": "TIN, business location",
+      "who": [
+        {
+          "title": "New businesses",
+          "body": "Just registered with RDB."
+        },
+        {
+          "title": "New branches",
+          "body": "Opening a second shop or office."
+        },
+        {
+          "title": "Informal businesses",
+          "body": "Getting properly registered."
+        }
+      ],
+      "requirements": [
+        "A TIN (from your RDB registration)",
+        "The address and activity of each place you operate"
+      ],
+      "documents": [
+        {
+          "name": "TIN or company certificate",
+          "detail": "Clear copy"
+        },
+        {
+          "name": "Lease or proof of location",
+          "detail": "For each place you operate, if you have it"
+        }
+      ],
+      "steps": [
+        {
+          "title": "You start the request",
+          "body": "Answer a few short questions. Takes about 3 minutes."
+        },
+        {
+          "title": "We check your documents",
+          "body": "Your agent confirms everything is correct, usually within 2 working hours."
+        },
+        {
+          "title": "You approve the fees",
+          "body": "You see the official fee and our fee separately, then pay by MoMo or Airtel Money."
+        },
+        {
+          "title": "We submit via RRA",
+          "body": "We submit through the official channel and share the official reference number with you."
+        },
+        {
+          "title": "RRA processes it",
+          "body": "The institution reviews and decides. We follow up if it takes longer than usual."
+        },
+        {
+          "title": "You receive the result",
+          "body": "Delivered to your portal and WhatsApp, with official receipts."
+        }
+      ],
+      "notes": [],
+      "officialNote": "The trading licence tax depends on your activity and location. You pay it directly to RRA for your district; we tell you the amount first."
+    },
+    "property-tax-tin": {
+      "name": "TIN for property tax",
+      "aka": "Taxpayer number for land and building owners",
+      "summary": "If you own land or a building, you need a TIN to declare and pay property tax. We register you with RRA and send you your TIN.",
+      "authority": "Rwanda Revenue Authority (RRA)",
+      "channel": "RRA",
+      "via": "Via RRA",
+      "time": "Usually 1–2 working days",
+      "timeShort": "1–2 working days",
+      "docsShort": "National ID, UPI",
+      "who": [
+        {
+          "title": "Land owners",
+          "body": "Plots in town or in the countryside."
+        },
+        {
+          "title": "House owners",
+          "body": "Homes and rental buildings."
+        },
+        {
+          "title": "Heirs",
+          "body": "Who have just inherited property."
+        }
+      ],
+      "requirements": [
+        "Your national ID",
+        "The UPI of each property you own"
+      ],
+      "documents": [
+        {
+          "name": "National ID",
+          "detail": "Clear photo of both sides, or the passport data page"
+        },
+        {
+          "name": "UPI of each property",
+          "detail": "The number on your land title or e-title"
+        }
+      ],
+      "steps": [
+        {
+          "title": "You start the request",
+          "body": "Answer a few short questions. Takes about 3 minutes."
+        },
+        {
+          "title": "We check your documents",
+          "body": "Your agent confirms everything is correct, usually within 2 working hours."
+        },
+        {
+          "title": "You approve the fees",
+          "body": "You see the official fee and our fee separately, then pay by MoMo or Airtel Money."
+        },
+        {
+          "title": "We submit via RRA",
+          "body": "We submit through the official channel and share the official reference number with you."
+        },
+        {
+          "title": "RRA processes it",
+          "body": "The institution reviews and decides. We follow up if it takes longer than usual."
+        },
+        {
+          "title": "You receive the result",
+          "body": "Delivered to your portal and WhatsApp, with official receipts."
+        }
+      ],
+      "notes": [],
+      "officialNote": "Set by RRA. Your agent confirms the exact amount before you pay anything."
+    },
+    "vehicle-income-tax-declaration": {
+      "name": "Motor vehicle income tax declaration",
+      "summary": "Vehicles that carry passengers or goods for money pay a yearly income tax. We prepare and file the declaration with RRA and tell you exactly what to pay and by when.",
+      "authority": "Rwanda Revenue Authority (RRA)",
+      "channel": "RRA e-Tax",
+      "via": "Via RRA e-Tax",
+      "time": "Filed within 2 working days of your documents",
+      "timeShort": "Filed within 2 working days",
+      "docsShort": "TIN, vehicle yellow card",
+      "who": [
+        {
+          "title": "Taxi & moto owners",
+          "body": "Passenger transport."
+        },
+        {
+          "title": "Truck owners",
+          "body": "Goods transport."
+        },
+        {
+          "title": "Cooperatives & companies",
+          "body": "With several vehicles."
+        }
+      ],
+      "requirements": [
+        "Your TIN",
+        "The registration details of each vehicle"
+      ],
+      "documents": [
+        {
+          "name": "TIN",
+          "detail": "Number or certificate"
+        },
+        {
+          "name": "Vehicle registration certificate",
+          "detail": "The yellow card, for each vehicle"
+        },
+        {
+          "name": "RURA authorisation",
+          "detail": "If the vehicle has one"
+        }
+      ],
+      "steps": [
+        {
+          "title": "You send your records",
+          "body": "Your TIN and vehicle registration certificates — photos or files from your phone are fine."
+        },
+        {
+          "title": "We prepare the declaration",
+          "body": "Your agent checks the figures and prepares the declaration for RRA."
+        },
+        {
+          "title": "You approve our fee",
+          "body": "Pay by MoMo or Airtel Money. Nothing is filed until you approve."
+        },
+        {
+          "title": "We file it with RRA",
+          "body": "Before the deadline. You receive the filing confirmation in your portal."
+        },
+        {
+          "title": "You pay the tax due",
+          "body": "We tell you the exact amount and how to pay it to RRA. It never passes through us."
+        }
+      ],
+      "notes": [],
+      "officialNote": "The tax depends on the vehicle. You pay it directly to RRA; we tell you the amount before the deadline."
+    },
+    "trading-licence-declaration": {
+      "name": "Trading licence declaration",
+      "aka": "Yearly patente declaration",
+      "summary": "Every year, businesses declare the trading licence tax for each place they operate. We prepare the declaration, file it with RRA and tell you the amount to pay and the deadline.",
+      "authority": "Rwanda Revenue Authority (RRA), for your district",
+      "channel": "RRA e-Tax",
+      "via": "Via RRA e-Tax · district tax",
+      "time": "Filed within 2 working days of your documents",
+      "timeShort": "Filed within 2 working days",
+      "docsShort": "TIN, business locations",
+      "who": [
+        {
+          "title": "Shops & offices",
+          "body": "One declaration per place of business."
+        },
+        {
+          "title": "Businesses with branches",
+          "body": "Several locations to declare."
+        },
+        {
+          "title": "Anyone who missed last year",
+          "body": "We help you catch up."
+        }
+      ],
+      "requirements": [
+        "Your TIN",
+        "Each place you operate and what you do there"
+      ],
+      "documents": [
+        {
+          "name": "TIN",
+          "detail": "Number or certificate"
+        },
+        {
+          "name": "Last year’s declaration",
+          "detail": "If you have it"
+        }
+      ],
+      "steps": [
+        {
+          "title": "You send your records",
+          "body": "Your TIN and the places you operate — photos or files from your phone are fine."
+        },
+        {
+          "title": "We prepare the declaration",
+          "body": "Your agent checks the figures and prepares the declaration for RRA."
+        },
+        {
+          "title": "You approve our fee",
+          "body": "Pay by MoMo or Airtel Money. Nothing is filed until you approve."
+        },
+        {
+          "title": "We file it with RRA",
+          "body": "Before the deadline. You receive the filing confirmation in your portal."
+        },
+        {
+          "title": "You pay the tax due",
+          "body": "We tell you the exact amount and how to pay it to RRA. It never passes through us."
+        }
+      ],
+      "notes": [],
+      "officialNote": "Set by your district according to activity and location. You pay it directly to RRA; we tell you the amount first."
+    },
+    "monthly-tax-declarations": {
+      "name": "Monthly business tax declarations",
+      "aka": "PAYE · income tax · tourism tax and related taxes",
+      "summary": "For businesses that declare taxes every month — PAYE, income tax, tourism tax and related taxes. We prepare every declaration from your records, file it with RRA on time and tell you exactly what to pay.",
+      "authority": "Rwanda Revenue Authority (RRA)",
+      "channel": "RRA e-Tax",
+      "via": "Via RRA e-Tax",
+      "time": "Before the 15th, every month",
+      "timeShort": "Monthly, by the 15th",
+      "docsShort": "Payroll, sales & purchase records",
+      "who": [
+        {
+          "title": "Employers",
+          "body": "PAYE on staff salaries every month."
+        },
+        {
+          "title": "Hotels, restaurants & tour operators",
+          "body": "Tourism tax and related taxes."
+        },
+        {
+          "title": "SMEs without an accountant",
+          "body": "Stay compliant without hiring."
+        }
+      ],
+      "requirements": [
+        "An active TIN registered for the taxes you pay",
+        "Your payroll and sales and purchase records for the month",
+        "Access to your RRA e-Tax account (we guide you)"
+      ],
+      "documents": [
+        {
+          "name": "Payroll for the month",
+          "detail": "Names, salaries and allowances"
+        },
+        {
+          "name": "Sales & purchase records",
+          "detail": "Invoices or your EBM report"
+        },
+        {
+          "name": "Tourism tax records",
+          "detail": "Only if your business pays tourism tax"
+        }
+      ],
+      "steps": [
+        {
+          "title": "You send your records",
+          "body": "Your payroll and sales records for the month — photos or files from your phone are fine."
+        },
+        {
+          "title": "We prepare the declaration",
+          "body": "Your agent checks the figures and prepares the declaration for RRA."
+        },
+        {
+          "title": "You approve our fee",
+          "body": "Pay by MoMo or Airtel Money. Nothing is filed until you approve."
+        },
+        {
+          "title": "We file it with RRA",
+          "body": "Before the deadline. You receive the filing confirmation in your portal."
+        },
+        {
+          "title": "You pay the tax due",
+          "body": "We tell you the exact amount and how to pay it to RRA. It never passes through us."
+        }
+      ],
+      "notes": [
+        {
+          "title": "Monthly deadline",
+          "body": "Most monthly declarations are due by the 15th of the following month. Send your records by the 10th so we have time to check them."
+        }
+      ],
+      "officialNote": "The taxes you owe are paid directly to RRA. We tell you each amount before the deadline."
+    },
+    "property-tax-declaration": {
+      "name": "Property tax declaration",
+      "aka": "Land and building tax",
+      "summary": "Owners of land and buildings declare property tax every year, plot by plot. We prepare the declaration for each UPI, file it with RRA and tell you what to pay. Our fee is per UPI.",
+      "authority": "Rwanda Revenue Authority (RRA), for your district",
+      "channel": "RRA e-Tax",
+      "via": "Via RRA e-Tax · district tax",
+      "time": "Filed within 2 working days of your documents",
+      "timeShort": "Filed within 2 working days",
+      "docsShort": "TIN, UPI of each property",
+      "who": [
+        {
+          "title": "Land owners",
+          "body": "One declaration per plot (UPI)."
+        },
+        {
+          "title": "Landlords",
+          "body": "Rental houses and buildings."
+        },
+        {
+          "title": "Families",
+          "body": "Several plots under one name."
+        }
+      ],
+      "requirements": [
+        "A TIN (we can get one for you)",
+        "The UPI of each property",
+        "What each property is used for"
+      ],
+      "documents": [
+        {
+          "name": "TIN",
+          "detail": "Number or certificate"
+        },
+        {
+          "name": "UPI of each property",
+          "detail": "From the land title or e-title"
+        }
+      ],
+      "steps": [
+        {
+          "title": "You send your records",
+          "body": "Your TIN and the UPI of each property — photos or files from your phone are fine."
+        },
+        {
+          "title": "We prepare the declaration",
+          "body": "Your agent checks the figures and prepares the declaration for RRA."
+        },
+        {
+          "title": "You approve our fee",
+          "body": "Pay by MoMo or Airtel Money. Nothing is filed until you approve."
+        },
+        {
+          "title": "We file it with RRA",
+          "body": "Before the deadline. You receive the filing confirmation in your portal."
+        },
+        {
+          "title": "You pay the tax due",
+          "body": "We tell you the exact amount and how to pay it to RRA. It never passes through us."
+        }
+      ],
+      "notes": [],
+      "officialNote": "Set by your district for each property. You pay it directly to RRA; we tell you the amount first."
+    },
+    "ebm-installation": {
+      "name": "EBM request and installation",
+      "aka": "Electronic Billing Machine",
+      "summary": "Get an Electronic Billing Machine so every sale produces a valid invoice. We request the EBM from RRA, install and configure it with your products and tax codes, and check that your first invoices are right.",
+      "authority": "Rwanda Revenue Authority (RRA)",
+      "channel": "RRA EBM",
+      "via": "Via RRA EBM",
+      "time": "Usually 3–5 working days",
+      "timeShort": "3–5 working days",
+      "docsShort": "TIN, product list",
+      "who": [
+        {
+          "title": "VAT-registered businesses",
+          "body": "EBM invoices are required for VAT."
+        },
+        {
+          "title": "Shops & restaurants",
+          "body": "Many sales every day."
+        },
+        {
+          "title": "Service providers",
+          "body": "Consultants, agencies, contractors."
+        }
+      ],
+      "requirements": [
+        "An active TIN",
+        "Your business details and product or service list",
+        "A computer or device for the software EBM"
+      ],
+      "documents": [
+        {
+          "name": "TIN certificate",
+          "detail": "Or your TIN number"
+        },
+        {
+          "name": "Product & price list",
+          "detail": "Spreadsheet or photo is fine"
+        }
+      ],
+      "steps": [
+        {
+          "title": "You start the request",
+          "body": "Answer a few short questions. Takes about 3 minutes."
+        },
+        {
+          "title": "We check your documents",
+          "body": "Your agent confirms everything is correct, usually within 2 working hours."
+        },
+        {
+          "title": "You approve the fees",
+          "body": "You see the official fee and our fee separately, then pay by MoMo or Airtel Money."
+        },
+        {
+          "title": "We submit via RRA EBM",
+          "body": "We submit through the official channel and share the official reference number with you."
+        },
+        {
+          "title": "RRA processes it",
+          "body": "The institution reviews and decides. We follow up if it takes longer than usual."
+        },
+        {
+          "title": "You receive the result",
+          "body": "Delivered to your portal and WhatsApp, with official receipts."
+        }
+      ],
+      "notes": [
+        {
+          "title": "Device or software",
+          "body": "Most businesses use the software EBM on a computer. If you need a physical EBM device, it is bought from a certified supplier — we confirm the cost with you first."
+        }
+      ],
+      "officialNote": "Set by RRA. Your agent confirms the exact amount before you pay anything."
+    },
+    "ebm-training": {
+      "name": "EBM use training",
+      "summary": "Hands-on training for you and your staff on the EBM: issuing invoices, correcting mistakes, daily reports and the records RRA expects to see.",
+      "authority": "Inzira",
+      "channel": "Training by Inzira",
+      "via": "Training by Inzira",
+      "time": "Sessions agreed with you",
+      "timeShort": "Sessions agreed with you",
+      "docsShort": "No documents needed",
+      "who": [
+        {
+          "title": "New EBM users",
+          "body": "Just had an EBM installed."
+        },
+        {
+          "title": "New cashiers",
+          "body": "Staff who issue invoices."
+        },
+        {
+          "title": "Owners",
+          "body": "Who want to check their own records."
+        }
+      ],
+      "requirements": [
+        "An EBM already installed",
+        "The people who will issue invoices"
+      ],
+      "documents": [],
+      "steps": [
+        {
+          "title": "You book",
+          "body": "Tell us who will attend and whether you prefer online sessions or our office."
+        },
+        {
+          "title": "We schedule your sessions",
+          "body": "Your trainer confirms dates and times with you by WhatsApp."
+        },
+        {
+          "title": "You pay our fee",
+          "body": "Pay by MoMo or Airtel Money. There is no government fee."
+        },
+        {
+          "title": "You learn hands-on",
+          "body": "Practical sessions on real examples, at your pace, with time for questions."
+        }
+      ],
+      "notes": [],
+      "officialNote": "There is no government fee. This is a service by Inzira.",
+      "purposeLabel": "How would you like to attend?",
+      "purposes": [
+        "Online",
+        "At the Inzira office",
+        "Either is fine"
+      ],
+      "stageLabels": {
+        "preparing": "Sessions scheduled"
+      }
+    },
+    "e-title": {
+      "name": "E-title",
+      "aka": "Electronic land title",
+      "summary": "Get the electronic title for your land. We check your UPI and ownership details, apply through Irembo and send you the e-title when it is issued.",
+      "authority": "Land administration",
+      "channel": "Irembo",
+      "via": "Via Irembo · land administration",
+      "time": "Usually a few working days",
+      "timeShort": "A few working days",
+      "docsShort": "Owner IDs, UPI",
+      "who": [
+        {
+          "title": "Land owners",
+          "body": "Who need their title in electronic form."
+        },
+        {
+          "title": "Buyers & sellers",
+          "body": "Preparing a sale or transfer."
+        },
+        {
+          "title": "Borrowers",
+          "body": "Banks ask for the title as security."
+        }
+      ],
+      "requirements": [
+        "The UPI of the land",
+        "The national ID of each registered owner"
+      ],
+      "documents": [
+        {
+          "name": "National ID of each owner",
+          "detail": "Clear photo of both sides"
+        },
+        {
+          "name": "UPI or old land title",
+          "detail": "The number or a photo of the title"
+        }
+      ],
+      "steps": [
+        {
+          "title": "You start the request",
+          "body": "Answer a few short questions. Takes about 3 minutes."
+        },
+        {
+          "title": "We check your documents",
+          "body": "Your agent confirms everything is correct, usually within 2 working hours."
+        },
+        {
+          "title": "You approve the fees",
+          "body": "You see the official fee and our fee separately, then pay by MoMo or Airtel Money."
+        },
+        {
+          "title": "We submit via Irembo",
+          "body": "We submit through the official channel and share the official reference number with you."
+        },
+        {
+          "title": "Land administration processes it",
+          "body": "The institution reviews and decides. We follow up if it takes longer than usual."
+        },
+        {
+          "title": "You receive the result",
+          "body": "Delivered to your portal and WhatsApp, with official receipts."
+        }
+      ],
+      "notes": [],
+      "officialNote": "You pay the Irembo bill for the land administration yourself, by MoMo or Airtel Money. We tell you the amount first."
+    },
+    "land-spouse-update": {
+      "name": "Add or remove a spouse in the land register",
+      "summary": "Update who is registered on a land title after a marriage, a divorce or a death. We prepare the request with the right supporting documents and submit it for you.",
+      "authority": "Land administration",
+      "channel": "Irembo",
+      "via": "Via Irembo · land administration",
+      "time": "Usually 1–2 weeks",
+      "timeShort": "1–2 weeks",
+      "docsShort": "IDs, marriage or other certificate, UPI",
+      "who": [
+        {
+          "title": "Newly married couples",
+          "body": "Adding a spouse to the title."
+        },
+        {
+          "title": "After a divorce",
+          "body": "Removing a former spouse."
+        },
+        {
+          "title": "Widows & widowers",
+          "body": "After a spouse has died."
+        }
+      ],
+      "requirements": [
+        "The UPI of the land",
+        "IDs of the people concerned",
+        "The document that proves the change"
+      ],
+      "documents": [
+        {
+          "name": "IDs of both spouses",
+          "detail": "Clear photos of both sides"
+        },
+        {
+          "name": "Proof of the change",
+          "detail": "Marriage certificate, divorce judgment or death certificate"
+        },
+        {
+          "name": "UPI or land title",
+          "detail": "The number or a photo of the title"
+        }
+      ],
+      "steps": [
+        {
+          "title": "You start the request",
+          "body": "Answer a few short questions. Takes about 3 minutes."
+        },
+        {
+          "title": "We check your documents",
+          "body": "Your agent confirms everything is correct, usually within 2 working hours."
+        },
+        {
+          "title": "You approve the fees",
+          "body": "You see the official fee and our fee separately, then pay by MoMo or Airtel Money."
+        },
+        {
+          "title": "We submit via Irembo",
+          "body": "We submit through the official channel and share the official reference number with you."
+        },
+        {
+          "title": "Land administration processes it",
+          "body": "The institution reviews and decides. We follow up if it takes longer than usual."
+        },
+        {
+          "title": "You receive the result",
+          "body": "Delivered to your portal and WhatsApp, with official receipts."
+        }
+      ],
+      "notes": [
+        {
+          "title": "Both people may need to confirm",
+          "body": "The land office can ask both spouses to confirm the change. We tell you exactly who needs to do what before submitting."
+        }
+      ],
+      "officialNote": "You pay the Irembo bill for the land administration yourself. We tell you the amount first.",
+      "purposes": [
+        "Add a spouse after marriage",
+        "Remove a spouse after divorce",
+        "Remove a spouse after a death"
+      ]
+    },
+    "land-merging": {
+      "name": "Land merging",
+      "aka": "Combine plots into one UPI",
+      "summary": "Combine neighbouring plots you own into a single parcel with one UPI. We check the plots, prepare the request and follow it up until the new title is issued.",
+      "authority": "Land administration",
+      "channel": "Irembo",
+      "via": "Via Irembo · land administration",
+      "time": "Usually 2–4 weeks",
+      "timeShort": "2–4 weeks",
+      "docsShort": "UPIs, owner IDs",
+      "who": [
+        {
+          "title": "Owners of neighbouring plots",
+          "body": "Who want one title."
+        },
+        {
+          "title": "Builders",
+          "body": "Preparing a larger construction."
+        },
+        {
+          "title": "Families",
+          "body": "Bringing inherited plots together."
+        }
+      ],
+      "requirements": [
+        "The plots are next to each other",
+        "They are registered to the same owner or owners",
+        "The UPI of every plot"
+      ],
+      "documents": [
+        {
+          "name": "UPI of each plot",
+          "detail": "Or a photo of each title"
+        },
+        {
+          "name": "IDs of the owners",
+          "detail": "Clear photos of both sides"
+        },
+        {
+          "name": "Survey plan",
+          "detail": "Only if the land office asks for one"
+        }
+      ],
+      "steps": [
+        {
+          "title": "You start the request",
+          "body": "Answer a few short questions. Takes about 3 minutes."
+        },
+        {
+          "title": "We check your documents",
+          "body": "Your agent confirms everything is correct, usually within 2 working hours."
+        },
+        {
+          "title": "You approve the fees",
+          "body": "You see the official fee and our fee separately, then pay by MoMo or Airtel Money."
+        },
+        {
+          "title": "We submit via Irembo",
+          "body": "We submit through the official channel and share the official reference number with you."
+        },
+        {
+          "title": "Land administration processes it",
+          "body": "The institution reviews and decides. We follow up if it takes longer than usual."
+        },
+        {
+          "title": "You receive the result",
+          "body": "Delivered to your portal and WhatsApp, with official receipts."
+        }
+      ],
+      "notes": [
+        {
+          "title": "Official fees depend on the plots",
+          "body": "We confirm the official fees, and whether a surveyor is needed, before you pay anything."
+        }
+      ],
+      "officialNote": "Set by the land administration. Your agent confirms the exact amount before you pay anything."
+    },
+    "rura-vehicle-authorisation": {
+      "name": "Vehicle authorisation (RURA)",
+      "aka": "Transport authorisation for passenger or goods vehicles",
+      "summary": "Get the RURA authorisation a vehicle needs to carry passengers or goods for money. We prepare the request, submit it to RURA and follow it up until the authorisation is issued.",
+      "authority": "Rwanda Utilities Regulatory Authority (RURA)",
+      "channel": "RURA online services",
+      "via": "Via RURA online services",
+      "time": "Usually a few working days",
+      "timeShort": "A few working days",
+      "docsShort": "Yellow card, owner ID",
+      "who": [
+        {
+          "title": "Taxi & moto owners",
+          "body": "Passenger transport."
+        },
+        {
+          "title": "Truck owners",
+          "body": "Goods transport."
+        },
+        {
+          "title": "Transport companies",
+          "body": "Several vehicles at once."
+        }
+      ],
+      "requirements": [
+        "The vehicle’s registration certificate (yellow card)",
+        "The owner’s ID or company certificate",
+        "Valid insurance and technical inspection, where required"
+      ],
+      "documents": [
+        {
+          "name": "Vehicle registration certificate",
+          "detail": "The yellow card"
+        },
+        {
+          "name": "Owner’s ID or company certificate",
+          "detail": "Clear copy"
+        },
+        {
+          "name": "Insurance and inspection certificates",
+          "detail": "We confirm which ones your vehicle type needs"
+        }
+      ],
+      "steps": [
+        {
+          "title": "You start the request",
+          "body": "Answer a few short questions. Takes about 3 minutes."
+        },
+        {
+          "title": "We check your documents",
+          "body": "Your agent confirms everything is correct, usually within 2 working hours."
+        },
+        {
+          "title": "You approve the fees",
+          "body": "You see the official fee and our fee separately, then pay by MoMo or Airtel Money."
+        },
+        {
+          "title": "We submit via RURA",
+          "body": "We submit through the official channel and share the official reference number with you."
+        },
+        {
+          "title": "RURA processes it",
+          "body": "The institution reviews and decides. We follow up if it takes longer than usual."
+        },
+        {
+          "title": "You receive the result",
+          "body": "Delivered to your portal and WhatsApp, with official receipts."
+        }
+      ],
+      "notes": [],
+      "officialNote": "Set by RURA for your vehicle type. You pay it to RURA yourself; we tell you the amount first."
+    },
+    "rura-authorisation-suspension": {
+      "name": "Suspension of vehicle authorisation",
+      "summary": "Suspend a vehicle’s RURA authorisation while it is off the road — for repairs, a sale or a break in operations. We submit the request and confirm when it is done.",
+      "authority": "Rwanda Utilities Regulatory Authority (RURA)",
+      "channel": "RURA online services",
+      "via": "Via RURA online services",
+      "time": "Usually 1–3 working days",
+      "timeShort": "1–3 working days",
+      "docsShort": "Authorisation, yellow card",
+      "who": [
+        {
+          "title": "Vehicles under repair",
+          "body": "Off the road for a while."
+        },
+        {
+          "title": "Vehicles being sold",
+          "body": "Before the change of owner."
+        },
+        {
+          "title": "Seasonal operators",
+          "body": "A break in operations."
+        }
+      ],
+      "requirements": [
+        "The current authorisation details",
+        "The vehicle’s registration certificate",
+        "Why and from when the vehicle stops operating"
+      ],
+      "documents": [
+        {
+          "name": "Current RURA authorisation",
+          "detail": "Or its number"
+        },
+        {
+          "name": "Vehicle registration certificate",
+          "detail": "The yellow card"
+        }
+      ],
+      "steps": [
+        {
+          "title": "You start the request",
+          "body": "Answer a few short questions. Takes about 3 minutes."
+        },
+        {
+          "title": "We check your documents",
+          "body": "Your agent confirms everything is correct, usually within 2 working hours."
+        },
+        {
+          "title": "You approve the fees",
+          "body": "You see the official fee and our fee separately, then pay by MoMo or Airtel Money."
+        },
+        {
+          "title": "We submit via RURA",
+          "body": "We submit through the official channel and share the official reference number with you."
+        },
+        {
+          "title": "RURA processes it",
+          "body": "The institution reviews and decides. We follow up if it takes longer than usual."
+        },
+        {
+          "title": "You receive the result",
+          "body": "Delivered to your portal and WhatsApp, with official receipts."
+        }
+      ],
+      "notes": [],
+      "officialNote": "Set by RURA. Your agent confirms the exact amount before you pay anything."
+    },
+    "other-online-service": {
+      "name": "Other online service",
+      "aka": "Process and fee agreed with you",
+      "summary": "A service that is not in our catalogue. Your agent works out which procedure applies and agrees our fee with you before anything starts.",
+      "authority": "To be confirmed",
+      "channel": "To be confirmed",
+      "via": "Process agreed with you",
+      "time": "Agreed with you",
+      "timeShort": "Agreed with you",
+      "docsShort": "Your agent tells you",
+      "who": [],
+      "requirements": [],
+      "documents": [],
+      "steps": [
+        {
+          "title": "You start the request",
+          "body": "Answer a few short questions. Takes about 3 minutes."
+        },
+        {
+          "title": "We check your documents",
+          "body": "Your agent confirms everything is correct, usually within 2 working hours."
+        },
+        {
+          "title": "You approve the fees",
+          "body": "You see the official fee and our fee separately, then pay by MoMo or Airtel Money."
+        },
+        {
+          "title": "We submit via the official channel",
+          "body": "We submit through the official channel and share the official reference number with you."
+        },
+        {
+          "title": "The institution processes it",
+          "body": "The institution reviews and decides. We follow up if it takes longer than usual."
+        },
+        {
+          "title": "You receive the result",
+          "body": "Delivered to your portal and WhatsApp, with official receipts."
+        }
+      ],
+      "notes": [],
+      "officialNote": "Set by the institution. Your agent confirms the exact amount before you pay anything."
+    },
+    "irembo-training": {
+      "name": "Irembo training",
+      "aka": "Learn to use Irembo services yourself",
+      "summary": "Learn to use Irembo confidently: find the right service, fill in applications, pay bills and follow up on results. Sessions run online or at our office, and the fee is per month.",
+      "authority": "Inzira",
+      "channel": "Training by Inzira",
+      "via": "Online or at our office",
+      "time": "Online or at our office",
+      "timeShort": "Online or at our office",
+      "docsShort": "No documents needed",
+      "who": [
+        {
+          "title": "Cyber cafés & service agents",
+          "body": "Who apply on behalf of customers."
+        },
+        {
+          "title": "Office staff",
+          "body": "Who handle applications for a business."
+        },
+        {
+          "title": "Individuals",
+          "body": "Who want to do it themselves."
+        }
+      ],
+      "requirements": [
+        "A phone or computer with internet",
+        "An email address or phone number for your Irembo account"
+      ],
+      "documents": [],
+      "steps": [
+        {
+          "title": "You book",
+          "body": "Tell us who will attend and whether you prefer online sessions or our office."
+        },
+        {
+          "title": "We schedule your sessions",
+          "body": "Your trainer confirms dates and times with you by WhatsApp."
+        },
+        {
+          "title": "You pay our fee",
+          "body": "Pay by MoMo or Airtel Money. There is no government fee."
+        },
+        {
+          "title": "You learn hands-on",
+          "body": "Practical sessions on real examples, at your pace, with time for questions."
+        }
+      ],
+      "notes": [],
+      "officialNote": "There is no government fee. This is a service by Inzira.",
+      "purposeLabel": "How would you like to attend?",
+      "purposes": [
+        "Online",
+        "At the Inzira office",
+        "Either is fine"
+      ],
+      "stageLabels": {
+        "preparing": "Sessions scheduled"
+      }
+    }
+  },
+  "units": {
+    "per year": "per year",
+    "per month": "per month",
+    "per UPI, per year": "per UPI, per year"
+  },
+  "officialPhrases": {
+    "None": "None",
+    "Free": "Free",
+    "To be confirmed": "To be confirmed",
+    "Paid by you directly": "Paid by you directly",
+    "Tax as assessed": "Tax as assessed",
+    "tax due": "tax due",
+    "official fee": "official fee"
+  }
+}

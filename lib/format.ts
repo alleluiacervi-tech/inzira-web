@@ -5,39 +5,52 @@ import type { Billing, Service } from "./types";
 
 const KIGALI = 2 * 36e5;
 const DAY = 864e5;
+type Lang = "en" | "rw";
 const MON = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 const MONTH = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 const WEEKDAY = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+const MONTH_RW = ["Mutarama", "Gashyantare", "Werurwe", "Mata", "Gicurasi", "Kamena", "Nyakanga", "Kanama", "Nzeri", "Ukwakira", "Ugushyingo", "Ukuboza"];
+const WEEKDAY_RW = ["Ku cyumweru", "Ku wa mbere", "Ku wa kabiri", "Ku wa gatatu", "Ku wa kane", "Ku wa gatanu", "Ku wa gatandatu"];
 const at = (iso: string) => new Date(Date.parse(iso) + KIGALI);
 const two = (n: number) => String(n).padStart(2, "0");
 const dayNo = (iso: string) => Math.floor((Date.parse(iso) + KIGALI) / DAY);
 
-export const fmtDay = (iso: string) => `${at(iso).getUTCDate()} ${MON[at(iso).getUTCMonth()]}`;
-export const fmtDate = (iso: string) => `${fmtDay(iso)} ${at(iso).getUTCFullYear()}`;
+export const fmtDay = (iso: string, lang: Lang = "en") => `${at(iso).getUTCDate()} ${lang === "rw" ? MONTH_RW[at(iso).getUTCMonth()] : MON[at(iso).getUTCMonth()]}`;
+export const fmtDate = (iso: string, lang: Lang = "en") => `${fmtDay(iso, lang)} ${at(iso).getUTCFullYear()}`;
 export const fmtTime = (iso: string) => `${two(at(iso).getUTCHours())}:${two(at(iso).getUTCMinutes())}`;
-export const fmtLong = (iso: string) => `${WEEKDAY[at(iso).getUTCDay()]}, ${at(iso).getUTCDate()} ${MONTH[at(iso).getUTCMonth()]} ${at(iso).getUTCFullYear()}`;
-export const fmtMonth = (iso: string) => `${MONTH[at(iso).getUTCMonth()]} ${at(iso).getUTCFullYear()}`;
+export const fmtLong = (iso: string, lang: Lang = "en") => lang === "rw"
+  ? `${WEEKDAY_RW[at(iso).getUTCDay()]}, ${at(iso).getUTCDate()} ${MONTH_RW[at(iso).getUTCMonth()]} ${at(iso).getUTCFullYear()}`
+  : `${WEEKDAY[at(iso).getUTCDay()]}, ${at(iso).getUTCDate()} ${MONTH[at(iso).getUTCMonth()]} ${at(iso).getUTCFullYear()}`;
+export const fmtMonth = (iso: string, lang: Lang = "en") => `${lang === "rw" ? MONTH_RW[at(iso).getUTCMonth()] : MONTH[at(iso).getUTCMonth()]} ${at(iso).getUTCFullYear()}`;
 export const isSameDay = (a: string, b: string) => dayNo(a) === dayNo(b);
 export const dayPart = (iso: string) => (at(iso).getUTCHours() < 12 ? "morning" : at(iso).getUTCHours() < 17 ? "afternoon" : "evening");
 
-const rel = (iso: string, now: string) => {
+const rel = (iso: string, now: string, lang: Lang) => {
   const d = dayNo(iso) - dayNo(now);
+  if (lang === "rw") return d === 0 ? "Uyu munsi" : d === -1 ? "Ejo hashize" : d === 1 ? "Ejo hazaza" : null;
   return d === 0 ? "Today" : d === -1 ? "Yesterday" : d === 1 ? "Tomorrow" : null;
 };
 /** "Today", "Yesterday", "Tomorrow" or "27 Sep". */
-export const fmtDayRel = (iso: string, now: string) => rel(iso, now) ?? fmtDay(iso);
+export const fmtDayRel = (iso: string, now: string, lang: Lang = "en") => rel(iso, now, lang) ?? fmtDay(iso, lang);
 /** "Today 10:05", "Yesterday 16:02" or "28 Sep 15:20". */
-export function fmtWhen(iso: string, now: string) {
-  if (Math.abs(Date.parse(now) - Date.parse(iso)) < 60e3) return "Just now";
-  return `${fmtDayRel(iso, now)} ${fmtTime(iso)}`;
+export function fmtWhen(iso: string, now: string, lang: Lang = "en") {
+  if (Math.abs(Date.parse(now) - Date.parse(iso)) < 60e3) return lang === "rw" ? "Ubu" : "Just now";
+  return `${fmtDayRel(iso, now, lang)} ${fmtTime(iso)}`;
 }
 /** "10 min ago", "1 h ago", "Today 09:40", "Yesterday" or "28 Sep". */
-export function fmtAgo(iso: string, now: string) {
+export function fmtAgo(iso: string, now: string, lang: Lang = "en") {
   const min = Math.round((Date.parse(now) - Date.parse(iso)) / 60e3);
+  if (lang === "rw") {
+    if (min < 1) return "Ubu";
+    if (min < 60) return `iminota ${min} ishize`;
+    if (min < 180) return `isaha ${Math.floor(min / 60)} ishize`;
+    const r = rel(iso, now, lang);
+    return r === "Uyu munsi" ? `Uyu munsi ${fmtTime(iso)}` : r ?? fmtDay(iso, lang);
+  }
   if (min < 1) return "Just now";
   if (min < 60) return `${min} min ago`;
   if (min < 180) return `${Math.floor(min / 60)} h ago`;
-  const r = rel(iso, now);
+  const r = rel(iso, now, lang);
   return r === "Today" ? `Today ${fmtTime(iso)}` : r ?? fmtDay(iso);
 }
 

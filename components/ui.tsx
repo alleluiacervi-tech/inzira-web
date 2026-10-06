@@ -1,9 +1,20 @@
+"use client";
+
 import Link from "next/link";
 import type { CSSProperties, ReactNode } from "react";
 import { ICONS } from "./icons";
 import { fmtDay } from "@/lib/format";
+import { requestChannel, requestTitle } from "@/lib/i18n/present";
+import { text } from "@/lib/i18n/messages";
 import { DOC_STATUS, PAY_STATUS, flowOf, holdLabel, requestStatus, stageIndex, stageLabel, type PayStatus, type Viewer } from "@/lib/status";
 import type { Category, CustomerRequest, DocStatus, Progress, Service, Tone } from "@/lib/types";
+import { useI18n } from "./I18n";
+
+function shown(locale: "en" | "rw", group: string, label: string) {
+  if (locale !== "rw") return label;
+  const next = text(locale, `${group}.${label}`);
+  return next === `${group}.${label}` ? label : next;
+}
 
 export function Icon({ name, size = 20, stroke = 1.8, color, style }: { name: string; size?: number; stroke?: number; color?: string; style?: CSSProperties }) {
   // An unknown name renders an empty box, which is easy to miss on screen; say so while developing.
@@ -45,25 +56,38 @@ export function Plate({ code, size }: { code: string; size?: "sm" }) {
 export function Badge({ tone, label }: { tone: Tone; label: string }) {
   return <span className={`b t-${tone}`}>{label}</span>;
 }
-export function RequestBadge({ r, viewer }: { r: Pick<Progress, "stage" | "hold" | "closed">; viewer: Viewer }) {
-  return <Badge {...requestStatus(r, viewer)} />;
+export function RequestBadge({ r, viewer }: { r: Pick<Progress, "stage" | "hold" | "closed" | "labels">; viewer: Viewer }) {
+  const { locale } = useI18n();
+  const status = requestStatus(r, viewer);
+  const label = viewer === "customer" ? shown(locale, "status", status.label) : status.label;
+  return <Badge tone={status.tone} label={label} />;
 }
-export const DocBadge = ({ s }: { s: DocStatus | "issued" }) => <Badge {...DOC_STATUS[s]} />;
-export const PayBadge = ({ s }: { s: PayStatus }) => <Badge {...PAY_STATUS[s]} />;
+export function DocBadge({ s }: { s: DocStatus | "issued" }) {
+  const { locale } = useI18n();
+  const status = DOC_STATUS[s];
+  return <Badge tone={status.tone} label={shown(locale, "doc", status.label)} />;
+}
+export function PayBadge({ s }: { s: PayStatus }) {
+  const { locale } = useI18n();
+  const status = PAY_STATUS[s];
+  return <Badge tone={status.tone} label={shown(locale, "pay", status.label)} />;
+}
 
 // ---------------- pricing: always two labelled lines ----------------
 export function FeeTag({ kind }: { kind: "official" | "ours" }) {
-  return kind === "official" ? <span className="fo">Official</span> : <span className="fs">Inzira</span>;
+  const { t } = useI18n();
+  return kind === "official" ? <span className="fo">{t("feeTag.official")}</span> : <span className="fs">{t("feeTag.ours")}</span>;
 }
 
 /** The core pricing pattern: official fee and our fee are ALWAYS two separate, labelled lines. */
-export function FeeBreakdown({ official, officialNote, ours, oursNote = "Paid to Inzira for checking, preparing, submitting and following up.", total, children }:
+export function FeeBreakdown({ official, officialNote, ours, oursNote, total, children }:
   { official: string; officialNote: string; ours: string; oursNote?: string; total: string; children?: ReactNode }) {
+  const { t } = useI18n();
   return (
     <div className="card card-pad stack g18">
       <div className="row between g16" style={{ alignItems: "flex-start" }}>
         <div className="stack g6">
-          <div className="row g8"><FeeTag kind="official" /><strong style={{ fontSize: 15 }}>Official government fee</strong></div>
+          <div className="row g8"><FeeTag kind="official" /><strong style={{ fontSize: 15 }}>{t("service.officialFee")}</strong></div>
           <p className="hint" style={{ maxWidth: 360 }}>{officialNote}</p>
         </div>
         <span className="d fig" style={{ fontSize: 20, textAlign: "right", maxWidth: 200 }}>{official}</span>
@@ -71,24 +95,25 @@ export function FeeBreakdown({ official, officialNote, ours, oursNote = "Paid to
       <div className="divider" />
       <div className="row between g16" style={{ alignItems: "flex-start" }}>
         <div className="stack g6">
-          <div className="row g8"><FeeTag kind="ours" /><strong style={{ fontSize: 15 }}>Our service / assistance fee</strong></div>
-          <p className="hint" style={{ maxWidth: 360 }}>{oursNote}</p>
+          <div className="row g8"><FeeTag kind="ours" /><strong style={{ fontSize: 15 }}>{t("service.assistFee")}</strong></div>
+          <p className="hint" style={{ maxWidth: 360 }}>{oursNote ?? t("service.assistNote")}</p>
         </div>
         <span className="d fig fee-ours nowrap" style={{ fontSize: 20, textAlign: "right" }}>{ours}</span>
       </div>
-      <div className="total-row"><strong>Total estimated cost</strong><span className="d fig" style={{ fontSize: 22, textAlign: "right" }}>{total}</span></div>
+      <div className="total-row"><strong>{t("service.total")}</strong><span className="d fig" style={{ fontSize: 22, textAlign: "right" }}>{total}</span></div>
       {children}
-      <p className="hint row g8" style={{ alignItems: "flex-start" }}><Icon name="shield" size={18} color="var(--ok)" /><span>You approve every amount before you pay. Nothing is charged without your confirmation.</span></p>
+      <p className="hint row g8" style={{ alignItems: "flex-start" }}><Icon name="shield" size={18} color="var(--ok)" /><span>{t("service.confirmPay")}</span></p>
     </div>
   );
 }
 
-export function FeeLines({ officialLabel: ol, official, ours, total, totalLabel: tl = "Total" }: { officialLabel: string; official: string; ours: string; total?: string; totalLabel?: string }) {
+export function FeeLines({ officialLabel: ol, official, ours, total, totalLabel: tl }: { officialLabel: string; official: string; ours: string; total?: string; totalLabel?: string }) {
+  const { t } = useI18n();
   return (
     <div className="stack g10" style={{ fontSize: 14.5 }}>
       <div className="row between g12"><span className="row g8"><FeeTag kind="official" /> {ol}</span><strong className="nowrap">{official}</strong></div>
-      <div className="row between g12"><span className="row g8"><FeeTag kind="ours" /> Assistance fee</span><strong className="fee-ours nowrap">{ours}</strong></div>
-      {total && <div className="row between g12" style={{ paddingTop: 10, borderTop: "1px solid var(--line-2)" }}><strong>{tl}</strong><strong className="d fig" style={{ fontSize: 18, textAlign: "right" }}>{total}</strong></div>}
+      <div className="row between g12"><span className="row g8"><FeeTag kind="ours" /> {t("service.assistShort")}</span><strong className="fee-ours nowrap">{ours}</strong></div>
+      {total && <div className="row between g12" style={{ paddingTop: 10, borderTop: "1px solid var(--line-2)" }}><strong>{tl ?? t("pay.total")}</strong><strong className="d fig" style={{ fontSize: 18, textAlign: "right" }}>{total}</strong></div>}
     </div>
   );
 }
@@ -153,11 +178,18 @@ export function Notif({ icon, title, meta, unread, href }: { icon: string; title
 // ---------------- progress ----------------
 /** The request's stages. A hold or a closure marks the current step; it never adds or skips a step. */
 export function StageTimeline({ r, viewer }: { r: Progress; viewer: Viewer }) {
+  const { locale, t } = useI18n();
   const flow = flowOf(r);
   const cur = stageIndex(r);
   const finished = r.stage === "completed";
+  const customer = viewer === "customer";
+  const hold = (note: string) => {
+    if (!customer) return note;
+    if (note.startsWith("Returned · ")) return `${shown(locale, "status", "Returned")} · ${shown(locale, "status", "waiting on you")}`;
+    return shown(locale, "status", note);
+  };
   return (
-    <ol className="tl-h" aria-label="Request progress" style={{ ["--n" as string]: flow.length }}>
+    <ol className="tl-h" aria-label={t("request.progress")} style={{ ["--n" as string]: flow.length }}>
       {flow.map((s, i) => {
         const here = i === cur && !finished;
         const st = i < cur || finished ? "done" : !here ? "todo" : r.closed ? "stop" : r.hold ? "hold" : "cur";
@@ -173,10 +205,10 @@ export function StageTimeline({ r, viewer }: { r: Progress; viewer: Viewer }) {
               {i < flow.length - 1 ? <span className="tl-line" /> : <span style={{ flexGrow: 1 }} />}
             </div>
             <div className="stack" style={{ gap: 3 }}>
-              <span className="tl-label">{stageLabel(r, s)}</span>
-              {(st === "hold" || st === "stop") && <span className="tl-note">{holdLabel(r, viewer)}</span>}
-              {st === "stop" ? <span className="mut" style={{ fontSize: 12 }}>{fmtDay(r.closed!.at)}</span>
-                : date && <span className="mut" style={{ fontSize: 12 }}>{here ? `Since ${fmtDay(date)}` : fmtDay(date)}</span>}
+              <span className="tl-label">{customer ? shown(locale, "status", stageLabel(r, s)) : stageLabel(r, s)}</span>
+              {(st === "hold" || st === "stop") && <span className="tl-note">{hold(holdLabel(r, viewer))}</span>}
+              {st === "stop" ? <span className="mut" style={{ fontSize: 12 }}>{fmtDay(r.closed!.at, customer ? locale : "en")}</span>
+                : date && <span className="mut" style={{ fontSize: 12 }}>{here ? t("request.since", { date: fmtDay(date, customer ? locale : "en") }) : fmtDay(date, customer ? locale : "en")}</span>}
             </div>
           </li>
         );
@@ -208,21 +240,23 @@ export function TimelineV({ events }: { events: TimelineItem[] }) {
 
 /** One request in a customer list: what it is, where it is, and what happens next. */
 export function RequestRow({ r }: { r: CustomerRequest }) {
+  const { locale, t } = useI18n();
   const steps = r.flow.length;
   const step = stageIndex(r) + 1;
   const act = !!r.hold && !r.closed;
   const open = !r.closed && r.stage !== "completed";
+  const name = requestTitle(r.name, r.service, locale);
   return (
     <div className="req-row">
-      <div className="stack" style={{ gap: 5 }}><span className="m mut">{r.ref}</span><Link className="lnk" href={`/portal/requests/${r.ref}`} style={{ fontSize: 16 }}>{r.name}</Link><span className="mut" style={{ fontSize: 13 }}>For {r.profile.name} · via {r.channel}</span></div>
+      <div className="stack" style={{ gap: 5 }}><span className="m mut">{r.ref}</span><Link className="lnk" href={`/portal/requests/${r.ref}`} style={{ fontSize: 16 }}>{name}</Link><span className="mut" style={{ fontSize: 13 }}>{t("request.forLine", { name: r.profile.name, channel: requestChannel(r.channel, r.service, locale) })}</span></div>
       <div className="stack g8" style={{ alignItems: "flex-start" }}>
         <RequestBadge r={r} viewer="customer" />
-        {open && <div className="progress" style={{ width: "100%" }} role="img" aria-label={`Step ${step} of ${steps}`}><span style={{ width: `${(step / steps) * 100}%`, background: act ? "var(--signal-deep)" : undefined }} /></div>}
-        <span className="mut" style={{ fontSize: 12.5 }}>{open ? `Step ${step} of ${steps} · ${stageLabel(r, r.stage)}` : r.closed ? `Closed ${fmtDay(r.closed.at)}` : `Delivered ${fmtDay(r.stageDates.completed ?? r.updatedAt)}`}{r.agent ? ` · Agent: ${r.agent.name}` : ""}</span>
+        {open && <div className="progress" style={{ width: "100%" }} role="img" aria-label={t("request.step", { n: step, total: steps })}><span style={{ width: `${(step / steps) * 100}%`, background: act ? "var(--signal-deep)" : undefined }} /></div>}
+        <span className="mut" style={{ fontSize: 12.5 }}>{open ? `${t("request.step", { n: step, total: steps })} · ${shown(locale, "status", stageLabel(r, r.stage))}` : r.closed ? t("request.closed", { date: fmtDay(r.closed.at, locale) }) : t("request.delivered", { date: fmtDay(r.stageDates.completed ?? r.updatedAt, locale) })}{r.agent ? ` · ${t("request.agent", { name: r.agent.name })}` : ""}</span>
       </div>
       <div className="row between g12">
-        <div className="stack g4"><span className="req-next" style={{ color: act ? "var(--ember-deep)" : "var(--muted)" }}>{act ? "Your action" : open ? "Next step" : "Outcome"}</span><span style={{ fontSize: 14, lineHeight: 1.45 }}>{r.next}</span></div>
-        <Link className={`btn btn-sm ${act ? "btn-p" : "btn-s"}`} href={`/portal/requests/${r.ref}`} aria-label={`${act ? "Resolve" : "View"} ${r.name} ${r.ref}`}>{act ? "Resolve" : "View"}</Link>
+        <div className="stack g4"><span className="req-next" style={{ color: act ? "var(--ember-deep)" : "var(--muted)" }}>{act ? t("request.yourAction") : open ? t("request.next") : t("request.outcome")}</span><span style={{ fontSize: 14, lineHeight: 1.45 }}>{r.next}</span></div>
+        <Link className={`btn btn-sm ${act ? "btn-p" : "btn-s"}`} href={`/portal/requests/${r.ref}`} aria-label={t("request.viewName", { action: act ? t("request.resolve") : t("request.view"), name, ref: r.ref })}>{act ? t("request.resolve") : t("request.view")}</Link>
       </div>
     </div>
   );

@@ -1,21 +1,23 @@
 import Link from "next/link";
-import { DISCLAIMER, isSet, mailUrl, SITE, telUrl, whatsappUrl } from "@/lib/site";
+import { getLocale } from "@/lib/i18n/locale";
+import { text } from "@/lib/i18n/messages";
+import { isSet, mailUrl, SITE, telUrl, whatsappUrl } from "@/lib/site";
 import { Icon, Logo } from "./ui";
 
-const COLS: [string, [string, string][]][] = [
-  ["Services", [["Business registration (RDB)", "/services?category=rdb"], ["Taxes and EBM (RRA)", "/services?category=tax"], ["Land (NLA)", "/services?category=land"], ["Transport (RURA)", "/services?category=rura"], ["Irembo training", "/services?category=irembo"], ["All services", "/services"]]],
-  ["Company", [["Services and fees", "/#prices"], ["How it works", "/#how"], ["Questions", "/#faq"], ["Contact", "/#talk"]]],
-  ["Your request", [["Start a request", "/services"], ["Track a request", "/track"], ["Sign in", "/sign-in"], ["Describe your situation", "/start"]]],
-];
-
-export default function Footer() {
-  // Details still set to placeholders in lib/site.ts stay off the public site until they are real.
+export default async function Footer() {
+  const locale = await getLocale();
+  const t = (path: string, vars?: Record<string, string | number>) => text(locale, path, vars);
+  const cols: [string, [string, string][]][] = [
+    [t("footer.services"), [[t("footer.rdb"), "/services?category=rdb"], [t("footer.tax"), "/services?category=tax"], [t("footer.land"), "/services?category=land"], [t("footer.rura"), "/services?category=rura"], [t("footer.irembo"), "/services?category=irembo"], [t("footer.all"), "/services"]]],
+    [t("footer.company"), [[t("footer.fees"), "/#prices"], [t("footer.how"), "/#how"], [t("footer.questions"), "/#faq"], [t("footer.contact"), "/#talk"]]],
+    [t("footer.request"), [[t("footer.start"), "/services"], [t("footer.track"), "/track"], [t("footer.signIn"), "/sign-in"], [t("footer.describe"), "/start"]]],
+  ];
   const contact = [
-    SITE.whatsapp && { icon: "whatsapp", text: `WhatsApp ${SITE.phone}`, href: whatsappUrl(), external: true },
-    isSet(SITE.phone) && { icon: "call", text: `Call ${SITE.phone}`, href: telUrl() },
+    SITE.whatsapp && { icon: "whatsapp", text: t("footer.whatsapp", { phone: SITE.phone }), href: whatsappUrl(), external: true },
+    isSet(SITE.phone) && { icon: "call", text: t("footer.call", { phone: SITE.phone }), href: telUrl() },
     isSet(SITE.email) && { icon: "mail", text: SITE.email, href: mailUrl() },
-    { icon: "pin", text: isSet(SITE.address) ? `${SITE.address}, ${SITE.city}` : `${SITE.city}, Rwanda` },
-    { icon: "clock", text: SITE.hours.replace(" · ", ", ") },
+    { icon: "pin", text: isSet(SITE.address) ? `${SITE.address}, ${SITE.city}` : t("footer.city", { city: SITE.city }) },
+    { icon: "clock", text: t("hours") },
   ].filter(Boolean) as { icon: string; text: string; href?: string; external?: boolean }[];
 
   return (
@@ -23,23 +25,23 @@ export default function Footer() {
       <div className="footer-grid">
         <div className="stack g18">
           <Logo dark />
-          <p style={{ fontSize: 15, lineHeight: 1.6, maxWidth: 320 }}>Government paperwork for businesses and professionals in Rwanda, checked, filed and followed up for you.</p>
+          <p style={{ fontSize: 15, lineHeight: 1.6, maxWidth: 320 }}>{t("footer.blurb")}</p>
           <ul className="stack g10 ft-contact" style={{ listStyle: "none", margin: 0, padding: 0, fontSize: 14.5 }}>
             {contact.map((c) => (
-              <li key={c.text} className="row g10"><Icon name={c.icon} size={17} />{c.href ? <a className="ft" href={c.href} {...(c.external ? { target: "_blank", rel: "noopener noreferrer" } : {})}>{c.text}</a> : c.text}</li>
+              <li key={c.icon + c.text} className="row g10"><Icon name={c.icon} size={17} />{c.href ? <a className="ft" href={c.href} {...(c.external ? { target: "_blank", rel: "noopener noreferrer" } : {})}>{c.text}</a> : c.text}</li>
             ))}
           </ul>
         </div>
-        {COLS.map(([t, items]) => (
-          <nav key={t} className="stack g12" aria-label={t}>
-            <span style={{ fontSize: 14, fontWeight: 600, color: "var(--on-dark)" }}>{t}</span>
-            {items.map(([l, h]) => <Link key={l} className="ft" href={h}>{l}</Link>)}
+        {cols.map(([title, items]) => (
+          <nav key={title} className="stack g12" aria-label={title}>
+            <span style={{ fontSize: 14, fontWeight: 600, color: "var(--on-dark)" }}>{title}</span>
+            {items.map(([l, h]) => <Link key={h + l} className="ft" href={h}>{l}</Link>)}
           </nav>
         ))}
       </div>
       <div className="row between g40 m-col" style={{ borderTop: "1px solid var(--on-dark-line)", paddingTop: 24, alignItems: "flex-start" }}>
-        <p style={{ fontSize: 13, lineHeight: 1.6, maxWidth: 820, color: "var(--on-dark-muted)" }}>{DISCLAIMER}</p>
-        <span style={{ fontSize: 13, whiteSpace: "nowrap", color: "var(--on-dark-muted)" }}>© {new Date().getFullYear()} {SITE.legalName}{isSet(SITE.companyCode) ? `, company code ${SITE.companyCode}` : ""}</span>
+        <p style={{ fontSize: 13, lineHeight: 1.6, maxWidth: 820, color: "var(--on-dark-muted)" }}>{t("footer.disclaimer")}</p>
+        <span style={{ fontSize: 13, whiteSpace: "nowrap", color: "var(--on-dark-muted)" }}>{t("footer.copy", { year: new Date().getFullYear(), legal: SITE.legalName })}{isSet(SITE.companyCode) ? `, ${SITE.companyCode}` : ""}</span>
       </div>
     </footer>
   );

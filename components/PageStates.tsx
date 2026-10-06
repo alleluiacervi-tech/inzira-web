@@ -1,11 +1,13 @@
 "use client";
 import Link from "next/link";
+import { useI18n } from "./I18n";
 import { Icon } from "./ui";
 
 /** Shown while a screen's data is on its way. Same outline as the real screens so nothing jumps. */
 export function PageSkeleton() {
+  const { t } = useI18n();
   return (
-    <div aria-busy="true" aria-label="Loading">
+    <div aria-busy="true" aria-label={t("error.loading")}>
       <div className="topbar"><div className="stack g8"><span className="skel" style={{ width: 220, height: 20 }} /><span className="skel" style={{ width: 150, height: 12 }} /></div></div>
       <div className="content">
         <div className="grid cols-4 m-cols-2" style={{ gap: 14 }}>
@@ -21,13 +23,14 @@ export function PageSkeleton() {
 
 /** Shown when a screen fails to load. Says what happened, that nothing was lost, and how to retry. */
 export function PageError({ error, reset }: { error: Error & { digest?: string }; reset: () => void }) {
+  const { t } = useI18n();
   return (
     <div className="content">
       <div className="card stack g12" style={{ padding: "40px 24px", alignItems: "center", textAlign: "center" }} role="alert">
         <span className="ico-tile t-err"><Icon name="alert" size={22} /></span>
-        <strong>We couldn’t load this page</strong>
-        <span className="hint" style={{ maxWidth: 420 }}>Nothing was lost. Check your connection and try again.{error.digest ? ` If it keeps happening, tell us this code: ${error.digest}.` : ""}</span>
-        <div className="row g8 wrapx" style={{ justifyContent: "center" }}><button type="button" className="btn btn-p btn-sm" onClick={reset}>Try again</button><Link className="btn btn-s btn-sm" href="/">Home</Link></div>
+        <strong>{t("error.load")}</strong>
+        <span className="hint" style={{ maxWidth: 420 }}>{t("error.body")}{error.digest ? ` ${t("error.digest", { code: error.digest })}` : ""}</span>
+        <div className="row g8 wrapx" style={{ justifyContent: "center" }}><button type="button" className="btn btn-p btn-sm" onClick={reset}>{t("error.retry")}</button><Link className="btn btn-s btn-sm" href="/">{t("error.home")}</Link></div>
       </div>
     </div>
   );

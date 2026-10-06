@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { ForceEnglish } from "@/components/I18n";
 import StaffShell from "@/components/console/StaffShell";
 import { getStaffUser, getMyPermissions, loadRequests } from "@/lib/repo";
 import { isOpen } from "@/lib/status";
@@ -19,13 +20,13 @@ export default async function ConsoleLayout({ children }: { children: React.Reac
   const openCasesCount = cases.filter((c) => c.agentId === me.id && isOpen(c)).length;
 
   return (
-    <StaffShell
+    <ForceEnglish><StaffShell
       user={me}
       permissions={perms}
       inboxCount={inboxCount}
       openCasesCount={openCasesCount}
     >
       {children}
-    </StaffShell>
+    </StaffShell></ForceEnglish>
   );
 }
