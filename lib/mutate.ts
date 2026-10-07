@@ -31,6 +31,14 @@ export async function event(tx: Tx | Db, ref: string, title: string, by: string,
   await tx.insert(s.events).values({ ref, title, by, body });
 }
 
+/** Texts the agent on the case. No agent, or a bad number, is not an error. */
+export async function pingAgent(tx: Tx | Db, ref: string, message: string) {
+  const [row] = await tx.select({ agentId: s.requests.agentId }).from(s.requests).where(eq(s.requests.ref, ref));
+  if (!row?.agentId) return;
+  const [agent] = await tx.select({ phone: s.staff.phone }).from(s.staff).where(eq(s.staff.id, row.agentId));
+  if (agent?.phone) sendSms(agent.phone, `Inzira ${ref}: ${message}`).catch((e) => console.error("[sms]", e));
+}
+
 /** A notification in the customer's portal, and optionally an SMS. SMS failures never block the action. */
 export async function notify(tx: Tx | Db, ref: string, n: { icon: string; title: string; sms?: string }) {
   const [row] = await tx.select({ accountId: s.profiles.accountId, phone: s.accounts.phone })

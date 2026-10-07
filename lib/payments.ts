@@ -136,8 +136,11 @@ export function providerFor(phone9: string): Provider {
   throw new Error("Payments are not configured. Set PAYMENT_PROVIDER (see README).");
 }
 
-/** Asks whichever provider created `providerRef` for the current status. */
+/** Asks whichever provider created `providerRef` for the current status.
+ *  An empty ref means the prompt is still being sent, so it stays pending until the
+ *  caller gives up. Marking it failed here would cancel a payment the provider already took. */
 export async function providerStatus(providerRef: string): Promise<{ status: PayStatus; providerTxId?: string }> {
+  if (!providerRef) return { status: "pending" };
   const [key, ...rest] = providerRef.split(":");
   const id = rest.join(":");
   if (key === "sim") return simulator.status(id);

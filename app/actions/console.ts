@@ -7,6 +7,7 @@ import { rwf, shortName } from "@/lib/format";
 import { audit, db, event, fail, notify, s, type Result } from "@/lib/mutate";
 import { PERMISSIONS, type Permission } from "@/lib/permissions";
 import { searchGlobal } from "@/lib/repo";
+import { amountDue } from "@/lib/status";
 import { sendSms } from "@/lib/sms";
 import type { Closed, PayMethod, SavedView, Stage } from "@/lib/types";
 
@@ -193,6 +194,8 @@ export async function recordManualPayment(input: {
   if (!input.receipt.trim()) return fail("Enter a receipt or transaction reference number.");
   if (input.official < 0 || input.ours < 0) return fail("Amounts cannot be negative.");
   if (input.official === 0 && input.ours === 0) return fail("Total payment amount must be greater than 0.");
+  const pending = await d.select({ id: s.transactions.id }).from(s.transactions).where(and(eq(s.transactions.ref, ref), eq(s.transactions.status, "pending")));
+  if (pending.length) return fail("A mobile money prompt is still waiting on this request. Let it finish before recording another payment.");
 
   await d.transaction(async (tx) => {
     await tx.insert(s.transactions).values({
@@ -203,9 +206,17 @@ export async function recordManualPayment(input: {
       ours: input.ours,
       status: "paid",
       payer: input.payer?.trim() || null,
-      providerRef: input.receipt.trim(),
+      providerRef: `hand:${input.receipt.trim()}`,
       at: now(),
     });
+
+    const txs = await tx.select().from(s.transactions).where(eq(s.transactions.ref, ref));
+    const due = amountDue({
+      invoice: req.invoice, official: req.official, officialMode: req.officialMode ?? undefined, officialLabel: req.officialLabel,
+      ours: req.ours, oursStandard: req.oursStandard, oursUnit: req.oursUnit ?? undefined, quote: req.quote, officialReceipt: req.officialReceipt,
+      transactions: txs.map((t) => ({ receipt: t.receipt, at: now(), method: t.method, official: t.official, ours: t.ours, status: t.status })),
+    });
+    if (due <= 0 && req.hold?.reason === "payment") await tx.update(s.requests).set({ hold: null }).where(eq(s.requests.ref, ref));
 
     const total = input.official + input.ours;
     await event(tx, ref, `Payment recorded (${input.method})`, me.id, `Total ${rwf(total)} (Inzira ${rwf(input.ours)}, Official ${rwf(input.official)}) · Ref: ${input.receipt.trim()}`);
@@ -265,6 +276,8 @@ export async function revealTin(profileId: string): Promise<Result<{ tin: string
 }
 
 // ---------------- Client Management ----------------
+const maskId = (d: string) => (d.length === 16 ? `${d[0]} ${d.slice(1, 5)} ${d[5]} •••• ${d[13]} ${d.slice(14)}` : null);
+
 export async function createClient(input: {
   name: string;
   phone: string;
@@ -275,47 +288,62 @@ export async function createClient(input: {
   tags?: string[];
   notes?: string;
 }): Promise<Result<{ profileId: string }>> {
-  const a = await staffAction("manageStaff");
-  const me = a.me ?? (await getStaffUser());
-  if (!me) return fail("Your session has ended. Sign in again.");
+  const a = await staffAction("viewAssigned");
+  if ("error" in a) return fail(a.error!);
+  const { me, d } = a;
 
   const phone = normalisePhone(input.phone);
-  if (!input.name.trim()) return fail("Enter client's full name.");
+  const wanted = input.name.trim();
+  if (!wanted) return fail("Enter client's full name.");
   if (!phone) return fail("Enter a Rwandan mobile number (e.g. 788 123 456).");
 
-  const d = await db();
+  const nationalId = input.nationalId?.replace(/\D/g, "") || null;
+  const tin = input.tin?.replace(/\D/g, "") || null;
   const res = await d.transaction(async (tx) => {
     let [account] = await tx.select().from(s.accounts).where(eq(s.accounts.phone, phone));
     if (!account) {
       [account] = await tx.insert(s.accounts).values({
         id: `acc-${randomBytes(6).toString("hex")}`,
-        name: input.name.trim(),
-        first: input.name.trim().split(" ")[0],
+        name: wanted,
+        first: wanted.split(" ")[0],
         phone,
         languages: ["Kinyarwanda"],
       }).returning();
     }
 
-    const nationalId = input.nationalId?.trim() || null;
-    const idMasked = nationalId ? `${nationalId.slice(0, 7)} •••• ${nationalId.slice(-4)}` : null;
-    const tin = input.tin?.trim() || null;
+    const existing = await tx.select().from(s.profiles).where(eq(s.profiles.accountId, account.id));
+    const same = existing.find((p) => p.kind === input.kind && p.name.toLowerCase() === wanted.toLowerCase());
+    const self = existing.find((p) => p.relation === "self");
+    const idMasked = nationalId ? maskId(nationalId) : null;
     const tinMasked = tin ? `${tin.slice(0, 3)} ••• ${tin.slice(-3)}` : null;
-
-    const [profile] = await tx.insert(s.profiles).values({
-      id: `p-${randomBytes(6).toString("hex")}`,
-      accountId: account.id,
-      kind: input.kind,
-      name: input.name.trim(),
-      relation: input.kind === "person" ? "self" : null,
-      district: input.district?.trim() || null,
-      nationalId,
-      idMasked,
-      tin,
-      tinMasked,
-    }).returning();
+    let profile = same ?? (input.kind === "person" && self && self.name.toLowerCase() === wanted.toLowerCase() ? self : undefined);
+    if (profile) {
+      await tx.update(s.profiles).set({
+        district: input.district?.trim() || profile.district,
+        nationalId: profile.nationalId || nationalId,
+        idMasked: profile.idMasked || idMasked,
+        tin: profile.tin || tin,
+        tinMasked: profile.tinMasked || tinMasked,
+      }).where(eq(s.profiles.id, profile.id));
+    } else {
+      [profile] = await tx.insert(s.profiles).values({
+        id: `p-${randomBytes(6).toString("hex")}`,
+        accountId: account.id,
+        kind: input.kind,
+        name: wanted,
+        relation: input.kind === "person" ? (self ? "family" : "self") : null,
+        district: input.district?.trim() || null,
+        nationalId,
+        idMasked,
+        tin,
+        tinMasked,
+      }).returning();
+    }
 
     if (input.tags?.length) {
-      await tx.insert(s.clientTags).values(input.tags.map((tag) => ({ profileId: profile.id, tag: tag.trim() })));
+      const have = new Set((await tx.select({ tag: s.clientTags.tag }).from(s.clientTags).where(eq(s.clientTags.profileId, profile.id))).map((t) => t.tag.toLowerCase()));
+      const fresh = input.tags.map((tag) => tag.trim()).filter((tag) => tag && !have.has(tag.toLowerCase()));
+      if (fresh.length) await tx.insert(s.clientTags).values(fresh.map((tag) => ({ profileId: profile.id, tag })));
     }
 
     if (input.notes?.trim()) {

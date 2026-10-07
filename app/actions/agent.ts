@@ -208,10 +208,20 @@ export async function createIntake(input: { slug: string; name: string; phone: s
   const service = await getService(input.slug || "other-online-service");
   if (!service) return fail("Service not found.");
   const d = await db();
+  const wanted = input.name.trim();
   const ref = await d.transaction(async (tx) => {
     let [account] = await tx.select().from(s.accounts).where(eq(s.accounts.phone, phone));
-    if (!account) [account] = await tx.insert(s.accounts).values({ id: `acc-${randomBytes(6).toString("hex")}`, name: input.name.trim(), first: input.name.trim().split(" ")[0], phone, languages: [] }).returning();
-    const [profile] = await tx.insert(s.profiles).values({ id: `p-${randomBytes(6).toString("hex")}`, accountId: account.id, kind: input.kind, name: input.name.trim(), relation: input.kind === "person" ? "self" : null }).returning();
+    if (!account) [account] = await tx.insert(s.accounts).values({ id: `acc-${randomBytes(6).toString("hex")}`, name: wanted, first: wanted.split(" ")[0], phone, languages: [] }).returning();
+    const existing = await tx.select().from(s.profiles).where(eq(s.profiles.accountId, account.id));
+    const self = existing.find((p) => p.relation === "self");
+    let profile = existing.find((p) => p.kind === input.kind && p.name.toLowerCase() === wanted.toLowerCase())
+      ?? (input.kind === "person" && self?.name.toLowerCase() === wanted.toLowerCase() ? self : undefined);
+    if (!profile) {
+      [profile] = await tx.insert(s.profiles).values({
+        id: `p-${randomBytes(6).toString("hex")}`, accountId: account.id, kind: input.kind, name: wanted,
+        relation: input.kind === "person" ? (self ? "family" : "self") : null,
+      }).returning();
+    }
     const ref = refFor(await nextNumber(tx, "request"));
     const at = now();
     await tx.insert(s.requests).values({

@@ -145,6 +145,15 @@ export function searchText(s: Service) {
   return [s.name, s.aka, s.summary, s.authority, s.channel, extra?.name, extra?.aka, extra?.summary, extra?.authority].filter(Boolean).join(" ");
 }
 
+/** The purpose stored on a request stays the English catalogue line, even if the form showed Kinyarwanda. */
+export function storedPurpose(slug: string, submitted: string, english?: string[]) {
+  const value = submitted.trim();
+  if (!value) return null;
+  if (!english?.length || english.includes(value)) return value;
+  const i = (RW.services[slug]?.purposes ?? []).indexOf(value);
+  return i >= 0 && english[i] ? english[i] : value;
+}
+
 export function displayDocName(name: string, locale: Locale) {
   return locale === "rw" ? docNames.get(name) || name : name;
 }

@@ -7,11 +7,12 @@ import { redirect } from "next/navigation";
 import { deleteAccount, finishedWithDocuments, purgeDocuments } from "@/lib/privacy";
 import { iso } from "@/lib/db";
 import { rwf } from "@/lib/format";
-import { audit, db, event, fail, invoiceFor, nextNumber, notify, refFor, s, type Result } from "@/lib/mutate";
+import { audit, db, event, fail, invoiceFor, nextNumber, notify, pingAgent, refFor, s, type Result } from "@/lib/mutate";
 import { reconcilePayment } from "@/lib/billing";
 import { methodFor, providerFor } from "@/lib/payments";
 import { SITE } from "@/lib/site";
 import { amountDue } from "@/lib/status";
+import { storedPurpose } from "@/lib/i18n/present";
 import { getService } from "@/lib/repo";
 import { TOO_MANY, allowIp } from "@/lib/ratelimit";
 import { ALLOWED, MAX_BYTES, humanSize, putFile } from "@/lib/storage";
@@ -71,7 +72,7 @@ export async function submitRequest(fd: FormData): Promise<Result<{ ref: string 
     await tx.insert(s.requests).values({
       ref, serviceSlug: service.slug, profileId: profile.id, agentId: null, stage: "received", stageDates: { received: now }, channel: service.channel,
       summary: { title: "We’ve received your request", body: `An agent will check it within 2 working hours and contact you on +250 ${phone.replace(/^(\d{3})(\d{3})(\d{3})$/, "$1 $2 $3")}.` },
-      next: "An agent checks your request within 2 working hours.", purpose: text(fd, "purpose") || null,
+      next: "An agent checks your request within 2 working hours.", purpose: storedPurpose(service.slug, text(fd, "purpose"), service.purposes),
       invoice, official: service.official.mode ? null : service.official.amount, officialMode: service.official.mode ?? null,
       officialLabel: service.official.mode === "none" ? "Official fee" : `${service.official.label ?? "Official fee"} · ${service.channel}`,
       ours: service.ours, oursStandard: service.ours, oursUnit: service.oursUnit ?? null, quote: "estimate",
@@ -116,9 +117,14 @@ async function ownRequest(ref: string) {
 export async function sendMessage(ref: string, body: string): Promise<Result> {
   const own = await ownRequest(ref);
   if (!own) return fail("Request not found.");
-  if (!body.trim()) return fail("Write a message first.");
-  await own.d.insert(s.messages).values({ ref, by: "customer", body: body.trim().slice(0, 4000) });
-  revalidatePath(`/portal/requests/${ref}`);
+  const trimmed = body.trim().slice(0, 4000);
+  if (!trimmed) return fail("Write a message first.");
+  await own.d.transaction(async (tx) => {
+    await tx.insert(s.messages).values({ ref, by: "customer", body: trimmed });
+    await event(tx, ref, "Message from customer", "customer");
+    await pingAgent(tx, ref, `the customer wrote: ${trimmed.slice(0, 140)}`);
+  });
+  revalidatePath("/", "layout");
   return { ok: true };
 }
 
@@ -141,6 +147,7 @@ export async function uploadDocument(fd: FormData): Promise<Result> {
     await tx.update(s.requestDocuments).set({ status: "received", fileId, fileName: file.name, fileSize: humanSize(file.size), uploadedAt: new Date().toISOString(), note: null, reviewedAt: null, reviewedBy: null })
       .where(eq(s.requestDocuments.id, docId));
     await event(tx, doc.ref, "Document uploaded", "customer", doc.name);
+    await pingAgent(tx, doc.ref, `the customer uploaded ${doc.name}.`);
     await audit(tx, { actor: own.name, role: "Customer", action: "Uploaded document", entity: `${doc.ref} · ${doc.name}` });
   });
   revalidatePath("/portal", "layout");
