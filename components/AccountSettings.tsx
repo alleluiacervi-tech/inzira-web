@@ -8,7 +8,7 @@ import { Alert, Icon } from "./ui";
 import { useDialog } from "./useDialog";
 
 type Props = {
-  account: { name: string; phone: string; whatsapp: boolean; languages: string[]; since: string };
+  account: { name: string; phone: string; email?: string | null; whatsapp: boolean; languages: string[]; since: string };
   profiles: { id: string; name: string; kind: string; relation?: string; idMasked?: string; tinMasked?: string | null }[];
   data: { files: number; requests: number; open: number; retentionDays: number };
 };
@@ -50,6 +50,7 @@ export default function AccountSettings({ account, profiles, data }: Props) {
         <h2 id="acct-details" className="acct-h">{t("account.details")}</h2>
         <form action={save} className="stack g20">
           <div className="field"><label htmlFor="acct-name">{t("account.name")}</label><input id="acct-name" name="name" className="in" defaultValue={account.name} autoComplete="name" required minLength={2} maxLength={120} /></div>
+          <div className="field"><label htmlFor="acct-email">{t("account.email")}</label><input id="acct-email" name="email" className="in" type="email" defaultValue={account.email ?? ""} autoComplete="email" required /><span className="hint">{t("account.emailHint")}</span></div>
           <div className="field">
             <span className="label">{t("account.phone")}</span>
             <span className="acct-static fig">{account.phone}</span>

@@ -68,6 +68,10 @@ async function addLaterObjects(database: Db) {
       "ms" integer NOT NULL
     )`,
     `ALTER TABLE "accounts" ADD COLUMN IF NOT EXISTS "deleted_at" timestamp with time zone`,
+    `ALTER TABLE "accounts" ADD COLUMN IF NOT EXISTS "email" text`,
+    `ALTER TABLE "staff" ADD COLUMN IF NOT EXISTS "email" text`,
+    `CREATE UNIQUE INDEX IF NOT EXISTS "accounts_email_idx" ON "accounts" USING btree ("email")`,
+    `CREATE UNIQUE INDEX IF NOT EXISTS "staff_email_idx" ON "staff" USING btree ("email")`,
   ];
   for (const statement of statements) await database.execute(sql.raw(statement));
 }

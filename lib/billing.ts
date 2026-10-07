@@ -40,7 +40,7 @@ export async function reconcilePayment(txId: number): Promise<PayStatus | null> 
     await notify(tx, t.ref, {
       icon: "check",
       title: `Payment received — ${rwf(t.official + t.ours)}${t.official ? ` (${rwf(t.official)} official + ${rwf(t.ours)} ours)` : ""}`,
-      sms: `we received ${rwf(t.official + t.ours)}. Receipt ${t.receipt}.`,
+      detail: `we received ${rwf(t.official + t.ours)}. Receipt ${t.receipt}.`,
     });
     await audit(tx, { actor: "System", role: "—", action: "Payment reconciled", entity: `${t.receipt} · ${rwf(t.official)} official + ${rwf(t.ours)} ours · ${t.method}`, fee: true });
   });

@@ -7,7 +7,7 @@ import { CodeEntry, isMobile } from "./PhoneCode";
 import { useI18n } from "./I18n";
 import { Icon } from "./ui";
 
-/** Sign-in is a phone number and a code sent by SMS: no password to remember.
+/** Sign-in is a phone number and a code sent by email: no password to remember.
  *  Staff and customers use the same page; staff land in their workspace. */
 export default function SignIn({ next, demo = false }: { next?: string; demo?: boolean }) {
   const { locale, t } = useI18n();
@@ -19,11 +19,12 @@ export default function SignIn({ next, demo = false }: { next?: string; demo?: b
   const [phone, setPhone] = useState("");
   const [sent, setSent] = useState(false);
   const [demoCode, setDemoCode] = useState<string>();
+  const [sentTo, setSentTo] = useState<string>();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
   if (sent) {
-    return <CodeEntry phone={phone} demoCode={demoCode} cta={t("signIn.cta")} onBack={() => setSent(false)}
+    return <CodeEntry phone={phone} sentTo={sentTo} demoCode={demoCode} cta={t("signIn.cta")} onBack={() => setSent(false)}
       onResend={async () => { const r = await requestCode(phone); return r.ok ? { demoCode: r.demoCode } : { error: r.error }; }}
       onSubmit={async (code) => { const r = await signIn(phone, code, next); return r && !r.ok ? r.error : null; }} />;
   }
@@ -36,6 +37,7 @@ export default function SignIn({ next, demo = false }: { next?: string; demo?: b
       setBusy(false);
       if (!r.ok) { setError(trError(locale, r.error)); return; }
       setDemoCode(r.demoCode);
+      setSentTo(r.sentTo);
       setSent(true);
     }}>
       <div className="stack g8"><h1 className="h-flow">{t("signIn.title")}</h1><p className="mut" style={{ fontSize: 15 }}>{demo ? t("signIn.demo") : t("signIn.live")}</p></div>

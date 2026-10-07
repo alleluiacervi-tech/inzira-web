@@ -12,6 +12,7 @@ import { reconcilePayment } from "@/lib/billing";
 import { methodFor, providerFor } from "@/lib/payments";
 import { SITE } from "@/lib/site";
 import { amountDue } from "@/lib/status";
+import { normaliseEmail } from "@/lib/email";
 import { storedPurpose } from "@/lib/i18n/present";
 import { getService } from "@/lib/repo";
 import { TOO_MANY, allowIp } from "@/lib/ratelimit";
@@ -27,13 +28,15 @@ function checkFile(f: File): string | null {
   return null;
 }
 
-/** Sends a new request: checks the SMS code, creates the account if needed, stores the files,
+/** Sends a new request: checks the emailed code, creates the account if needed, stores the files,
  *  opens the request and signs the customer in. */
 export async function submitRequest(fd: FormData): Promise<Result<{ ref: string }>> {
   const phone = normalisePhone(text(fd, "phone"));
+  const email = normaliseEmail(text(fd, "email"));
   const name = text(fd, "name"), subject = text(fd, "subject"), forWho = text(fd, "forWho") || "me";
   const nid = text(fd, "nid").replace(/\D/g, "");
   if (!phone) return fail("Enter a Rwandan mobile number.");
+  if (!email) return fail("Enter a valid email address, e.g. you@example.com.");
   if (!name) return fail("Enter your full name.");
   const slug = text(fd, "slug") || "other-online-service";
   const service = await getService(slug);
@@ -43,6 +46,8 @@ export async function submitRequest(fd: FormData): Promise<Result<{ ref: string 
   for (const f of [...files, ...extra]) { const bad = f && checkFile(f); if (bad) return fail(bad); }
 
   if (!(await allowIp("request"))) return fail(TOO_MANY);
+  const [mailbox] = await (await db()).select({ id: s.accounts.id, phone: s.accounts.phone }).from(s.accounts).where(eq(s.accounts.email, email));
+  if (mailbox && mailbox.phone !== phone) return fail("That email is already used on another account.");
   const checked = await consumeCode(phone, text(fd, "code"));
   if (!checked.ok) return checked;
 
@@ -51,7 +56,9 @@ export async function submitRequest(fd: FormData): Promise<Result<{ ref: string 
   const result = await d.transaction(async (tx) => {
     let [account] = await tx.select().from(s.accounts).where(eq(s.accounts.phone, phone));
     if (!account) {
-      [account] = await tx.insert(s.accounts).values({ id: id("acc"), name, first: name.split(" ")[0], phone, languages: [] }).returning();
+      [account] = await tx.insert(s.accounts).values({ id: id("acc"), name, first: name.split(" ")[0], phone, email, languages: [] }).returning();
+    } else if (!account.email) {
+      await tx.update(s.accounts).set({ email }).where(eq(s.accounts.id, account.id));
     }
     const profiles = await tx.select().from(s.profiles).where(eq(s.profiles.accountId, account.id));
     let profile =
@@ -236,11 +243,15 @@ export async function updateAccount(fd: FormData): Promise<Result> {
   const accountId = await requireCustomerId("/portal/account");
   const name = text(fd, "name").replace(/\s+/g, " ").slice(0, 120);
   if (name.length < 2) return fail("Enter your full name.");
+  const email = normaliseEmail(text(fd, "email"));
+  if (!email) return fail("Enter a valid email address, e.g. you@example.com.");
   const languages = LANGUAGES.filter((l) => fd.getAll("languages").includes(l));
   const whatsapp = fd.get("whatsapp") === "on";
   const d = await db();
+  const [taken] = await d.select({ id: s.accounts.id }).from(s.accounts).where(eq(s.accounts.email, email));
+  if (taken && taken.id !== accountId) return fail("That email is already used on another account.");
   await d.transaction(async (tx) => {
-    await tx.update(s.accounts).set({ name, first: name.split(" ")[0], whatsapp, languages }).where(eq(s.accounts.id, accountId));
+    await tx.update(s.accounts).set({ name, first: name.split(" ")[0], email, whatsapp, languages }).where(eq(s.accounts.id, accountId));
     // The account holder's own profile carries the same name.
     await tx.update(s.profiles).set({ name }).where(and(eq(s.profiles.accountId, accountId), eq(s.profiles.relation, "self")));
     await audit(tx, { actor: name, role: "Customer", action: "Updated account details", entity: accountId });

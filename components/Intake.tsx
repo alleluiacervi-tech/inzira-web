@@ -12,7 +12,7 @@ const SOURCES = ["Walk-in", "Phone call", "WhatsApp", "Referred by a customer"];
 /** Opens a case for someone who came to the office or called, so they get the same tracking as
  *  a customer who started online. Prototype: nothing is saved. */
 export default function Intake({ services }: { services: Service[] }) {
-  const [f, setF] = useState({ slug: "", name: "", phone: "", kind: "person", source: SOURCES[0], notes: "" });
+  const [f, setF] = useState({ slug: "", name: "", phone: "", email: "", kind: "person", source: SOURCES[0], notes: "" });
   const [touched, setTouched] = useState(false);
   const [done, setDone] = useState("");
   const [busy, setBusy] = useState(false);
@@ -27,8 +27,8 @@ export default function Intake({ services }: { services: Service[] }) {
       <div className="card stack g14" style={{ maxWidth: 560, padding: 28 }} role="status">
         <span className="ok-dot"><Icon name="check" size={22} /></span>
         <h2 className="d" style={{ fontSize: 22 }}>Case {done} opened</h2>
-        <p style={{ fontSize: 15, lineHeight: 1.55 }}>{f.name} will get an SMS on +250 {prettyMobile(f.phone)} with the reference. They can sign in with that number to follow it. The case is assigned to you.</p>
-        <div className="row g8 wrapx"><Link className="btn btn-d" href={`/agent/cases/${done}`}>Open the case</Link><button type="button" className="btn btn-s" onClick={() => { setDone(""); setTouched(false); setF({ ...f, name: "", phone: "", notes: "" }); }}>Open another</button></div>
+        <p style={{ fontSize: 15, lineHeight: 1.55 }}>{f.email.trim() ? `${f.name} will get an email at ${f.email.trim()} with the reference.` : `${f.name} can sign in with +250 ${prettyMobile(f.phone)}. Add an email next time so the reference is emailed.`} The case is assigned to you.</p>
+        <div className="row g8 wrapx"><Link className="btn btn-d" href={`/agent/cases/${done}`}>Open the case</Link><button type="button" className="btn btn-s" onClick={() => { setDone(""); setTouched(false); setF({ ...f, name: "", phone: "", email: "", notes: "" }); }}>Open another</button></div>
       </div>
     );
   }
@@ -52,6 +52,7 @@ export default function Intake({ services }: { services: Service[] }) {
         </div>
         <div className="grid cols-2" style={{ gap: 12 }}>
           <div className="field"><label htmlFor="in-phone">Phone</label><div className="row g8"><span className="in in-prefix" aria-hidden="true">+250</span><input id="in-phone" className={`in ${touched && errors.phone ? "in-err" : ""}`} inputMode="tel" placeholder="788 123 456" value={f.phone} onChange={(e) => set("phone", e.target.value)} aria-describedby="in-phone-err" /></div>{touched && errors.phone && <span className="err-text" id="in-phone-err"><Icon name="alert" size={15} /> {errors.phone}</span>}</div>
+          <div className="field"><label htmlFor="in-email">Email <span className="mut" style={{ fontWeight: 400 }}>(for the reference)</span></label><input id="in-email" className="in" type="email" placeholder="name@example.com" value={f.email} onChange={(e) => set("email", e.target.value)} /></div>
           <div className="field"><label htmlFor="in-src">How did they reach us?</label><select id="in-src" className="in" value={f.source} onChange={(e) => set("source", e.target.value)}>{SOURCES.map((x) => <option key={x}>{x}</option>)}</select></div>
         </div>
         {error && <span className="err-text" role="alert"><Icon name="alert" size={15} /> {error}</span>}

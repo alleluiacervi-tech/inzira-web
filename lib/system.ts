@@ -3,6 +3,7 @@
 import { and, desc, eq, isNull, sql } from "drizzle-orm";
 import { db, iso, schema as s } from "./db";
 import { RETENTION_DAYS } from "./privacy";
+import { mailConfigured } from "./mail";
 import { isSet, SITE } from "./site";
 
 export type CheckState = "ready" | "test" | "missing";
@@ -24,16 +25,14 @@ async function database(): Promise<Check> {
   return { key: "db", name, state: "test", detail: "Built-in test database. Data is lost when the server restarts on Vercel.", fix: "Set DATABASE_URL to a persistent Postgres database (Neon, Supabase or Railway). The server applies the schema when it starts." };
 }
 
-function sms(): Check {
-  const name = "SMS (sign-in codes and updates)";
-  const p = process.env.SMS_PROVIDER;
-  if (p === "africastalking") {
-    if (!has("AT_USERNAME", "AT_API_KEY")) return { key: "sms", name, state: "missing", detail: "Africa’s Talking is chosen but its keys are not set.", fix: "Set AT_USERNAME and AT_API_KEY (and AT_SENDER_ID once approved)." };
-    if (process.env.AT_USERNAME === "sandbox") return { key: "sms", name, state: "test", detail: "Africa’s Talking sandbox: messages go to the simulator, not to phones.", fix: "Use your live AT_USERNAME and AT_API_KEY." };
-    return { key: "sms", name, state: "ready", detail: `Africa’s Talking${process.env.AT_SENDER_ID ? `, sender “${process.env.AT_SENDER_ID}”` : ", default sender"}. Send yourself a test below.` };
+function email(): Check {
+  const name = "Email (sign-in codes and updates)";
+  if (mailConfigured()) {
+    const from = process.env.MAIL_FROM ?? "";
+    return { key: "email", name, state: "ready", detail: `SMTP ${process.env.SMTP_HOST}, from ${from}. Send yourself a test below.` };
   }
-  if (p === "console" || (!p && (!production() || demo()))) return { key: "sms", name, state: "test", detail: "Messages are printed to the server log; codes appear on screen. Nobody receives an SMS.", fix: "Set SMS_PROVIDER=africastalking with AT_USERNAME and AT_API_KEY." };
-  return { key: "sms", name, state: "missing", detail: "No SMS provider. Nobody can sign in.", fix: "Set SMS_PROVIDER=africastalking with AT_USERNAME and AT_API_KEY." };
+  if (!production() || demo()) return { key: "email", name, state: "test", detail: "Messages are printed to the server log; codes appear on screen. Nobody receives an email.", fix: "Set SMTP_HOST, SMTP_USER, SMTP_PASS and MAIL_FROM." };
+  return { key: "email", name, state: "missing", detail: "No mail server. Nobody can receive a sign-in code.", fix: "Set SMTP_HOST, SMTP_USER, SMTP_PASS and MAIL_FROM." };
 }
 
 function payments(): Check[] {
@@ -67,7 +66,7 @@ function site(): Check[] {
   const out: Check[] = [
     process.env.NEXT_PUBLIC_SITE_URL
       ? { key: "url", name: "Website address", state: "ready", detail: process.env.NEXT_PUBLIC_SITE_URL }
-      : { key: "url", name: "Website address", state: "missing", detail: "Not set. SMS links and the sitemap can’t point to the site.", fix: "Set NEXT_PUBLIC_SITE_URL, e.g. https://inzira.rw." },
+      : { key: "url", name: "Website address", state: "missing", detail: "Not set. Email links and the sitemap can’t point to the site.", fix: "Set NEXT_PUBLIC_SITE_URL, e.g. https://inzira.rw." },
     placeholders.length
       ? { key: "company", name: "Company details", state: "missing", detail: `Still placeholders: ${placeholders.map((k) => ({ address: "office address", phone: "phone", companyCode: "company code", tin: "TIN" })[k]).join(", ")}${SITE.whatsapp ? "" : ", WhatsApp number"}.`, fix: "Fill them in lib/site.ts. Customers check these before trusting you." }
       : { key: "company", name: "Company details", state: SITE.whatsapp ? "ready" : "missing", detail: SITE.whatsapp ? "Filled in." : "WhatsApp number not set.", fix: SITE.whatsapp ? undefined : "Set whatsapp in lib/site.ts." },
@@ -106,7 +105,7 @@ export async function systemStatus() {
   const runs = await lastRuns();
   const groups: { title: string; checks: Check[] }[] = [
     { title: "Running the site", checks: [await database(), storage(), job(runs)] },
-    { title: "Talking to customers", checks: [sms(), ...payments()] },
+    { title: "Talking to customers", checks: [email(), ...payments()] },
     { title: "Before launch", checks: [...site(), await catalogue()] },
   ];
   return { groups, runs };

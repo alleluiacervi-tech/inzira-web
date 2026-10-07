@@ -283,7 +283,7 @@ await step("admin", async () => {
   await p.click("Issue refund"); await waitFor(p, "recorded as refunded");
   check("refund: recorded", await p.has("recorded as refunded"));
   await p.go("/admin/roles");
-  await p.click("Invite person"); await sleep(200); await p.set("#pp-name", "New Colleague"); await p.set("#pp-phone", "788 444 555"); await p.click("Send invite"); await waitFor(p, "invited as");
+  await p.click("Invite person"); await sleep(200); await p.set("#pp-name", "New Colleague"); await p.set("#pp-phone", "788 444 555"); await p.set("#pp-email", "new.colleague@example.com"); await p.click("Send invite"); await waitFor(p, "invited as");
   check("people: inviting adds a person", await p.has("New Colleague"));
   await signOut(p); await sleep(500);
   check("sign out: back to sign-in", (await p.ev("location.pathname")) === "/sign-in");
@@ -422,8 +422,8 @@ await step("system", async () => {
   await p.click("Run the daily job now", "button"); await waitFor(p, "Job finished");
   for (let i = 0; i < 40 && !(await p.ev(`[...document.querySelectorAll(".sys-row .c-badge")].some((b) => b.textContent.startsWith("OK"))`)); i++) await sleep(250);
   check("system: the daily job runs and is recorded", await p.has("Job finished") && (await p.ev(`[...document.querySelectorAll(".sys-row .c-badge")].some((b) => b.textContent.startsWith("OK"))`)));
-  await p.click("Send me a test SMS", "button"); await waitFor(p, "Test SMS sent");
-  check("system: a test SMS can be sent", await p.has("Test SMS sent"));
+  await p.click("Send me a test email", "button"); await waitFor(p, "Test email sent");
+  check("system: a test email can be sent", await p.has("Test email sent"));
   await p.close();
 });
 

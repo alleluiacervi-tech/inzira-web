@@ -57,7 +57,7 @@ export type { Permission } from "./permissions";
 
 // ---------------- people ----------------
 /** An account is one login (a phone number). It can hold several profiles. */
-export type Account = { id: string; name: string; first: string; phone: string; whatsapp: boolean; languages: string[]; since: string };
+export type Account = { id: string; name: string; first: string; phone: string; email?: string | null; whatsapp: boolean; languages: string[]; since: string };
 /** Who a request is for: the account holder, a family member, or a business they act for. */
 export type Profile = {
   id: string; accountId: string; kind: "person" | "business" | "organization"; name: string;

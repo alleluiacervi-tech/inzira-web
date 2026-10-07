@@ -12,7 +12,7 @@ export const SITE = {
   tin: "[TIN]",
   hours: "Mon–Fri 8:00–18:00 · Sat 9:00–13:00",
   responseTime: "2 working hours",
-  /** Public address of the site, used in SMS links. */
+  /** Public address of the site, used in email links. */
   url: process.env.NEXT_PUBLIC_SITE_URL ?? "[website]",
 };
 

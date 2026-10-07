@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { displayOfficial, displayOurs, displayTotal } from "@/lib/i18n/present";
 import { trError } from "@/lib/i18n/errors";
 import type { Service } from "@/lib/types";
+import { normaliseEmail } from "@/lib/email";
 import { requestCode } from "@/app/actions/auth";
 import { submitRequest } from "@/app/actions/customer";
 import { useI18n } from "./I18n";
@@ -11,7 +12,7 @@ import { CodeEntry, isMobile, prettyMobile } from "./PhoneCode";
 import { Alert, FeeLines, Icon } from "./ui";
 
 type Key = "about" | "request" | "docs" | "review";
-const EMPTY = { forWho: "me", name: "", subject: "", nid: "", phone: "", purpose: "", notes: "" };
+const EMPTY = { forWho: "me", name: "", subject: "", nid: "", phone: "", email: "", purpose: "", notes: "" };
 
 /** Starts a request. With a service it collects what that service needs; without one (`service` null)
  *  the customer describes their situation and an agent works out which procedure applies. */
@@ -31,6 +32,7 @@ export default function StartForm({ service: s }: { service: Service | null }) {
   // Chosen files, by document name. They are sent with the request after the phone is confirmed.
   const [files, setFiles] = useState<Record<string, File>>({});
   const [demoCode, setDemoCode] = useState<string>();
+  const [sentTo, setSentTo] = useState<string>();
   const [sending, setSending] = useState(false);
   const [sendError, setSendError] = useState("");
   const [ref, setRef] = useState("");
@@ -63,6 +65,7 @@ export default function StartForm({ service: s }: { service: Service | null }) {
     if (f.forWho === "business" && !f.subject.trim()) errors.subject = t("start.errBiz");
     if (needId && nidDigits.length !== 16) errors.nid = t("start.errId", { n: nidDigits.length });
     if (!isMobile(f.phone)) errors.phone = t("authErr.badPhone");
+    if (!normaliseEmail(f.email)) errors.email = t("start.errEmail");
   }
   if (key === "request" && !s && f.notes.trim().length < 10) errors.notes = t("start.errNotes");
   if (key === "review" && !ack) errors.ack = t("start.errAck");
@@ -75,10 +78,11 @@ export default function StartForm({ service: s }: { service: Service | null }) {
     if (step < last) { setStep(step + 1); window.scrollTo({ top: 0 }); return; }
     // Last step: text a code to confirm the number before anything is created.
     setSending(true); setSendError("");
-    const r = await requestCode(f.phone).catch(() => ({ ok: false as const, error: t("authErr.sendFail") }));
+    const r = await requestCode(f.phone, f.email).catch(() => ({ ok: false as const, error: t("authErr.sendFail") }));
     setSending(false);
     if (!r.ok) { setSendError(trError(locale, r.error)); return; }
     setDemoCode(r.demoCode);
+    setSentTo(r.sentTo);
     setPhase("verify");
     window.scrollTo({ top: 0 });
   };
@@ -120,8 +124,8 @@ export default function StartForm({ service: s }: { service: Service | null }) {
       <section className="wrap" style={{ paddingTop: 48, paddingBottom: 96 }}>
         <div className="stack g20" style={{ maxWidth: 460, margin: "0 auto" }}>
           <span className="eb" style={{ fontSize: 11 }}>{t("start.last")}</span>
-          <CodeEntry phone={f.phone} demoCode={demoCode} cta={t("start.confirm")} onBack={() => { setPhase("form"); setStep(0); }}
-            onResend={async () => { const r = await requestCode(f.phone); return r.ok ? { demoCode: r.demoCode } : { error: r.error }; }}
+          <CodeEntry phone={f.phone} sentTo={sentTo} demoCode={demoCode} cta={t("start.confirm")} onBack={() => { setPhase("form"); setStep(0); }}
+            onResend={async () => { const r = await requestCode(f.phone, f.email); return r.ok ? { demoCode: r.demoCode } : { error: r.error }; }}
             onSubmit={send} />
           <p className="hint row g8" style={{ alignItems: "flex-start" }}><Icon name="lock" size={16} /><span>{t("start.numberUse")}</span></p>
         </div>
@@ -184,6 +188,7 @@ export default function StartForm({ service: s }: { service: Service | null }) {
             <div className="field"><label htmlFor="f-phone">{t("start.phone")}</label>
               <div className="row g8"><span className="in in-prefix" aria-hidden="true">+250</span><input id="f-phone" className={`in ${bad("phone")}`} inputMode="tel" value={f.phone} onChange={(e) => set("phone", e.target.value)} placeholder="788 123 456" autoComplete="tel-national" aria-describedby="phone-err phone-hint" /></div>
               <span className="hint" id="phone-hint">{t("start.phoneHint")}</span>{err("phone")}</div>
+            <div className="field"><label htmlFor="f-email">{t("start.email")}</label><input id="f-email" className={`in ${bad("email")}`} type="email" inputMode="email" autoComplete="email" value={f.email} onChange={(e) => set("email", e.target.value)} placeholder="you@example.com" aria-describedby="email-err email-hint" /><span className="hint" id="email-hint">{t("start.emailHint")}</span>{err("email")}</div>
           </div>
         )}
 
@@ -238,6 +243,7 @@ export default function StartForm({ service: s }: { service: Service | null }) {
                 {f.forWho !== "me" && <><dt>{t("start.for")}</dt><dd>{f.subject}</dd></>}
                 {needId && <><dt>{t("start.id")}</dt><dd className="m" style={{ fontSize: 14, fontWeight: 500 }}>{f.nid}</dd></>}
                 <dt>{t("start.phoneRow")}</dt><dd>+250 {prettyMobile(f.phone)}</dd>
+                <dt>{t("start.email")}</dt><dd>{f.email}</dd>
                 {f.purpose && <><dt>{s?.noId ? t("start.attending") : t("start.purposeRow")}</dt><dd>{f.purpose}</dd></>}
                 {f.notes.trim() && <><dt>{s ? t("start.notes") : t("start.situationRow")}</dt><dd style={{ fontWeight: 400 }}>{f.notes}</dd></>}
                 <dt>{t("start.documents")}</dt><dd>{t("start.addedN", { n: Object.keys(files).length })}</dd>

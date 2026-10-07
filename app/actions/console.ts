@@ -6,9 +6,9 @@ import { getStaffUser, normalisePhone } from "@/lib/auth";
 import { rwf, shortName } from "@/lib/format";
 import { audit, db, event, fail, notify, s, type Result } from "@/lib/mutate";
 import { PERMISSIONS, type Permission } from "@/lib/permissions";
+import { normaliseEmail } from "@/lib/email";
 import { searchGlobal } from "@/lib/repo";
 import { amountDue } from "@/lib/status";
-import { sendSms } from "@/lib/sms";
 import type { Closed, PayMethod, SavedView, Stage } from "@/lib/types";
 
 const now = () => new Date().toISOString();
@@ -57,7 +57,7 @@ export async function acceptAndAssignRequest(ref: string, agentId: string, messa
     await notify(tx, ref, {
       icon: "user",
       title: `${agent.name.split(" ")[0]} has taken your request ${ref}`,
-      sms: `${agent.name.split(" ")[0]} is handling your request ${ref}. See progress in your portal.`,
+      detail: `${agent.name.split(" ")[0]} is handling your request ${ref}. See progress in your portal.`,
     });
     await audit(tx, { actor: me.name, role: me.role, action: "Accepted & assigned case", entity: `${ref} → ${agent.name}` });
   });
@@ -86,7 +86,7 @@ export async function declineRequest(ref: string, reason: string): Promise<Resul
     await notify(tx, ref, {
       icon: "alert",
       title: `Request ${ref} was declined`,
-      sms: `your request ${ref} was declined: ${reason.trim()}`,
+      detail: `your request ${ref} was declined: ${reason.trim()}`,
     });
     await audit(tx, { actor: me.name, role: me.role, action: "Declined request", entity: `${ref} · ${reason.trim()}` });
   });
@@ -121,7 +121,7 @@ export async function quoteCustomRequest(ref: string, official: number | null, o
     await notify(tx, ref, {
       icon: "card",
       title: `Quote ready for ${ref}: ${officialText} + our fee ${rwf(ours)}`,
-      sms: `quote ready: ${officialText} + our fee ${rwf(ours)}. Review and approve in your portal.`,
+      detail: `quote ready: ${officialText} + our fee ${rwf(ours)}. Review and approve in your portal.`,
     });
     await audit(tx, { actor: me.name, role: me.role, action: "Sent custom quote", entity: `${ref} · ${officialText} + ${rwf(ours)}`, fee: true });
   });
@@ -164,7 +164,7 @@ export async function bulkMessageRequests(refs: string[], body: string): Promise
   await d.transaction(async (tx) => {
     for (const ref of refs) {
       await tx.insert(s.messages).values({ ref, by: me.id, body: body.trim() });
-      await notify(tx, ref, { icon: "msg", title: `${me.name.split(" ")[0]}: “${body.trim().slice(0, 90)}”` });
+      await notify(tx, ref, { icon: "msg", title: `${me.name.split(" ")[0]}: “${body.trim().slice(0, 90)}”`, detail: body.trim().slice(0, 500) });
       await audit(tx, { actor: me.name, role: me.role, action: "Bulk messaged customer", entity: ref });
     }
   });
@@ -223,7 +223,7 @@ export async function recordManualPayment(input: {
     await notify(tx, ref, {
       icon: "card",
       title: `Payment of ${rwf(total)} received for ${ref}`,
-      sms: `we received your payment of ${rwf(total)} for ${ref}. Official receipt: ${input.receipt.trim()}.`,
+      detail: `we received your payment of ${rwf(total)} for ${ref}. Official receipt: ${input.receipt.trim()}.`,
     });
     await audit(tx, {
       actor: me.name,
@@ -282,6 +282,7 @@ export async function createClient(input: {
   name: string;
   phone: string;
   kind: "person" | "business" | "organization";
+  email?: string;
   district?: string;
   nationalId?: string;
   tin?: string;
@@ -293,9 +294,16 @@ export async function createClient(input: {
   const { me, d } = a;
 
   const phone = normalisePhone(input.phone);
+  const email = input.email?.trim() ? normaliseEmail(input.email) : null;
   const wanted = input.name.trim();
   if (!wanted) return fail("Enter client's full name.");
   if (!phone) return fail("Enter a Rwandan mobile number (e.g. 788 123 456).");
+  if (input.email?.trim() && !email) return fail("Enter a valid email address, or leave it blank.");
+
+  if (email) {
+    const [takenMail] = await d.select({ id: s.accounts.id, phone: s.accounts.phone }).from(s.accounts).where(eq(s.accounts.email, email));
+    if (takenMail && takenMail.phone !== phone) return fail("That email is already used on another account.");
+  }
 
   const nationalId = input.nationalId?.replace(/\D/g, "") || null;
   const tin = input.tin?.replace(/\D/g, "") || null;
@@ -307,8 +315,11 @@ export async function createClient(input: {
         name: wanted,
         first: wanted.split(" ")[0],
         phone,
+        email,
         languages: ["Kinyarwanda"],
       }).returning();
+    } else if (email && !account.email) {
+      await tx.update(s.accounts).set({ email }).where(eq(s.accounts.id, account.id));
     }
 
     const existing = await tx.select().from(s.profiles).where(eq(s.profiles.accountId, account.id));

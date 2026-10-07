@@ -5,7 +5,7 @@ import SignIn from "@/components/SignIn";
 import { getSession } from "@/lib/auth";
 import { getLocale } from "@/lib/i18n/locale";
 import { text } from "@/lib/i18n/messages";
-import { sendsRealSms } from "@/lib/sms";
+import { mailConfigured } from "@/lib/mail";
 
 export async function generateMetadata(): Promise<Metadata> {
   return { title: text(await getLocale(), "meta.signInTitle") };
@@ -18,7 +18,7 @@ export default async function SignInPage({ searchParams }: { searchParams: Promi
     <>
       <PublicNav />
       <main className="wrap" style={{ paddingTop: 56, paddingBottom: 96 }}>
-        <div style={{ maxWidth: 460, margin: "0 auto" }}><SignIn next={next?.startsWith("/") ? next : undefined} demo={!sendsRealSms()} /></div>
+        <div style={{ maxWidth: 460, margin: "0 auto" }}><SignIn next={next?.startsWith("/") ? next : undefined} demo={!mailConfigured()} /></div>
       </main>
     </>
   );

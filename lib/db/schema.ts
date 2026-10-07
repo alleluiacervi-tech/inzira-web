@@ -59,6 +59,8 @@ export const accounts = pgTable("accounts", {
   first: text("first").notNull(),
   /** Nine digits after +250, e.g. 788123456. The login. */
   phone: text("phone").notNull().unique(),
+  /** Where sign-in codes and request updates are sent. SMS is not used. */
+  email: text("email").unique(),
   whatsapp: boolean("whatsapp").notNull().default(true),
   languages: jsonb("languages").$type<string[]>().notNull().default(sql`'[]'::jsonb`),
   since: ts("since").notNull().defaultNow(),
@@ -84,6 +86,7 @@ export const staff = pgTable("staff", {
   id: text("id").primaryKey(),
   name: text("name").notNull(),
   phone: text("phone").unique(),
+  email: text("email").unique(),
   role: text("role").$type<StaffRole>().notNull(),
   team: text("team").notNull(),
   title: text("title").notNull(),

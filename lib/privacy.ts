@@ -102,7 +102,7 @@ export async function deleteAccount(accountId: string): Promise<{ ok: true } | {
     await tx.delete(s.reminders).where(eq(s.reminders.accountId, accountId));
     await tx.delete(s.sessions).where(and(eq(s.sessions.kind, "customer"), eq(s.sessions.subjectId, accountId)));
     // The phone number is freed so the person can start again later; the row stays for the accounts.
-    await tx.update(s.accounts).set({ name: "Deleted customer", first: "Deleted", phone: `deleted:${accountId}`, whatsapp: false, languages: [], deletedAt: now }).where(eq(s.accounts.id, accountId));
+    await tx.update(s.accounts).set({ name: "Deleted customer", first: "Deleted", phone: `deleted:${accountId}`, email: null, whatsapp: false, languages: [], deletedAt: now }).where(eq(s.accounts.id, accountId));
   });
   for (const f of delivered) await deleteFile(f.key).catch((e) => console.error("[privacy] could not delete", f.key, e));
   return { ok: true };

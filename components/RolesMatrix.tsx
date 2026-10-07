@@ -73,6 +73,7 @@ export function People({ staff, roles, meId }: { staff: (Staff & { phone: string
   const [adding, setAdding] = useState(false);
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
+  const [email, setEmail] = useState("");
   const [role, setRole] = useState<StaffRole>("Agent");
   const [note, setNote] = useState("");
   const [error, setError] = useState("");
@@ -92,11 +93,12 @@ export function People({ staff, roles, meId }: { staff: (Staff & { phone: string
       {adding && (
         <form className="row g10 wrapx" style={{ padding: "14px 20px", borderBottom: "1px solid var(--line)", alignItems: "flex-end" }} onSubmit={async (e) => {
           e.preventDefault();
-          if (!name.trim() || !isMobile(phone)) { setError("Enter their full name and Rwandan mobile number."); return; }
-          if (await run(() => inviteStaff(name, phone, role), `${name.trim()} invited as ${role}. They sign in with their number.`)) { setName(""); setPhone(""); setAdding(false); }
+          if (!name.trim() || !isMobile(phone) || !email.includes("@")) { setError("Enter their full name, Rwandan mobile number and email."); return; }
+          if (await run(() => inviteStaff(name, phone, role, email), `${name.trim()} invited as ${role}. The invite was emailed to them.`)) { setName(""); setPhone(""); setEmail(""); setAdding(false); }
         }}>
           <div className="field grow" style={{ minWidth: 180 }}><label htmlFor="pp-name">Full name</label><input id="pp-name" className="in" style={{ height: 40 }} value={name} onChange={(e) => setName(e.target.value)} /></div>
           <div className="field" style={{ minWidth: 170 }}><label htmlFor="pp-phone">Mobile number</label><input id="pp-phone" className="in" style={{ height: 40 }} inputMode="tel" placeholder="788 123 456" value={phone} onChange={(e) => setPhone(e.target.value)} /></div>
+          <div className="field" style={{ minWidth: 200 }}><label htmlFor="pp-email">Email</label><input id="pp-email" className="in" style={{ height: 40 }} type="email" placeholder="name@example.com" value={email} onChange={(e) => setEmail(e.target.value)} /></div>
           <div className="field"><label htmlFor="pp-role">Role</label><select id="pp-role" className="in" style={{ height: 40, width: 170 }} value={role} onChange={(e) => setRole(e.target.value as StaffRole)}>{roles.filter((r) => r.name !== "Owner").map((r) => <option key={r.name}>{r.name}</option>)}</select></div>
           <button className="btn btn-d btn-sm" type="submit" style={{ height: 40 }} disabled={busy}>Send invite</button>
         </form>

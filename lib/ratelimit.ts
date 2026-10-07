@@ -2,7 +2,7 @@
 import { sql } from "drizzle-orm";
 import { headers } from "next/headers";
 import { db, schema as s } from "./db";
-import { isDemo } from "./sms";
+import { isDemo } from "./runtime";
 
 /** The caller's IP address as reported by the host's proxy. */
 export async function clientIp() {

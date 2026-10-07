@@ -9,10 +9,10 @@ export const mobile = (v: string) => v.replace(/\D/g, "").replace(/^250/, "").re
 export const isMobile = (v: string) => /^7\d{8}$/.test(mobile(v));
 export const prettyMobile = (v: string) => mobile(v).replace(/^(\d{3})(\d{3})(\d{0,3}).*$/, "$1 $2 $3").trim();
 
-/** Step two of signing in or confirming a request: type the code we sent by SMS.
+/** Step two of signing in or confirming a request: type the code we emailed.
  *  `onSubmit` returns an error message, or null when it worked (it may also navigate away). */
-export function CodeEntry({ phone, demoCode, cta = "Confirm", onSubmit, onResend, onBack }: {
-  phone: string; demoCode?: string; cta?: string;
+export function CodeEntry({ phone, sentTo, demoCode, cta = "Confirm", onSubmit, onResend, onBack }: {
+  phone: string; sentTo?: string; demoCode?: string; cta?: string;
   onSubmit: (code: string) => Promise<string | null>;
   onResend: () => Promise<{ demoCode?: string; error?: string }>;
   onBack: () => void;
@@ -40,7 +40,7 @@ export function CodeEntry({ phone, demoCode, cta = "Confirm", onSubmit, onResend
     }}>
       <div className="stack g8">
         <h1 className="d" style={{ fontSize: 30, lineHeight: 1.15 }}>{t("code.title")}</h1>
-        <p className="mut" style={{ fontSize: 15 }}>{t("code.sent")} <strong style={{ color: "var(--ink)" }}>+250 {prettyMobile(phone)}</strong>. <button type="button" className="linkish" onClick={onBack}>{t("code.change")}</button></p>
+        <p className="mut" style={{ fontSize: 15 }}>{t("code.sent")} <strong style={{ color: "var(--ink)" }}>{sentTo ?? `+250 ${prettyMobile(phone)}`}</strong>. <button type="button" className="linkish" onClick={onBack}>{t("code.change")}</button></p>
       </div>
       <div className="field">
         <label htmlFor="otp">{t("code.label")}</label>

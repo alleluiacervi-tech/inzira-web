@@ -1,12 +1,12 @@
 // Fills an empty database with the catalogue and the sample customers, staff and requests from
 // lib/mock. Used automatically for the development database, or with `npm run db:seed`.
-import { inArray } from "drizzle-orm";
+import { and, eq, inArray, isNull } from "drizzle-orm";
 import { CATEGORIES, SERVICES } from "../mock/catalogue";
 import { ACCOUNTS, PROFILES, STAFF } from "../mock/people";
 import { AUDIT, NOTIFICATIONS, REQUESTS } from "../mock/requests";
 import { REMINDERS } from "../mock/admin";
 import { DEFAULT_MATRIX, ROLES, type Permission } from "../permissions";
-import { sendsRealSms } from "../sms";
+import { isDemo } from "../runtime";
 import { putFile } from "../storage";
 import type { Db } from "./index";
 import * as s from "./schema";
@@ -17,6 +17,30 @@ const digits = (p: string) => p.replace(/\D/g, "").slice(-9);
 export const STAFF_PHONES: Record<string, string> = {
   "s-eric": "780000001", "s-grace": "780000002", "s-patrick": "780000003", "s-olivier": "780000004",
   "s-claudine": "780000005", "s-jp": "780000006", "s-solange": "780000007", "s-diane": "780000008",
+};
+
+/** Mailboxes for the sample people. example.com never delivers, which is what a demo wants. */
+export const ACCOUNT_EMAILS: Record<string, string> = {
+  "acc-aline": "aline.uwase@example.com",
+  "acc-jc": "jeanclaude.habimana@example.com",
+  "acc-kff": "samuel.rukundo@example.com",
+  "acc-hope": "josiane.uwera@example.com",
+  "acc-chantal": "chantal.mukeshimana@example.com",
+  "acc-nyamirambo": "eugene.bizimana@example.com",
+  "acc-musanze": "innocent.ndayisaba@example.com",
+  "acc-emmanuel": "emmanuel.nsengimana@example.com",
+  "acc-inema": "alice.mutesi@example.com",
+  "acc-ubumwe": "clarisse.mukamurenzi@example.com",
+};
+export const STAFF_EMAILS: Record<string, string> = {
+  "s-eric": "eric.niyonzima@example.com",
+  "s-grace": "grace.ingabire@example.com",
+  "s-patrick": "patrick.nshimiyimana@example.com",
+  "s-olivier": "olivier.mugisha@example.com",
+  "s-claudine": "claudine.uwimana@example.com",
+  "s-jp": "jeanpaul.hakizimana@example.com",
+  "s-solange": "solange.ishimwe@example.com",
+  "s-diane": "diane.mukamana@example.com",
 };
 
 type Tx = Parameters<Parameters<Db["transaction"]>[0]>[0];
@@ -53,10 +77,10 @@ async function catalogue(tx: Tx) {
 }
 
 /** Production first run: the catalogue plus one owner who can sign in and set everything else up. */
-export async function setupProduction(db: Db, owner: { name: string; phone: string }) {
+export async function setupProduction(db: Db, owner: { name: string; phone: string; email: string }) {
   await db.transaction(async (tx) => {
     await catalogue(tx);
-    await tx.insert(s.staff).values({ id: "s-owner", name: owner.name, phone: digits(owner.phone), role: "Owner", team: "Management", title: "Owner", active: true });
+    await tx.insert(s.staff).values({ id: "s-owner", name: owner.name, phone: digits(owner.phone), email: owner.email, role: "Owner", team: "Management", title: "Owner", active: true });
   });
 }
 
@@ -66,9 +90,9 @@ export async function seed(db: Db) {
   await db.transaction(async (tx) => {
     files.length = 0;
     await catalogue(tx);
-    await tx.insert(s.accounts).values(ACCOUNTS.map((a) => ({ ...a, phone: digits(a.phone) })));
+    await tx.insert(s.accounts).values(ACCOUNTS.map((a) => ({ ...a, phone: digits(a.phone), email: ACCOUNT_EMAILS[a.id] ?? null })));
     await tx.insert(s.profiles).values(PROFILES);
-    await tx.insert(s.staff).values(STAFF.map((p) => ({ ...p, phone: STAFF_PHONES[p.id] ?? null })));
+    await tx.insert(s.staff).values(STAFF.map((p) => ({ ...p, phone: STAFF_PHONES[p.id] ?? null, email: STAFF_EMAILS[p.id] ?? null })));
 
     for (const r of REQUESTS) {
       const b = r.billing;
@@ -152,10 +176,10 @@ export async function seed(db: Db) {
   });
 }
 
-/** Makes the documented sample numbers able to sign in while SMS is not connected.
- *  Skipped once Africa's Talking is the provider, and it never overwrites an existing number. */
+/** Makes the documented sample numbers able to sign in, and fills in their demo mailboxes.
+ *  Skipped on a live site. It never overwrites a number or an email that is already set. */
 export async function ensureDemoSignIns(database: Db) {
-  if (sendsRealSms()) return;
+  if (!isDemo()) return;
   const accountPhones = ACCOUNTS.map((a) => digits(a.phone));
   const staffPhones = Object.values(STAFF_PHONES);
   const [haveAccounts, haveStaff, perm] = await Promise.all([
@@ -165,16 +189,22 @@ export async function ensureDemoSignIns(database: Db) {
   ]);
   const takenAccounts = new Set(haveAccounts.map((a) => a.phone));
   const takenStaff = new Set(haveStaff.map((p) => p.phone));
-  const accounts = ACCOUNTS.filter((a) => !takenAccounts.has(digits(a.phone))).map((a) => ({ ...a, phone: digits(a.phone) }));
+  const accounts = ACCOUNTS.filter((a) => !takenAccounts.has(digits(a.phone))).map((a) => ({ ...a, phone: digits(a.phone), email: ACCOUNT_EMAILS[a.id] ?? null }));
   if (accounts.length) await database.insert(s.accounts).values(accounts).onConflictDoNothing();
   const present = new Set((await database.select({ id: s.accounts.id }).from(s.accounts).where(inArray(s.accounts.id, ACCOUNTS.map((a) => a.id)))).map((a) => a.id));
   const profiles = PROFILES.filter((p) => present.has(p.accountId));
   if (profiles.length) await database.insert(s.profiles).values(profiles).onConflictDoNothing();
-  const staff = STAFF.filter((p) => STAFF_PHONES[p.id] && !takenStaff.has(STAFF_PHONES[p.id])).map((p) => ({ ...p, phone: STAFF_PHONES[p.id] }));
+  const staff = STAFF.filter((p) => STAFF_PHONES[p.id] && !takenStaff.has(STAFF_PHONES[p.id])).map((p) => ({ ...p, phone: STAFF_PHONES[p.id], email: STAFF_EMAILS[p.id] ?? null }));
   if (staff.length) await database.insert(s.staff).values(staff).onConflictDoNothing();
   if (!perm.length) {
     await database.insert(s.rolePermissions).values(
       (Object.keys(DEFAULT_MATRIX) as Permission[]).flatMap((permission) => ROLES.map((r, i) => ({ role: r.name, permission, allowed: DEFAULT_MATRIX[permission][i] === "1" }))),
     ).onConflictDoNothing();
+  }
+  for (const [id, email] of Object.entries(ACCOUNT_EMAILS)) {
+    await database.update(s.accounts).set({ email }).where(and(eq(s.accounts.id, id), isNull(s.accounts.email)));
+  }
+  for (const [id, email] of Object.entries(STAFF_EMAILS)) {
+    await database.update(s.staff).set({ email }).where(and(eq(s.staff.id, id), isNull(s.staff.email)));
   }
 }

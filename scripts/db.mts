@@ -1,7 +1,7 @@
 // Database tasks.
 //   npm run db:migrate   apply migrations in ./drizzle to DATABASE_URL (or the local PGlite database)
 //   npm run db:setup     production first run: fill an EMPTY database with the catalogue and one
-//                        owner (OWNER_NAME and OWNER_PHONE must be set). No sample data.
+//                        owner (OWNER_NAME, OWNER_PHONE and OWNER_EMAIL must be set). No sample data.
 //   npm run db:seed      development: fill an EMPTY database with the catalogue and sample data
 //   npm run db:reset     local PGlite only: delete .data/pglite so it is rebuilt on next start
 import { rmSync } from "node:fs";
@@ -29,13 +29,13 @@ if (cmd === "migrate") {
   }
   console.log("Migrations applied.");
 } else if (cmd === "setup") {
-  const name = process.env.OWNER_NAME, phone = process.env.OWNER_PHONE;
-  if (!name || !phone) { console.error("Set OWNER_NAME and OWNER_PHONE (the owner signs in with this number)."); process.exit(1); }
+  const name = process.env.OWNER_NAME, phone = process.env.OWNER_PHONE, email = process.env.OWNER_EMAIL?.trim().toLowerCase();
+  if (!name || !phone || !email || !email.includes("@")) { console.error("Set OWNER_NAME, OWNER_PHONE and OWNER_EMAIL (the owner signs in with the number; codes go to the email)."); process.exit(1); }
   const d = await db();
   const existing = await d.select({ id: schema.categories.id }).from(schema.categories).limit(1);
   if (existing.length) { console.log("The database already has data; nothing changed."); process.exit(0); }
-  await setupProduction(d, { name, phone });
-  console.log(`Set up. ${name} can now sign in with ${phone} and invite the team.`);
+  await setupProduction(d, { name, phone, email });
+  console.log(`Set up. ${name} can now sign in with ${phone}. Codes go to ${email}.`);
 } else if (cmd === "seed") {
   const d = await db();
   const existing = await d.select({ id: schema.categories.id }).from(schema.categories).limit(1);

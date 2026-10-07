@@ -4,7 +4,7 @@
 //   TEST_PHONE=788123456 npm run check:providers
 //
 // - Database: answers, and every migration in ./drizzle is applied.
-// - SMS: sends one message to TEST_PHONE (SMS_PROVIDER=africastalking).
+// - Email: sends one message to TEST_EMAIL when SMTP_HOST and MAIL_FROM are set.
 // - Mobile money: with PAYMENT_PROVIDER=live, sends a prompt of CHECK_AMOUNT (default 100) to
 //   TEST_PHONE for MTN and, if set, TEST_AIRTEL_PHONE for Airtel, then waits up to 2 minutes for the
 //   result. In the MTN sandbox no phone rings and the prompt succeeds on its own; on a live account
@@ -44,17 +44,23 @@ try {
   record("Database", "fail", errorText(e));
 }
 
-// ---------------- SMS ----------------
-const phone = nine(process.env.TEST_PHONE);
-if (process.env.SMS_PROVIDER !== "africastalking") record("SMS", "skip", "SMS_PROVIDER is not africastalking.");
-else if (!/^7\d{8}$/.test(phone)) record("SMS", "skip", "Set TEST_PHONE to a Rwandan mobile number that should receive the test.");
+// ---------------- email ----------------
+const testEmail = process.env.TEST_EMAIL?.trim() ?? "";
+if (!process.env.SMTP_HOST || !process.env.MAIL_FROM) record("Email", "skip", "Set SMTP_HOST and MAIL_FROM.");
+else if (!testEmail.includes("@")) record("Email", "skip", "Set TEST_EMAIL to the address that should receive the test.");
 else {
   try {
-    const { sendSms } = await import("../lib/sms.ts");
-    await sendSms(phone, "Inzira provider check: SMS works.");
-    record("SMS", "pass", `Accepted by Africa’s Talking for +250${phone}. Check the phone${process.env.AT_USERNAME === "sandbox" ? " (sandbox: check the simulator instead)" : ""}.`);
+    const { sendMail } = await import("../lib/mail.ts");
+    await sendMail({
+      to: testEmail,
+      subject: "Inzira provider check",
+      preheader: "SMTP accepted this message.",
+      title: "Email is working",
+      paragraphs: ["This message was sent by npm run check:providers through the same mailer the site uses."],
+    });
+    record("Email", "pass", `Accepted by SMTP for ${testEmail}. Check the inbox.`);
   } catch (e) {
-    record("SMS", "fail", errorText(e));
+    record("Email", "fail", errorText(e));
   }
 }
 
@@ -78,6 +84,7 @@ async function checkPayment(name: string, to: string) {
     record(name, "fail", errorText(e));
   }
 }
+const phone = nine(process.env.TEST_PHONE);
 if (process.env.PAYMENT_PROVIDER !== "live") record("Mobile money", "skip", "PAYMENT_PROVIDER is not live.");
 else {
   if (!/^7\d{8}$/.test(phone)) record("MTN MoMo", "skip", "Set TEST_PHONE to an MTN number.");

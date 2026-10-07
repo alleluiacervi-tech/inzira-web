@@ -18,7 +18,7 @@ No database to install: without `DATABASE_URL` the app uses **PGlite**, a real P
 WebAssembly, stored in `.data/pglite`. The first page load creates the tables and fills them with
 the catalogue and sample data. `npm run db:reset` deletes it so it is rebuilt.
 
-In development no SMS is sent and payments are simulated: the sign-in code is printed in the
+In development no email is sent and payments are simulated: the sign-in code is printed in the
 terminal **and shown on screen**, and a mobile money prompt is "approved" after two seconds (a
 number ending in `0000` is "declined").
 
@@ -56,18 +56,18 @@ Copy `.env.example` to `.env.local`. None are needed for development.
 | --- | --- |
 | `DATABASE_URL` | Persistent Postgres connection string. Required in production; PGlite is for local development and `INZIRA_DEMO=1` builds only. |
 | `DB_AUTO_MIGRATE=0` | Skip applying migrations on startup. By default the server applies `drizzle/` when it starts. |
-| `INZIRA_DEMO=1` | Demo/staging builds: allows the console SMS, the payment simulator, PGlite and local file storage in a production build. Never on the live site. |
-| `SMS_PROVIDER` | `africastalking` to send real SMS (`AT_USERNAME`, `AT_API_KEY`, optional `AT_SENDER_ID`). |
+| `INZIRA_DEMO=1` | Demo/staging builds: prints email to the log, allows the payment simulator, PGlite and local file storage in a production build. Never on the live site. |
+| `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `MAIL_FROM` | Nodemailer SMTP for sign-in codes and request updates. `SMTP_SECURE=1` on port 465. `MAIL_REPLY_TO` is optional. |
 | `PAYMENT_PROVIDER` | `live` for real mobile money (MTN numbers → MTN MoMo, 072/073 → Airtel Money), or `simulator` for demos. |
 | `MTN_MOMO_*` | `MTN_MOMO_SUBSCRIPTION_KEY`, `MTN_MOMO_API_USER`, `MTN_MOMO_API_KEY`, `MTN_MOMO_ENVIRONMENT` (`sandbox` or the live name MTN gives you, e.g. `mtnrwanda`), `MTN_MOMO_BASE_URL` (live base URL from MTN), `MTN_MOMO_CURRENCY` (default `RWF`; the sandbox uses `EUR`). |
 | `AIRTEL_*` | `AIRTEL_CLIENT_ID`, `AIRTEL_CLIENT_SECRET`, `AIRTEL_BASE_URL` (`https://openapiuat.airtel.africa` for testing, `https://openapi.airtel.africa` live). |
 | `CRON_SECRET` | Protects `/api/cron`. Vercel sends it automatically to scheduled jobs. |
-| `NEXT_PUBLIC_SITE_URL` | The public address, used in SMS links. |
+| `NEXT_PUBLIC_SITE_URL` | The public address, used in email links. |
 | `BLOB_READ_WRITE_TOKEN` | Vercel Blob read/write token for local or non-Vercel deployments. On Vercel, connect a private Blob store to use OIDC instead. |
 | `UPLOAD_DIR` | Local development upload directory (default `.data/uploads`). Production requires private Blob storage. |
-| `OWNER_NAME`, `OWNER_PHONE` | Used once by `npm run db:setup`. |
+| `OWNER_NAME`, `OWNER_PHONE`, `OWNER_EMAIL` | Used once by `npm run db:setup`. Codes for the owner go to `OWNER_EMAIL`. |
 | `DOC_RETENTION_DAYS` | Days after a request finishes before the customer's uploaded documents are deleted (default 90). |
-| `TEST_PHONE`, `TEST_AIRTEL_PHONE`, `CHECK_AMOUNT` | Used only by `npm run check:providers`. |
+| `TEST_EMAIL`, `TEST_PHONE`, `TEST_AIRTEL_PHONE`, `CHECK_AMOUNT` | Used only by `npm run check:providers`. `TEST_EMAIL` receives the test message. |
 
 ## Deploying
 
@@ -75,13 +75,13 @@ Copy `.env.example` to `.env.local`. None are needed for development.
 2. Create a **private** Vercel Blob store and connect it to this Vercel project. Vercel supplies the OIDC environment variables. For local or non-Vercel use, set `BLOB_READ_WRITE_TOKEN`.
 3. Schema in `drizzle/` is applied when the server starts. Set `DB_AUTO_MIGRATE=0` only if a release step runs `npm run db:migrate` first.
 4. Load the catalogue and the first owner, without sample data:
-   `OWNER_NAME="…" OWNER_PHONE="07…" npm run db:setup`.
-5. Set `SMS_PROVIDER` and its keys, `NEXT_PUBLIC_SITE_URL`, `CRON_SECRET`, and — once you have
+   `OWNER_NAME="…" OWNER_PHONE="07…" OWNER_EMAIL="…" npm run db:setup`.
+5. Set the SMTP variables, `NEXT_PUBLIC_SITE_URL`, `CRON_SECRET`, and — once you have
    credentials — `PAYMENT_PROVIDER=live` with the MTN and Airtel keys. Point the Airtel callback URL in
    their portal at `https://<your site>/api/payments/callback`; MTN receives it with each prompt.
-6. Run `TEST_PHONE=07… npm run check:providers` against the staging environment: it sends a real SMS,
+6. Run `TEST_EMAIL=you@… TEST_PHONE=07… npm run check:providers` against the staging environment: it sends a real email,
    a mobile money prompt per provider and a storage round trip through the site's own code.
-7. The owner signs in and opens **Admin › System**: every item should read Live. It sends a test SMS
+7. The owner signs in and opens **Admin › System**: every item should read Live. It sends a test email
    and runs the daily job on demand. Then check the official fees in Admin › Services & prices and
    invite the team in Admin › Roles & people.
 
@@ -109,7 +109,7 @@ lib/
   repo.ts            every read. Customers only ever receive their own requests, without internal notes
   auth.ts            phone + SMS code sign-in, sessions (hashed, httpOnly cookie), staff permissions
   permissions.ts     the permission list and the starting roles matrix
-  sms.ts             SMS providers (console, Africa's Talking)
+  mail.ts            email through Nodemailer (SMTP, or the server log in development)
   payments.ts        mobile money providers (MTN MoMo, Airtel Money, simulator)
   billing.ts         settles a payment — the one place that decides paid or failed
   jobs.ts            the scheduled tasks and the staff daily summary
@@ -150,8 +150,7 @@ by every server action.
   build, and pay a few requests end to end before taking real money. Without a provider, production
   refuses payments. Refunds are recorded in the admin console; the money itself is sent back from the
   provider's dashboard.
-- **SMS.** The Africa's Talking integration is written but has not been tested against a live account —
-  send a test message first. WhatsApp messages are not sent yet.
+- **Email.** Sign-in codes and request updates go out through Nodemailer. Set SMTP before launch and send a test from Admin › System. WhatsApp messages are not sent yet.
 - **File storage.** Production uploads use private Vercel Blob and are delivered only after the file
   route checks customer ownership or staff permissions. Create and connect a private Blob store before deployment.
 - **Official fees, processing times and document lists** in the catalogue are drafts: check each with
@@ -171,5 +170,4 @@ by every server action.
   the footer links to (terms, privacy, refunds, complaints).
 - **Languages.** The EN/RW/FR switch is UI-only; all copy is English.
 - Not set up: ESLint (`npm run lint` has no config yet).
-- **Staff alerts** are a daily SMS summary. Nothing alerts staff the moment a customer replies; they see it
-  in the console.
+- **Staff alerts** are a daily email summary, plus an email when a customer writes on their case.

@@ -5,10 +5,11 @@ import { consumeCode, endSession, issueCode, startSession } from "@/lib/auth";
 import { db, schema as s } from "@/lib/db";
 import { TOO_MANY, allowIp } from "@/lib/ratelimit";
 
-/** Step 1 of signing in, and of confirming a new request: text a code to the number. */
-export async function requestCode(phone: string) {
+/** Step 1 of signing in, and of confirming a new request: email a code.
+ *  `email` is used only when the number has no mailbox yet (a first request). */
+export async function requestCode(phone: string, email?: string) {
   if (!(await allowIp("code"))) return { ok: false as const, error: TOO_MANY };
-  return issueCode(phone);
+  return issueCode(phone, email);
 }
 
 /** Step 2: check the code and sign in. Staff go to their workspace, customers to their portal. */

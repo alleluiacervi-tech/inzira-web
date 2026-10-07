@@ -1,7 +1,7 @@
 "use client";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { runJobNow, sendTestSms } from "@/app/actions/admin";
+import { runJobNow, sendTestEmail } from "@/app/actions/admin";
 import type { Check, CheckState, JobRun } from "@/lib/system";
 import { Icon } from "./ui";
 
@@ -28,16 +28,16 @@ function summary(r: JobRun) {
 
 export default function SystemStatus({ groups, runs }: { groups: { title: string; checks: Check[] }[]; runs: JobRun[] }) {
   const router = useRouter();
-  const [busy, setBusy] = useState<"sms" | "job" | null>(null);
+  const [busy, setBusy] = useState<"email" | "job" | null>(null);
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const all = groups.flatMap((g) => g.checks);
   const open = all.filter((c) => c.state !== "ready").length;
 
-  const testSms = async () => {
-    setBusy("sms"); setMsg(null);
-    const r = await sendTestSms().catch(() => ({ ok: false as const, error: "The request didn’t finish. Try again." }));
+  const testEmail = async () => {
+    setBusy("email"); setMsg(null);
+    const r = await sendTestEmail().catch(() => ({ ok: false as const, error: "The request didn’t finish. Try again." }));
     setBusy(null);
-    setMsg(r.ok ? { ok: true, text: `Test SMS sent to ${r.to}. If it doesn’t arrive within a minute, check the provider’s dashboard.` } : { ok: false, text: r.error });
+    setMsg(r.ok ? { ok: true, text: `Test email sent to ${r.to}. If it doesn’t arrive within a minute, check the spam folder and the server log.` } : { ok: false, text: r.error });
   };
   const runJob = async () => {
     setBusy("job"); setMsg(null);
@@ -56,7 +56,7 @@ export default function SystemStatus({ groups, runs }: { groups: { title: string
           <span className="c-caption">Secrets are never shown here, only whether they are set.</span>
         </span>
         <span className="row g8 wrapx sys-actions">
-          <button type="button" className="c-btn c-btn-secondary c-btn-sm" onClick={testSms} disabled={!!busy}>{busy === "sms" ? "Sending…" : "Send me a test SMS"}</button>
+          <button type="button" className="c-btn c-btn-secondary c-btn-sm" onClick={testEmail} disabled={!!busy}>{busy === "email" ? "Sending…" : "Send me a test email"}</button>
           <button type="button" className="c-btn c-btn-primary c-btn-sm" onClick={runJob} disabled={!!busy}>{busy === "job" ? "Running…" : "Run the daily job now"}</button>
         </span>
       </section>
