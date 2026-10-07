@@ -57,8 +57,12 @@ export const accounts = pgTable("accounts", {
   id: text("id").primaryKey(),
   name: text("name").notNull(),
   first: text("first").notNull(),
-  /** Nine digits after +250, e.g. 788123456. The login. */
-  phone: text("phone").notNull().unique(),
+  /** Nine digits after +250, e.g. 788123456. How agents call the customer and where mobile money is charged; not a login. */
+  phone: text("phone").notNull(),
+  /** Lower case. The login (a code is emailed) and where updates and private links are sent. Null only for accounts that predate email. */
+  email: text("email").unique(),
+  /** Language of the emails: what the customer was reading when they sent their first request. */
+  locale: text("locale").$type<"rw" | "en">().notNull().default("rw"),
   whatsapp: boolean("whatsapp").notNull().default(true),
   languages: jsonb("languages").$type<string[]>().notNull().default(sql`'[]'::jsonb`),
   since: ts("since").notNull().defaultNow(),
@@ -84,6 +88,8 @@ export const staff = pgTable("staff", {
   id: text("id").primaryKey(),
   name: text("name").notNull(),
   phone: text("phone").unique(),
+  /** Lower case. How staff sign in: a code is emailed to this address. */
+  email: text("email").unique(),
   role: text("role").$type<StaffRole>().notNull(),
   team: text("team").notNull(),
   title: text("title").notNull(),
@@ -128,6 +134,8 @@ export const requests = pgTable("requests", {
   quote: text("quote").$type<"estimate" | "confirmed" | "approved">().notNull(),
   dueAt: ts("due_at"),
   officialReceipt: text("official_receipt").$type<"attached" | "awaiting" | "na">().notNull(),
+  /** Part of the private link's signature (lib/access.ts). Raise it to make every link already sent stop working. */
+  accessVersion: integer("access_version").notNull().default(1),
 }, (t) => [index("requests_profile_idx").on(t.profileId), index("requests_agent_idx").on(t.agentId)]);
 
 export const requestDocuments = pgTable("request_documents", {
@@ -277,7 +285,7 @@ export const stageTargets = pgTable("stage_targets", {
 
 // ---------------- sign-in ----------------
 export const otpCodes = pgTable("otp_codes", {
-  phone: text("phone").primaryKey(),
+  email: text("email").primaryKey(),
   codeHash: text("code_hash").notNull(),
   expiresAt: ts("expires_at").notNull(),
   attempts: integer("attempts").notNull().default(0),
@@ -289,6 +297,8 @@ export const sessions = pgTable("sessions", {
   id: text("id").primaryKey(),
   kind: text("kind").$type<"customer" | "staff">().notNull(),
   subjectId: text("subject_id").notNull(),
+  /** Set for a session opened from a private link: it may only see and act on this one request. */
+  scopeRef: text("scope_ref"),
   createdAt: ts("created_at").notNull().defaultNow(),
   expiresAt: ts("expires_at").notNull(),
 });

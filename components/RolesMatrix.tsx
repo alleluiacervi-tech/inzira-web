@@ -4,7 +4,7 @@ import { useState } from "react";
 import { inviteStaff, savePermissions, updateStaff } from "@/app/actions/admin";
 import { initials } from "@/lib/format";
 import type { Staff, StaffRole } from "@/lib/types";
-import { isMobile } from "./PhoneCode";
+import { isEmail, isMobile } from "@/lib/contact";
 import { Alert, Badge, Icon } from "./ui";
 
 type Role = { name: StaffRole; short: string; count: number; desc: string };
@@ -68,10 +68,11 @@ export default function RolesMatrix({ roles, groups, initial }: { roles: Role[];
 }
 
 /** Who works here and which role each person holds. */
-export function People({ staff, roles, meId }: { staff: (Staff & { phone: string | null })[]; roles: Role[]; meId: string }) {
+export function People({ staff, roles, meId }: { staff: (Staff & { phone: string | null; email: string | null })[]; roles: Role[]; meId: string }) {
   const router = useRouter();
   const [adding, setAdding] = useState(false);
   const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [role, setRole] = useState<StaffRole>("Agent");
   const [note, setNote] = useState("");
@@ -92,11 +93,13 @@ export function People({ staff, roles, meId }: { staff: (Staff & { phone: string
       {adding && (
         <form className="row g10 wrapx" style={{ padding: "14px 20px", borderBottom: "1px solid var(--line)", alignItems: "flex-end" }} onSubmit={async (e) => {
           e.preventDefault();
-          if (!name.trim() || !isMobile(phone)) { setError("Enter their full name and Rwandan mobile number."); return; }
-          if (await run(() => inviteStaff(name, phone, role), `${name.trim()} invited as ${role}. They sign in with their number.`)) { setName(""); setPhone(""); setAdding(false); }
+          if (!name.trim() || !isEmail(email)) { setError("Enter their full name and work email address."); return; }
+          if (phone.trim() && !isMobile(phone)) { setError("That mobile number doesn’t look right. Leave it empty if you don’t have it."); return; }
+          if (await run(() => inviteStaff(name, email, role, phone), `${name.trim()} invited as ${role}. They sign in with their email address.`)) { setName(""); setEmail(""); setPhone(""); setAdding(false); }
         }}>
           <div className="field grow" style={{ minWidth: 180 }}><label htmlFor="pp-name">Full name</label><input id="pp-name" className="in" style={{ height: 40 }} value={name} onChange={(e) => setName(e.target.value)} /></div>
-          <div className="field" style={{ minWidth: 170 }}><label htmlFor="pp-phone">Mobile number</label><input id="pp-phone" className="in" style={{ height: 40 }} inputMode="tel" placeholder="788 123 456" value={phone} onChange={(e) => setPhone(e.target.value)} /></div>
+          <div className="field" style={{ minWidth: 220 }}><label htmlFor="pp-email">Work email</label><input id="pp-email" className="in" style={{ height: 40 }} type="email" inputMode="email" autoCapitalize="none" spellCheck={false} placeholder="name@inzira.rw" value={email} onChange={(e) => setEmail(e.target.value)} /></div>
+          <div className="field" style={{ minWidth: 170 }}><label htmlFor="pp-phone">Mobile number (optional)</label><input id="pp-phone" className="in" style={{ height: 40 }} inputMode="tel" placeholder="788 123 456" value={phone} onChange={(e) => setPhone(e.target.value)} /></div>
           <div className="field"><label htmlFor="pp-role">Role</label><select id="pp-role" className="in" style={{ height: 40, width: 170 }} value={role} onChange={(e) => setRole(e.target.value as StaffRole)}>{roles.filter((r) => r.name !== "Owner").map((r) => <option key={r.name}>{r.name}</option>)}</select></div>
           <button className="btn btn-d btn-sm" type="submit" style={{ height: 40 }} disabled={busy}>Send invite</button>
         </form>
@@ -109,7 +112,7 @@ export function People({ staff, roles, meId }: { staff: (Staff & { phone: string
           const locked = p.role === "Owner" || p.id === meId;
           return (
             <tr key={p.id}>
-              <td><span className="row g10"><span className="av" style={{ width: 30, height: 30, fontSize: 11 }}>{initials(p.name)}</span><span className="stack" style={{ gap: 1 }}><strong>{p.name}</strong>{p.phone && <span className="mut m" style={{ fontSize: 12 }}>+250 {p.phone}</span>}</span></span></td>
+              <td><span className="row g10"><span className="av" style={{ width: 30, height: 30, fontSize: 11 }}>{initials(p.name)}</span><span className="stack" style={{ gap: 1 }}><strong>{p.name}</strong>{p.email && <span className="mut" style={{ fontSize: 12 }}>{p.email}</span>}</span></span></td>
               <td className="mut">{p.team}</td>
               <td>{locked ? <span className="tag">{p.role}</span> : <><label htmlFor={`r-${p.id}`} className="sr-only">Role for {p.name}</label><select id={`r-${p.id}`} className="in in-sm" value={p.role} disabled={busy} onChange={(e) => run(() => updateStaff(p.id, { role: e.target.value as StaffRole }), `${p.name} is now ${e.target.value}.`)}>{roles.filter((r) => r.name !== "Owner").map((r) => <option key={r.name}>{r.name}</option>)}</select></>}</td>
               <td><Badge tone={p.active ? "ok" : "neutral"} label={p.active ? "Active" : "Deactivated"} /></td>

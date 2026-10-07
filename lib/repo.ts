@@ -1,7 +1,7 @@
 // The data-access layer: every screen reads through these functions, and only they touch the
 // database. Writes live in app/actions. Only import this from server code.
 import { and, asc, desc, eq, gte, inArray, sql, type SQL } from "drizzle-orm";
-import { getSession, requireCustomerId, requireStaff } from "./auth";
+import { customerScope, getSession, requireCustomerId, requireStaff } from "./auth";
 import { db, iso, schema as s } from "./db";
 import { fmtDay, phoneDigits, shortName } from "./format";
 import { PERMISSION_GROUPS, PERMISSIONS, ROLES, type Permission } from "./permissions";
@@ -119,10 +119,12 @@ export async function getAccount(): Promise<Account & { profiles: Profile[] }> {
 /** The signed-in customer's requests: anything waiting on them first, then open, then finished. */
 export async function listMyRequests(): Promise<CustomerRequest[]> {
   const id = await requireCustomerId();
+  const scope = await customerScope();
   const profileIds = (await (await db()).select({ id: s.profiles.id }).from(s.profiles).where(eq(s.profiles.accountId, id))).map((p) => p.id);
   if (!profileIds.length) return [];
   const rank = (r: RequestView) => (r.hold && isOpen(r) ? 0 : isOpen(r) ? 1 : 2);
-  return (await loadRequests(inArray(s.requests.profileId, profileIds)))
+  // A private-link session sees the one request its link opens.
+  return (await loadRequests(and(inArray(s.requests.profileId, profileIds), scope ? eq(s.requests.ref, scope) : undefined)))
     .sort((a, b) => rank(a) - rank(b) || Date.parse(b.openedAt) - Date.parse(a.openedAt)).map(forCustomer);
 }
 export async function getMyRequest(ref: string): Promise<CustomerRequest | undefined> {
@@ -150,11 +152,13 @@ export async function listMyDocuments(): Promise<LibraryDoc[]> {
 }
 export async function listMyNotifications(): Promise<Notification[]> {
   const id = await requireCustomerId();
-  const rows = await (await db()).select().from(s.notifications).where(eq(s.notifications.accountId, id)).orderBy(desc(s.notifications.at)).limit(20);
+  const scope = await customerScope();
+  const rows = await (await db()).select().from(s.notifications).where(and(eq(s.notifications.accountId, id), scope ? eq(s.notifications.href, `/portal/requests/${scope}`) : undefined)).orderBy(desc(s.notifications.at)).limit(20);
   return rows.map((n) => ({ id: String(n.id), icon: n.icon, title: n.title, at: iso(n.at)!, unread: n.unread, href: n.href }));
 }
 export async function listMyReminders() {
   const id = await requireCustomerId();
+  if (await customerScope()) return [];
   return (await db()).select().from(s.reminders).where(and(eq(s.reminders.accountId, id), eq(s.reminders.dismissed, false)));
 }
 
@@ -180,7 +184,7 @@ export const getAgent = async (): Promise<Staff> => plain(await requireStaff("/a
 export const getAdmin = async (): Promise<Staff> => plain(await requireStaff("/admin"));
 /** What the signed-in member of staff may do, for screens that enable or hide controls. */
 export const getMyPermissions = async (): Promise<Permission[]> => [...(await requireStaff()).permissions];
-export async function listStaff(): Promise<(Staff & { phone: string | null })[]> {
+export async function listStaff(): Promise<(Staff & { phone: string | null; email: string | null })[]> {
   return (await db()).select().from(s.staff).orderBy(asc(s.staff.name));
 }
 

@@ -7,7 +7,7 @@
 // The provider is remembered in each transaction's providerRef ("mtn:…", "airtel:…", "sim:…"), so
 // status checks always go back to the provider that sent the prompt.
 import { randomUUID } from "node:crypto";
-import { isDemo } from "./sms";
+import { isDemo } from "./demo";
 
 export type PayStatus = "pending" | "paid" | "failed";
 type Method = "MTN MoMo" | "Airtel Money";

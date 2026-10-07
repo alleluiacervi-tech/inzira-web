@@ -2,7 +2,7 @@
 import { sql } from "drizzle-orm";
 import { headers } from "next/headers";
 import { db, schema as s } from "./db";
-import { isDemo } from "./sms";
+import { isDemo } from "./demo";
 
 /** The caller's IP address as reported by the host's proxy. */
 export async function clientIp() {
@@ -29,11 +29,12 @@ export async function allow(key: string, max: number, windowMs: number): Promise
 
 /** Limits per IP for the public, abuse-prone actions. */
 export const LIMITS = {
-  code: { max: 10, windowMs: 15 * 60e3 },      // SMS codes requested
+  code: { max: 10, windowMs: 15 * 60e3 },      // sign-in codes requested
   signIn: { max: 20, windowMs: 15 * 60e3 },    // codes tried
   track: { max: 30, windowMs: 15 * 60e3 },     // tracking look-ups
   request: { max: 10, windowMs: 60 * 60e3 },   // new requests sent
   payment: { max: 10, windowMs: 60 * 60e3 },   // payment prompts
+  link: { max: 60, windowMs: 15 * 60e3 },      // private links opened (guessing them)
 } as const;
 
 export async function allowIp(kind: keyof typeof LIMITS) {

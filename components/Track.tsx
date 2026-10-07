@@ -5,7 +5,7 @@ import { track } from "@/app/track/actions";
 import { trError } from "@/lib/i18n/errors";
 import type { TrackResult } from "@/lib/types";
 import { useI18n } from "./I18n";
-import { isMobile } from "./PhoneCode";
+import { isMobile } from "@/lib/contact";
 import { Alert, Icon, RequestBadge, StageTimeline } from "./ui";
 
 export default function Track() {

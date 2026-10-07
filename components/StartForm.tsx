@@ -4,14 +4,13 @@ import { useEffect, useState } from "react";
 import { displayOfficial, displayOurs, displayTotal } from "@/lib/i18n/present";
 import { trError } from "@/lib/i18n/errors";
 import type { Service } from "@/lib/types";
-import { requestCode } from "@/app/actions/auth";
 import { submitRequest } from "@/app/actions/customer";
 import { useI18n } from "./I18n";
-import { CodeEntry, isMobile, prettyMobile } from "./PhoneCode";
+import { isEmail, isMobile, prettyMobile } from "@/lib/contact";
 import { Alert, FeeLines, Icon } from "./ui";
 
 type Key = "about" | "request" | "docs" | "review";
-const EMPTY = { forWho: "me", name: "", subject: "", nid: "", phone: "", purpose: "", notes: "" };
+const EMPTY = { forWho: "me", name: "", subject: "", nid: "", email: "", phone: "", purpose: "", notes: "" };
 
 /** Starts a request. With a service it collects what that service needs; without one (`service` null)
  *  the customer describes their situation and an agent works out which procedure applies. */
@@ -26,14 +25,18 @@ export default function StartForm({ service: s }: { service: Service | null }) {
   const docList = s ? s.documents : [{ name: t("start.extraDoc"), detail: t("start.extraDetail"), required: false }];
 
   const [step, setStep] = useState(0);
-  const [phase, setPhase] = useState<"form" | "verify" | "done">("form");
+  const [phase, setPhase] = useState<"form" | "done">("form");
   const [f, setF] = useState(EMPTY);
-  // Chosen files, by document name. They are sent with the request after the phone is confirmed.
+  // Chosen files, by document name. They are sent with the request.
   const [files, setFiles] = useState<Record<string, File>>({});
-  const [demoCode, setDemoCode] = useState<string>();
   const [sending, setSending] = useState(false);
   const [sendError, setSendError] = useState("");
   const [ref, setRef] = useState("");
+  const [link, setLink] = useState("");
+  const [emailed, setEmailed] = useState(false);
+  const [copied, setCopied] = useState(false);
+  // A field real people never see; bots fill it in and are told the request went through.
+  const [trap, setTrap] = useState("");
   const [ack, setAck] = useState(false);
   const [touched, setTouched] = useState(false);
   const [restored, setRestored] = useState(false);
@@ -62,40 +65,40 @@ export default function StartForm({ service: s }: { service: Service | null }) {
     if (f.forWho === "family" && !f.subject.trim()) errors.subject = t("start.errPerson");
     if (f.forWho === "business" && !f.subject.trim()) errors.subject = t("start.errBiz");
     if (needId && nidDigits.length !== 16) errors.nid = t("start.errId", { n: nidDigits.length });
+    if (!isEmail(f.email)) errors.email = t("authErr.badEmail");
     if (!isMobile(f.phone)) errors.phone = t("authErr.badPhone");
   }
   if (key === "request" && !s && f.notes.trim().length < 10) errors.notes = t("start.errNotes");
   if (key === "review" && !ack) errors.ack = t("start.errAck");
   const valid = Object.keys(errors).length === 0;
 
+  const send = async () => {
+    setSending(true); setSendError("");
+    const fd = new FormData();
+    fd.set("slug", s?.slug ?? "");
+    for (const [k, v] of Object.entries(f)) fd.set(k, v);
+    fd.set("website", trap);
+    if (s) s.documents.forEach((d, i) => { if (files[d.name]) fd.set(`file-${i}`, files[d.name]); });
+    else Object.values(files).forEach((file) => fd.append("file-extra", file));
+    const r = await submitRequest(fd).catch(() => ({ ok: false as const, error: t("authErr.submitFail") }));
+    setSending(false);
+    if (!r.ok) { setSendError(trError(locale, r.error)); return; }
+    try { sessionStorage.removeItem(draftKey); } catch { /* ignore */ }
+    setRef(r.ref);
+    setLink(`${window.location.origin}${r.link}`);
+    setEmailed(r.emailed);
+    setPhase("done");
+    window.scrollTo({ top: 0 });
+  };
   const next = async () => {
     setTouched(true);
     if (!valid) return;
     setTouched(false);
     if (step < last) { setStep(step + 1); window.scrollTo({ top: 0 }); return; }
-    // Last step: text a code to confirm the number before anything is created.
-    setSending(true); setSendError("");
-    const r = await requestCode(f.phone).catch(() => ({ ok: false as const, error: t("authErr.sendFail") }));
-    setSending(false);
-    if (!r.ok) { setSendError(trError(locale, r.error)); return; }
-    setDemoCode(r.demoCode);
-    setPhase("verify");
-    window.scrollTo({ top: 0 });
+    await send();
   };
-  const send = async (code: string) => {
-    const fd = new FormData();
-    fd.set("slug", s?.slug ?? "");
-    for (const [k, v] of Object.entries(f)) fd.set(k, v);
-    fd.set("code", code);
-    if (s) s.documents.forEach((d, i) => { if (files[d.name]) fd.set(`file-${i}`, files[d.name]); });
-    else Object.values(files).forEach((file) => fd.append("file-extra", file));
-    const r = await submitRequest(fd).catch(() => ({ ok: false as const, error: t("authErr.submitFail") }));
-    if (!r.ok) return trError(locale, r.error);
-    try { sessionStorage.removeItem(draftKey); } catch { /* ignore */ }
-    setRef(r.ref);
-    setPhase("done");
-    window.scrollTo({ top: 0 });
-    return null;
+  const copy = async () => {
+    try { await navigator.clipboard.writeText(link); setCopied(true); setTimeout(() => setCopied(false), 2500); } catch { /* the link is shown, so it can be selected by hand */ }
   };
   const err = (k: string) => touched && errors[k] ? <span className="err-text" id={`${k}-err`}><Icon name="alert" size={15} /> {errors[k]}</span> : null;
   const bad = (k: string) => (touched && errors[k] ? "in-err" : "");
@@ -108,22 +111,14 @@ export default function StartForm({ service: s }: { service: Service | null }) {
           <span style={{ width: 64, height: 64, borderRadius: "50%", background: "var(--ok-bg)", color: "var(--ok)", display: "flex", alignItems: "center", justifyContent: "center" }}><Icon name="check" size={32} /></span>
           <h1 className="h-flow">{t("start.received")}</h1>
           <p style={{ fontSize: 16, lineHeight: 1.55 }}>{t("start.receivedBody", { ref, what: s ? t("start.checkDocs") : t("start.readSent"), phone: `+250 ${prettyMobile(f.phone)}`, time: t("responseTime") })}</p>
+          <div className="stack g10" style={{ width: "100%", textAlign: "left", padding: 16, background: "var(--bone)", borderRadius: 8, border: "1px solid var(--line)" }}>
+            <strong style={{ fontSize: 15 }}>{t("start.linkTitle")}</strong>
+            <p className="hint">{emailed ? t("start.linkEmailed", { email: f.email.trim() }) : t("start.linkNotEmailed")}</p>
+            <input className="in m" style={{ fontSize: 13.5 }} readOnly value={link} aria-label={t("start.linkTitle")} onFocus={(e) => e.currentTarget.select()} />
+            <button type="button" className="btn btn-s btn-sm" style={{ alignSelf: "flex-start" }} onClick={copy}><Icon name={copied ? "check" : "file"} size={16} /> {copied ? t("start.copied") : t("start.copy")}</button>
+          </div>
           <p className="hint">{t("start.ready")}</p>
           <div className="row g10 wrapx" style={{ justifyContent: "center" }}><Link className="btn btn-d" href={`/portal/requests/${ref}`}>{t("start.see")}</Link><Link className="btn btn-s" href="/services">{t("start.more")}</Link></div>
-        </div>
-      </section>
-    );
-  }
-
-  if (phase === "verify") {
-    return (
-      <section className="wrap" style={{ paddingTop: 48, paddingBottom: 96 }}>
-        <div className="stack g20" style={{ maxWidth: 460, margin: "0 auto" }}>
-          <span className="eb" style={{ fontSize: 11 }}>{t("start.last")}</span>
-          <CodeEntry phone={f.phone} demoCode={demoCode} cta={t("start.confirm")} onBack={() => { setPhase("form"); setStep(0); }}
-            onResend={async () => { const r = await requestCode(f.phone); return r.ok ? { demoCode: r.demoCode } : { error: r.error }; }}
-            onSubmit={send} />
-          <p className="hint row g8" style={{ alignItems: "flex-start" }}><Icon name="lock" size={16} /><span>{t("start.numberUse")}</span></p>
         </div>
       </section>
     );
@@ -181,6 +176,9 @@ export default function StartForm({ service: s }: { service: Service | null }) {
             {needId && (
               <div className="field"><label htmlFor="f-nid">{f.forWho === "family" ? t("start.theirId") : t("start.nid")}</label><input id="f-nid" className={`in ${bad("nid")}`} inputMode="numeric" value={f.nid} onChange={(e) => set("nid", e.target.value)} placeholder="1 1995 8 0045123 0 17" aria-describedby="nid-err nid-hint" /><span className="hint" id="nid-hint">{t("start.nidHint")}</span>{err("nid")}</div>
             )}
+            <div className="field"><label htmlFor="f-email">{t("start.email")}</label>
+              <input id="f-email" className={`in ${bad("email")}`} type="email" inputMode="email" autoComplete="email" autoCapitalize="none" spellCheck={false} placeholder="name@example.com" value={f.email} onChange={(e) => set("email", e.target.value)} aria-describedby="email-hint email-err" />
+              <span className="hint" id="email-hint">{t("start.emailHint")}</span>{err("email")}</div>
             <div className="field"><label htmlFor="f-phone">{t("start.phone")}</label>
               <div className="row g8"><span className="in in-prefix" aria-hidden="true">+250</span><input id="f-phone" className={`in ${bad("phone")}`} inputMode="tel" value={f.phone} onChange={(e) => set("phone", e.target.value)} placeholder="788 123 456" autoComplete="tel-national" aria-describedby="phone-err phone-hint" /></div>
               <span className="hint" id="phone-hint">{t("start.phoneHint")}</span>{err("phone")}</div>
@@ -237,6 +235,7 @@ export default function StartForm({ service: s }: { service: Service | null }) {
                 <dt>{t("start.yourName")}</dt><dd>{f.name}</dd>
                 {f.forWho !== "me" && <><dt>{t("start.for")}</dt><dd>{f.subject}</dd></>}
                 {needId && <><dt>{t("start.id")}</dt><dd className="m" style={{ fontSize: 14, fontWeight: 500 }}>{f.nid}</dd></>}
+                <dt>{t("start.emailRow")}</dt><dd style={{ overflowWrap: "anywhere" }}>{f.email.trim()}</dd>
                 <dt>{t("start.phoneRow")}</dt><dd>+250 {prettyMobile(f.phone)}</dd>
                 {f.purpose && <><dt>{s?.noId ? t("start.attending") : t("start.purposeRow")}</dt><dd>{f.purpose}</dd></>}
                 {f.notes.trim() && <><dt>{s ? t("start.notes") : t("start.situationRow")}</dt><dd style={{ fontWeight: 400 }}>{f.notes}</dd></>}
@@ -250,10 +249,11 @@ export default function StartForm({ service: s }: { service: Service | null }) {
           </div>
         )}
 
-        {sendError && <Alert kind="err" title={t("start.codeFail")} live>{sendError}</Alert>}
+        <input className="sr-only" tabIndex={-1} autoComplete="off" aria-hidden="true" name="bot-field" value={trap} onChange={(e) => setTrap(e.target.value)} />
+        {sendError && <Alert kind="err" title={t("start.sendFail")} live>{sendError}</Alert>}
         <div className="row g10" style={{ paddingTop: 8 }}>
           {step > 0 && <button type="button" className="btn btn-s btn-lg" onClick={() => { setStep(step - 1); setTouched(false); }}>{t("start.back")}</button>}
-          <button type="button" className="btn btn-p btn-lg grow" onClick={next} disabled={sending}>{sending ? <><span className="spin" /> {t("start.sendingCode")}</> : key === "review" ? t("start.send") : key === "docs" && !Object.keys(files).length ? t("start.skip") : t("start.continue")}</button>
+          <button type="button" className="btn btn-p btn-lg grow" onClick={next} disabled={sending}>{sending ? <><span className="spin" /> {t("start.sending")}</> : key === "review" ? t("start.send") : key === "docs" && !Object.keys(files).length ? t("start.skip") : t("start.continue")}</button>
         </div>
       </div>
 

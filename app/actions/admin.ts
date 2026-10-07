@@ -1,13 +1,14 @@
 "use server";
 import { randomBytes } from "node:crypto";
-import { and, eq } from "drizzle-orm";
+import { and, eq, or } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
-import { getStaffUser, normalisePhone } from "@/lib/auth";
+import { getStaffUser } from "@/lib/auth";
+import { normaliseEmail, normalisePhone } from "@/lib/contact";
+import { sendEmail } from "@/lib/email";
+import { staffInviteMail, testMail } from "@/lib/mail";
 import { rwf } from "@/lib/format";
 import { audit, db, event, fail, notify, s, type Result } from "@/lib/mutate";
 import { PERMISSIONS, ROLES, type Permission } from "@/lib/permissions";
-import { SITE } from "@/lib/site";
-import { sendSms } from "@/lib/sms";
 import { runAndRecord } from "@/lib/jobs";
 import { allow } from "@/lib/ratelimit";
 import type { Service, StaffRole } from "@/lib/types";
@@ -78,7 +79,7 @@ export async function refund(ref: string): Promise<Result> {
   await d.transaction(async (tx) => {
     for (const t of paid) await tx.update(s.transactions).set({ status: "refunded" }).where(eq(s.transactions.id, t.id));
     await event(tx, ref, "Assistance fee refunded", me.id, rwf(ours));
-    await notify(tx, ref, { icon: "refresh", title: `Refund of ${rwf(ours)} issued for ${ref}`, sms: `we refunded ${rwf(ours)} to the number you paid from.` });
+    await notify(tx, ref, { icon: "refresh", title: `Refund of ${rwf(ours)} issued for ${ref}`, message: `we refunded ${rwf(ours)} to the number you paid from.` });
     await audit(tx, { actor: me.name, role: me.role, action: "Issued refund", entity: `${ref} · ${rwf(ours)} ours`, fee: true });
   });
   // The money itself is returned through the payment provider's dashboard until refunds are automated.
@@ -104,21 +105,23 @@ export async function savePermissions(matrix: Record<string, boolean[]>): Promis
   return { ok: true };
 }
 
-export async function inviteStaff(name: string, phoneInput: string, role: StaffRole): Promise<Result> {
+export async function inviteStaff(name: string, emailInput: string, role: StaffRole, phoneInput = ""): Promise<Result> {
   const a = await admin("manageStaff");
   if ("error" in a) return fail(a.error!);
   const { me, d } = a;
-  const phone = normalisePhone(phoneInput);
+  const email = normaliseEmail(emailInput);
+  const phone = phoneInput.trim() ? normalisePhone(phoneInput) : null;
   if (!name.trim()) return fail("Enter their full name.");
-  if (!phone) return fail("Enter their Rwandan mobile number.");
+  if (!email) return fail("Enter their work email address. They sign in with it.");
+  if (phoneInput.trim() && !phone) return fail("That phone number doesn’t look right. Leave it empty if you don’t have it.");
   if (role === "Owner") return fail("There is only one owner.");
-  const [taken] = await d.select().from(s.staff).where(eq(s.staff.phone, phone));
-  if (taken) return fail(`${taken.name} already uses that number.`);
+  const [taken] = await d.select().from(s.staff).where(email && phone ? or(eq(s.staff.email, email), eq(s.staff.phone, phone)) : eq(s.staff.email, email));
+  if (taken) return fail(`${taken.name} already uses ${taken.email === email ? "that email address" : "that phone number"}.`);
   await d.transaction(async (tx) => {
-    await tx.insert(s.staff).values({ id: `s-${randomBytes(5).toString("hex")}`, name: name.trim(), phone, role, team: "—", title: role, active: true });
+    await tx.insert(s.staff).values({ id: `s-${randomBytes(5).toString("hex")}`, name: name.trim(), email, phone, role, team: "—", title: role, active: true });
     await audit(tx, { actor: me.name, role: me.role, action: "Granted role", entity: `${name.trim()} → ${role}` });
   });
-  sendSms(phone, `Inzira: ${me.name} added you as ${role}. Sign in with this number at ${SITE.url}/sign-in`).catch((e) => console.error("[sms]", e));
+  sendEmail(staffInviteMail(email, name.trim(), me.name, role)).catch((e) => console.error("[email]", e));
   revalidatePath("/admin/roles");
   return { ok: true };
 }
@@ -141,21 +144,21 @@ export async function updateStaff(id: string, change: { role?: StaffRole; active
 }
 
 // ---------------- system ----------------
-/** Sends an SMS to the signed-in person's own phone, to check the provider end to end. */
-export async function sendTestSms(): Promise<Result<{ to: string }>> {
+/** Sends an email to the signed-in person's own address, to check the provider end to end. */
+export async function sendTestEmail(): Promise<Result<{ to: string }>> {
   const a = await admin("manageStaff");
   if ("error" in a) return fail(a.error!);
   const { me, d } = a;
-  const [row] = await d.select({ phone: s.staff.phone }).from(s.staff).where(eq(s.staff.id, me.id));
-  if (!row?.phone) return fail("Your staff profile has no phone number.");
-  if (!(await allow(`test-sms:${me.id}`, 5, 60 * 60e3))) return fail("You’ve sent 5 test messages this hour. Try again later.");
+  const [row] = await d.select({ email: s.staff.email }).from(s.staff).where(eq(s.staff.id, me.id));
+  if (!row?.email) return fail("Your staff profile has no email address.");
+  if (!(await allow(`test-email:${me.id}`, 5, 60 * 60e3))) return fail("You’ve sent 5 test emails this hour. Try again later.");
   try {
-    await sendSms(row.phone, `Inzira test: SMS is working. Sent ${new Date().toLocaleString("en-GB", { timeZone: "Africa/Kigali" })} Kigali time.`);
+    await sendEmail(testMail(row.email));
   } catch (e) {
     return fail(`The provider refused the message: ${e instanceof Error ? e.message : "unknown error"}.`);
   }
-  await audit(d, { actor: me.name, role: me.role, action: "Sent test SMS", entity: `+250 ${row.phone}` });
-  return { ok: true, to: `+250 ${row.phone.replace(/^(\d{3})(\d{3})(\d{3})$/, "$1 $2 $3")}` };
+  await audit(d, { actor: me.name, role: me.role, action: "Sent test email", entity: row.email });
+  return { ok: true, to: row.email };
 }
 
 /** Runs the scheduled job now, as the daily schedule would. */

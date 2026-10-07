@@ -1,6 +1,6 @@
 import AccountSettings from "@/components/AccountSettings";
 import { PageHead } from "@/components/ui";
-import { requireCustomerId } from "@/lib/auth";
+import { requireFullCustomer } from "@/lib/auth";
 import { DASHBOARD_LOCALE } from "@/lib/i18n/locale";
 import { text } from "@/lib/i18n/messages";
 import { finishedWithDocuments, RETENTION_DAYS } from "@/lib/privacy";
@@ -11,7 +11,7 @@ export async function generateMetadata() {
 }
 export default async function AccountPage() {
   const locale = DASHBOARD_LOCALE;
-  const id = await requireCustomerId("/portal/account");
+  const id = await requireFullCustomer("/portal/account");
   const [account, data] = await Promise.all([getAccount(), finishedWithDocuments(id)]);
   const profiles = account.profiles.map(({ id, name, kind, relation, idMasked, tinMasked }) => ({ id, name, kind, relation, idMasked, tinMasked }))
     .sort((a, b) => Number(b.relation === "self") - Number(a.relation === "self"));
@@ -20,7 +20,7 @@ export default async function AccountPage() {
       <PageHead title={text(locale, "meta.accountTitle")} sub={text(locale, "portal.accountSub")} />
       <div className="content">
         <AccountSettings
-          account={{ name: account.name, phone: account.phone, whatsapp: account.whatsapp, languages: account.languages, since: account.since }}
+          account={{ name: account.name, email: account.email ?? null, phone: account.phone, whatsapp: account.whatsapp, languages: account.languages, since: account.since }}
           profiles={profiles}
           data={{ files: data.files, requests: data.refs.length, open: data.open, retentionDays: RETENTION_DAYS }}
         />

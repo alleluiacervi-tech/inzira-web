@@ -68,6 +68,20 @@ async function addLaterObjects(database: Db) {
       "ms" integer NOT NULL
     )`,
     `ALTER TABLE "accounts" ADD COLUMN IF NOT EXISTS "deleted_at" timestamp with time zone`,
+    `ALTER TABLE "accounts" DROP CONSTRAINT IF EXISTS "accounts_phone_unique"`,
+    `ALTER TABLE "accounts" ADD COLUMN IF NOT EXISTS "email" text`,
+    `ALTER TABLE "accounts" ADD COLUMN IF NOT EXISTS "locale" text DEFAULT 'rw' NOT NULL`,
+    `CREATE UNIQUE INDEX IF NOT EXISTS "accounts_email_unique" ON "accounts" ("email")`,
+    `ALTER TABLE "staff" ADD COLUMN IF NOT EXISTS "email" text`,
+    `CREATE UNIQUE INDEX IF NOT EXISTS "staff_email_unique" ON "staff" ("email")`,
+    `ALTER TABLE "requests" ADD COLUMN IF NOT EXISTS "access_version" integer DEFAULT 1 NOT NULL`,
+    `ALTER TABLE "sessions" ADD COLUMN IF NOT EXISTS "scope_ref" text`,
+    `DO $$ BEGIN
+      IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'otp_codes' AND column_name = 'email') THEN
+        DROP TABLE IF EXISTS "otp_codes";
+        CREATE TABLE "otp_codes" ("email" text PRIMARY KEY NOT NULL, "code_hash" text NOT NULL, "expires_at" timestamp with time zone NOT NULL, "attempts" integer DEFAULT 0 NOT NULL, "sent_at" timestamp with time zone DEFAULT now() NOT NULL);
+      END IF;
+    END $$`,
   ];
   for (const statement of statements) await database.execute(sql.raw(statement));
 }

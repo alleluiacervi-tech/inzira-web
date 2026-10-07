@@ -376,7 +376,7 @@ export function InboxView({
         onClose={() => setDeclineReq(null)}
         onConfirm={handleDecline}
         title={`Decline ${declineReq?.ref}`}
-        description="The customer will receive an SMS and a portal notification explaining why their request was declined."
+        description="The customer will receive an email and a portal notification explaining why their request was declined."
         confirmLabel="Decline request"
         confirmVariant="danger"
         requireReason

@@ -49,11 +49,16 @@ function isActive(path: string, it: Item) {
   return path === it.href;
 }
 
-function Sidebar({ kind, path, who, other }: { kind: Kind; path: string; who: Who; other?: { label: string; href: string } }) {
+function Sidebar({ kind, path, who, other, guestRef }: { kind: Kind; path: string; who: Who; other?: { label: string; href: string }; guestRef?: string }) {
   const { t } = useI18n();
+  // Someone who opened a private link sees that one request and its documents, nothing else.
   const n = kind === "customer" ? {
     label: t("shell.portal"),
-    items: [
+    items: guestRef ? [
+      { label: t("shell.thisRequest"), icon: "list", href: `/portal/requests/${guestRef}`, match: "/portal/requests" },
+      { label: t("shell.documents"), icon: "file", href: "/portal/documents" },
+      { label: t("shell.browse"), icon: "search", href: "/services" },
+    ] : [
       { label: t("shell.overview"), icon: "home", href: "/portal" },
       { label: t("shell.requests"), icon: "list", href: "/portal/requests", match: "/portal/requests" },
       { label: t("shell.documents"), icon: "file", href: "/portal/documents" },
@@ -75,6 +80,13 @@ function Sidebar({ kind, path, who, other }: { kind: Kind; path: string; who: Wh
         ))}
       </nav>
       <div className="stack g12" style={{ marginTop: "auto" }}>
+        {guestRef && (
+          <div className="card stack g8" style={{ padding: 16 }}>
+            <strong style={{ fontSize: 14 }}>{t("shell.guestTitle")}</strong>
+            <span className="hint">{t("shell.guestBody")}</span>
+            <Link className="lnk row g6" href="/sign-in" style={{ fontSize: 14 }}><Icon name="user" size={16} />{t("shell.guestSignIn")}</Link>
+          </div>
+        )}
         {kind === "customer" && (
           <div className="card stack g8" style={{ padding: 16 }}>
             <strong style={{ fontSize: 14 }}>{t("shell.help")}</strong>
@@ -99,7 +111,7 @@ function Sidebar({ kind, path, who, other }: { kind: Kind; path: string; who: Wh
 }
 
 /** `other` links a member of staff to the other area they can use (agent workspace ↔ admin console). */
-export default function AppShell({ kind, who, unread = 0, other, children }: { kind: Kind; who: Who; unread?: number; other?: { label: string; href: string }; children: ReactNode }) {
+export default function AppShell({ kind, who, unread = 0, other, guestRef, children }: { kind: Kind; who: Who; unread?: number; other?: { label: string; href: string }; guestRef?: string; children: ReactNode }) {
   const { t } = useI18n();
   const path = usePathname();
   const [drawer, setDrawer] = useState(false);
@@ -108,7 +120,7 @@ export default function AppShell({ kind, who, unread = 0, other, children }: { k
   const dark = kind !== "customer";
   return (
     <div className="shell">
-      <Sidebar kind={kind} path={path} who={who} other={other} />
+      <Sidebar kind={kind} path={path} who={who} other={other} guestRef={guestRef} />
       <div className="main">
         <header className={`mobtop ${dark ? "dark-top" : ""}`}>
           {dark ? (
@@ -128,17 +140,25 @@ export default function AppShell({ kind, who, unread = 0, other, children }: { k
       {drawer && (
         <div ref={dialog} className="drawer" role="dialog" aria-modal="true" aria-label={kind === "customer" ? t("shell.nav") : "Navigation"}>
           <div className="drawer-bg" onClick={() => setDrawer(false)} />
-          <Sidebar kind={kind} path={path} who={who} other={other} />
+          <Sidebar kind={kind} path={path} who={who} other={other} guestRef={guestRef} />
           <button className="btn btn-s btn-ico drawer-x" type="button" aria-label={kind === "customer" ? t("shell.closeNav") : "Close navigation"} onClick={() => setDrawer(false)}><Icon name="x" size={20} /></button>
         </div>
       )}
       {kind === "customer" && (
-        <nav className="tabbar" aria-label={t("shell.portal")}>
-          <Link href="/portal" aria-current={path === "/portal" ? "page" : undefined}><Icon name="home" size={22} />{t("shell.overview")}</Link>
-          <Link href="/portal/requests" aria-current={path.startsWith("/portal/requests") ? "page" : undefined}><Icon name="list" size={22} />{t("shell.requests")}</Link>
+        <nav className="tabbar" aria-label={t("shell.portal")} style={guestRef ? { gridTemplateColumns: "repeat(4, minmax(0, 1fr))" } : undefined}>
+          {guestRef ? (
+            <Link href={`/portal/requests/${guestRef}`} aria-current={path.startsWith("/portal/requests") ? "page" : undefined}><Icon name="list" size={22} />{t("shell.thisRequest")}</Link>
+          ) : (
+            <>
+              <Link href="/portal" aria-current={path === "/portal" ? "page" : undefined}><Icon name="home" size={22} />{t("shell.overview")}</Link>
+              <Link href="/portal/requests" aria-current={path.startsWith("/portal/requests") ? "page" : undefined}><Icon name="list" size={22} />{t("shell.requests")}</Link>
+            </>
+          )}
           <Link href="/services" className="tab-new" aria-label={t("shell.start")}><span><Icon name="plus" size={22} stroke={2.2} /></span>{t("nav.start")}</Link>
           <Link href="/portal/documents" aria-current={path === "/portal/documents" ? "page" : undefined}><Icon name="file" size={22} />{t("shell.documents")}</Link>
-          <Link href="/portal/account" aria-current={path === "/portal/account" ? "page" : undefined}><Icon name="user" size={22} />{t("shell.account")}</Link>
+          {guestRef
+            ? <Link href="/sign-in"><Icon name="user" size={22} />{t("shell.guestSignInShort")}</Link>
+            : <Link href="/portal/account" aria-current={path === "/portal/account" ? "page" : undefined}><Icon name="user" size={22} />{t("shell.account")}</Link>}
         </nav>
       )}
     </div>

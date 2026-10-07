@@ -2,7 +2,12 @@
 import { randomBytes } from "node:crypto";
 import { and, eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
-import { consumeCode, endSession, normalisePhone, requireCustomerId, startSession } from "@/lib/auth";
+import { accessPath, accessUrl } from "@/lib/access";
+import { customerScope, endSession, enterRequest, requireCustomerId, requireFullCustomer } from "@/lib/auth";
+import { normaliseEmail, normalisePhone, prettyMobile } from "@/lib/contact";
+import { sendEmail, sendsRealEmail } from "@/lib/email";
+import { getLocale } from "@/lib/i18n/locale";
+import { requestReceivedMail } from "@/lib/mail";
 import { redirect } from "next/navigation";
 import { deleteAccount, finishedWithDocuments, purgeDocuments } from "@/lib/privacy";
 import { iso } from "@/lib/db";
@@ -13,7 +18,7 @@ import { methodFor, providerFor } from "@/lib/payments";
 import { SITE } from "@/lib/site";
 import { amountDue } from "@/lib/status";
 import { getService } from "@/lib/repo";
-import { TOO_MANY, allowIp } from "@/lib/ratelimit";
+import { TOO_MANY, allow, allowIp } from "@/lib/ratelimit";
 import { ALLOWED, MAX_BYTES, humanSize, putFile } from "@/lib/storage";
 
 const id = (prefix: string) => `${prefix}-${randomBytes(6).toString("hex")}`;
@@ -26,12 +31,19 @@ function checkFile(f: File): string | null {
   return null;
 }
 
-/** Sends a new request: checks the SMS code, creates the account if needed, stores the files,
- *  opens the request and signs the customer in. */
-export async function submitRequest(fd: FormData): Promise<Result<{ ref: string }>> {
+/** Sends a new request. No sign-in and no code: the customer leaves an email address, gets a private link
+ *  to their request on screen and by email, and the account behind it is created if it is new. The link
+ *  opens a session limited to this request. */
+export async function submitRequest(fd: FormData): Promise<Result<{ ref: string; link: string; emailed: boolean }>> {
+  // A field real people never see. Bots fill it in and are told it worked.
+  if (text(fd, "website")) return { ok: true, ref: "INZ-0000-00000", link: "/", emailed: false };
+  // Without the secret there is no way to give the customer their link, so don't take the request at all.
+  try { accessPath("INZ-2000-00000", 1); } catch (e) { console.error("[access]", e); return fail("We can’t take new requests right now. Please message us on WhatsApp and we’ll open it for you."); }
   const phone = normalisePhone(text(fd, "phone"));
+  const email = normaliseEmail(text(fd, "email"));
   const name = text(fd, "name"), subject = text(fd, "subject"), forWho = text(fd, "forWho") || "me";
   const nid = text(fd, "nid").replace(/\D/g, "");
+  if (!email) return fail("Enter a valid email address, e.g. name@example.com.");
   if (!phone) return fail("Enter a Rwandan mobile number.");
   if (!name) return fail("Enter your full name.");
   const slug = text(fd, "slug") || "other-online-service";
@@ -41,18 +53,19 @@ export async function submitRequest(fd: FormData): Promise<Result<{ ref: string 
   const extra = fd.getAll("file-extra").filter((f): f is File => f instanceof File && f.size > 0);
   for (const f of [...files, ...extra]) { const bad = f && checkFile(f); if (bad) return fail(bad); }
 
-  if (!(await allowIp("request"))) return fail(TOO_MANY);
-  const checked = await consumeCode(phone, text(fd, "code"));
-  if (!checked.ok) return checked;
+  // Anyone can send a request, so both the connection and the address are limited.
+  if (!(await allowIp("request")) || !(await allow(`request:email:${email}`, 4, 60 * 60e3))) return fail(TOO_MANY);
 
+  const locale = await getLocale();
   const d = await db();
   const now = new Date().toISOString();
   const result = await d.transaction(async (tx) => {
-    let [account] = await tx.select().from(s.accounts).where(eq(s.accounts.phone, phone));
+    let [account] = await tx.select().from(s.accounts).where(eq(s.accounts.email, email));
     if (!account) {
-      [account] = await tx.insert(s.accounts).values({ id: id("acc"), name, first: name.split(" ")[0], phone, languages: [] }).returning();
+      [account] = await tx.insert(s.accounts).values({ id: id("acc"), name, first: name.split(" ")[0], phone, email, locale, languages: [] }).returning();
     }
     const profiles = await tx.select().from(s.profiles).where(eq(s.profiles.accountId, account.id));
+    // Nothing here was verified, so an existing profile is reused but never changed.
     let profile =
       forWho === "me" ? profiles.find((p) => p.relation === "self")
       : forWho === "business" ? profiles.find((p) => p.kind === "business" && p.name.toLowerCase() === subject.toLowerCase())
@@ -62,15 +75,13 @@ export async function submitRequest(fd: FormData): Promise<Result<{ ref: string 
         id: id("p"), accountId: account.id, kind: forWho === "business" ? "business" : "person", name: forWho === "me" ? name : subject || name,
         relation: forWho === "business" ? null : forWho === "me" ? "self" : "family", idMasked: maskId(nid), nationalId: nid || null,
       }).returning();
-    } else if (nid && !profile.nationalId) {
-      await tx.update(s.profiles).set({ nationalId: nid, idMasked: maskId(nid) }).where(eq(s.profiles.id, profile.id));
     }
 
     const ref = refFor(await nextNumber(tx, "request"));
     const invoice = invoiceFor(await nextNumber(tx, "invoice"));
     await tx.insert(s.requests).values({
       ref, serviceSlug: service.slug, profileId: profile.id, agentId: null, stage: "received", stageDates: { received: now }, channel: service.channel,
-      summary: { title: "We’ve received your request", body: `An agent will check it within 2 working hours and contact you on +250 ${phone.replace(/^(\d{3})(\d{3})(\d{3})$/, "$1 $2 $3")}.` },
+      summary: { title: "We’ve received your request", body: `An agent will check it within 2 working hours and contact you on +250 ${prettyMobile(phone)}.` },
       next: "An agent checks your request within 2 working hours.", purpose: text(fd, "purpose") || null,
       invoice, official: service.official.mode ? null : service.official.amount, officialMode: service.official.mode ?? null,
       officialLabel: service.official.mode === "none" ? "Official fee" : `${service.official.label ?? "Official fee"} · ${service.channel}`,
@@ -92,20 +103,28 @@ export async function submitRequest(fd: FormData): Promise<Result<{ ref: string 
 
     const notes = text(fd, "notes");
     if (notes) await tx.insert(s.messages).values({ ref, by: "customer", body: notes });
+    // The account may already have another number; the agent should call the one given with this request.
+    if (account.phone !== phone) await tx.insert(s.messages).values({ ref, by: "customer", body: `Phone for this request: +250 ${prettyMobile(phone)}` });
     await event(tx, ref, "Request opened", "customer", text(fd, "purpose") || undefined);
     await tx.insert(s.notifications).values({ accountId: account.id, icon: "check", title: `Request received: ${service.name} · ${ref}`, href: `/portal/requests/${ref}` });
     await audit(tx, { actor: account.name, role: "Customer", action: "Opened request", entity: `${ref} · ${service.name}` });
-    return { ref, accountId: account.id };
+    return { ref, accountId: account.id, locale: account.locale, name: account.name };
   });
 
-  await startSession("customer", result.accountId);
+  // The browser that sent the request can follow it straight away; the email makes it work anywhere.
+  await enterRequest(result.accountId, result.ref).catch((e) => console.error("[session]", e));
+  const emailed = await sendEmail(requestReceivedMail({ to: email, name: result.name, service: service.name, ref: result.ref, phone: prettyMobile(phone), link: accessUrl(result.ref, 1), locale: result.locale }))
+    .then(() => sendsRealEmail(), (e) => { console.error("[email]", e); return false; });
   revalidatePath("/", "layout");
-  return { ok: true, ref: result.ref };
+  return { ok: true, ref: result.ref, link: accessPath(result.ref, 1), emailed };
 }
 
 /** Confirms the request belongs to the signed-in customer. */
 async function ownRequest(ref: string) {
   const accountId = await requireCustomerId();
+  // A private-link session reaches its own request and nothing else.
+  const scope = await customerScope();
+  if (scope && scope !== ref) return null;
   const d = await db();
   const [row] = await d.select({ ref: s.requests.ref, accountId: s.profiles.accountId, name: s.accounts.name })
     .from(s.requests).innerJoin(s.profiles, eq(s.profiles.id, s.requests.profileId)).innerJoin(s.accounts, eq(s.accounts.id, s.profiles.accountId))
@@ -194,7 +213,9 @@ export async function checkPayment(txId: number): Promise<Result<{ status: "pend
 
 export async function markNotificationsRead() {
   const accountId = await requireCustomerId();
-  await (await db()).update(s.notifications).set({ unread: false }).where(eq(s.notifications.accountId, accountId));
+  const scope = await customerScope();
+  await (await db()).update(s.notifications).set({ unread: false })
+    .where(and(eq(s.notifications.accountId, accountId), scope ? eq(s.notifications.href, `/portal/requests/${scope}`) : undefined));
   revalidatePath("/portal", "layout");
 }
 
@@ -224,9 +245,9 @@ export async function cancelRequest(ref: string, reason: string): Promise<Result
 // ---------------- account ----------------
 const LANGUAGES = ["Kinyarwanda", "English", "French"] as const;
 
-/** Name, WhatsApp updates and preferred languages. The phone number is the sign-in, so support changes it. */
+/** Name, WhatsApp updates and preferred languages. The email address is the sign-in, so support changes it. */
 export async function updateAccount(fd: FormData): Promise<Result> {
-  const accountId = await requireCustomerId("/portal/account");
+  const accountId = await requireFullCustomer("/portal/account");
   const name = text(fd, "name").replace(/\s+/g, " ").slice(0, 120);
   if (name.length < 2) return fail("Enter your full name.");
   const languages = LANGUAGES.filter((l) => fd.getAll("languages").includes(l));
@@ -244,7 +265,7 @@ export async function updateAccount(fd: FormData): Promise<Result> {
 
 /** Ends every session of this account, on every phone and computer, this one included. */
 export async function signOutEverywhere() {
-  const accountId = await requireCustomerId("/portal/account");
+  const accountId = await requireFullCustomer("/portal/account");
   const d = await db();
   await d.delete(s.sessions).where(and(eq(s.sessions.kind, "customer"), eq(s.sessions.subjectId, accountId)));
   await audit(d, { actor: accountId, role: "Customer", action: "Signed out everywhere", entity: accountId });
@@ -254,7 +275,7 @@ export async function signOutEverywhere() {
 
 /** Deletes the documents the customer uploaded for requests that are finished. */
 export async function deleteMyDocuments(): Promise<Result<{ deleted: number }>> {
-  const accountId = await requireCustomerId("/portal/account");
+  const accountId = await requireFullCustomer("/portal/account");
   const { refs } = await finishedWithDocuments(accountId);
   if (!refs.length) return fail("There are no documents from finished requests to delete.");
   const deleted = await purgeDocuments(refs, "at the customer’s request");
@@ -265,7 +286,7 @@ export async function deleteMyDocuments(): Promise<Result<{ deleted: number }>> 
 
 /** Deletes the account. The customer types DELETE to confirm; open requests must be finished first. */
 export async function deleteMyAccount(confirmation: string): Promise<Result> {
-  const accountId = await requireCustomerId("/portal/account");
+  const accountId = await requireFullCustomer("/portal/account");
   if (confirmation.trim().toUpperCase() !== "DELETE") return fail("Type DELETE to confirm.");
   const result = await deleteAccount(accountId);
   if (!result.ok) return result;

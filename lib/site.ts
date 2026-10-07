@@ -12,7 +12,7 @@ export const SITE = {
   tin: "[TIN]",
   hours: "Mon–Fri 8:00–18:00 · Sat 9:00–13:00",
   responseTime: "2 working hours",
-  /** Public address of the site, used in SMS links. */
+  /** Public address of the site, used in email links. */
   url: process.env.NEXT_PUBLIC_SITE_URL ?? "[website]",
 };
 
@@ -32,4 +32,10 @@ export const DISCLAIMER =
 /** The site's absolute origin (e.g. https://inzira.rw), or null while NEXT_PUBLIC_SITE_URL is not set. */
 export function siteOrigin(): string | null {
   try { return new URL(process.env.NEXT_PUBLIC_SITE_URL ?? "").origin; } catch { return null; }
+}
+
+/** A link that works outside the browser (in an email). Falls back to the relative path while the site address is not set. */
+export function absoluteUrl(path: string): string {
+  const origin = siteOrigin() ?? (process.env.NODE_ENV !== "production" ? `http://localhost:${process.env.PORT ?? 3000}` : null);
+  return origin ? `${origin}${path}` : path;
 }

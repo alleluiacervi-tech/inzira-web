@@ -2,7 +2,14 @@
 import type { Account, Profile, Staff } from "../types";
 
 const acc = (id: string, name: string, phone: string, since: string, languages = ["Kinyarwanda", "English"]): Account =>
-  ({ id, name, first: name.split(" ")[0], phone, whatsapp: true, languages, since: `${since}T09:00:00+02:00` });
+  ({ id, name, first: name.split(" ")[0], phone, email: EMAILS[id], whatsapp: true, languages, since: `${since}T09:00:00+02:00` });
+
+/** Sign-in addresses for the sample customers. example.com is reserved for documentation: nothing is ever delivered there. */
+const EMAILS: Record<string, string> = {
+  "acc-aline": "aline@example.com", "acc-jc": "jean.claude@example.com", "acc-kff": "samuel@example.com", "acc-hope": "josiane@example.com",
+  "acc-chantal": "chantal@example.com", "acc-nyamirambo": "eugene@example.com", "acc-musanze": "innocent@example.com",
+  "acc-emmanuel": "emmanuel@example.com", "acc-inema": "alice@example.com", "acc-ubumwe": "clarisse@example.com",
+};
 
 export const ACCOUNTS: Account[] = [
   acc("acc-aline", "Aline Uwase", "+250 788 123 456", "2026-01-14"),

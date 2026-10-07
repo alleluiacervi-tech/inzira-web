@@ -1,10 +1,11 @@
 // Checks the outside services end to end, through the same code the site uses. Run it on a staging
 // environment with the real keys set, before taking real money:
 //
-//   TEST_PHONE=788123456 npm run check:providers
+//   TEST_EMAIL=you@example.com TEST_PHONE=788123456 npm run check:providers
 //
 // - Database: answers, and every migration in ./drizzle is applied.
-// - SMS: sends one message to TEST_PHONE (SMS_PROVIDER=africastalking).
+// - Email: sends one message to TEST_EMAIL through Resend (RESEND_API_KEY, EMAIL_FROM).
+// - Private links: signs a link for an existing request and checks it (ACCESS_SECRET).
 // - Mobile money: with PAYMENT_PROVIDER=live, sends a prompt of CHECK_AMOUNT (default 100) to
 //   TEST_PHONE for MTN and, if set, TEST_AIRTEL_PHONE for Airtel, then waits up to 2 minutes for the
 //   result. In the MTN sandbox no phone rings and the prompt succeeds on its own; on a live account
@@ -44,18 +45,36 @@ try {
   record("Database", "fail", errorText(e));
 }
 
-// ---------------- SMS ----------------
-const phone = nine(process.env.TEST_PHONE);
-if (process.env.SMS_PROVIDER !== "africastalking") record("SMS", "skip", "SMS_PROVIDER is not africastalking.");
-else if (!/^7\d{8}$/.test(phone)) record("SMS", "skip", "Set TEST_PHONE to a Rwandan mobile number that should receive the test.");
+// ---------------- email ----------------
+const to = process.env.TEST_EMAIL?.trim().toLowerCase();
+if (!process.env.RESEND_API_KEY) record("Email", "skip", "RESEND_API_KEY is not set.");
+else if (!to || !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(to)) record("Email", "skip", "Set TEST_EMAIL to an address that should receive the test.");
 else {
   try {
-    const { sendSms } = await import("../lib/sms.ts");
-    await sendSms(phone, "Inzira provider check: SMS works.");
-    record("SMS", "pass", `Accepted by Africa’s Talking for +250${phone}. Check the phone${process.env.AT_USERNAME === "sandbox" ? " (sandbox: check the simulator instead)" : ""}.`);
+    const { sendEmail } = await import("../lib/email.ts");
+    const { testMail } = await import("../lib/mail.ts");
+    await sendEmail(testMail(to));
+    record("Email", "pass", `Accepted by Resend for ${to}. Check the inbox (and spam)${/@resend\.dev>?$/i.test(process.env.EMAIL_FROM ?? "") ? "; sending from resend.dev only reaches your own Resend account address" : ""}.`);
   } catch (e) {
-    record("SMS", "fail", errorText(e));
+    record("Email", "fail", errorText(e));
   }
+}
+
+// ---------------- private links ----------------
+try {
+  const { accessPath, verifyAccess } = await import("../lib/access.ts");
+  const { db, schema } = await import("../lib/db/index.ts");
+  const [row] = await (await db()).select({ ref: schema.requests.ref, version: schema.requests.accessVersion }).from(schema.requests).limit(1);
+  if (!process.env.ACCESS_SECRET) record("Private links", "skip", "ACCESS_SECRET is not set.");
+  else if (!row) record("Private links", "skip", "No request in the database to sign a link for.");
+  else {
+    const [, , , ref, token] = accessPath(row.ref, row.version).split("/");
+    const good = await verifyAccess(decodeURIComponent(ref), token);
+    const bad = await verifyAccess(decodeURIComponent(ref), token.replace(/.$/, (c) => (c === "a" ? "b" : "a")));
+    record("Private links", good && !bad ? "pass" : "fail", good && !bad ? "A link verifies, and a tampered one is refused." : "Link signing and checking disagree.");
+  }
+} catch (e) {
+  record("Private links", "fail", errorText(e));
 }
 
 // ---------------- mobile money ----------------

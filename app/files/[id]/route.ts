@@ -8,12 +8,14 @@ import { readFile } from "@/lib/storage";
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const session = await getSession();
-  if (!session) return new Response("Sign in to see this file.", { status: 401 });
+  if (!session) return new Response("Open your private link or sign in to see this file.", { status: 401 });
   const d = await db();
   const [file] = await d.select().from(s.files).where(eq(s.files.id, id));
   if (!file) return new Response("Not found", { status: 404 });
 
   if (session.kind === "customer") {
+    // A private-link session may only open files of its own request.
+    if (session.scopeRef && session.scopeRef !== file.ref) return new Response("Not found", { status: 404 });
     const [owner] = await d.select({ accountId: s.profiles.accountId }).from(s.requests).innerJoin(s.profiles, eq(s.profiles.id, s.requests.profileId)).where(eq(s.requests.ref, file.ref));
     if (owner?.accountId !== session.subjectId) return new Response("Not found", { status: 404 });
   } else {

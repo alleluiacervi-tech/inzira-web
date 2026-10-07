@@ -2,14 +2,15 @@
 import { and, eq, isNull, lt } from "drizzle-orm";
 import { retentionSweep } from "./privacy";
 import { allow } from "./ratelimit";
-import { sendSms } from "./sms";
+import { sendEmail } from "./email";
+import { staffDigestMail } from "./mail";
 import { reconcileStalePayments } from "./billing";
 import { db, iso, schema as s } from "./db";
 import { rwf } from "./format";
 import { event, notify } from "./mutate";
 import { amountDue } from "./status";
 
-/** Requests whose fees were sent, are past due and unpaid go on hold, with one SMS reminder. */
+/** Requests whose fees were sent, are past due and unpaid go on hold, with one email reminder. */
 export async function holdOverduePayments() {
   const d = await db();
   const now = new Date().toISOString();
@@ -26,7 +27,7 @@ export async function holdOverduePayments() {
     await d.transaction(async (tx) => {
       await tx.update(s.requests).set({ hold: { reason: "payment", title: `Payment of ${rwf(due)} is overdue`, detail: "Everything else is ready. We carry on as soon as it is paid.", since: now } }).where(eq(s.requests.ref, r.ref));
       await event(tx, r.ref, "Payment reminder sent", "system", `${rwf(due)} overdue`);
-      await notify(tx, r.ref, { icon: "card", title: `Payment of ${rwf(due)} is overdue for ${r.ref}`, sms: `payment of ${rwf(due)} is overdue. Pay in your portal and we carry on straight away.` });
+      await notify(tx, r.ref, { icon: "card", title: `Payment of ${rwf(due)} is overdue for ${r.ref}`, message: `payment of ${rwf(due)} is overdue. Pay in your portal and we carry on straight away.` });
     });
     held++;
   }
@@ -48,14 +49,14 @@ export async function cleanUp() {
 const kigaliDate = (t = Date.now()) => new Date(t + 2 * 3600e3).toISOString().slice(0, 10);
 
 /**
- * One SMS a day to each member of staff with something waiting: their follow-ups due today or earlier,
+ * One email a day to each member of staff with something waiting: their follow-ups due today or earlier,
  * and their cases waiting on the customer for more than three days. Supervisors and above also hear how
  * many new requests have no agent yet. Sent at most once a day, however often the job runs.
  */
 export async function staffDigest() {
   const today = kigaliDate();
   const d = await db();
-  const people = (await d.select().from(s.staff).where(eq(s.staff.active, true))).filter((p) => p.phone);
+  const people = (await d.select().from(s.staff).where(eq(s.staff.active, true))).filter((p) => p.email);
   const open = (await d.select({ agentId: s.requests.agentId, followUp: s.requests.followUp, hold: s.requests.hold, stage: s.requests.stage, closed: s.requests.closed }).from(s.requests))
     .filter((r) => !r.closed && r.stage !== "completed");
   const endOfToday = Date.parse(`${today}T23:59:59+02:00`);
@@ -71,12 +72,12 @@ export async function staffDigest() {
       followUps && `${followUps} follow-up${followUps === 1 ? "" : "s"} due`,
       waiting && `${waiting} case${waiting === 1 ? "" : "s"} waiting on the customer for over 3 days`,
       lead && unassigned && `${unassigned} new request${unassigned === 1 ? "" : "s"} with no agent`,
-    ].filter(Boolean);
+    ].filter(Boolean) as string[];
     if (!parts.length) continue;
     // The guard key is per person and day, so a second run the same day sends nothing.
     if (!(await allow(`digest:${p.id}:${today}`, 1, 864e5))) continue;
     try {
-      await sendSms(p.phone!, `Inzira today: ${parts.join(", ")}. Open the staff console to see them.`);
+      await sendEmail(staffDigestMail(p.email!, p.name, parts));
       sent++;
     } catch (e) { console.error("[digest]", p.id, e); }
   }

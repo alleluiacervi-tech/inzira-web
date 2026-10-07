@@ -15,6 +15,7 @@ export function AddClientModal({
   const [busy, start] = useTransition();
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
+  const [email, setEmail] = useState("");
   const [kind, setKind] = useState<"person" | "business" | "organization">("person");
   const [district, setDistrict] = useState("Gasabo");
   const [nationalId, setNationalId] = useState("");
@@ -37,6 +38,7 @@ export function AddClientModal({
       const res = await createClient({
         name: name.trim(),
         phone: phone.trim(),
+        email: email.trim() || undefined,
         kind,
         district: district.trim() || undefined,
         nationalId: nationalId.trim() || undefined,
@@ -108,13 +110,26 @@ export function AddClientModal({
 
             <div className="grid cols-2" style={{ gap: 12 }}>
               <div className="console-form-group">
-                <label className="console-label">Phone number (login) *</label>
+                <label className="console-label">Phone number *</label>
                 <input
                   className="console-input"
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
                   placeholder="0788 123 456"
                   required
+                  disabled={busy}
+                />
+              </div>
+
+              <div className="console-form-group">
+                <label className="console-label">Email (sign-in and updates)</label>
+                <input
+                  className="console-input"
+                  type="email"
+                  inputMode="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="name@example.com"
                   disabled={busy}
                 />
               </div>

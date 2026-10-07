@@ -2,12 +2,12 @@
 import { randomBytes } from "node:crypto";
 import { and, eq, inArray } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
-import { getStaffUser, normalisePhone } from "@/lib/auth";
+import { getStaffUser } from "@/lib/auth";
+import { normaliseEmail, normalisePhone } from "@/lib/contact";
 import { rwf, shortName } from "@/lib/format";
 import { audit, db, event, fail, notify, s, type Result } from "@/lib/mutate";
 import { PERMISSIONS, type Permission } from "@/lib/permissions";
 import { searchGlobal } from "@/lib/repo";
-import { sendSms } from "@/lib/sms";
 import type { Closed, PayMethod, SavedView, Stage } from "@/lib/types";
 
 const now = () => new Date().toISOString();
@@ -56,7 +56,7 @@ export async function acceptAndAssignRequest(ref: string, agentId: string, messa
     await notify(tx, ref, {
       icon: "user",
       title: `${agent.name.split(" ")[0]} has taken your request ${ref}`,
-      sms: `${agent.name.split(" ")[0]} is handling your request ${ref}. See progress in your portal.`,
+      message: `${agent.name.split(" ")[0]} is handling your request ${ref}. See progress in your portal.`,
     });
     await audit(tx, { actor: me.name, role: me.role, action: "Accepted & assigned case", entity: `${ref} → ${agent.name}` });
   });
@@ -85,7 +85,7 @@ export async function declineRequest(ref: string, reason: string): Promise<Resul
     await notify(tx, ref, {
       icon: "alert",
       title: `Request ${ref} was declined`,
-      sms: `your request ${ref} was declined: ${reason.trim()}`,
+      message: `your request ${ref} was declined: ${reason.trim()}`,
     });
     await audit(tx, { actor: me.name, role: me.role, action: "Declined request", entity: `${ref} · ${reason.trim()}` });
   });
@@ -120,7 +120,7 @@ export async function quoteCustomRequest(ref: string, official: number | null, o
     await notify(tx, ref, {
       icon: "card",
       title: `Quote ready for ${ref}: ${officialText} + our fee ${rwf(ours)}`,
-      sms: `quote ready: ${officialText} + our fee ${rwf(ours)}. Review and approve in your portal.`,
+      message: `quote ready: ${officialText} + our fee ${rwf(ours)}. Review and approve in your portal.`,
     });
     await audit(tx, { actor: me.name, role: me.role, action: "Sent custom quote", entity: `${ref} · ${officialText} + ${rwf(ours)}`, fee: true });
   });
@@ -212,7 +212,7 @@ export async function recordManualPayment(input: {
     await notify(tx, ref, {
       icon: "card",
       title: `Payment of ${rwf(total)} received for ${ref}`,
-      sms: `we received your payment of ${rwf(total)} for ${ref}. Official receipt: ${input.receipt.trim()}.`,
+      message: `we received your payment of ${rwf(total)} for ${ref}. Official receipt: ${input.receipt.trim()}.`,
     });
     await audit(tx, {
       actor: me.name,
@@ -268,6 +268,7 @@ export async function revealTin(profileId: string): Promise<Result<{ tin: string
 export async function createClient(input: {
   name: string;
   phone: string;
+  email?: string;
   kind: "person" | "business" | "organization";
   district?: string;
   nationalId?: string;
@@ -282,16 +283,19 @@ export async function createClient(input: {
   const phone = normalisePhone(input.phone);
   if (!input.name.trim()) return fail("Enter client's full name.");
   if (!phone) return fail("Enter a Rwandan mobile number (e.g. 788 123 456).");
+  const email = input.email?.trim() ? normaliseEmail(input.email) : null;
+  if (input.email?.trim() && !email) return fail("That email address doesn’t look right.");
 
   const d = await db();
   const res = await d.transaction(async (tx) => {
-    let [account] = await tx.select().from(s.accounts).where(eq(s.accounts.phone, phone));
+    let [account] = await tx.select().from(s.accounts).where(email ? eq(s.accounts.email, email) : eq(s.accounts.phone, phone));
     if (!account) {
       [account] = await tx.insert(s.accounts).values({
         id: `acc-${randomBytes(6).toString("hex")}`,
         name: input.name.trim(),
         first: input.name.trim().split(" ")[0],
         phone,
+        email,
         languages: ["Kinyarwanda"],
       }).returning();
     }

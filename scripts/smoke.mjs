@@ -7,13 +7,15 @@
 // stylesheet cannot be fetched (which is what a stale .next folder looks like: pages render unstyled).
 
 const base = (process.argv[2] ?? "http://localhost:3000").replace(/\/$/, "");
+// The public site is in Kinyarwanda unless the visitor chose English; these checks read the English text.
+const EN = { headers: { Cookie: "inzira_lang=en" } };
 
 /** [path, ...text that must appear in the HTML] */
 const ROUTES = [
   ["/", "Government paperwork, handled for you.", "Services and fees", "Rwanda Utilities Regulatory Authority", "Annual return filing"],
   ["/services", "Find the service you need", "Company registration", "Monthly business tax declarations"],
   ["/services?category=tax", "Trading licence declaration"],
-  ["/services/company-registration", "Official government fee", "Our service / assistance fee", "Filed with the Rwanda Development Board"],
+  ["/services/company-registration", "Official government fee", "Our service / assistance fee", "Filed with Rwanda Development Board"],
   ["/services/property-tax-declaration", "per UPI, per year", "Tax as assessed"],
   ["/services/irembo-training", "per month", "Training by Inzira"],
   ["/start", "A few details about you", "Free to ask"],
@@ -50,7 +52,7 @@ const text = (html) => html.replace(/<!-- -->/g, "").replace(/&amp;/g, "&").repl
 let cssChecked = false;
 for (const [path, ...expect] of ROUTES) {
   let res;
-  try { res = await fetch(base + path); } catch (e) { fail(path, `cannot connect to ${base} (${e.cause?.code ?? e.message})`); break; }
+  try { res = await fetch(base + path, EN); } catch (e) { fail(path, `cannot connect to ${base} (${e.cause?.code ?? e.message})`); break; }
   if (res.status !== 200) { fail(path, `status ${res.status}`); continue; }
   const html = await res.text();
   const body = text(html);
@@ -75,6 +77,10 @@ if (!failures.length) {
     if (!(res.status >= 300 && res.status < 400 && to.includes("/sign-in"))) fail(path, `expected a redirect to sign-in, got ${res.status} ${to}`);
     else console.log(`  ok   ${path} (asks to sign in)`);
   }
+  const bad = await fetch(base + "/r/INZ-2026-04817/aaaaaaaaaaaaaaaaaaaaaa", { redirect: "manual" });
+  const badTo = bad.headers.get("location") ?? "";
+  if (!(bad.status >= 300 && bad.status < 400 && badTo.includes("/sign-in") && badTo.includes("link=invalid"))) fail("/r/…", `a wrong private link must go to sign-in, got ${bad.status} ${badTo}`);
+  else console.log("  ok   /r/… (a wrong private link is refused)");
   const health = await fetch(base + "/api/health");
   if (health.status !== 200) fail("/api/health", `expected 200, got ${health.status}`); else console.log("  ok   /api/health");
   const cron = await fetch(base + "/api/cron");
@@ -87,7 +93,7 @@ if (!failures.length) {
   if (file.status !== 401) fail("/files/anything", `files must need a session, got ${file.status}`);
   else console.log("  ok   /files/… (needs a session)");
   for (const path of NOT_FOUND) {
-    const res = await fetch(base + path);
+    const res = await fetch(base + path, EN);
     // Signed-in areas stream a loading state first, so they answer 200 and then show "not found".
     const shown = text(await res.text()).includes("We couldn’t find that");
     if (res.status !== 404 && !shown) fail(path, `expected a not-found page, got ${res.status}`);
@@ -95,5 +101,5 @@ if (!failures.length) {
   }
 }
 
-console.log(failures.length ? `\n${failures.length} problem(s) on ${base}` : `\nAll ${ROUTES.length + PRIVATE.length + NOT_FOUND.length + 5} checks passed on ${base}`);
+console.log(failures.length ? `\n${failures.length} problem(s) on ${base}` : `\nAll ${ROUTES.length + PRIVATE.length + NOT_FOUND.length + 6} checks passed on ${base}`);
 process.exit(failures.length ? 1 : 0);

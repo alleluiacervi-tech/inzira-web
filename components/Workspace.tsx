@@ -162,7 +162,7 @@ export default function Workspace({ c, me, perms, agents, category, now }: { c: 
             )}
 
             <section id="ask" className="card" aria-labelledby="ask-h">
-              <div className="card-head"><h2 id="ask-h" className="d" style={{ fontSize: 17 }}>Messages with {first}</h2><span className="mut" style={{ fontSize: 13 }}>Portal + SMS</span></div>
+              <div className="card-head"><h2 id="ask-h" className="d" style={{ fontSize: 17 }}>Messages with {first}</h2><span className="mut" style={{ fontSize: 13 }}>Portal + email</span></div>
               <div className="stack g14" style={{ padding: 18 }} aria-live="polite">
                 {c.messages.length === 0 && <p className="hint">No messages yet.</p>}
                 {c.messages.map((m) => {
@@ -232,7 +232,7 @@ export default function Workspace({ c, me, perms, agents, category, now }: { c: 
               <div className="field"><label htmlFor="st">Stage</label><select id="st" className="in" value={pending} disabled={finished || !can("updateStatus")} onChange={(e) => setPending(e.target.value as Stage)}>{c.flow.map((s) => <option key={s} value={s}>{stageLabel(c, s)}</option>)}</select>
                 <span className="hint">A stage says who has the work. If you are waiting on the customer, keep the stage and use “Send and wait”.</span></div>
               <div className="field"><label htmlFor="sm">Message to customer <span className="mut" style={{ fontWeight: 400 }}>(optional)</span></label><textarea id="sm" className="in" rows={2} value={statusMsg} disabled={finished} onChange={(e) => setStatusMsg(e.target.value)} placeholder="Shown on their timeline" /></div>
-              <label className="check"><input type="checkbox" checked={notify} onChange={(e) => setNotify(e.target.checked)} /> Notify by SMS</label>
+              <label className="check"><input type="checkbox" checked={notify} onChange={(e) => setNotify(e.target.checked)} /> Notify by email</label>
               <button className="btn btn-d" type="button" disabled={finished || pending === stage || busy || !can("updateStatus")} onClick={() => run(notify ? "Stage updated · customer notified" : "Stage updated", () => setStage(c.ref, pending, statusMsg, notify), () => setStatusMsg(""))}>Update stage</button>
               {nope("updateStatus")}
             </section>
@@ -278,7 +278,7 @@ export default function Workspace({ c, me, perms, agents, category, now }: { c: 
 
             <section className="card stack g12" style={{ padding: 18 }} aria-labelledby="out-h">
               <h2 id="out-h" className="d" style={{ fontSize: 17 }}>Documents for the customer</h2>
-              {c.deliverables.length === 0 && <p className="hint">The final document from the institution goes here. The customer gets an SMS and downloads it from their portal.</p>}
+              {c.deliverables.length === 0 && <p className="hint">The final document from the institution goes here. The customer gets an email and downloads it from their portal.</p>}
               {c.deliverables.map((o) => (
                 <div key={o.id} className="row between g8" style={{ fontSize: 14 }}>
                   <span className="stack" style={{ gap: 2 }}><strong>{o.name}</strong><span className="mut" style={{ fontSize: 12.5 }}>{fmtWhen(o.issuedAt, now)} · {o.issuedBy}</span></span>

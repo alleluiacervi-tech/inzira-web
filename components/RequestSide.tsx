@@ -8,7 +8,7 @@ import { feeCaption, phrase, unitLabel } from "@/lib/i18n/present";
 import { amountDue, paidSplit, payStatus } from "@/lib/status";
 import type { Billing, Message } from "@/lib/types";
 import { useI18n } from "./I18n";
-import { isMobile, prettyMobile } from "./PhoneCode";
+import { isMobile, prettyMobile } from "@/lib/contact";
 import { FeeLines, Icon, PayBadge } from "./ui";
 import { useDialog } from "./useDialog";
 

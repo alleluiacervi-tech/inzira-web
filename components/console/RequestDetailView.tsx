@@ -506,7 +506,7 @@ export function RequestDetailView({
         <div className="console-panel stack g0" style={{ overflow: "hidden" }}>
           <div className="console-panel-header">
             <h3 className="console-section-title" style={{ margin: 0 }}>Conversation with {c.profile.name}</h3>
-            <span style={{ fontSize: 12.5, color: "var(--c-text-muted)" }}>Customer portal + SMS</span>
+            <span style={{ fontSize: 12.5, color: "var(--c-text-muted)" }}>Customer portal + email</span>
           </div>
 
           <div className="stack g12" style={{ padding: 18, maxHeight: 420, overflowY: "auto" }}>

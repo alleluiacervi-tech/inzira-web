@@ -6,13 +6,13 @@ const TOO_MANY = "Too many attempts. Please wait a few minutes and try again.";
 /** Known server messages, mapped so the screen can show them in the customer's language. */
 const KNOWN: Record<string, string> = {
   "Enter a Rwandan mobile number, e.g. 788 123 456.": "authErr.badPhone",
+  "Enter a valid email address, e.g. name@example.com.": "authErr.badEmail",
   "We just sent a code. Wait a few seconds before asking for another.": "authErr.wait",
-  "We couldn’t send the SMS. Please try again in a minute.": "authErr.sms",
-  "Enter the 6-digit code from the SMS.": "authErr.digits",
-  "That code has expired. Ask for a new one.": "authErr.expired",
+  "We couldn’t send the email. Please try again in a minute.": "authErr.emailFail",
+  "Enter the 6-digit code from the email.": "authErr.digits",
+  "That code has expired or isn’t valid. Ask for a new one.": "authErr.expired",
   "Too many wrong codes. Ask for a new one.": "authErr.tooManyWrong",
-  "That code is not right. Check the SMS and try again.": "authErr.wrong",
-  "We don’t have an account for this number yet. Start a service and your portal is created with your first request.": "authErr.noAccount",
+  "That code is not right. Check the email and try again.": "authErr.wrong",
   [TOO_MANY]: "authErr.tooMany",
   "We couldn’t send the code. Check your connection and try again.": "authErr.sendFail",
   "We couldn’t send your request. Check your connection and try again.": "authErr.submitFail",

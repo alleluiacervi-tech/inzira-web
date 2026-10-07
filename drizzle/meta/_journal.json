@@ -29,6 +29,13 @@
       "when": 1790973722488,
       "tag": "0003_privacy_and_jobs",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1791415550779,
+      "tag": "0004_email_and_private_links",
+      "breakpoints": true
     }
   ]
 }

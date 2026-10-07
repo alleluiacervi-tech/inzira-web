@@ -24,16 +24,22 @@ async function database(): Promise<Check> {
   return { key: "db", name, state: "test", detail: "Built-in test database. Data is lost when the server restarts on Vercel.", fix: "Set DATABASE_URL to a persistent Postgres database (Neon, Supabase or Railway). The server applies the schema when it starts." };
 }
 
-function sms(): Check {
-  const name = "SMS (sign-in codes and updates)";
-  const p = process.env.SMS_PROVIDER;
-  if (p === "africastalking") {
-    if (!has("AT_USERNAME", "AT_API_KEY")) return { key: "sms", name, state: "missing", detail: "Africa’s Talking is chosen but its keys are not set.", fix: "Set AT_USERNAME and AT_API_KEY (and AT_SENDER_ID once approved)." };
-    if (process.env.AT_USERNAME === "sandbox") return { key: "sms", name, state: "test", detail: "Africa’s Talking sandbox: messages go to the simulator, not to phones.", fix: "Use your live AT_USERNAME and AT_API_KEY." };
-    return { key: "sms", name, state: "ready", detail: `Africa’s Talking${process.env.AT_SENDER_ID ? `, sender “${process.env.AT_SENDER_ID}”` : ", default sender"}. Send yourself a test below.` };
+function email(): Check {
+  const name = "Email (sign-in codes, updates and private links)";
+  if (has("RESEND_API_KEY")) {
+    if (!has("EMAIL_FROM")) return { key: "email", name, state: "missing", detail: "Resend is connected but there is no sender address.", fix: "Set EMAIL_FROM, e.g. Inzira <hello@inzira.rw>, on a domain verified in Resend." };
+    if (/@resend\.dev>?$/i.test(process.env.EMAIL_FROM ?? "")) return { key: "email", name, state: "test", detail: "Sending from resend.dev: Resend only delivers to your own address.", fix: "Verify your domain in Resend and use an address on it in EMAIL_FROM." };
+    return { key: "email", name, state: "ready", detail: `Resend, sending as ${process.env.EMAIL_FROM}. Send yourself a test below.` };
   }
-  if (p === "console" || (!p && (!production() || demo()))) return { key: "sms", name, state: "test", detail: "Messages are printed to the server log; codes appear on screen. Nobody receives an SMS.", fix: "Set SMS_PROVIDER=africastalking with AT_USERNAME and AT_API_KEY." };
-  return { key: "sms", name, state: "missing", detail: "No SMS provider. Nobody can sign in.", fix: "Set SMS_PROVIDER=africastalking with AT_USERNAME and AT_API_KEY." };
+  if (!production() || demo()) return { key: "email", name, state: "test", detail: "Emails are printed to the server log; codes appear on screen. Nobody receives an email.", fix: "Set RESEND_API_KEY and EMAIL_FROM." };
+  return { key: "email", name, state: "missing", detail: "No email provider. Nobody can sign in and customers get no updates.", fix: "Set RESEND_API_KEY and EMAIL_FROM." };
+}
+
+function privateLinks(): Check {
+  const name = "Private links";
+  if (has("ACCESS_SECRET")) return { key: "links", name, state: "ready", detail: "Customers can follow a request from the link in their email, without signing in." };
+  if (!production() || demo()) return { key: "links", name, state: "test", detail: "Using a built-in demo secret. Anyone could forge a link.", fix: "Set ACCESS_SECRET to a long random value: openssl rand -base64 32." };
+  return { key: "links", name, state: "missing", detail: "ACCESS_SECRET is not set, so private links can’t be made.", fix: "Set ACCESS_SECRET to a long random value: openssl rand -base64 32. Changing it later breaks every link already sent." };
 }
 
 function payments(): Check[] {
@@ -67,7 +73,7 @@ function site(): Check[] {
   const out: Check[] = [
     process.env.NEXT_PUBLIC_SITE_URL
       ? { key: "url", name: "Website address", state: "ready", detail: process.env.NEXT_PUBLIC_SITE_URL }
-      : { key: "url", name: "Website address", state: "missing", detail: "Not set. SMS links and the sitemap can’t point to the site.", fix: "Set NEXT_PUBLIC_SITE_URL, e.g. https://inzira.rw." },
+      : { key: "url", name: "Website address", state: "missing", detail: "Not set. Links in emails and the sitemap can’t point to the site.", fix: "Set NEXT_PUBLIC_SITE_URL, e.g. https://inzira.rw." },
     placeholders.length
       ? { key: "company", name: "Company details", state: "missing", detail: `Still placeholders: ${placeholders.map((k) => ({ address: "office address", phone: "phone", companyCode: "company code", tin: "TIN" })[k]).join(", ")}${SITE.whatsapp ? "" : ", WhatsApp number"}.`, fix: "Fill them in lib/site.ts. Customers check these before trusting you." }
       : { key: "company", name: "Company details", state: SITE.whatsapp ? "ready" : "missing", detail: SITE.whatsapp ? "Filled in." : "WhatsApp number not set.", fix: SITE.whatsapp ? undefined : "Set whatsapp in lib/site.ts." },
@@ -106,7 +112,7 @@ export async function systemStatus() {
   const runs = await lastRuns();
   const groups: { title: string; checks: Check[] }[] = [
     { title: "Running the site", checks: [await database(), storage(), job(runs)] },
-    { title: "Talking to customers", checks: [sms(), ...payments()] },
+    { title: "Talking to customers", checks: [email(), privateLinks(), ...payments()] },
     { title: "Before launch", checks: [...site(), await catalogue()] },
   ];
   return { groups, runs };

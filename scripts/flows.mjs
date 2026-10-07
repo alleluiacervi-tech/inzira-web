@@ -1,11 +1,12 @@
 // Flow test: drives the real screens in headless Chrome and checks the things people actually do —
-// start a request, confirm a phone number, pay, upload, track, and the agent and admin actions.
+// start a request without signing in, follow it from its private link, pay, upload, track, and the agent and admin actions.
 // No npm dependencies. Needs Google Chrome installed and Node 22 or newer.
 //
 //   1. Start the app:   npm run build && npm start     (or npm run dev)
 //   2. In another tab:  npm run flows                  (or: npm run flows -- http://localhost:3001)
 //
-// Chrome is found automatically on macOS; elsewhere set CHROME_PATH to the browser binary.
+// Chrome is found automatically on macOS; elsewhere set CHROME_PATH to the browser binary
+// (and CHROME_FLAGS=--no-sandbox if it runs as root).
 // The checks are written against the seed data in lib/mock and change it as they go, so run them on
 // a fresh development database: `npm run db:reset`, start the app with INZIRA_DEMO=1 (codes are shown
 // on screen and payments are simulated), then run this.
@@ -23,7 +24,8 @@ if (typeof WebSocket === "undefined") { console.error("This script needs Node 22
 const work = mkdtempSync(join(tmpdir(), "inzira-flows-"));
 const png = join(work, "id_photo.png");
 writeFileSync(png, Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==", "base64"));
-const chrome = spawn(chromePath, ["--headless=new", "--disable-gpu", "--no-first-run", `--remote-debugging-port=${port}`, `--user-data-dir=${join(work, "profile")}`, "about:blank"], { stdio: "ignore" });
+// CHROME_FLAGS adds browser flags, e.g. "--no-sandbox" when running as root in a container.
+const chrome = spawn(chromePath, ["--headless=new", "--disable-gpu", "--no-first-run", ...(process.env.CHROME_FLAGS?.split(" ").filter(Boolean) ?? []), `--remote-debugging-port=${port}`, `--user-data-dir=${join(work, "profile")}`, "about:blank"], { stdio: "ignore" });
 const stop = (code) => { chrome.kill(); try { rmSync(work, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 }); } catch { /* temp folder is cleaned by the OS */ } process.exit(code); };
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -51,6 +53,8 @@ async function page(width = 1280) {
     ws.send(JSON.stringify({ id: i, method, params }));
   });
   await send("Page.enable"); await send("DOM.enable"); await send("Runtime.enable");
+  // The public site is in Kinyarwanda unless the visitor chose English; these checks read the English text.
+  await send("Network.setCookie", { name: "inzira_lang", value: "en", url: base });
   // A tab Chrome treats as in the background gets its timers and rendering throttled.
   await send("Page.bringToFront"); await send("Emulation.setFocusEmulationEnabled", { enabled: true });
   await send("Emulation.setDeviceMetricsOverride", { width, height: 900, deviceScaleFactor: 1, mobile: width < 800 });
@@ -76,11 +80,11 @@ async function page(width = 1280) {
     async close() { await fetch(`http://127.0.0.1:${port}/json/close/${t.id}`); ws.close(); },
   };
 }
-/** Signs in with a phone number, reading the demo code shown on screen. */
-async function signIn(p, phone) {
+/** Signs in with an email address, reading the demo code shown on screen. */
+async function signIn(p, email) {
   await p.go("/sign-in");
   if ((await p.ev("location.pathname")) !== "/sign-in") { await signOut(p); await p.go("/sign-in"); }
-  await p.set("#si-phone", phone); await p.click("Send me a code"); await waitCode(p);
+  await p.set("#si-email", email); await p.click("Send me a code"); await waitCode(p);
   const code = await p.ev(`document.querySelector("[data-demo-code]")?.dataset.demoCode ?? ""`);
   if (!code) throw new Error("no demo code shown (start the app with INZIRA_DEMO=1)");
   await p.set("#otp", code); await p.click("Sign in", "button"); await waitPath(p, (path) => path !== "/sign-in"); await sleep(500); await p.help();
@@ -128,21 +132,27 @@ await step("private areas", async () => {
   check("private: the portal asks you to sign in", (await p.ev("location.pathname")) === "/sign-in");
   await p.go("/admin");
   check("private: the admin console asks you to sign in", (await p.ev("location.pathname")) === "/sign-in");
-  await p.set("#si-phone", "788 000 999"); await p.click("Send me a code"); await waitCode(p);
-  await p.set("#otp", await p.ev(`document.querySelector("[data-demo-code]").dataset.demoCode`)); await p.click("Sign in", "button"); await sleep(1500);
-  check("sign-in: an unknown number is told to start a service", await p.has("We don’t have an account for this number"));
-  await p.set("#otp", "000000"); await p.click("Sign in", "button"); await sleep(1000);
-  check("sign-in: a used or wrong code is refused", await p.has("expired") || await p.has("not right"));
+  await p.set("#si-email", "not-an-email"); await p.click("Send me a code"); await sleep(300);
+  check("sign-in: a bad email address is refused", await p.has("Enter a valid email address"));
+  await p.set("#si-email", "nobody@example.com"); await p.click("Send me a code"); await waitFor(p, "Enter the code we sent you"); await sleep(300);
+  check("sign-in: an unknown address looks the same as a known one, and gets no code", await p.has("Enter the code we sent you") && !(await p.ev(`!!document.querySelector("[data-demo-code]")`)));
+  await p.set("#otp", "123456"); await p.click("Sign in", "button"); await sleep(1200);
+  check("sign-in: a made-up code is refused", await p.has("expired or isn’t valid"));
   await p.close();
 });
 
+let guestLink = ""; // the private link shown after the first request below
+let deliveredHref = ""; // a file of Aline's, used to check that a private link cannot reach it
 // ---------- a new customer sends a request ----------
 await step("start", async () => {
   const p = await page();
   await p.go("/start/land-spouse-update");
   await p.click("Continue");
   check("start: empty step 1 is blocked with plain errors", await p.has("Enter your full name") && await p.has("ID numbers have 16 digits") && await p.has("Enter a Rwandan mobile number"));
-  await p.set("#f-name", "Test Person"); await p.set("#f-nid", "1 1995 8 0045123 0 17"); await p.set("#f-phone", "788 555 010");
+  await p.set("#f-name", "Test Person"); await p.set("#f-nid", "1 1995 8 0045123 0 17"); await p.set("#f-email", "not-an-email"); await p.set("#f-phone", "788 555 010");
+  await p.click("Continue"); await sleep(300);
+  check("start: a bad email address is blocked", await p.has("Enter a valid email address"));
+  await p.set("#f-email", "Test.Person@Example.com");
   await p.click("Continue"); await sleep(300);
   check("start: step 2 offers the service's own choices", await p.has("Tell us about the request") && await p.has("Add a spouse after marriage"));
   await p.go("/start/land-spouse-update"); await sleep(400);
@@ -156,17 +166,21 @@ await step("start", async () => {
   check("start: review lists what was entered", await p.has("Check and send") && await p.has("Test Person") && await p.has("Add a spouse after marriage"));
   await p.click("Send request"); await sleep(200);
   check("start: cannot send without the acknowledgement", await p.has("Please confirm you’ve read this"));
-  await p.ev(`document.querySelector('.check input[type=checkbox]').click()`); await p.click("Send request"); await sleep(1200);
-  check("start: texts a code to confirm the number", await p.has("Enter the code we sent you") && await p.has("+250 788 555 010"));
-  await p.set("#otp", "111111"); await p.click("Confirm and send request"); await sleep(1000);
-  check("start: a wrong code is refused", await p.has("not right"));
-  await p.set("#otp", await p.ev(`document.querySelector("[data-demo-code]").dataset.demoCode`)); await p.click("Confirm and send request"); await waitFor(p, "Request received");
+  await p.ev(`document.querySelector('.check input[type=checkbox]').click()`); await p.click("Send request"); await waitFor(p, "Request received");
   if (!(await p.has("Request received"))) console.log("    page says:", (await p.ev(`document.querySelector("main")?.innerText ?? ""`)).slice(0, 300).replace(/\s+/g, " "));
-  const ref = await p.ev(`document.querySelector("h1 + p strong")?.textContent ?? ""`);
-  check("start: creates the request with a new reference", await p.has("Request received") && /^INZ-\d{4}-\d{5}$/.test(ref), ref);
+  const ref = await p.ev(`(document.body.innerText.match(/INZ-\\d{4}-\\d{5}/) ?? [""])[0]`);
+  check("start: sends the request with no code and no sign-in", await p.has("Request received") && !(await p.has("Enter the code we sent you")) && /^INZ-\d{4}-\d{5}$/.test(ref), ref);
+  guestLink = await p.ev(`document.querySelector('input[aria-label="Your private link"]')?.value ?? ""`);
+  check("start: shows a private link for the request", new RegExp(`^${base}/r/${ref}/[\\w-]{22}$`).test(guestLink), guestLink);
   check("start: the draft is cleared after sending", (await p.ev(`sessionStorage.getItem("inzira:start:land-spouse-update")`)) === null);
   await p.click("See my request"); await waitFor(p, "We married in August.");
-  check("start: the new customer is signed in and sees the request", await p.has("Add or remove a spouse in the land register") && await p.has("We married in August.") && await p.has("id_photo.png"));
+  check("start: the customer sees their request straight away", await p.has("Add or remove a spouse in the land register") && await p.has("We married in August.") && await p.has("id_photo.png"));
+  check("guest: the portal offers only this request, not the account", !(await p.has("Account")) && await p.has("This request"));
+  await p.go("/portal/account");
+  check("guest: the account page asks for a real sign-in", (await p.ev("location.pathname")) === "/sign-in");
+  await p.go("/portal/requests/INZ-2026-04817"); await waitFor(p, "We couldn’t find that");
+  check("guest: another customer's request is not found", await p.has("We couldn’t find that") && !(await p.has("E-title")));
+  await p.go(`/portal/requests/${ref}`); await waitFor(p, "We married in August.");
   await p.click("Cancel this request", "summary"); await sleep(300); await p.click("Cancel request", "button"); await waitFor(p, "Cancelled by you");
   check("cancel: a customer can cancel before paying", await p.has("Cancelled by you") && !(await p.has("Cancel this request")));
   await p.go("/start/irembo-training");
@@ -177,7 +191,7 @@ await step("start", async () => {
 // ---------- Aline: pay, message, upload ----------
 await step("customer", async () => {
   const p = await page();
-  await signIn(p, "788123456");
+  await signIn(p, "aline@example.com");
   check("customer: lands on the portal", (await p.ev("location.pathname")) === "/portal" && await p.has("We need a clearer ID photo"));
   await p.go("/portal/requests/INZ-2026-04761");
   check("pay: unpaid request offers review and pay", await p.has("Awaiting payment") && await p.has("Review and pay RWF 20,000"));
@@ -214,7 +228,7 @@ await step("customer", async () => {
 // ---------- Eric (agent) ----------
 await step("agent", async () => {
   const p = await page();
-  await signIn(p, "780000001");
+  await signIn(p, "eric@example.com");
   check("agent: staff land in the workspace", (await p.ev("location.pathname")) === "/agent" && await p.has("Good"));
   check("agent: My Day shows agent work queues", await p.has("Follow-ups Today") && await p.has("SLA Attention") && await p.has("My open cases ("));
   await p.go("/agent/cases/INZ-2026-04817");
@@ -233,15 +247,16 @@ await step("agent", async () => {
   check("agent: an agent can't change our fee", await p.has("Needs a supervisor") && (await p.ev(`[...document.querySelectorAll("button")].find((b) => b.textContent === "Save fees")?.disabled`)) === true);
   await p.go("/agent/intake"); await p.click("Open case"); await sleep(200);
   check("intake: needs a name and number", await p.has("Enter the customer’s name"));
-  await p.set("#in-name", "Walk-in Customer"); await p.set("#in-phone", "788 321 654"); await p.click("Open case"); await waitFor(p, "opened");
+  await p.set("#in-name", "Walk-in Customer"); await p.set("#in-phone", "788 321 654"); await p.set("#in-email", "walkin@example.com"); await p.click("Open case"); await waitFor(p, "opened");
   check("intake: opens a real case", await p.has("opened") && /INZ-\d{4}-\d{5}/.test(await p.ev("document.body.innerText")));
+  check("intake: gives the agent the private link to send on WhatsApp", /\/r\/INZ-\d{4}-\d{5}\/[\w-]{22}/.test(await p.ev(`document.querySelector('input[aria-label="Private link"]')?.value ?? ""`)) && await p.has("Send on WhatsApp"));
   await p.close();
 });
 
 // ---------- Patrick (agent): approve the customer's new upload ----------
 await step("patrick", async () => {
   const p = await page();
-  await signIn(p, "780000003");
+  await signIn(p, "patrick@example.com");
   await p.go("/agent/cases/INZ-2026-04817");
   check("review: the customer's upload is waiting", await p.has("Review: National ID — front") && await p.has("I will send a new photo this afternoon."));
   check("review: the agent can open the uploaded file", (await p.ev(`[...document.querySelectorAll('a[href^="/files/"]')].length`)) > 0);
@@ -265,7 +280,7 @@ await step("patrick", async () => {
 // ---------- Diane (owner) ----------
 await step("admin", async () => {
   const p = await page();
-  await signIn(p, "780000008");
+  await signIn(p, "diane@example.com");
   check("admin: the owner lands in the admin console", (await p.ev("location.pathname")) === "/admin");
   await p.go("/admin/services");
   check("services: unchecked official fees are flagged", await p.has("official fees not yet checked"));
@@ -283,7 +298,7 @@ await step("admin", async () => {
   await p.click("Issue refund"); await waitFor(p, "recorded as refunded");
   check("refund: recorded", await p.has("recorded as refunded"));
   await p.go("/admin/roles");
-  await p.click("Invite person"); await sleep(200); await p.set("#pp-name", "New Colleague"); await p.set("#pp-phone", "788 444 555"); await p.click("Send invite"); await waitFor(p, "invited as");
+  await p.click("Invite person"); await sleep(200); await p.set("#pp-name", "New Colleague"); await p.set("#pp-email", "colleague@example.com"); await p.set("#pp-phone", "788 444 555"); await p.click("Send invite"); await waitFor(p, "invited as");
   check("people: inviting adds a person", await p.has("New Colleague"));
   await signOut(p); await sleep(500);
   check("sign out: back to sign-in", (await p.ev("location.pathname")) === "/sign-in");
@@ -293,7 +308,7 @@ await step("admin", async () => {
 // ---------- Staff console flows ----------
 await step("console", async () => {
   const p = await page();
-  await signIn(p, "780000008"); // Diane (Owner)
+  await signIn(p, "diane@example.com"); // Diane (Owner)
   let triageRef = "";
 
   // 1. Overview & Needs Attention link-through
@@ -374,27 +389,47 @@ await step("console", async () => {
 // ---------- Aline again: the delivered document ----------
 await step("delivered", async () => {
   const p = await page();
-  await signIn(p, "788123456");
+  await signIn(p, "aline@example.com");
   await p.go("/portal/requests/INZ-2026-04817");
   const link = await p.ev(`[...document.querySelectorAll('a[href^="/files/"]')].find((a) => a.closest("section")?.textContent.includes("E-title — Aline Uwase"))?.getAttribute("href") ?? ""`);
   check("delivered: the customer sees the final document", await p.has("E-title — Aline Uwase") && !!link);
   check("delivered: and can download it", link ? (await p.ev(`fetch(${JSON.stringify(link)}).then((r) => r.status)`)) === 200 : false);
+  deliveredHref = link;
   await p.go("/portal");
   check("delivered: the customer was notified", await p.has("E-title — Aline Uwase is ready in your portal"));
+  await p.close();
+});
+
+// ---------- the private link, opened later in a browser with no session ----------
+await step("private link", async () => {
+  const p = await page();
+  await p.go("/portal");
+  if ((await p.ev("location.pathname")) !== "/sign-in") { await signOut(p); }
+  await p.go(new URL(guestLink).pathname); await waitFor(p, "We married in August.");
+  check("link: opens the request with no sign-in", (await p.ev("location.pathname")).startsWith("/portal/requests/INZ-") && await p.has("We married in August."));
+  check("link: a customer on the link cannot open someone else's file", deliveredHref ? (await p.ev(`fetch(${JSON.stringify(deliveredHref)}).then((r) => r.status)`)) === 404 : false);
+  await signOut(p);
+  const bad = new URL(guestLink).pathname.replace(/.$/, (c) => (c === "a" ? "b" : "a"));
+  await p.go(bad); await waitFor(p, "That link doesn’t work");
+  check("link: a tampered link is refused and points to sign-in", (await p.ev("location.pathname")) === "/sign-in" && await p.has("That link doesn’t work"));
+  await p.go(new URL(guestLink).pathname.replace(/INZ-\d{4}-\d{5}/, "INZ-2026-04817")); await sleep(500);
+  check("link: a link for one request does not open another", (await p.ev("location.pathname")) === "/sign-in");
+  await signIn(p, "test.person@example.com"); await p.go("/portal/requests"); await waitFor(p, "Requests");
+  check("link: signing in with the same email shows the same request in the account", await p.has("Add or remove a spouse"));
   await p.close();
 });
 
 // ---------- account, data rights and system ----------
 await step("account", async () => {
   const p = await page();
-  await signIn(p, "788123456");
+  await signIn(p, "aline@example.com");
   await p.go("/portal/account"); await waitFor(p, "Your details");
   check("account: open requests block deleting the account", await p.has("Finish or cancel your") && (await p.ev(`[...document.querySelectorAll("button")].find((b) => b.textContent.trim() === "Delete account")?.disabled`)) === true);
   await p.close();
 });
 await step("privacy", async () => {
   const p = await page();
-  await signIn(p, "788555010");
+  await signIn(p, "test.person@example.com");
   await p.go("/portal/account"); await waitFor(p, "Your details");
   check("privacy: finished requests' documents are counted", await p.has("1 file from 1 request"));
   await p.set("#acct-name", "Test Person Renamed");
@@ -409,21 +444,20 @@ await step("privacy", async () => {
   await p.click("Delete account", "button"); await sleep(300);
   await p.set("#del-confirm", "DELETE"); await p.click("Delete my account", "button"); await waitPath(p, (path) => path === "/"); await waitFor(p, "Your account is deleted");
   check("privacy: a customer can delete their account", await p.has("Your account is deleted"));
-  await p.go("/sign-in"); await p.set("#si-phone", "788 555 010"); await p.click("Send me a code"); await waitCode(p);
-  await p.set("#otp", await p.ev(`document.querySelector("[data-demo-code]")?.dataset.demoCode ?? ""`)); await p.click("Sign in", "button"); await waitFor(p, "don’t have an account");
-  check("privacy: a deleted account can no longer sign in", await p.has("don’t have an account"));
+  await p.go("/sign-in"); await p.set("#si-email", "test.person@example.com"); await p.click("Send me a code"); await waitFor(p, "Enter the code we sent you"); await sleep(300);
+  check("privacy: a deleted account can no longer sign in", !(await p.ev(`!!document.querySelector("[data-demo-code]")`)));
   await p.close();
 });
 await step("system", async () => {
   const p = await page();
-  await signIn(p, "780000008");
+  await signIn(p, "diane@example.com");
   await p.go("/admin/system"); await waitFor(p, "Running the site");
   check("system: the owner sees what is connected", await p.has("Running the site") && await p.has("Test mode") && await p.has("Company details"));
   await p.click("Run the daily job now", "button"); await waitFor(p, "Job finished");
   for (let i = 0; i < 40 && !(await p.ev(`[...document.querySelectorAll(".sys-row .c-badge")].some((b) => b.textContent.startsWith("OK"))`)); i++) await sleep(250);
   check("system: the daily job runs and is recorded", await p.has("Job finished") && (await p.ev(`[...document.querySelectorAll(".sys-row .c-badge")].some((b) => b.textContent.startsWith("OK"))`)));
-  await p.click("Send me a test SMS", "button"); await waitFor(p, "Test SMS sent");
-  check("system: a test SMS can be sent", await p.has("Test SMS sent"));
+  await p.click("Send me a test email", "button"); await waitFor(p, "Test email sent");
+  check("system: a test email can be sent", await p.has("Test email sent"));
   await p.close();
 });
 
