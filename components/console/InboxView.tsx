@@ -1,6 +1,5 @@
 "use client";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { acceptAndAssignRequest, declineRequest, quoteCustomRequest } from "@/app/actions/console";
 import { messageCustomer } from "@/app/actions/agent";
@@ -21,7 +20,6 @@ export function InboxView({
   agents: Staff[];
   now: string;
 }) {
-  const router = useRouter();
   const [busy, start] = useTransition();
   const [selectedReq, setSelectedReq] = useState<RequestView | null>(null);
   const [assignReq, setAssignReq] = useState<RequestView | null>(null);
@@ -52,7 +50,6 @@ export function InboxView({
         setAssignReq(null);
         setSelectedReq(null);
         setToast(`Request ${req.ref} assigned to ${shortName(agents.find((a) => a.id === agentId)?.name ?? "agent")}.`);
-        router.refresh();
       }
     });
   };
@@ -65,7 +62,6 @@ export function InboxView({
         setDeclineReq(null);
         setSelectedReq(null);
         setToast(`Request ${declineReq.ref} declined.`);
-        router.refresh();
       }
     });
   };
@@ -78,7 +74,6 @@ export function InboxView({
         setInfoReq(null);
         setSelectedReq(null);
         setToast(`Message sent. Request ${infoReq.ref} is waiting on customer.`);
-        router.refresh();
       }
     });
   };
@@ -94,7 +89,6 @@ export function InboxView({
         setQuoteReq(null);
         setSelectedReq(null);
         setToast(`Custom quote sent for ${quoteReq.ref}.`);
-        router.refresh();
       }
     });
   };

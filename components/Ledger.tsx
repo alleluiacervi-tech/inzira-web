@@ -1,5 +1,4 @@
 "use client";
-import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { refund as refundAction } from "@/app/actions/admin";
 import { billOfficial, rwf } from "@/lib/format";
@@ -12,7 +11,6 @@ const RECEIPT = { attached: "Receipt attached", awaiting: "Awaiting receipt", na
 
 /** One row per request: what was quoted, what was paid, and whether the institution's receipt is on file. */
 export default function Ledger({ initial: rows, now, canRefund }: { initial: RequestView[]; now: string; canRefund: boolean }) {
-  const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [refund, setRefund] = useState<RequestView | null>(null);
@@ -54,7 +52,6 @@ export default function Ledger({ initial: rows, now, canRefund }: { initial: Req
                 if (!r.ok) { setError(r.error); return; }
                 setDone(`${rwf(refundable(refund))} recorded as refunded to ${refund.profile.name} · ${refund.billing.invoice}. Send the money back from the mobile money dashboard.`);
                 setRefund(null);
-                router.refresh();
               }}>{busy ? "Saving…" : "Issue refund"}</button>
             </div>
           </div>

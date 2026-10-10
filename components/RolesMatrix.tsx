@@ -1,5 +1,4 @@
 "use client";
-import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { inviteStaff, savePermissions, updateStaff } from "@/app/actions/admin";
 import { initials } from "@/lib/format";
@@ -13,7 +12,6 @@ type Res = { ok: true } | { ok: false; error: string };
 const failed = (): Res => ({ ok: false, error: "Not saved. Check your connection and try again." });
 
 export default function RolesMatrix({ roles, groups, initial }: { roles: Role[]; groups: Groups; initial: Record<string, boolean[]> }) {
-  const router = useRouter();
   const [m, setM] = useState(initial);
   const [role, setRole] = useState<StaffRole>("Agent");
   const [dirty, setDirty] = useState(false);
@@ -59,7 +57,7 @@ export default function RolesMatrix({ roles, groups, initial }: { roles: Role[];
             const r = await savePermissions(m).catch(failed);
             setBusy(false);
             if (!r.ok) { setError(r.error); return; }
-            setDirty(false); setSaved(true); router.refresh();
+            setDirty(false); setSaved(true);
           }}>{busy ? "Saving…" : "Save permissions"}</button>
         </div>
       </div>
@@ -69,7 +67,6 @@ export default function RolesMatrix({ roles, groups, initial }: { roles: Role[];
 
 /** Who works here and which role each person holds. */
 export function People({ staff, roles, meId }: { staff: (Staff & { phone: string | null })[]; roles: Role[]; meId: string }) {
-  const router = useRouter();
   const [adding, setAdding] = useState(false);
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
@@ -82,7 +79,7 @@ export function People({ staff, roles, meId }: { staff: (Staff & { phone: string
     const r = await fn().catch(failed);
     setBusy(false);
     if (!r.ok) { setError(r.error); return false; }
-    setNote(ok); router.refresh();
+    setNote(ok);
     return true;
   };
 

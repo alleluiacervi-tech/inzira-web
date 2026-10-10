@@ -1,5 +1,4 @@
 "use client";
-import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { deleteMyAccount, deleteMyDocuments, signOutEverywhere, updateAccount } from "@/app/actions/customer";
 import { trError } from "@/lib/i18n/errors";
@@ -17,7 +16,6 @@ const LANGUAGES = ["Kinyarwanda", "English", "French"];
 
 export default function AccountSettings({ account, profiles, data }: Props) {
   const { locale, t } = useI18n();
-  const router = useRouter();
   const [saving, startSave] = useTransition();
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState("");
@@ -32,7 +30,6 @@ export default function AccountSettings({ account, profiles, data }: Props) {
       const r = await updateAccount(fd).catch(() => ({ ok: false as const, error: t("account.saveFail") }));
       if (!r.ok) { setError(trError(locale, r.error)); return; }
       setSaved(true);
-      router.refresh();
     });
   };
 
@@ -41,7 +38,6 @@ export default function AccountSettings({ account, profiles, data }: Props) {
     const r = await deleteMyDocuments().catch(() => ({ ok: false as const, error: t("account.deleteFail") }));
     setDocsBusy(false); setConfirmDocs(false);
     setDocsMsg(r.ok ? t("account.deleted", { n: r.deleted, what: r.deleted === 1 ? t("account.file") : t("account.files") }) : trError(locale, r.error));
-    if (r.ok) router.refresh();
   };
 
   return (

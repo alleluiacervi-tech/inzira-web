@@ -133,6 +133,12 @@ async function attach(p, selector) {
 }
 /** The label of the stage the case is in, on a console request page. */
 const currentStage = (p) => p.ev(`document.querySelector(".c-step-btn[aria-current=step] .c-step-label")?.textContent ?? ""`);
+/** Waits until `expression` is true in the page, up to 10 seconds. A toast says the server saved it;
+ *  this waits for the page to show the result. */
+async function waitUntil(p, expression) {
+  for (let i = 0; i < 40 && !(await p.ev(expression)); i++) await sleep(250);
+  return p.ev(expression);
+}
 /** Waits until the page no longer shows `text`, up to 10 seconds. */
 async function waitGone(p, text) {
   for (let i = 0; i < 40 && (await p.has(text)); i++) await sleep(250);
@@ -228,8 +234,10 @@ await step("customer", async () => {
   await p.go("/portal/documents");
   check("documents: opens on the rejected document", (await p.ev(`document.querySelector(".sticky-aside .eb").textContent`)) === "Replace document");
   await attach(p, "#up");
-  await waitFor(p, "was sent to your agent for review"); // other documents already read "awaiting review"
-  check("documents: the upload is saved and awaits review", await p.has("was sent to your agent for review") && await p.has("awaiting review"));
+  // The confirmation shows first; the list says "awaiting review" once it has refreshed.
+  await waitFor(p, "was sent to your agent for review"); await waitFor(p, "awaiting review");
+  check("documents: the upload is saved and awaits review", await p.has("was sent to your agent for review") && await p.has("awaiting review"),
+    (await p.ev(`document.querySelector(".sticky-aside")?.innerText ?? "no panel"`)).replace(/\s+/g, " ").slice(0, 300));
   const link = await p.ev(`[...document.querySelectorAll('a[href^="/files/"]')].map((a) => a.getAttribute("href"))[0] ?? ""`);
   const status = link ? await p.ev(`fetch(${JSON.stringify(link)}).then((r) => r.status)`) : 0;
   check("documents: the owner can open their file", status === 200, `${link} ${status}`);
@@ -265,8 +273,8 @@ await step("agent", async () => {
   check("agent: an agent can't change our fee", await p.has("Only a supervisor or administrator can change our fee") && (await p.ev(`[...document.querySelectorAll("button")].find((b) => b.textContent.trim() === "Save fee adjustments")?.disabled`)) === true);
   await p.go("/console/requests/INZ-2026-04761");
   await p.click("Documents (", "button"); await sleep(200);
-  await attach(p, 'input[aria-label="Add TIN certificate for the customer"]'); await waitFor(p, "TIN certificate added");
-  check("agent: a copy received on WhatsApp is filed against its checklist item", await p.ev(`[...document.querySelectorAll(".console-panel")].some((el) => el.innerText.startsWith("TIN certificate") && el.innerText.includes("Received") && el.innerText.includes("id_photo.png"))`));
+  await attach(p, 'input[aria-label="Add TIN certificate for the customer"]');
+  check("agent: a copy received on WhatsApp is filed against its checklist item", await waitUntil(p, `[...document.querySelectorAll(".console-panel")].some((el) => el.innerText.startsWith("TIN certificate") && el.innerText.includes("Received") && el.innerText.includes("id_photo.png"))`));
   await p.go("/console/intake"); await p.click("Open case"); await sleep(200);
   check("intake: needs a name and number", await p.has("Enter the customer’s name"));
   await p.set("#in-name", "Walk-in Customer"); await p.set("#in-phone", "788 321 654"); await p.click("Open case"); await waitFor(p, "opened");
@@ -478,8 +486,11 @@ await step("privacy", async () => {
   await p.click("Save changes", "button"); await waitFor(p, "Saved");
   await p.go("/portal/account"); await waitFor(p, "Your details");
   check("account: details are saved", (await p.ev(`document.querySelector("#acct-name").value`)) === "Test Person Renamed" && (await p.ev(`document.querySelector('input[value=French]').checked`)) === true);
-  await p.click("Delete now", "button"); await sleep(200); await p.click("Yes, delete them", "button"); await waitFor(p, "1 file deleted"); await waitFor(p, "Nothing stored");
-  const purged = await p.has("1 file deleted") && await p.has("Nothing stored");
+  await p.click("Delete now", "button"); await sleep(200); await p.click("Yes, delete them", "button"); await waitFor(p, "1 file deleted");
+  check("privacy: deleting documents of finished requests is confirmed", await p.has("1 file deleted"));
+  // The count below it comes from the server; reload so the check reads what was actually stored.
+  await p.go("/portal/account"); await waitFor(p, "Your details");
+  const purged = await p.has("Nothing stored");
   if (!purged) console.log("    page says:", (await p.ev(`document.querySelector("#acct-data")?.closest("section")?.innerText ?? ""`)).replace(/\s+/g, " ").slice(0, 400));
   check("privacy: a customer can delete documents of finished requests", purged);
   await p.click("Delete account", "button"); await sleep(300);

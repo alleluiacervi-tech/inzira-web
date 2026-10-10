@@ -1,6 +1,5 @@
 "use client";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import {
   addNote,
@@ -44,7 +43,6 @@ export function RequestDetailView({
   category: string;
   now: string;
 }) {
-  const router = useRouter();
   const [busy, start] = useTransition();
   const can = (p: Permission) => perms.includes(p) || me.role === "Owner";
 
@@ -88,7 +86,6 @@ export function RequestDetailView({
       }
       after?.();
       setToast(ok);
-      router.refresh();
     });
   };
 
@@ -920,10 +917,7 @@ export function RequestDetailView({
         open={manualPayOpen}
         onClose={() => setManualPayOpen(false)}
         prefilledRef={c.ref}
-        onSuccess={(msg) => {
-          setToast(msg);
-          router.refresh();
-        }}
+        onSuccess={(msg) => setToast(msg)}
       />
 
       {toast && <Toast message={toast} onDismiss={() => setToast("")} />}
