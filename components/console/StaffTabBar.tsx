@@ -9,9 +9,9 @@ export function StaffTabBar({ user, permissions, inboxCount = 0 }: { user: Staff
   const path = usePathname();
   const can = (p: Permission) => user.role === "Owner" || permissions.includes(p);
   const tabs = [
-    { href: "/agent", label: "My day", icon: "sun", on: path === "/agent" || path === "/console/my-day" },
+    { href: "/console/my-day", label: "My day", icon: "sun", on: path === "/console/my-day" },
     { href: "/console/requests", label: "Requests", icon: "list", on: path.startsWith("/console/requests") },
-    ...(can("updateStatus") ? [{ href: "/agent/intake", label: "New", icon: "plus", on: path === "/agent/intake", accent: true }] : []),
+    ...(can("updateStatus") ? [{ href: "/console/intake", label: "New", icon: "plus", on: path === "/console/intake", accent: true }] : []),
     can("assign") && can("viewAll")
       ? { href: "/console/inbox", label: "Inbox", icon: "inbox", on: path === "/console/inbox", badge: inboxCount }
       : { href: "/console/clients", label: "Clients", icon: "users", on: path.startsWith("/console/clients") },

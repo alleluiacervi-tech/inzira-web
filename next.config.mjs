@@ -33,6 +33,15 @@ const nextConfig = {
   outputFileTracingIncludes: { "/**/*": ["./drizzle/**/*"] },
   // Uploads go through server actions; allow files up to 10 MB plus form fields.
   experimental: { serverActions: { bodySizeLimit: "12mb" } },
+  // The agent workspace and the admin home now live in the staff console.
+  async redirects() {
+    return [
+      { source: "/agent", destination: "/console/my-day", permanent: true },
+      { source: "/agent/intake", destination: "/console/intake", permanent: true },
+      { source: "/agent/cases/:ref", destination: "/console/requests/:ref", permanent: true },
+      { source: "/admin", destination: "/console/overview", permanent: true },
+    ];
+  },
   async headers() {
     return [{
       source: "/:path*",

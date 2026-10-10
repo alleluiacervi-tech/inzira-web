@@ -25,7 +25,7 @@ async function work(ref: string, perm?: Permission) {
   const svc = await getService(r.serviceSlug);
   return { me, d, r, flow: (svc?.flow ?? [...STAGES]) as Stage[] };
 }
-const done = (ref: string): Result => { revalidatePath(`/agent/cases/${ref}`); revalidatePath(`/portal/requests/${ref}`); revalidatePath("/agent"); return { ok: true }; };
+const done = (ref: string): Result => { revalidatePath("/console", "layout"); revalidatePath(`/portal/requests/${ref}`); return { ok: true }; };
 const now = () => new Date().toISOString();
 
 export async function reviewDocument(ref: string, docId: string, decision: "approve" | "reject", reason = ""): Promise<Result> {
@@ -231,7 +231,7 @@ export async function createIntake(input: { slug: string; name: string; phone: s
     return ref;
   });
   sendSms(phone, `Inzira: your request ${ref} (${service.name}) is open. Track it or sign in with this number at ${SITE.url}.`).catch((e) => console.error("[sms]", e));
-  revalidatePath("/agent");
+  revalidatePath("/console", "layout");
   return { ok: true, ref };
 }
 

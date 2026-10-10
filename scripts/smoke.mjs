@@ -29,12 +29,9 @@ const PRIVATE = [
   "/portal",
   "/portal/requests",
   "/portal/documents",
-  "/agent",
-  "/agent/intake",
-  "/agent/cases/INZ-2026-04817",
+  "/console/intake",
   "/console/requests/INZ-2026-04817",
   "/console/clients/p-aline",
-  "/admin",
   "/admin/services",
   "/admin/payments",
   "/admin/roles",
@@ -45,6 +42,13 @@ const PRIVATE = [
   "/console/clients",
   "/console/my-day",
   "/console/overview",
+];
+/** Old addresses that moved into the staff console: [from, to]. */
+const MOVED = [
+  ["/agent", "/console/my-day"],
+  ["/agent/intake", "/console/intake"],
+  ["/agent/cases/INZ-2026-04817", "/console/requests/INZ-2026-04817"],
+  ["/admin", "/console/overview"],
 ];
 /** [what, cookie or null, the html lang, text that must appear on the home page] */
 const LANGUAGES = [
@@ -85,6 +89,12 @@ if (!failures.length) {
     if (!html.includes(`<html lang="${lang}"`) || !html.includes(expect)) fail("/", `${what}: expected lang="${lang}" and “${expect}”`);
     else console.log(`  ok   / (${what})`);
   }
+  for (const [from, to] of MOVED) {
+    const res = await fetch(base + from, { redirect: "manual" });
+    const at = new URL(res.headers.get("location") ?? "/", base).pathname;
+    if (res.status !== 308 || at !== to) fail(from, `expected a permanent redirect to ${to}, got ${res.status} ${at}`);
+    else console.log(`  ok   ${from} → ${to}`);
+  }
   for (const path of PRIVATE) {
     const res = await fetch(base + path, { redirect: "manual" });
     const to = res.headers.get("location") ?? "";
@@ -111,5 +121,5 @@ if (!failures.length) {
   }
 }
 
-console.log(failures.length ? `\n${failures.length} problem(s) on ${base}` : `\nAll ${ROUTES.length + LANGUAGES.length + PRIVATE.length + NOT_FOUND.length + 5} checks passed on ${base}`);
+console.log(failures.length ? `\n${failures.length} problem(s) on ${base}` : `\nAll ${ROUTES.length + LANGUAGES.length + MOVED.length + PRIVATE.length + NOT_FOUND.length + 5} checks passed on ${base}`);
 process.exit(failures.length ? 1 : 0);

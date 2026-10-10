@@ -1,7 +1,7 @@
 # Inzira — service assistance platform (Next.js)
 
 Next.js 15 (App Router, TypeScript) with a Postgres database: public website, service catalogue,
-start-request flow, customer portal, agent workspace and admin console, with real sign-in, saved
+start-request flow, customer portal, staff console and admin settings, with real sign-in, saved
 requests, uploads, payments (simulated until a provider is connected) and an audit trail.
 
 > Inzira is a **private assistance company**. The UI never imitates Irembo, RRA, RDB, RURA or any
@@ -27,11 +27,11 @@ number ending in `0000` is "declined").
 | Who | Number | Lands in |
 | --- | --- | --- |
 | Aline Uwase, customer | 788 123 456 | Customer portal |
-| Eric Niyonzima, agent | 780 000 001 | Agent workspace (sees only his cases) |
-| Patrick Nshimiyimana, agent | 780 000 003 | Agent workspace |
-| Jean Paul Hakizimana, supervisor | 780 000 006 | Agent workspace (all cases, can change fees) |
-| Solange Ishimwe, finance | 780 000 007 | Admin console (payments, refunds) |
-| Diane Mukamana, owner | 780 000 008 | Admin console (everything) |
+| Eric Niyonzima, agent | 780 000 001 | Staff console · My day (only their own cases and clients) |
+| Patrick Nshimiyimana, agent | 780 000 003 | Staff console · My day |
+| Jean Paul Hakizimana, supervisor | 780 000 006 | Staff console · My day (all cases, triage, can change fees) |
+| Solange Ishimwe, finance | 780 000 007 | Staff console · Overview (payments, refunds) |
+| Diane Mukamana, owner | 780 000 008 | Staff console · Overview (everything) |
 
 Anyone else starts a request from the catalogue; their account is created when they confirm their
 number.
@@ -103,7 +103,11 @@ app/
                      of staff their summary, removes expired codes and sessions. Every run is recorded.
   api/payments/callback   mobile money callbacks — only trigger a re-check with the provider
   api/health         200 when the database answers, for uptime monitors
-  …                  pages: server components that read through lib/repo
+  console/           the staff console: My day, triage inbox, requests, clients, intake, overview
+  admin/             settings in the same shell: services & prices, payments, roles, audit, system
+  portal/            the customer portal
+  …                  pages: server components that read through lib/repo. /agent/* and /admin
+                     redirect to their console pages (next.config.mjs)
 components/          screens and building blocks (client components call app/actions)
 lib/
   db/schema.ts       the database tables
@@ -131,7 +135,7 @@ scripts/             db.mts (migrate / setup / seed / reset), smoke.mjs, flows.m
 ## The model
 
 **One request, three views.** A request is one row (plus its documents, messages, notes, events and
-payments). The customer portal, the agent workspace and the admin ledger all read it.
+payments). The customer portal, the staff console and the admin ledger all read it.
 
 **Progress and blockers are separate.** `stage` (received → checking → preparing → with the
 institution → completed; trainings skip the institution) says who has the work. `hold` marks the

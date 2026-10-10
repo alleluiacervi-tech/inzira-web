@@ -147,7 +147,7 @@ export function ClientDetailView({
               <Icon name="msg" size={14} />
               <span>WhatsApp</span>
             </a>
-            <Link href="/agent/intake" className="c-btn c-btn-primary c-btn-sm">
+            <Link href="/console/intake" className="c-btn c-btn-primary c-btn-sm">
               <Icon name="plus" size={14} />
               <span>Start request</span>
             </Link>

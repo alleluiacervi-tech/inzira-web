@@ -184,7 +184,6 @@ export async function trackRequest(ref: string, phone: string): Promise<TrackRes
 /** The signed-in member of staff. */
 const plain = ({ permissions: _p, ...rest }: Staff & { permissions: Set<Permission> }): Staff => rest;
 export const getStaffUser = async (next = "/console"): Promise<Staff> => plain(await requireStaff(next));
-export const getAgent = async (): Promise<Staff> => plain(await requireStaff("/agent"));
 export const getAdmin = async (): Promise<Staff> => plain(await requireStaff("/admin"));
 /** What the signed-in member of staff may do, for screens that enable or hide controls. */
 export const getMyPermissions = async (): Promise<Permission[]> => [...(await requireStaff()).permissions];
@@ -219,14 +218,8 @@ export async function listInbox(): Promise<RequestView[]> {
 
 /** Cases this person may see: everything with "View all cases", otherwise their own. */
 export async function listCases(): Promise<RequestView[]> {
-  const me = await requireStaff("/agent");
+  const me = await requireStaff("/console/requests");
   return (await loadRequests(caseScope(me))).sort(byUpdated);
-}
-
-export async function getCase(ref: string): Promise<RequestView | undefined> {
-  const me = await requireStaff(`/agent/cases/${ref}`);
-  const [v] = await loadRequests(eq(s.requests.ref, ref));
-  return v && canSeeCase(me, v) ? v : undefined;
 }
 
 export async function getRequest(ref: string): Promise<RequestView | undefined> {
@@ -237,23 +230,6 @@ export async function getRequest(ref: string): Promise<RequestView | undefined> 
 
 const thousands = (n: number) => Math.round(n / 100) / 10;
 export const rwfShort = (n: number) => (n >= 1e6 ? `RWF ${(n / 1e6).toFixed(2).replace(/\.?0+$/, "")}M` : n >= 1e4 ? `RWF ${Math.round(n / 1e3)}k` : `RWF ${n.toLocaleString("en-US")}`);
-
-/** An agent's own fee totals for the last five weeks, from real payments. */
-export async function getAgentFees() {
-  const me = await requireStaff("/agent");
-  const d = await db();
-  const since = new Date(Date.now() - 35 * DAY);
-  const rows = await d.select({ at: s.transactions.at, official: s.transactions.official, ours: s.transactions.ours })
-    .from(s.transactions).innerJoin(s.requests, eq(s.requests.ref, s.transactions.ref))
-    .where(and(eq(s.requests.agentId, me.id), eq(s.transactions.status, "paid"), gte(s.transactions.at, since.toISOString())));
-  const weeks = Array.from({ length: 5 }, (_, i) => {
-    const from = new Date(since.getTime() + i * 7 * DAY), to = new Date(from.getTime() + 7 * DAY);
-    const inWeek = rows.filter((r) => { const t = Date.parse(iso(r.at)!); return t >= from.getTime() && t < to.getTime(); });
-    return { label: fmtDay(from.toISOString()), official: thousands(inWeek.reduce((n, r) => n + r.official, 0)), ours: thousands(inWeek.reduce((n, r) => n + r.ours, 0)) };
-  });
-  const ours = rows.reduce((n, r) => n + r.ours, 0), official = rows.reduce((n, r) => n + r.official, 0);
-  return { period: "Last 5 weeks, by week", ours: rwfShort(ours), official: rwfShort(official), weekly: weeks };
-}
 
 // ---------------- console: clients ----------------
 type AccountRow = typeof s.accounts.$inferSelect;

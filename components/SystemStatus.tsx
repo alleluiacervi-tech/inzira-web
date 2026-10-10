@@ -1,5 +1,4 @@
 "use client";
-import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { runJobNow, sendTestSms } from "@/app/actions/admin";
 import type { Check, CheckState, JobRun } from "@/lib/system";
@@ -27,7 +26,6 @@ function summary(r: JobRun) {
 }
 
 export default function SystemStatus({ groups, runs }: { groups: { title: string; checks: Check[] }[]; runs: JobRun[] }) {
-  const router = useRouter();
   const [busy, setBusy] = useState<"sms" | "job" | null>(null);
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const all = groups.flatMap((g) => g.checks);
@@ -43,8 +41,8 @@ export default function SystemStatus({ groups, runs }: { groups: { title: string
     setBusy("job"); setMsg(null);
     const r = await runJobNow().catch(() => ({ ok: false as const, error: "The request didn’t finish. Try again." }));
     setBusy(null);
+    // runJobNow revalidates this page, so the new run arrives with the action's response.
     setMsg(r.ok ? { ok: true, text: `Job finished: ${r.summary}` } : { ok: false, text: r.error });
-    router.refresh();
   };
 
   return (

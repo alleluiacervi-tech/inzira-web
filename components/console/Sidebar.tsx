@@ -44,9 +44,9 @@ export function Sidebar({
     {
       group: "Home",
       items: [
-        { label: "Overview", href: "/admin", icon: "chart", matchPrefix: "/admin", show: admin },
+        { label: "Overview", href: "/console/overview", icon: "chart", show: admin },
         { label: "Inbox", href: "/console/inbox", icon: "inbox", show: can("assign") && can("viewAll"), badge: inboxCount },
-        { label: "My day", href: "/agent", icon: "sun", badge: openCasesCount },
+        { label: "My day", href: "/console/my-day", icon: "sun", badge: openCasesCount },
       ],
     },
     {
@@ -54,7 +54,7 @@ export function Sidebar({
       items: [
         { label: "Requests", href: "/console/requests", icon: "list", matchPrefix: "/console/requests" },
         { label: "Clients", href: "/console/clients", icon: "users", matchPrefix: "/console/clients" },
-        { label: "New intake", href: "/agent/intake", icon: "plus", permission: "updateStatus" },
+        { label: "New intake", href: "/console/intake", icon: "plus", permission: "updateStatus" },
       ],
     },
     {
@@ -85,8 +85,6 @@ export function Sidebar({
   ];
 
   const isItemActive = (item: NavItem) => {
-    if (item.href === "/admin") return path === "/admin" || path === "/console/overview";
-    if (item.href === "/agent") return path === "/agent" || path === "/console/my-day";
     if (item.matchPrefix) return path.startsWith(item.matchPrefix);
     return path === item.href;
   };
