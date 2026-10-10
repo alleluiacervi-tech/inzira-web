@@ -4,8 +4,8 @@ import {
   getNow,
   getRequest,
   getStaffUser,
+  listAgents,
   listCategories,
-  listStaff,
 } from "@/lib/repo";
 import { RequestDetailView } from "@/components/console/RequestDetailView";
 
@@ -20,18 +20,17 @@ export default async function RequestDetailPage({
   params: Promise<{ ref: string }>;
 }) {
   const { ref } = await params;
-  const [c, me, perms, staff, categories, now] = await Promise.all([
+  const [c, me, perms, agents, categories, now] = await Promise.all([
     getRequest(ref),
     getStaffUser(),
     getMyPermissions(),
-    listStaff(),
+    listAgents(),
     listCategories(),
     getNow(),
   ]);
 
   if (!c) notFound();
 
-  const agents = staff.filter((s) => s.active && s.role === "Agent");
   const category = categories.find((cat) => cat.id === c.service.category)?.short || "";
 
   return (

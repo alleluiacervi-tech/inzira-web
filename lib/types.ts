@@ -61,8 +61,10 @@ export type Account = { id: string; name: string; first: string; phone: string; 
 /** Who a request is for: the account holder, a family member, or a business they act for. */
 export type Profile = {
   id: string; accountId: string; kind: "person" | "business" | "organization"; name: string;
-  relation?: "self" | "family"; idMasked?: string; nationalId?: string | null; tin?: string | null; tinMasked?: string | null; district?: string; phone?: string; email?: string;
+  relation?: "self" | "family"; idMasked?: string; tinMasked?: string | null; district?: string; phone?: string; email?: string;
 };
+// The full national ID and TIN never leave the server: screens get the masked forms, and staff
+// reveal the full number through an audited action (app/actions/console.ts).
 export type StaffRole = "Owner" | "Administrator" | "Supervisor" | "Agent" | "Finance" | "Quality reviewer";
 export type Staff = { id: string; name: string; role: StaffRole; team: string; title: string; active: boolean };
 
@@ -211,9 +213,7 @@ export type ClientSummary = {
   kind: "person" | "business" | "organization";
   phone: string;
   district?: string;
-  nationalId?: string;
   idMasked?: string;
-  tin?: string;
   tinMasked?: string;
   openRequests: number;
   totalRequests: number;

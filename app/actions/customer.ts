@@ -6,7 +6,7 @@ import { consumeCode, endSession, normalisePhone, requireCustomerId, startSessio
 import { redirect } from "next/navigation";
 import { deleteAccount, finishedWithDocuments, purgeDocuments } from "@/lib/privacy";
 import { iso } from "@/lib/db";
-import { rwf } from "@/lib/format";
+import { maskNationalId, rwf } from "@/lib/format";
 import { audit, db, event, fail, invoiceFor, nextNumber, notify, refFor, s, type Result } from "@/lib/mutate";
 import { reconcilePayment } from "@/lib/billing";
 import { methodFor, providerFor } from "@/lib/payments";
@@ -17,7 +17,6 @@ import { TOO_MANY, allowIp } from "@/lib/ratelimit";
 import { ALLOWED, MAX_BYTES, humanSize, putFile } from "@/lib/storage";
 
 const id = (prefix: string) => `${prefix}-${randomBytes(6).toString("hex")}`;
-const maskId = (d: string) => (d.length === 16 ? `${d[0]} ${d.slice(1, 5)} ${d[5]} •••• ${d[13]} ${d.slice(14)}` : null);
 const text = (fd: FormData, k: string) => String(fd.get(k) ?? "").trim();
 
 function checkFile(f: File): string | null {
@@ -60,10 +59,10 @@ export async function submitRequest(fd: FormData): Promise<Result<{ ref: string 
     if (!profile) {
       [profile] = await tx.insert(s.profiles).values({
         id: id("p"), accountId: account.id, kind: forWho === "business" ? "business" : "person", name: forWho === "me" ? name : subject || name,
-        relation: forWho === "business" ? null : forWho === "me" ? "self" : "family", idMasked: maskId(nid), nationalId: nid || null,
+        relation: forWho === "business" ? null : forWho === "me" ? "self" : "family", idMasked: maskNationalId(nid), nationalId: nid || null,
       }).returning();
     } else if (nid && !profile.nationalId) {
-      await tx.update(s.profiles).set({ nationalId: nid, idMasked: maskId(nid) }).where(eq(s.profiles.id, profile.id));
+      await tx.update(s.profiles).set({ nationalId: nid, idMasked: maskNationalId(nid) }).where(eq(s.profiles.id, profile.id));
     }
 
     const ref = refFor(await nextNumber(tx, "request"));

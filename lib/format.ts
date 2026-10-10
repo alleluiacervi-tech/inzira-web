@@ -89,3 +89,7 @@ export const initials = (name: string) => name.replace(/\./g, "").split(" ").map
 /** "Eric Niyonzima" -> "Eric N." */
 export const shortName = (name: string) => { const p = name.split(" "); return p.length > 1 ? `${p[0]} ${p[p.length - 1][0]}.` : name; };
 export const phoneDigits = (p: string) => p.replace(/\D/g, "").slice(-9);
+/** What staff see of a 16-digit national ID until they reveal it, e.g. "1 1995 8 •••• 0 17". */
+export const maskNationalId = (d: string) => (d.length === 16 ? `${d[0]} ${d.slice(1, 5)} ${d[5]} •••• ${d[13]} ${d.slice(14)}` : null);
+/** What staff see of a 9-digit TIN until they reveal it, e.g. "109 ••• 456". */
+export const maskTin = (t: string) => (t.length === 9 ? `${t.slice(0, 3)} ••• ${t.slice(-3)}` : null);

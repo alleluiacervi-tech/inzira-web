@@ -107,6 +107,8 @@ lib/
   db/index.ts        connection: Postgres (DATABASE_URL) or PGlite
   db/seed.ts         catalogue + sample data (development), catalogue + owner (production setup)
   repo.ts            every read. Customers only ever receive their own requests, without internal notes
+  access.ts          which cases and clients each member of staff may see; every staff read and write uses it.
+                     Full national IDs and TINs never reach a screen: staff reveal them through an audited action
   auth.ts            phone + SMS code sign-in, sessions (hashed, httpOnly cookie), staff permissions
   permissions.ts     the permission list and the starting roles matrix
   sms.ts             SMS providers (console, Africa's Talking)

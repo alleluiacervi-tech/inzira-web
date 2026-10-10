@@ -2,6 +2,7 @@
 import { randomBytes } from "node:crypto";
 import { eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
+import { WORKS_CASES, canSeeCase } from "@/lib/access";
 import { getStaffUser, normalisePhone } from "@/lib/auth";
 import { rwf } from "@/lib/format";
 import { audit, db, event, fail, invoiceFor, nextNumber, notify, refFor, s, type Result } from "@/lib/mutate";
@@ -19,7 +20,7 @@ async function work(ref: string, perm?: Permission) {
   if (!me) return { error: "Your session has ended. Sign in again." } as const;
   const d = await db();
   const [r] = await d.select().from(s.requests).where(eq(s.requests.ref, ref));
-  if (!r || (!me.permissions.has("viewAll") && r.agentId !== me.id)) return { error: "Case not found." } as const;
+  if (!r || !canSeeCase(me, r)) return { error: "Case not found." } as const;
   if (perm && !me.permissions.has(perm)) return { error: `Your role can’t do this (${PERMISSIONS[perm]}). Ask a supervisor.` } as const;
   const svc = await getService(r.serviceSlug);
   return { me, d, r, flow: (svc?.flow ?? [...STAGES]) as Stage[] };
@@ -139,7 +140,7 @@ export async function assignCase(ref: string, agentId: string | null): Promise<R
   const w = await work(ref, "assign");
   if ("error" in w) return fail(w.error!);
   const [agent] = agentId ? await w.d.select().from(s.staff).where(eq(s.staff.id, agentId)) : [null];
-  if (agentId && !agent) return fail("Agent not found.");
+  if (agentId && !agent?.active) return fail("Agent not found.");
   await w.d.transaction(async (tx) => {
     await tx.update(s.requests).set({ agentId }).where(eq(s.requests.ref, ref));
     await event(tx, ref, agent ? `Assigned to ${agent.name}` : "Unassigned", w.me.id);
@@ -202,6 +203,7 @@ export async function closeCase(ref: string, kind: Closed["kind"], reason: strin
 export async function createIntake(input: { slug: string; name: string; phone: string; kind: "person" | "business" | "organization"; source: string; notes: string }): Promise<Result<{ ref: string }>> {
   const me = await getStaffUser();
   if (!me) return fail("Your session has ended. Sign in again.");
+  if (!me.permissions.has(WORKS_CASES)) return fail(`Your role can’t do this (${PERMISSIONS[WORKS_CASES]}).`);
   const phone = normalisePhone(input.phone);
   if (!input.name.trim()) return fail("Enter the customer’s name.");
   if (!phone) return fail("Enter a Rwandan mobile number, e.g. 788 123 456.");

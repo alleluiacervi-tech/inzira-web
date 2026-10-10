@@ -2,21 +2,58 @@
 import { randomBytes } from "node:crypto";
 import { and, eq, inArray } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
+import { WORKS_CASES, canSeeCase, canSeeClient, seesAllCases } from "@/lib/access";
 import { getStaffUser, normalisePhone } from "@/lib/auth";
-import { rwf, shortName } from "@/lib/format";
+import type { Db } from "@/lib/db";
+import { maskNationalId, maskTin, rwf, shortName } from "@/lib/format";
 import { audit, db, event, fail, notify, s, type Result } from "@/lib/mutate";
 import { PERMISSIONS, type Permission } from "@/lib/permissions";
 import { searchGlobal } from "@/lib/repo";
-import { sendSms } from "@/lib/sms";
-import type { Closed, PayMethod, SavedView, Stage } from "@/lib/types";
+import type { Closed, PayMethod } from "@/lib/types";
 
 const now = () => new Date().toISOString();
+const NOT_FOUND = "Request not found.";
 
 async function staffAction(perm?: Permission) {
   const me = await getStaffUser();
   if (!me) return { error: "Your session has ended. Sign in again." } as const;
   if (perm && !me.permissions.has(perm)) return { error: `Your role can’t do this (${PERMISSIONS[perm]}).` } as const;
   return { me, d: await db() };
+}
+
+/** A staff action on one case: they need `perm` and must be allowed to see the case. */
+async function caseAction(ref: string, perm: Permission) {
+  const a = await staffAction(perm);
+  if ("error" in a) return { error: a.error! } as const;
+  const [req] = await a.d.select().from(s.requests).where(eq(s.requests.ref, ref));
+  if (!req || !canSeeCase(a.me, req)) return { error: NOT_FOUND } as const;
+  return { ...a, req };
+}
+
+/** A staff action on several cases at once: refused unless they may see every one of them. */
+async function casesAction(refs: string[], perm: Permission) {
+  const a = await staffAction(perm);
+  if ("error" in a) return { error: a.error! } as const;
+  const unique = [...new Set(refs)];
+  if (!unique.length) return { error: "Select at least one request." } as const;
+  const rows = await a.d.select().from(s.requests).where(inArray(s.requests.ref, unique));
+  if (rows.length !== unique.length || !rows.every((r) => canSeeCase(a.me, r))) return { error: "Some of the selected requests were not found. Refresh and try again." } as const;
+  return { ...a, refs: unique };
+}
+
+/** A staff action on a client's file: they need `perm` and must be allowed to see the client. */
+async function clientAction(profileId: string, perm: Permission) {
+  const a = await staffAction(perm);
+  if ("error" in a) return { error: a.error! } as const;
+  const [profile] = await a.d.select().from(s.profiles).where(eq(s.profiles.id, profileId));
+  if (!profile || !(await canSeeClient(a.d, a.me, profileId))) return { error: "Client not found." } as const;
+  return { ...a, profile };
+}
+
+/** The active member of staff to hand a case to, or null. */
+async function assignee(d: Db, agentId: string) {
+  const [agent] = await d.select().from(s.staff).where(eq(s.staff.id, agentId));
+  return agent?.active ? agent : null;
 }
 
 export async function searchConsole(q: string) {
@@ -27,20 +64,18 @@ export async function searchConsole(q: string) {
 
 // ---------------- Inbox & Triage ----------------
 export async function acceptAndAssignRequest(ref: string, agentId: string, message?: string): Promise<Result> {
-  const a = await staffAction("assign");
+  const a = await caseAction(ref, "assign");
   if ("error" in a) return fail(a.error!);
-  const { me, d } = a;
+  const { me, d, req } = a;
+  if (req.closed) return fail("This request is closed.");
 
-  const [agent] = await d.select().from(s.staff).where(eq(s.staff.id, agentId));
+  const agent = await assignee(d, agentId);
   if (!agent) return fail("Agent not found.");
-
-  const [req] = await d.select().from(s.requests).where(eq(s.requests.ref, ref));
-  if (!req) return fail("Request not found.");
 
   await d.transaction(async (tx) => {
     const nextStage = req.stage === "received" ? "checking" : req.stage;
     const stageDates = { ...req.stageDates, [nextStage]: req.stageDates[nextStage] ?? now() };
-    
+
     await tx.update(s.requests).set({
       agentId,
       stage: nextStage,
@@ -66,10 +101,11 @@ export async function acceptAndAssignRequest(ref: string, agentId: string, messa
 }
 
 export async function declineRequest(ref: string, reason: string): Promise<Result> {
-  const a = await staffAction("complete");
+  const a = await caseAction(ref, "complete");
   if ("error" in a) return fail(a.error!);
-  const { me, d } = a;
+  const { me, d, req } = a;
 
+  if (req.closed || req.stage === "completed") return fail("This request is already finished.");
   if (!reason.trim()) return fail("Write the reason the customer will see.");
 
   const closed: Closed = { kind: "rejected", at: now(), reason: reason.trim() };
@@ -94,28 +130,31 @@ export async function declineRequest(ref: string, reason: string): Promise<Resul
   return { ok: true };
 }
 
+/** Sets both fee lines and sends them to the customer. Same rules as saving fees on the case page. */
 export async function quoteCustomRequest(ref: string, official: number | null, ours: number, note?: string): Promise<Result> {
-  const a = await staffAction("recordOfficial");
+  const a = await caseAction(ref, "recordOfficial");
   if ("error" in a) return fail(a.error!);
-  const { me, d } = a;
+  const { me, d, req } = a;
 
+  if (req.closed || req.stage === "completed") return fail("This request is already finished.");
   if (ours <= 0) return fail("Set our assistance fee first.");
+  if (ours !== req.ours && !me.permissions.has("changeOurs")) return fail("Changing our fee needs a supervisor. Ask one to change it on this case.");
   if (official !== null && official < 0) return fail("Official fee cannot be negative.");
-
-  const [req] = await d.select().from(s.requests).where(eq(s.requests.ref, ref));
-  if (!req) return fail("Request not found.");
+  // When the institution is paid directly, or charges nothing, there is no official amount to record.
+  const officialAmount = req.officialMode ? null : official;
+  if (!req.officialMode && officialAmount === null) return fail("Record the official fee for this request first.");
 
   await d.transaction(async (tx) => {
     const dueAt = new Date(Date.now() + 3 * 864e5).toISOString();
     await tx.update(s.requests).set({
-      official,
+      official: officialAmount,
       ours,
       oursNote: note?.trim() || null,
       quote: "confirmed",
       dueAt,
     }).where(eq(s.requests.ref, ref));
 
-    const officialText = req.officialMode === "none" ? "no official fee" : req.officialMode === "direct" ? "official fee paid directly" : `official ${rwf(official ?? 0)}`;
+    const officialText = req.officialMode === "none" ? "no official fee" : req.officialMode === "direct" ? "official fee paid directly" : `official ${rwf(officialAmount ?? 0)}`;
     await event(tx, ref, "Quote prepared & sent", me.id, `${officialText} + our fee ${rwf(ours)}`);
     await notify(tx, ref, {
       icon: "card",
@@ -123,6 +162,7 @@ export async function quoteCustomRequest(ref: string, official: number | null, o
       sms: `quote ready: ${officialText} + our fee ${rwf(ours)}. Review and approve in your portal.`,
     });
     await audit(tx, { actor: me.name, role: me.role, action: "Sent custom quote", entity: `${ref} · ${officialText} + ${rwf(ours)}`, fee: true });
+    if (ours !== req.ours) await audit(tx, { actor: me.name, role: me.role, action: "Changed assistance fee on a case", entity: `${ref} · ${rwf(req.ours)} → ${rwf(ours)}`, fee: true });
   });
 
   revalidatePath("/", "layout");
@@ -131,17 +171,15 @@ export async function quoteCustomRequest(ref: string, official: number | null, o
 
 // ---------------- Bulk Actions ----------------
 export async function bulkAssignRequests(refs: string[], agentId: string | null): Promise<Result> {
-  const a = await staffAction("assign");
+  const a = await casesAction(refs, "assign");
   if ("error" in a) return fail(a.error!);
   const { me, d } = a;
 
-  if (!refs.length) return fail("Select at least one request.");
-
-  const [agent] = agentId ? await d.select().from(s.staff).where(eq(s.staff.id, agentId)) : [null];
+  const agent = agentId ? await assignee(d, agentId) : null;
   if (agentId && !agent) return fail("Agent not found.");
 
   await d.transaction(async (tx) => {
-    for (const ref of refs) {
+    for (const ref of a.refs) {
       await tx.update(s.requests).set({ agentId }).where(eq(s.requests.ref, ref));
       await event(tx, ref, agent ? `Assigned to ${agent.name}` : "Unassigned", me.id);
       await audit(tx, { actor: me.name, role: me.role, action: "Bulk assigned case", entity: `${ref} → ${agent?.name ?? "nobody"}` });
@@ -153,15 +191,13 @@ export async function bulkAssignRequests(refs: string[], agentId: string | null)
 }
 
 export async function bulkMessageRequests(refs: string[], body: string): Promise<Result> {
-  const a = await staffAction("viewAssigned");
+  if (!body.trim()) return fail("Write a message first.");
+  const a = await casesAction(refs, "viewAssigned");
   if ("error" in a) return fail(a.error!);
   const { me, d } = a;
 
-  if (!refs.length) return fail("Select at least one request.");
-  if (!body.trim()) return fail("Write a message first.");
-
   await d.transaction(async (tx) => {
-    for (const ref of refs) {
+    for (const ref of a.refs) {
       await tx.insert(s.messages).values({ ref, by: me.id, body: body.trim() });
       await notify(tx, ref, { icon: "msg", title: `${me.name.split(" ")[0]}: “${body.trim().slice(0, 90)}”` });
       await audit(tx, { actor: me.name, role: me.role, action: "Bulk messaged customer", entity: ref });
@@ -173,6 +209,7 @@ export async function bulkMessageRequests(refs: string[], body: string): Promise
 }
 
 // ---------------- Manual Payments ("Record by hand") ----------------
+/** Cash, bank transfers and the like, taken outside the mobile money prompt. Never more than is due. */
 export async function recordManualPayment(input: {
   ref: string;
   method: PayMethod;
@@ -182,17 +219,25 @@ export async function recordManualPayment(input: {
   payer?: string;
   notes?: string;
 }): Promise<Result> {
-  const a = await staffAction("recordOfficial");
-  if ("error" in a) return fail(a.error!);
-  const { me, d } = a;
-
   const ref = input.ref.trim().toUpperCase();
-  const [req] = await d.select().from(s.requests).where(eq(s.requests.ref, ref));
-  if (!req) return fail("Request not found.");
+  const a = await caseAction(ref, "recordOfficial");
+  if ("error" in a) return fail(a.error!);
+  const { me, d, req } = a;
 
+  if (req.closed) return fail("This request is closed.");
   if (!input.receipt.trim()) return fail("Enter a receipt or transaction reference number.");
+  if (!Number.isInteger(input.official) || !Number.isInteger(input.ours)) return fail("Enter whole amounts in RWF.");
   if (input.official < 0 || input.ours < 0) return fail("Amounts cannot be negative.");
   if (input.official === 0 && input.ours === 0) return fail("Total payment amount must be greater than 0.");
+
+  const txs = await d.select().from(s.transactions).where(eq(s.transactions.ref, ref));
+  if (txs.some((t) => t.status === "pending")) return fail("A mobile money prompt is still open on this request. Wait for it to finish before recording a payment by hand.");
+  const paid = txs.filter((t) => t.status === "paid");
+  const officialDue = Math.max(0, (req.official ?? 0) - paid.reduce((n, t) => n + t.official, 0));
+  const oursDue = Math.max(0, req.ours - paid.reduce((n, t) => n + t.ours, 0));
+  if (input.official > officialDue || input.ours > oursDue) {
+    return fail(officialDue + oursDue === 0 ? "Nothing is due on this request." : `That is more than is due: official ${rwf(officialDue)}, our fee ${rwf(oursDue)}.`);
+  }
 
   await d.transaction(async (tx) => {
     await tx.insert(s.transactions).values({
@@ -206,6 +251,7 @@ export async function recordManualPayment(input: {
       providerRef: input.receipt.trim(),
       at: now(),
     });
+    if (req.hold?.reason === "payment") await tx.update(s.requests).set({ hold: null }).where(eq(s.requests.ref, ref));
 
     const total = input.official + input.ours;
     await event(tx, ref, `Payment recorded (${input.method})`, me.id, `Total ${rwf(total)} (Inzira ${rwf(input.ours)}, Official ${rwf(input.official)}) · Ref: ${input.receipt.trim()}`);
@@ -229,12 +275,9 @@ export async function recordManualPayment(input: {
 
 // ---------------- Privacy & Audited Reveals ----------------
 export async function revealNationalId(profileId: string): Promise<Result<{ nationalId: string }>> {
-  const a = await staffAction("viewAssigned");
+  const a = await clientAction(profileId, "viewAssigned");
   if ("error" in a) return fail(a.error!);
-  const { me, d } = a;
-
-  const [prof] = await d.select().from(s.profiles).where(eq(s.profiles.id, profileId));
-  if (!prof) return fail("Profile not found.");
+  const { me, d, profile: prof } = a;
 
   await audit(d, {
     actor: me.name,
@@ -247,12 +290,9 @@ export async function revealNationalId(profileId: string): Promise<Result<{ nati
 }
 
 export async function revealTin(profileId: string): Promise<Result<{ tin: string }>> {
-  const a = await staffAction("viewAssigned");
+  const a = await clientAction(profileId, "viewAssigned");
   if ("error" in a) return fail(a.error!);
-  const { me, d } = a;
-
-  const [prof] = await d.select().from(s.profiles).where(eq(s.profiles.id, profileId));
-  if (!prof) return fail("Profile not found.");
+  const { me, d, profile: prof } = a;
 
   await audit(d, {
     actor: me.name,
@@ -265,6 +305,7 @@ export async function revealTin(profileId: string): Promise<Result<{ tin: string
 }
 
 // ---------------- Client Management ----------------
+/** Adds a client without a case. Agents add customers through New intake, which opens their first case. */
 export async function createClient(input: {
   name: string;
   phone: string;
@@ -275,15 +316,19 @@ export async function createClient(input: {
   tags?: string[];
   notes?: string;
 }): Promise<Result<{ profileId: string }>> {
-  const a = await staffAction("manageStaff");
-  const me = a.me ?? (await getStaffUser());
-  if (!me) return fail("Your session has ended. Sign in again.");
+  const a = await staffAction(WORKS_CASES);
+  if ("error" in a) return fail(a.error!);
+  const { me, d } = a;
+  if (!seesAllCases(me)) return fail("Add new customers through New intake: it opens their first case, and the client appears in your list.");
 
   const phone = normalisePhone(input.phone);
   if (!input.name.trim()) return fail("Enter client's full name.");
   if (!phone) return fail("Enter a Rwandan mobile number (e.g. 788 123 456).");
+  const nationalId = input.nationalId?.replace(/\D/g, "") || null;
+  if (nationalId && nationalId.length !== 16) return fail("A national ID has 16 digits.");
+  const tin = input.tin?.replace(/\D/g, "") || null;
+  if (tin && tin.length !== 9) return fail("A TIN has 9 digits.");
 
-  const d = await db();
   const res = await d.transaction(async (tx) => {
     let [account] = await tx.select().from(s.accounts).where(eq(s.accounts.phone, phone));
     if (!account) {
@@ -296,11 +341,6 @@ export async function createClient(input: {
       }).returning();
     }
 
-    const nationalId = input.nationalId?.trim() || null;
-    const idMasked = nationalId ? `${nationalId.slice(0, 7)} •••• ${nationalId.slice(-4)}` : null;
-    const tin = input.tin?.trim() || null;
-    const tinMasked = tin ? `${tin.slice(0, 3)} ••• ${tin.slice(-3)}` : null;
-
     const [profile] = await tx.insert(s.profiles).values({
       id: `p-${randomBytes(6).toString("hex")}`,
       accountId: account.id,
@@ -309,13 +349,14 @@ export async function createClient(input: {
       relation: input.kind === "person" ? "self" : null,
       district: input.district?.trim() || null,
       nationalId,
-      idMasked,
+      idMasked: nationalId && maskNationalId(nationalId),
       tin,
-      tinMasked,
+      tinMasked: tin && maskTin(tin),
     }).returning();
 
-    if (input.tags?.length) {
-      await tx.insert(s.clientTags).values(input.tags.map((tag) => ({ profileId: profile.id, tag: tag.trim() })));
+    const tags = (input.tags ?? []).map((tag) => tag.trim()).filter(Boolean);
+    if (tags.length) {
+      await tx.insert(s.clientTags).values(tags.map((tag) => ({ profileId: profile.id, tag })));
     }
 
     if (input.notes?.trim()) {
@@ -331,11 +372,11 @@ export async function createClient(input: {
 }
 
 export async function addClientTag(profileId: string, tag: string): Promise<Result> {
-  const me = await getStaffUser();
-  if (!me) return fail("Your session has ended.");
   if (!tag.trim()) return fail("Enter tag text.");
+  const a = await clientAction(profileId, WORKS_CASES);
+  if ("error" in a) return fail(a.error!);
+  const { me, d } = a;
 
-  const d = await db();
   await d.insert(s.clientTags).values({ profileId, tag: tag.trim() });
   await audit(d, { actor: me.name, role: me.role, action: "Added client tag", entity: `${profileId} · ${tag.trim()}` });
   revalidatePath("/", "layout");
@@ -343,10 +384,10 @@ export async function addClientTag(profileId: string, tag: string): Promise<Resu
 }
 
 export async function removeClientTag(profileId: string, tag: string): Promise<Result> {
-  const me = await getStaffUser();
-  if (!me) return fail("Your session has ended.");
+  const a = await clientAction(profileId, WORKS_CASES);
+  if ("error" in a) return fail(a.error!);
+  const { me, d } = a;
 
-  const d = await db();
   await d.delete(s.clientTags).where(and(eq(s.clientTags.profileId, profileId), eq(s.clientTags.tag, tag)));
   await audit(d, { actor: me.name, role: me.role, action: "Removed client tag", entity: `${profileId} · ${tag}` });
   revalidatePath("/", "layout");
@@ -354,11 +395,11 @@ export async function removeClientTag(profileId: string, tag: string): Promise<R
 }
 
 export async function addClientNote(profileId: string, body: string): Promise<Result> {
-  const me = await getStaffUser();
-  if (!me) return fail("Your session has ended.");
   if (!body.trim()) return fail("Write a note first.");
+  const a = await clientAction(profileId, WORKS_CASES);
+  if ("error" in a) return fail(a.error!);
+  const { me, d } = a;
 
-  const d = await db();
   await d.insert(s.clientNotes).values({ profileId, by: me.id, body: body.trim() });
   await audit(d, { actor: me.name, role: me.role, action: "Added client note", entity: profileId });
   revalidatePath("/", "layout");
@@ -395,13 +436,16 @@ export async function saveSavedView(input: {
   return { ok: true, id };
 }
 
+/** Deletes one of your own saved views. The shared views need "Manage agents & roles". */
 export async function deleteSavedView(id: string): Promise<Result> {
   const me = await getStaffUser();
   if (!me) return fail("Your session has ended.");
 
   const d = await db();
+  const [view] = await d.select().from(s.savedViews).where(eq(s.savedViews.id, id));
+  if (!view || (view.staffId ? view.staffId !== me.id : !me.permissions.has("manageStaff"))) return fail("View not found.");
   await d.delete(s.savedViews).where(eq(s.savedViews.id, id));
-  await audit(d, { actor: me.name, role: me.role, action: "Deleted saved view", entity: id });
+  await audit(d, { actor: me.name, role: me.role, action: "Deleted saved view", entity: `${view.entity} · ${view.name}` });
   revalidatePath("/", "layout");
   return { ok: true };
 }

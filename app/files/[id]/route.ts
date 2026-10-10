@@ -1,4 +1,5 @@
 import { eq } from "drizzle-orm";
+import { canSeeCase } from "@/lib/access";
 import { getSession, getStaffUser } from "@/lib/auth";
 import { db, schema as s } from "@/lib/db";
 import { audit } from "@/lib/mutate";
@@ -19,7 +20,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   } else {
     const me = await getStaffUser();
     const [r] = await d.select({ agentId: s.requests.agentId }).from(s.requests).where(eq(s.requests.ref, file.ref));
-    if (!me || !me.permissions.has("downloadDocs") || (!me.permissions.has("viewAll") && r?.agentId !== me.id)) return new Response("Not found", { status: 404 });
+    if (!me || !r || !me.permissions.has("downloadDocs") || !canSeeCase(me, r)) return new Response("Not found", { status: 404 });
     await audit(d, { actor: me.name, role: me.role, action: "Viewed document", entity: `${file.ref} · ${file.name}` });
   }
 

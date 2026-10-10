@@ -7,12 +7,12 @@ import type { Permission, Staff } from "@/lib/types";
 /** Thumb-reach navigation for staff on phones; the sidebar stays available behind the menu button. */
 export function StaffTabBar({ user, permissions, inboxCount = 0 }: { user: Staff; permissions: Permission[]; inboxCount?: number }) {
   const path = usePathname();
-  const canAssign = user.role === "Owner" || permissions.includes("assign");
+  const can = (p: Permission) => user.role === "Owner" || permissions.includes(p);
   const tabs = [
     { href: "/agent", label: "My day", icon: "sun", on: path === "/agent" || path === "/console/my-day" },
     { href: "/console/requests", label: "Requests", icon: "list", on: path.startsWith("/console/requests") },
-    { href: "/agent/intake", label: "New", icon: "plus", on: path === "/agent/intake", accent: true },
-    canAssign
+    ...(can("updateStatus") ? [{ href: "/agent/intake", label: "New", icon: "plus", on: path === "/agent/intake", accent: true }] : []),
+    can("assign") && can("viewAll")
       ? { href: "/console/inbox", label: "Inbox", icon: "inbox", on: path === "/console/inbox", badge: inboxCount }
       : { href: "/console/clients", label: "Clients", icon: "users", on: path.startsWith("/console/clients") },
     { href: "/console/clients", label: "Clients", icon: "users", on: path.startsWith("/console/clients") },

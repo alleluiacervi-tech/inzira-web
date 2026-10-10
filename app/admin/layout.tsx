@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import { ForceEnglish } from "@/components/I18n";
 import StaffShell from "@/components/console/StaffShell";
 import { NoAccess } from "@/components/PageStates";
-import { getAdmin, getMyPermissions, loadRequests } from "@/lib/repo";
-import { isOpen } from "@/lib/status";
+import { hasAdminAccess } from "@/lib/permissions";
+import { getAdmin, getMyPermissions, getNavCounts } from "@/lib/repo";
 
 export const metadata: Metadata = {
   title: { default: "Admin console", template: "%s · Inzira admin" },
@@ -11,29 +11,16 @@ export const metadata: Metadata = {
 };
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
-  const [me, perms, cases] = await Promise.all([
-    getAdmin(),
-    getMyPermissions(),
-    loadRequests(),
-  ]);
+  const [me, perms, counts] = await Promise.all([getAdmin(), getMyPermissions(), getNavCounts()]);
 
-  const allowed =
-    ["editServices", "manageStaff", "refund", "viewAudit"].some((p) =>
-      perms.includes(p as never)
-    ) ||
-    me.role === "Owner" ||
-    me.role === "Administrator" ||
-    me.role === "Finance";
-
-  const inboxCount = cases.filter((c) => !c.agentId && c.stage === "received").length;
-  const openCasesCount = cases.filter((c) => c.agentId === me.id && isOpen(c)).length;
+  const allowed = hasAdminAccess(me.role, perms);
 
   return (
     <ForceEnglish><StaffShell
       user={me}
       permissions={perms}
-      inboxCount={inboxCount}
-      openCasesCount={openCasesCount}
+      inboxCount={counts.inbox}
+      openCasesCount={counts.mine}
     >
       {allowed ? children : <NoAccess what="the admin console" />}
     </StaffShell></ForceEnglish>
