@@ -1,18 +1,14 @@
-import { getMyPermissions, getNow, listStaff, loadRequests } from "@/lib/repo";
+import { NoAccess } from "@/components/PageStates";
 import { InboxView } from "@/components/console/InboxView";
+import { getMyPermissions, getNow, listAgents, listInbox } from "@/lib/repo";
 
 export const metadata = { title: "Triage Inbox" };
 
 export default async function InboxPage() {
-  const [perms, allCases, staff, now] = await Promise.all([
-    getMyPermissions(),
-    loadRequests(),
-    listStaff(),
-    getNow(),
-  ]);
+  const perms = await getMyPermissions();
+  if (!perms.includes("assign") || !perms.includes("viewAll")) return <NoAccess what="the triage inbox" />;
 
-  const unassigned = allCases.filter((c) => !c.agentId && c.stage === "received");
-  const agents = staff.filter((s) => s.active && s.role === "Agent");
+  const [requests, agents, now] = await Promise.all([listInbox(), listAgents(), getNow()]);
 
-  return <InboxView requests={unassigned} agents={agents} now={now} />;
+  return <InboxView requests={requests} agents={agents} now={now} />;
 }

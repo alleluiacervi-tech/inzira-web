@@ -14,7 +14,6 @@ import { useDialog } from "./useDialog";
 
 export function Messages({ reqRef, initial, agent, now }: { reqRef: string; initial: Message[]; agent: string; now: string }) {
   const { locale, t } = useI18n();
-  const router = useRouter();
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -25,7 +24,6 @@ export function Messages({ reqRef, initial, agent, now }: { reqRef: string; init
     setBusy(false);
     if (!r.ok) { setError(trError(locale, r.error)); return; }
     setText("");
-    router.refresh();
   };
   return (
     <section id="messages" className="card" aria-labelledby="msg-h">
@@ -184,7 +182,6 @@ function PayDialog({ reqRef, b, due, phone, onClose }: { reqRef: string; b: Bill
 /** Shown while a request can still be cancelled by the customer: before payment and submission. */
 export function CancelRequest({ reqRef }: { reqRef: string }) {
   const { locale, t } = useI18n();
-  const router = useRouter();
   const [reason, setReason] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -197,7 +194,6 @@ export function CancelRequest({ reqRef }: { reqRef: string }) {
         const r = await cancelRequest(reqRef, reason).catch(() => ({ ok: false as const, error: t("pay.notSaved") }));
         setBusy(false);
         if (!r.ok) { setError(trError(locale, r.error)); return; }
-        router.refresh();
       }}>
         <p className="hint">{t("side.cancelFree")}</p>
         <label htmlFor="cx">{t("side.why")} <span className="mut" style={{ fontWeight: 400 }}>{t("form.optional")}</span></label>

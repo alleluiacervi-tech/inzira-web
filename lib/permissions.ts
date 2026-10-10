@@ -43,3 +43,8 @@ export const PERMISSION_GROUPS: { group: string; items: Permission[] }[] = [
   { group: "Payments", items: ["recordOfficial", "changeOurs", "refund"] },
   { group: "Administration", items: ["editServices", "manageStaff", "viewAudit"] },
 ];
+
+/** Who may open the admin console and the operations overview. */
+export const hasAdminAccess = (role: StaffRole, permissions: Iterable<Permission>) =>
+  role === "Owner" || role === "Administrator" || role === "Finance" ||
+  [...permissions].some((p) => p === "editServices" || p === "manageStaff" || p === "refund" || p === "viewAudit");

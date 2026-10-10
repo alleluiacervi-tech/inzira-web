@@ -28,7 +28,7 @@ export default function Intake({ services }: { services: Service[] }) {
         <span className="ok-dot"><Icon name="check" size={22} /></span>
         <h2 className="d" style={{ fontSize: 22 }}>Case {done} opened</h2>
         <p style={{ fontSize: 15, lineHeight: 1.55 }}>{f.name} will get an SMS on +250 {prettyMobile(f.phone)} with the reference. They can sign in with that number to follow it. The case is assigned to you.</p>
-        <div className="row g8 wrapx"><Link className="btn btn-d" href={`/agent/cases/${done}`}>Open the case</Link><button type="button" className="btn btn-s" onClick={() => { setDone(""); setTouched(false); setF({ ...f, name: "", phone: "", notes: "" }); }}>Open another</button></div>
+        <div className="row g8 wrapx"><Link className="btn btn-d" href={`/console/requests/${done}`}>Open the case</Link><button type="button" className="btn btn-s" onClick={() => { setDone(""); setTouched(false); setF({ ...f, name: "", phone: "", notes: "" }); }}>Open another</button></div>
       </div>
     );
   }
@@ -56,7 +56,7 @@ export default function Intake({ services }: { services: Service[] }) {
         </div>
         {error && <span className="err-text" role="alert"><Icon name="alert" size={15} /> {error}</span>}
         <div className="field"><label htmlFor="in-notes">What they need <span className="mut" style={{ fontWeight: 400 }}>(optional)</span></label><textarea id="in-notes" className="in" rows={3} value={f.notes} onChange={(e) => set("notes", e.target.value)} placeholder="In their words. Becomes the first internal note." /></div>
-        <div className="row g8" style={{ justifyContent: "flex-end" }}><Link className="btn btn-g" href="/agent">Cancel</Link><button className="btn btn-p" type="submit" disabled={busy}>{busy ? <><span className="spin" /> Opening…</> : "Open case"}</button></div>
+        <div className="row g8" style={{ justifyContent: "flex-end" }}><Link className="btn btn-g" href="/console/my-day">Cancel</Link><button className="btn btn-p" type="submit" disabled={busy}>{busy ? <><span className="spin" /> Opening…</> : "Open case"}</button></div>
       </form>
       <aside className="card stack g14" style={{ padding: 20 }}>
         <span className="eb" style={{ fontSize: 11 }}>Tell the customer</span>

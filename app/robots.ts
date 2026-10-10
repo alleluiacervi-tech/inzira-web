@@ -5,7 +5,7 @@ import { siteOrigin } from "@/lib/site";
 export default function robots(): MetadataRoute.Robots {
   const origin = siteOrigin();
   return {
-    rules: { userAgent: "*", allow: "/", disallow: ["/portal", "/agent", "/admin", "/console", "/files", "/api", "/sign-in"] },
+    rules: { userAgent: "*", allow: "/", disallow: ["/portal", "/admin", "/console", "/files", "/api", "/sign-in"] },
     ...(origin ? { sitemap: `${origin}/sitemap.xml` } : {}),
   };
 }

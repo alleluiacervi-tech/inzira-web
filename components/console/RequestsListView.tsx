@@ -1,6 +1,5 @@
 "use client";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
 import { bulkAssignRequests, bulkMessageRequests, saveSavedView } from "@/app/actions/console";
 import { Icon } from "@/components/ui";
@@ -30,7 +29,6 @@ export function RequestsListView({
   savedViews?: SavedView[];
   now: string;
 }) {
-  const router = useRouter();
   const [viewMode, setViewMode] = useState<"table" | "board">("table");
   const [selectedReq, setSelectedReq] = useState<RequestView | null>(null);
   const [toast, setToast] = useState("");
@@ -311,7 +309,6 @@ export function RequestsListView({
         setBulkAssignOpen(false);
         clearSelectionFn?.();
         setToast(`Assigned ${refs.length} requests.`);
-        router.refresh();
       }
     });
   };
@@ -324,7 +321,6 @@ export function RequestsListView({
         setBulkMessageOpen(false);
         clearSelectionFn?.();
         setToast(`Messaged ${refs.length} customers.`);
-        router.refresh();
       }
     });
   };
@@ -398,7 +394,6 @@ export function RequestsListView({
             const res = await saveSavedView({ entity: "requests", name, filters, columns: cols });
             if (res.ok) {
               setToast(`Saved view “${name}”`);
-              router.refresh();
             }
           }}
         />

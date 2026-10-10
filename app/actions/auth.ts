@@ -20,8 +20,8 @@ export async function signIn(phone: string, code: string, next?: string) {
   const [person] = await d.select().from(s.staff).where(and(eq(s.staff.phone, checked.phone), eq(s.staff.active, true)));
   if (person) {
     await startSession("staff", person.id);
-    const admin = person.role === "Owner" || person.role === "Administrator" || person.role === "Finance";
-    redirect(next?.startsWith("/agent") || next?.startsWith("/admin") ? next : admin ? "/admin" : "/agent");
+    // /console sends each role to its own home: the overview or My day.
+    redirect(next?.startsWith("/console") || next?.startsWith("/admin") ? next : "/console");
   }
   const [account] = await d.select().from(s.accounts).where(eq(s.accounts.phone, checked.phone));
   if (!account) return { ok: false as const, error: "We don’t have an account for this number yet. Start a service and your portal is created with your first request." };

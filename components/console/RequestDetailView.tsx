@@ -1,6 +1,5 @@
 "use client";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import {
   addNote,
@@ -44,7 +43,6 @@ export function RequestDetailView({
   category: string;
   now: string;
 }) {
-  const router = useRouter();
   const [busy, start] = useTransition();
   const can = (p: Permission) => perms.includes(p) || me.role === "Owner";
 
@@ -56,6 +54,7 @@ export function RequestDetailView({
   const [rejectDocId, setRejectDocId] = useState<string | null>(null);
   const [closeDialogOpen, setCloseDialogOpen] = useState(false);
   const [manualPayOpen, setManualPayOpen] = useState(false);
+  const [closeKind, setCloseKind] = useState<Closed["kind"]>("cancelled");
 
   // Form states
   const [msg, setMsg] = useState("");
@@ -87,7 +86,6 @@ export function RequestDetailView({
       }
       after?.();
       setToast(ok);
-      router.refresh();
     });
   };
 
@@ -173,17 +171,6 @@ export function RequestDetailView({
               </select>
             </div>
 
-            {hold && !finished && (
-              <button
-                type="button"
-                className="c-btn c-btn-secondary c-btn-sm"
-                disabled={busy || !can("updateStatus")}
-                onClick={() => run("Hold cleared", () => clearHold(c.ref))}
-              >
-                Clear hold
-              </button>
-            )}
-
             {!finished && can("complete") && (
               <button
                 type="button"
@@ -200,7 +187,7 @@ export function RequestDetailView({
               <button
                 type="button"
                 className="c-btn c-btn-danger c-btn-sm"
-                onClick={() => setCloseDialogOpen(true)}
+                onClick={() => { setCloseKind("cancelled"); setCloseDialogOpen(true); }}
               >
                 Close...
               </button>
@@ -222,7 +209,9 @@ export function RequestDetailView({
             {c.flow.map((st, idx) => {
               const active = c.stage === st;
               const isPast = !!c.stageDates[st] && !active && c.flow.indexOf(c.stage) > idx;
-              const state = active ? (finished ? "done" : "current") : isPast || finished ? "done" : "todo";
+              // A closed case stops where it was: later stages stay open, not ticked as if completed.
+              const completed = stage === "completed";
+              const state = active ? (completed ? "done" : "current") : isPast || completed ? "done" : "todo";
               return (
                 <li key={st} className={`c-step is-${state}`}>
                   <button
@@ -241,7 +230,10 @@ export function RequestDetailView({
             })}
           </ol>
 
-          <div className="row g6">
+          <div className="row g6 wrapx" style={{ alignItems: "center" }}>
+            {c.followUp && !finished && (
+              <span className="c-caption" title={c.followUp.what}>Follow-up {fmtWhen(c.followUp.at, now)}</span>
+            )}
             <button
               type="button"
               className="c-btn c-btn-secondary c-btn-sm"
@@ -262,6 +254,34 @@ export function RequestDetailView({
           </div>
         </div>
       </div>
+
+      {closed && (
+        <div className={`c-notice ${closed.kind === "rejected" ? "c-notice-red" : "c-notice-neutral"}`} role="status">
+          <Icon name={closed.kind === "rejected" ? "alert" : "x"} size={18} />
+          <div className="c-notice-body">
+            <span className="c-notice-title">{closed.kind === "rejected" ? "Rejected by the institution" : "Cancelled"} · {fmtWhen(closed.at, now)}</span>
+            <span>{closed.reason}</span>
+          </div>
+        </div>
+      )}
+      {hold && !finished && (
+        <div className="c-notice c-notice-amber" role="status">
+          <Icon name="clock" size={18} />
+          <div className="c-notice-body">
+            <span className="c-notice-title">{hold.returned ? "Returned · waiting on customer" : "Waiting on customer"} · since {fmtWhen(hold.since, now)}</span>
+            {/* An information hold's title is written for the customer; the question itself is the detail. */}
+            <span>{hold.reason === "information" ? hold.detail : [hold.title, hold.detail].filter(Boolean).join(" — ")}</span>
+          </div>
+          <button
+            type="button"
+            className="c-btn c-btn-secondary c-btn-sm"
+            disabled={busy || !can("updateStatus")}
+            onClick={() => run("Hold cleared", () => clearHold(c.ref))}
+          >
+            Clear hold
+          </button>
+        </div>
+      )}
 
       {/* Tabs Bar */}
       <div className="row console-tabs c-tabs" role="tablist" aria-label="Request sections">
@@ -321,7 +341,10 @@ export function RequestDetailView({
                 </div>
               </div>
               <div className="stack g6" style={{ fontSize: 13 }}>
+                {c.profile.name !== c.account.name && <div className="row between"><span style={{ color: "var(--c-text-muted)" }}>Contact:</span><span>{c.account.name}</span></div>}
                 <div className="row between"><span style={{ color: "var(--c-text-muted)" }}>Phone:</span><strong>{c.account.phone}</strong></div>
+                <div className="row between"><span style={{ color: "var(--c-text-muted)" }}>WhatsApp:</span><span>{c.account.whatsapp ? "Same number · opted in" : "Not opted in"}</span></div>
+                {c.account.languages.length > 0 && <div className="row between"><span style={{ color: "var(--c-text-muted)" }}>Language:</span><span>{c.account.languages.join(", ")}</span></div>}
                 {c.profile.district && <div className="row between"><span style={{ color: "var(--c-text-muted)" }}>District:</span><span>{c.profile.district}</span></div>}
                 {c.profile.idMasked && <div className="row between"><span style={{ color: "var(--c-text-muted)" }}>National ID:</span><span className="tabular-nums">{c.profile.idMasked}</span></div>}
                 {c.purpose && <div className="row between"><span style={{ color: "var(--c-text-muted)" }}>Purpose:</span><span>{c.purpose}</span></div>}
@@ -357,14 +380,15 @@ export function RequestDetailView({
             <div className="console-panel stack g14" style={{ padding: 18 }}>
               <h3 className="console-section-title" style={{ margin: 0 }}>Official submission</h3>
               <div className="console-form-group">
-                <label className="console-label">Channel</label>
-                <select className="console-select" value={channel} onChange={(e) => setChannel(e.target.value)} disabled={finished}>
+                <label className="console-label" htmlFor="rq-channel">Channel</label>
+                <select id="rq-channel" className="console-select" value={channel} onChange={(e) => setChannel(e.target.value)} disabled={finished}>
                   {[c.channel, ...CHANNELS].filter((v, i, a) => a.indexOf(v) === i).map((o) => <option key={o}>{o}</option>)}
                 </select>
               </div>
               <div className="console-form-group">
-                <label className="console-label">Official reference / application no.</label>
+                <label className="console-label" htmlFor="rq-oref">Official reference / application no.</label>
                 <input
+                  id="rq-oref"
                   className="console-input tabular-nums"
                   value={officialRef}
                   onChange={(e) => setOfficialRef(e.target.value)}
@@ -407,8 +431,9 @@ export function RequestDetailView({
 
               {can("complete") && !closed && (
                 <div className="stack g8" style={{ paddingTop: 8, borderTop: "1px solid var(--c-border-subtle)" }}>
-                  <label className="console-label">Deliverable name</label>
+                  <label className="console-label" htmlFor="rq-dname">Deliverable name</label>
                   <input
+                    id="rq-dname"
                     className="console-input"
                     value={deliverableName}
                     onChange={(e) => setDeliverableName(e.target.value)}
@@ -417,6 +442,7 @@ export function RequestDetailView({
                   <label className="c-btn c-btn-primary c-btn-sm" style={{ alignSelf: "flex-start", cursor: "pointer" }}>
                     <Icon name="upload" size={14} /> Upload &amp; deliver to client
                     <input
+                      id="rq-dfile"
                       type="file"
                       accept="image/*,application/pdf"
                       className="sr-only"
@@ -440,8 +466,9 @@ export function RequestDetailView({
             <h3 className="console-section-title" style={{ margin: 0 }}>Required documents checklist</h3>
             {can("reviewDocs") && !finished && (
               <label className="c-btn c-btn-secondary c-btn-sm" style={{ cursor: "pointer" }}>
-                <Icon name="upload" size={14} /> Upload customer copy
+                <Icon name="upload" size={14} /> Add other document
                 <input
+                  id="rq-docfile"
                   type="file"
                   accept="image/*,application/pdf"
                   className="sr-only"
@@ -473,6 +500,22 @@ export function RequestDetailView({
                     <a className="c-btn c-btn-secondary c-btn-sm" href={`/files/${d.file.id}`} target="_blank" rel="noopener">
                       <Icon name="eye" size={13} /> View
                     </a>
+                  )}
+
+                  {(d.status === "required" || d.status === "rejected") && !finished && can("reviewDocs") && (
+                    <label className="c-btn c-btn-secondary c-btn-sm" style={{ cursor: "pointer" }} title="Add a copy the customer gave you in person or on WhatsApp">
+                      <Icon name="upload" size={13} /> Add copy
+                      <input
+                        type="file"
+                        accept="image/*,application/pdf"
+                        className="sr-only"
+                        aria-label={`Add ${d.name} for the customer`}
+                        onChange={(e) => {
+                          uploadFile("document", e.target.files?.[0], { docId: d.id }, `${d.name} added`);
+                          e.target.value = "";
+                        }}
+                      />
+                    </label>
                   )}
 
                   {d.status === "received" && !finished && can("reviewDocs") && (
@@ -572,6 +615,8 @@ export function RequestDetailView({
                 ))}
               </div>
               <textarea
+                id="rq-msg"
+                aria-label="Message to the client"
                 className="console-textarea"
                 rows={3}
                 value={msg}
@@ -607,27 +652,36 @@ export function RequestDetailView({
           <div className="console-panel stack g14" style={{ padding: 18 }}>
             <h3 className="console-section-title" style={{ margin: 0 }}>Fee breakdown (Two lines)</h3>
 
-            <div className="console-form-group">
-              <label className="console-label row g6">
-                <span className="c-fee-tag-official">Official</span>
-                <span>Official government fee (RWF)</span>
-              </label>
-              <input
-                className="console-input tabular-nums"
-                inputMode="numeric"
-                value={officialFee}
-                disabled={finished || !can("recordOfficial")}
-                onChange={(e) => setOfficialFee(e.target.value.replace(/\D/g, ""))}
-                placeholder={c.service.official.label ?? "Amount for this case"}
-              />
-            </div>
+            {c.billing.officialMode ? (
+              <div className="row between g12" style={{ fontSize: 13.5 }}>
+                <span className="row g6"><span className="c-fee-tag-official">Official</span> Official government fee</span>
+                <strong>{c.billing.officialMode === "none" ? "None" : "Paid by the customer directly"}</strong>
+              </div>
+            ) : (
+              <div className="console-form-group">
+                <label className="console-label row g6" htmlFor="rq-official">
+                  <span className="c-fee-tag-official">Official</span>
+                  <span>Official government fee (RWF)</span>
+                </label>
+                <input
+                  id="rq-official"
+                  className="console-input tabular-nums"
+                  inputMode="numeric"
+                  value={officialFee}
+                  disabled={finished || !can("recordOfficial")}
+                  onChange={(e) => setOfficialFee(e.target.value.replace(/\D/g, ""))}
+                  placeholder={c.service.official.label ?? "Amount for this case"}
+                />
+              </div>
+            )}
 
             <div className="console-form-group">
-              <label className="console-label row g6">
+              <label className="console-label row g6" htmlFor="rq-ours">
                 <span className="c-fee-tag-ours">Inzira</span>
                 <span>Assistance fee (RWF)</span>
               </label>
               <input
+                id="rq-ours"
                 className="console-input tabular-nums"
                 inputMode="numeric"
                 value={oursFee}
@@ -669,11 +723,44 @@ export function RequestDetailView({
               <button
                 type="button"
                 className="c-btn c-btn-primary c-btn-sm"
-                disabled={finished || busy || (!c.billing.officialMode && officialVal === null)}
-                onClick={() => run("Fees sent to customer", () => sendQuote(c.ref))}
+                disabled={finished || busy || (!c.billing.officialMode && officialVal === null) || (oursChanged && !can("changeOurs"))}
+                onClick={() => run("Fees sent to customer", async () => {
+                  // Amounts typed but not saved yet are what the agent means to send.
+                  if (feesDirty) {
+                    const saved = await saveFees(c.ref, officialVal, oursVal);
+                    if (!saved.ok) return saved;
+                  }
+                  return sendQuote(c.ref);
+                })}
               >
                 Send confirmed quote to client
               </button>
+            )}
+
+            {c.billing.officialReceipt !== "na" && (
+              <div className="row between g12 wrapx" style={{ paddingTop: 12, borderTop: "1px solid var(--c-border-subtle)" }}>
+                <div className="stack" style={{ gap: 2 }}>
+                  <strong style={{ fontSize: 13 }}>Official receipt</strong>
+                  <span style={{ fontSize: 12.5, color: c.billing.officialReceipt === "attached" ? "var(--c-green)" : "var(--c-text-muted)" }}>
+                    {c.billing.officialReceipt === "attached" ? "Attached" : "Not attached yet. Add the institution’s receipt once the official fee is paid."}
+                  </span>
+                </div>
+                {can("recordOfficial") && !closed && (
+                  <label className="c-btn c-btn-secondary c-btn-sm" style={{ cursor: "pointer" }}>
+                    <Icon name="upload" size={14} /> {c.billing.officialReceipt === "attached" ? "Replace receipt" : "Attach receipt"}
+                    <input
+                      id="rq-receipt"
+                      type="file"
+                      accept="image/*,application/pdf"
+                      className="sr-only"
+                      onChange={(e) => {
+                        uploadFile("receipt", e.target.files?.[0], {}, "Official receipt attached");
+                        e.target.value = "";
+                      }}
+                    />
+                  </label>
+                )}
+              </div>
             )}
           </div>
 
@@ -752,6 +839,8 @@ export function RequestDetailView({
               className="stack g8"
             >
               <textarea
+                id="rq-note"
+                aria-label="Private staff note"
                 className="console-textarea"
                 rows={2}
                 value={internalNote}
@@ -801,27 +890,34 @@ export function RequestDetailView({
         open={closeDialogOpen}
         onClose={() => setCloseDialogOpen(false)}
         onConfirm={(reason) => {
-          run("Case closed", () => closeCase(c.ref, "cancelled", reason), () => setCloseDialogOpen(false));
+          run(closeKind === "rejected" ? "Rejection recorded · client notified" : "Case closed · client notified", () => closeCase(c.ref, closeKind, reason), () => setCloseDialogOpen(false));
         }}
         title={`Close request ${c.ref}`}
-        description="The case will be marked as cancelled and the client will see your explanation."
-        confirmLabel="Confirm close"
+        description="The client is told by SMS and sees your reason in their portal. Refunds are issued by Finance from Admin › Payments."
+        confirmLabel="Close case"
         confirmVariant="danger"
         requireReason
-        reasonLabel="Reason for closing"
-        reasonPlaceholder="e.g. Client withdrew application..."
+        reasonLabel="Reason the client will see"
+        reasonPlaceholder={closeKind === "rejected" ? "e.g. RDB refused the company name: it is already registered." : "e.g. Client withdrew the application."}
         busy={busy}
-      />
+      >
+        <fieldset className="stack g4" style={{ border: 0, padding: 0, margin: 0 }}>
+          <legend className="console-label" style={{ marginBottom: 4 }}>How did it end?</legend>
+          {([["cancelled", "Cancelled (by the client or by Inzira)"], ["rejected", "Rejected by the institution"]] as const).map(([kind, label]) => (
+            <label key={kind} className="row g8" style={{ minHeight: 36, fontSize: 13.5, cursor: "pointer" }}>
+              <input type="radio" name="close-kind" value={kind} checked={closeKind === kind} onChange={() => setCloseKind(kind)} />
+              {label}
+            </label>
+          ))}
+        </fieldset>
+      </ConfirmDialog>
 
       {/* Record Manual Payment Modal */}
       <RecordPaymentModal
         open={manualPayOpen}
         onClose={() => setManualPayOpen(false)}
         prefilledRef={c.ref}
-        onSuccess={(msg) => {
-          setToast(msg);
-          router.refresh();
-        }}
+        onSuccess={(msg) => setToast(msg)}
       />
 
       {toast && <Toast message={toast} onDismiss={() => setToast("")} />}

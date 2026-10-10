@@ -1,7 +1,7 @@
 # Inzira — service assistance platform (Next.js)
 
 Next.js 15 (App Router, TypeScript) with a Postgres database: public website, service catalogue,
-start-request flow, customer portal, agent workspace and admin console, with real sign-in, saved
+start-request flow, customer portal, staff console and admin settings, with real sign-in, saved
 requests, uploads, payments (simulated until a provider is connected) and an audit trail.
 
 > Inzira is a **private assistance company**. The UI never imitates Irembo, RRA, RDB, RURA or any
@@ -27,11 +27,11 @@ number ending in `0000` is "declined").
 | Who | Number | Lands in |
 | --- | --- | --- |
 | Aline Uwase, customer | 788 123 456 | Customer portal |
-| Eric Niyonzima, agent | 780 000 001 | Agent workspace (sees only his cases) |
-| Patrick Nshimiyimana, agent | 780 000 003 | Agent workspace |
-| Jean Paul Hakizimana, supervisor | 780 000 006 | Agent workspace (all cases, can change fees) |
-| Solange Ishimwe, finance | 780 000 007 | Admin console (payments, refunds) |
-| Diane Mukamana, owner | 780 000 008 | Admin console (everything) |
+| Eric Niyonzima, agent | 780 000 001 | Staff console · My day (only their own cases and clients) |
+| Patrick Nshimiyimana, agent | 780 000 003 | Staff console · My day |
+| Jean Paul Hakizimana, supervisor | 780 000 006 | Staff console · My day (all cases, triage, can change fees) |
+| Solange Ishimwe, finance | 780 000 007 | Staff console · Overview (payments, refunds) |
+| Diane Mukamana, owner | 780 000 008 | Staff console · Overview (everything) |
 
 Anyone else starts a request from the catalogue; their account is created when they confirm their
 number.
@@ -40,10 +40,13 @@ number.
 npm run typecheck
 npm run build && npm start   # production build; add INZIRA_DEMO=1 to keep demo codes and payments
 npm run smoke                # with the app running: every page loads, is styled, private pages need sign-in
-npm run flows                # with the app running in demo mode on a fresh database: 87 end-to-end checks
-                             # (needs Chrome and Node 22+)
+npm run flows                # with the app running in demo mode on a fresh database: 99 end-to-end checks,
+                             # including what each role can see (needs Chrome and Node 22+)
 npm run check:providers      # with real keys set: tests SMS, MTN MoMo, Airtel Money and Blob storage end to end
 ```
+
+GitHub Actions (`.github/workflows/ci.yml`) runs typecheck, build, smoke and flows on every pull request
+and on pushes to `main`, against a fresh demo database.
 
 Run one server at a time from this folder: two servers, or a build while a server is running,
 fight over `.next` and the embedded database.
@@ -100,13 +103,19 @@ app/
                      of staff their summary, removes expired codes and sessions. Every run is recorded.
   api/payments/callback   mobile money callbacks — only trigger a re-check with the provider
   api/health         200 when the database answers, for uptime monitors
-  …                  pages: server components that read through lib/repo
+  console/           the staff console: My day, triage inbox, requests, clients, intake, overview
+  admin/             settings in the same shell: services & prices, payments, roles, audit, system
+  portal/            the customer portal
+  …                  pages: server components that read through lib/repo. /agent/* and /admin
+                     redirect to their console pages (next.config.mjs)
 components/          screens and building blocks (client components call app/actions)
 lib/
   db/schema.ts       the database tables
   db/index.ts        connection: Postgres (DATABASE_URL) or PGlite
   db/seed.ts         catalogue + sample data (development), catalogue + owner (production setup)
   repo.ts            every read. Customers only ever receive their own requests, without internal notes
+  access.ts          which cases and clients each member of staff may see; every staff read and write uses it.
+                     Full national IDs and TINs never reach a screen: staff reveal them through an audited action
   auth.ts            phone + SMS code sign-in, sessions (hashed, httpOnly cookie), staff permissions
   permissions.ts     the permission list and the starting roles matrix
   sms.ts             SMS providers (console, Africa's Talking)
@@ -126,7 +135,7 @@ scripts/             db.mts (migrate / setup / seed / reset), smoke.mjs, flows.m
 ## The model
 
 **One request, three views.** A request is one row (plus its documents, messages, notes, events and
-payments). The customer portal, the agent workspace and the admin ledger all read it.
+payments). The customer portal, the staff console and the admin ledger all read it.
 
 **Progress and blockers are separate.** `stage` (received → checking → preparing → with the
 institution → completed; trainings skip the institution) says who has the work. `hold` marks the
@@ -169,7 +178,8 @@ by every server action.
 - **Backups** of the Postgres database, and a retention rule for uploaded documents.
 - **Placeholders:** company details in `lib/site.ts`, the sample testimonials, and the four legal pages
   the footer links to (terms, privacy, refunds, complaints).
-- **Languages.** The EN/RW/FR switch is UI-only; all copy is English.
+- **Languages.** The public site is in Kinyarwanda by default, with English as a choice. The customer
+  portal, the staff console and every SMS are English only.
 - Not set up: ESLint (`npm run lint` has no config yet).
 - **Staff alerts** are a daily SMS summary. Nothing alerts staff the moment a customer replies; they see it
   in the console.

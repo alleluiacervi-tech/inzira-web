@@ -51,7 +51,7 @@ export function NewMenu({
           }}
         >
           <Link
-            href="/agent/intake"
+            href="/console/intake"
             className="row g10 console-nav-item"
             style={{ margin: 0, padding: "8px 10px" }}
             onClick={() => setOpen(false)}

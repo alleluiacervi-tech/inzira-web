@@ -1,0 +1,45 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: Typecheck, build, smoke and flows
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run build
+
+      # Demo mode on a fresh embedded database: sign-in codes are shown on screen and payments are
+      # simulated, which is what smoke and flows expect. The server keeps running for the next steps.
+      - name: Start the app
+        run: |
+          INZIRA_DEMO=1 npm start > server.log 2>&1 &
+          for i in $(seq 1 60); do
+            curl -sf -o /dev/null http://localhost:3000/api/health && exit 0
+            sleep 2
+          done
+          echo "The app did not answer on /api/health"; cat server.log; exit 1
+
+      - run: npm run smoke
+      - run: npm run flows
+
+      - name: Server log
+        if: failure()
+        run: cat server.log

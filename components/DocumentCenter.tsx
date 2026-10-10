@@ -1,5 +1,4 @@
 "use client";
-import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
 import { uploadDocument } from "@/app/actions/customer";
 import { trError } from "@/lib/i18n/errors";
@@ -16,7 +15,6 @@ const MAX = 10 * 1024 * 1024;
 
 export default function DocumentCenter({ initial: docs }: { initial: LibraryDoc[] }) {
   const { locale, t: tr } = useI18n();
-  const router = useRouter();
   const groupName = (g: string) => {
     const next = text(locale, `groups.${g}`);
     return next === `groups.${g}` ? g : next;
@@ -45,7 +43,6 @@ export default function DocumentCenter({ initial: docs }: { initial: LibraryDoc[
     setBusy(null);
     if (!r.ok) { setError(trError(locale, r.error)); return; }
     setDone(f.name);
-    router.refresh();
   };
 
   const count = (k: (typeof TABS)[number]) => (k === "all" ? docs.length : docs.filter((d) => d.status === k).length);

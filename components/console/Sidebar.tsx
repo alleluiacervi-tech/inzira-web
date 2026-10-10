@@ -2,6 +2,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Icon, Logo } from "@/components/ui";
+import { hasAdminAccess } from "@/lib/permissions";
 import type { Permission, Staff } from "@/lib/types";
 
 type NavItem = {
@@ -9,6 +10,8 @@ type NavItem = {
   href: string;
   icon: string;
   permission?: Permission;
+  /** For rules a single permission can’t express. */
+  show?: boolean;
   badge?: number;
   matchPrefix?: string;
 };
@@ -35,14 +38,15 @@ export function Sidebar({
 }) {
   const path = usePathname();
   const can = (p?: Permission) => !p || permissions.includes(p) || user.role === "Owner";
+  const admin = hasAdminAccess(user.role, permissions);
 
   const GROUPS: NavGroup[] = [
     {
       group: "Home",
       items: [
-        { label: "Overview", href: "/admin", icon: "chart", matchPrefix: "/admin" },
-        { label: "Inbox", href: "/console/inbox", icon: "inbox", permission: "assign", badge: inboxCount },
-        { label: "My day", href: "/agent", icon: "sun", badge: openCasesCount },
+        { label: "Overview", href: "/console/overview", icon: "chart", show: admin },
+        { label: "Inbox", href: "/console/inbox", icon: "inbox", show: can("assign") && can("viewAll"), badge: inboxCount },
+        { label: "My day", href: "/console/my-day", icon: "sun", badge: openCasesCount },
       ],
     },
     {
@@ -50,7 +54,7 @@ export function Sidebar({
       items: [
         { label: "Requests", href: "/console/requests", icon: "list", matchPrefix: "/console/requests" },
         { label: "Clients", href: "/console/clients", icon: "users", matchPrefix: "/console/clients" },
-        { label: "New intake", href: "/agent/intake", icon: "plus" },
+        { label: "New intake", href: "/console/intake", icon: "plus", permission: "updateStatus" },
       ],
     },
     {
@@ -62,7 +66,7 @@ export function Sidebar({
     {
       group: "Money",
       items: [
-        { label: "Payments", href: "/admin/payments", icon: "card", permission: "recordOfficial", matchPrefix: "/admin/payments" },
+        { label: "Payments", href: "/admin/payments", icon: "card", show: admin && (can("refund") || can("viewAll")), matchPrefix: "/admin/payments" },
       ],
     },
     {
@@ -81,8 +85,6 @@ export function Sidebar({
   ];
 
   const isItemActive = (item: NavItem) => {
-    if (item.href === "/admin") return path === "/admin" || path === "/console/overview";
-    if (item.href === "/agent") return path === "/agent" || path === "/console/my-day";
     if (item.matchPrefix) return path.startsWith(item.matchPrefix);
     return path === item.href;
   };
@@ -100,7 +102,7 @@ export function Sidebar({
         {/* Brand Header */}
         <div className="row between" style={{ padding: "16px 18px", borderBottom: "1px solid var(--c-border)" }}>
           <div className="stack" style={{ gap: 2 }}>
-            <Logo href="/admin" />
+            <Logo href="/console" />
             <span style={{ fontSize: 12.5, fontWeight: 600, color: "var(--c-text-muted)" }}>
               Staff console
             </span>
@@ -120,7 +122,7 @@ export function Sidebar({
         {/* Nav Groups */}
         <nav className="stack grow" style={{ padding: "8px 0", gap: 6 }}>
           {GROUPS.map((grp) => {
-            const visibleItems = grp.items.filter((it) => can(it.permission));
+            const visibleItems = grp.items.filter((it) => can(it.permission) && it.show !== false);
             if (!visibleItems.length) return null;
 
             return (

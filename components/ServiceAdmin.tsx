@@ -1,5 +1,4 @@
 "use client";
-import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { saveService } from "@/app/actions/admin";
 import { fmtDate, officialLabel, oursLabel, rwf, totalLabel } from "@/lib/format";
@@ -24,7 +23,6 @@ const blank = (category: string): Service => ({
 });
 
 export default function ServiceAdmin({ services: rows, categories, demand }: { services: Service[]; categories: Category[]; demand: Record<string, number> }) {
-  const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [cat, setCat] = useState("all");
@@ -138,7 +136,6 @@ export default function ServiceAdmin({ services: rows, categories, demand }: { s
                   if (!r.ok) { setError(r.error); return; }
                   setSaved(`${clean.name} ${isNew ? "added" : "updated"} · our fee ${rwf(clean.ours)}${clean.oursUnit ? ` ${clean.oursUnit}` : ""}. Customers see it now, and the change is in the audit log.`);
                   setEdit(null);
-                  router.refresh();
                 }}>{busy ? "Saving…" : "Save changes"}</button></div>
             </div>
           </aside>

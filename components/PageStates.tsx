@@ -58,7 +58,7 @@ export function NoAccess({ what }: { what: string }) {
         <span className="ico-tile"><Icon name="lock" size={22} /></span>
         <strong>Your role doesn’t include {what}</strong>
         <span className="hint" style={{ maxWidth: 420 }}>Ask the owner or an administrator if you need it. They can change roles in Admin › Roles &amp; people.</span>
-        <Link className="btn btn-p btn-sm" href="/agent">Go to the agent workspace</Link>
+        <Link className="btn btn-p btn-sm" href="/console">Go to the staff console</Link>
       </div>
     </div>
   );

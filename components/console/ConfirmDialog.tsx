@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useId, useState, type ReactNode } from "react";
 import { Icon } from "@/components/ui";
 
 export function ConfirmDialog({
@@ -14,6 +14,7 @@ export function ConfirmDialog({
   reasonLabel = "Reason for this action",
   reasonPlaceholder = "Add details...",
   busy = false,
+  children,
 }: {
   open: boolean;
   onClose: () => void;
@@ -26,8 +27,11 @@ export function ConfirmDialog({
   reasonLabel?: string;
   reasonPlaceholder?: string;
   busy?: boolean;
+  /** Extra choices shown above the reason. */
+  children?: ReactNode;
 }) {
   const [reason, setReason] = useState("");
+  const reasonId = useId();
 
   useEffect(() => {
     if (open) setReason("");
@@ -63,12 +67,14 @@ export function ConfirmDialog({
         </div>
         <div className="console-panel-body stack g14">
           {description && <div style={{ fontSize: 13.5, color: "var(--c-text-muted)", lineHeight: 1.5 }}>{description}</div>}
+          {children}
           {(requireReason || reasonLabel) && (
             <div className="console-form-group">
-              <label className="console-label">
+              <label className="console-label" htmlFor={reasonId}>
                 {reasonLabel} {requireReason && <span style={{ color: "var(--c-red)" }}>*</span>}
               </label>
               <textarea
+                id={reasonId}
                 className="console-textarea"
                 rows={3}
                 value={reason}

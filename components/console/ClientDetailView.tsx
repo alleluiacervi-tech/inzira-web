@@ -1,6 +1,5 @@
 "use client";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { addClientNote, addClientTag, removeClientTag, revealNationalId, revealTin } from "@/app/actions/console";
 import { Icon } from "@/components/ui";
@@ -18,7 +17,6 @@ export function ClientDetailView({
   client: ClientDetail;
   now: string;
 }) {
-  const router = useRouter();
   const [busy, start] = useTransition();
   const [activeTab, setActiveTab] = useState<"overview" | "requests" | "payments" | "documents" | "messages" | "notes" | "activity">("overview");
   const [toast, setToast] = useState("");
@@ -67,7 +65,6 @@ export function ClientDetailView({
       if (res.ok) {
         setNewTag("");
         setToast(`Tag “${newTag}” added`);
-        router.refresh();
       }
     });
   };
@@ -77,7 +74,6 @@ export function ClientDetailView({
       const res = await removeClientTag(client.id, tag);
       if (res.ok) {
         setToast(`Tag “${tag}” removed`);
-        router.refresh();
       }
     });
   };
@@ -90,7 +86,6 @@ export function ClientDetailView({
       if (res.ok) {
         setNewNote("");
         setToast("Client note saved");
-        router.refresh();
       }
     });
   };
@@ -147,7 +142,7 @@ export function ClientDetailView({
               <Icon name="msg" size={14} />
               <span>WhatsApp</span>
             </a>
-            <Link href="/agent/intake" className="c-btn c-btn-primary c-btn-sm">
+            <Link href="/console/intake" className="c-btn c-btn-primary c-btn-sm">
               <Icon name="plus" size={14} />
               <span>Start request</span>
             </Link>

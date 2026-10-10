@@ -28,7 +28,9 @@ export function ClientsListView({
       cell: (c) => (
         <div className="stack" style={{ gap: 2 }}>
           <strong style={{ fontSize: 13.5 }}>
-            <Link href={`/console/clients/${c.id}`} style={{ textDecoration: "none", color: "inherit" }} className="lnk">
+            {/* No prefetch: every row would have the server render the console in the background. The row
+                navigates on click too, so the link keeps the click to itself: one click, one navigation. */}
+            <Link href={`/console/clients/${c.id}`} prefetch={false} style={{ textDecoration: "none", color: "inherit" }} className="lnk" onClick={(e) => e.stopPropagation()}>
               {c.name}
             </Link>
           </strong>

@@ -1,6 +1,7 @@
 // The data-access layer: every screen reads through these functions, and only they touch the
 // database. Writes live in app/actions. Only import this from server code.
-import { and, asc, desc, eq, gte, inArray, sql, type SQL } from "drizzle-orm";
+import { and, asc, desc, eq, gte, inArray, isNull, ne, or, sql, type SQL } from "drizzle-orm";
+import { canSeeCase, canTriage, caseScope, seesAllCases } from "./access";
 import { getSession, requireCustomerId, requireStaff } from "./auth";
 import { db, iso, schema as s } from "./db";
 import { fmtDay, phoneDigits, shortName } from "./format";
@@ -42,6 +43,13 @@ export async function getServiceDemand(): Promise<Record<string, number>> {
 }
 
 // ---------------- loading requests ----------------
+type ProfileRow = typeof s.profiles.$inferSelect;
+/** A profile as screens receive it: the national ID and TIN only in their masked form. */
+const toProfile = (p: ProfileRow): Profile => ({
+  id: p.id, accountId: p.accountId, kind: p.kind, name: p.name, relation: p.relation ?? undefined,
+  idMasked: p.idMasked ?? undefined, tinMasked: p.tinMasked ?? undefined, district: p.district ?? undefined,
+});
+
 /** Loads requests with everything they point to, in a handful of queries. */
 async function loadRequests(where?: SQL): Promise<RequestView[]> {
   const d = await db();
@@ -91,7 +99,7 @@ async function loadRequests(where?: SQL): Promise<RequestView[]> {
     const times = [req.events[0]?.at, req.messages[req.messages.length - 1]?.at, req.closed?.at, req.openedAt].filter(Boolean) as string[];
     return {
       ...req, service, account, agent: agentRow ? { id: agentRow.id, name: agentRow.name, role: agentRow.role, team: agentRow.team, title: agentRow.title, active: agentRow.active } : null,
-      profile: { ...profile, relation: profile.relation ?? undefined, idMasked: profile.idMasked ?? undefined, district: profile.district ?? undefined },
+      profile: toProfile(profile),
       name: req.title ?? service.name, flow: service.flow ?? [...STAGES], labels: service.stageLabels ?? {},
       updatedAt: times.sort((a, b) => Date.parse(b) - Date.parse(a))[0],
     };
@@ -113,7 +121,7 @@ export async function getAccount(): Promise<Account & { profiles: Profile[] }> {
   const profiles = await d.select().from(s.profiles).where(eq(s.profiles.accountId, id));
   return {
     ...a, phone: `+250 ${a.phone.replace(/^(\d{3})(\d{3})(\d{3})$/, "$1 $2 $3")}`, since: iso(a.since)!,
-    profiles: profiles.map((p) => ({ ...p, relation: p.relation ?? undefined, idMasked: p.idMasked ?? undefined, district: p.district ?? undefined })),
+    profiles: profiles.map(toProfile),
   };
 }
 /** The signed-in customer's requests: anything waiting on them first, then open, then finished. */
@@ -176,153 +184,141 @@ export async function trackRequest(ref: string, phone: string): Promise<TrackRes
 /** The signed-in member of staff. */
 const plain = ({ permissions: _p, ...rest }: Staff & { permissions: Set<Permission> }): Staff => rest;
 export const getStaffUser = async (next = "/console"): Promise<Staff> => plain(await requireStaff(next));
-export const getAgent = async (): Promise<Staff> => plain(await requireStaff("/agent"));
 export const getAdmin = async (): Promise<Staff> => plain(await requireStaff("/admin"));
 /** What the signed-in member of staff may do, for screens that enable or hide controls. */
 export const getMyPermissions = async (): Promise<Permission[]> => [...(await requireStaff()).permissions];
 export async function listStaff(): Promise<(Staff & { phone: string | null })[]> {
   return (await db()).select().from(s.staff).orderBy(asc(s.staff.name));
 }
+/** Active agents a case can be assigned to, without their phone numbers. */
+export async function listAgents(): Promise<Staff[]> {
+  const rows = await (await db()).select().from(s.staff).where(and(eq(s.staff.role, "Agent"), eq(s.staff.active, true))).orderBy(asc(s.staff.name));
+  return rows.map(({ phone: _phone, ...rest }) => rest);
+}
+
+/** New requests nobody has taken yet, for the triage inbox. */
+const untaken = and(isNull(s.requests.agentId), eq(s.requests.stage, "received"), isNull(s.requests.closed));
+
+/** Badges in the staff navigation: new requests waiting for an agent, and my open cases. */
+export async function getNavCounts(): Promise<{ inbox: number; mine: number }> {
+  const me = await requireStaff();
+  const d = await db();
+  const count = { n: sql<number>`count(*)::int` };
+  const [[inbox], [mine]] = await Promise.all([
+    canTriage(me) ? d.select(count).from(s.requests).where(untaken) : Promise.resolve([{ n: 0 }]),
+    d.select(count).from(s.requests).where(and(eq(s.requests.agentId, me.id), isNull(s.requests.closed), ne(s.requests.stage, "completed"))),
+  ]);
+  return { inbox: inbox.n, mine: mine.n };
+}
+
+export async function listInbox(): Promise<RequestView[]> {
+  const me = await requireStaff("/console/inbox");
+  return canTriage(me) ? (await loadRequests(untaken)).sort((a, b) => Date.parse(a.openedAt) - Date.parse(b.openedAt)) : [];
+}
 
 /** Cases this person may see: everything with "View all cases", otherwise their own. */
 export async function listCases(): Promise<RequestView[]> {
-  const me = await requireStaff("/agent");
-  const all = me.permissions.has("viewAll");
-  return (await loadRequests(all ? undefined : eq(s.requests.agentId, me.id))).sort(byUpdated);
-}
-
-export async function getCase(ref: string): Promise<RequestView | undefined> {
-  const me = await requireStaff(`/agent/cases/${ref}`);
-  const [v] = await loadRequests(eq(s.requests.ref, ref));
-  if (!v || (!me.permissions.has("viewAll") && v.agentId !== me.id)) return undefined;
-  return v;
+  const me = await requireStaff("/console/requests");
+  return (await loadRequests(caseScope(me))).sort(byUpdated);
 }
 
 export async function getRequest(ref: string): Promise<RequestView | undefined> {
   const me = await requireStaff(`/console/requests/${ref}`);
   const [v] = await loadRequests(eq(s.requests.ref, ref));
-  if (!v) return undefined;
-  if (!me.permissions.has("viewAll") && v.agentId && v.agentId !== me.id && me.role === "Agent") {
-    return undefined;
-  }
-  return v;
+  return v && canSeeCase(me, v) ? v : undefined;
 }
 
 const thousands = (n: number) => Math.round(n / 100) / 10;
 export const rwfShort = (n: number) => (n >= 1e6 ? `RWF ${(n / 1e6).toFixed(2).replace(/\.?0+$/, "")}M` : n >= 1e4 ? `RWF ${Math.round(n / 1e3)}k` : `RWF ${n.toLocaleString("en-US")}`);
 
-/** An agent's own fee totals for the last five weeks, from real payments. */
-export async function getAgentFees() {
-  const me = await requireStaff("/agent");
-  const d = await db();
-  const since = new Date(Date.now() - 35 * DAY);
-  const rows = await d.select({ at: s.transactions.at, official: s.transactions.official, ours: s.transactions.ours })
-    .from(s.transactions).innerJoin(s.requests, eq(s.requests.ref, s.transactions.ref))
-    .where(and(eq(s.requests.agentId, me.id), eq(s.transactions.status, "paid"), gte(s.transactions.at, since.toISOString())));
-  const weeks = Array.from({ length: 5 }, (_, i) => {
-    const from = new Date(since.getTime() + i * 7 * DAY), to = new Date(from.getTime() + 7 * DAY);
-    const inWeek = rows.filter((r) => { const t = Date.parse(iso(r.at)!); return t >= from.getTime() && t < to.getTime(); });
-    return { label: fmtDay(from.toISOString()), official: thousands(inWeek.reduce((n, r) => n + r.official, 0)), ours: thousands(inWeek.reduce((n, r) => n + r.ours, 0)) };
-  });
-  const ours = rows.reduce((n, r) => n + r.ours, 0), official = rows.reduce((n, r) => n + r.official, 0);
-  return { period: "Last 5 weeks, by week", ours: rwfShort(ours), official: rwfShort(official), weekly: weeks };
+// ---------------- console: clients ----------------
+type AccountRow = typeof s.accounts.$inferSelect;
+
+/** One directory row, worked out from the requests the viewer may see. */
+function clientSummary(p: ProfileRow, acc: AccountRow | undefined, tags: string[], pReqs: RequestView[]): ClientSummary {
+  let totalPaidOurs = 0;
+  let totalPaidOfficial = 0;
+  let balanceDue = 0;
+  for (const r of pReqs) {
+    for (const t of r.billing.transactions) {
+      if (t.status === "paid") {
+        totalPaidOurs += t.ours;
+        totalPaidOfficial += t.official;
+      }
+    }
+    if (isOpen(r)) balanceDue += amountDue(r.billing);
+  }
+  const since = acc ? iso(acc.since)! : new Date().toISOString();
+  const lastActivity = pReqs.map((r) => r.updatedAt).sort((a, b) => Date.parse(b) - Date.parse(a))[0] ?? since;
+  return {
+    id: p.id,
+    accountId: p.accountId,
+    name: p.name,
+    kind: p.kind,
+    phone: acc ? `+250 ${acc.phone.replace(/^(\d{3})(\d{3})(\d{3})$/, "$1 $2 $3")}` : "",
+    district: p.district ?? undefined,
+    idMasked: p.idMasked ?? undefined,
+    tinMasked: p.tinMasked ?? undefined,
+    openRequests: pReqs.filter(isOpen).length,
+    totalRequests: pReqs.length,
+    totalPaidOurs,
+    totalPaidOfficial,
+    balanceDue,
+    lastActivity,
+    tags,
+    since,
+  };
 }
 
-// ---------------- console: clients ----------------
+/** Clients this person may see: everyone with "View all cases", otherwise the clients of their own cases. */
 export async function listClients(): Promise<ClientSummary[]> {
+  const me = await requireStaff("/console/clients");
+  const all = seesAllCases(me);
   const d = await db();
-  const [profs, accs, tagsRows, allRequests] = await Promise.all([
-    d.select().from(s.profiles),
-    d.select().from(s.accounts),
-    d.select().from(s.clientTags),
-    loadRequests(),
+  const requests = await loadRequests(caseScope(me));
+  const ids = [...new Set(requests.map((r) => r.profileId))];
+  if (!all && !ids.length) return [];
+  const [profs, tagsRows] = await Promise.all([
+    d.select().from(s.profiles).where(all ? undefined : inArray(s.profiles.id, ids)),
+    d.select().from(s.clientTags).where(all ? undefined : inArray(s.clientTags.profileId, ids)),
   ]);
+  if (!profs.length) return [];
+  const accs = await d.select().from(s.accounts).where(inArray(s.accounts.id, [...new Set(profs.map((p) => p.accountId))]));
 
   const accMap = new Map(accs.map((a) => [a.id, a]));
   const tagsByProfile = new Map<string, string[]>();
-  for (const t of tagsRows) {
-    tagsByProfile.set(t.profileId, [...(tagsByProfile.get(t.profileId) ?? []), t.tag]);
-  }
+  for (const t of tagsRows) tagsByProfile.set(t.profileId, [...(tagsByProfile.get(t.profileId) ?? []), t.tag]);
+  const reqsByProfile = new Map<string, RequestView[]>();
+  for (const r of requests) reqsByProfile.set(r.profileId, [...(reqsByProfile.get(r.profileId) ?? []), r]);
 
-  return profs.map((p) => {
-    const acc = accMap.get(p.accountId);
-    const pReqs = allRequests.filter((r) => r.profileId === p.id);
-    const open = pReqs.filter(isOpen).length;
-    const total = pReqs.length;
-
-    let totalPaidOurs = 0;
-    let totalPaidOfficial = 0;
-    let balanceDue = 0;
-
-    for (const r of pReqs) {
-      for (const t of r.billing.transactions) {
-        if (t.status === "paid") {
-          totalPaidOurs += t.ours;
-          totalPaidOfficial += t.official;
-        }
-      }
-      if (isOpen(r)) {
-        balanceDue += amountDue(r.billing);
-      }
-    }
-
-    const lastActivity = pReqs.map((r) => r.updatedAt).sort((a, b) => Date.parse(b) - Date.parse(a))[0] ?? (acc?.since ? iso(acc.since)! : new Date().toISOString());
-
-    return {
-      id: p.id,
-      accountId: p.accountId,
-      name: p.name,
-      kind: p.kind,
-      phone: acc ? `+250 ${acc.phone.replace(/^(\d{3})(\d{3})(\d{3})$/, "$1 $2 $3")}` : "",
-      district: p.district ?? undefined,
-      nationalId: p.nationalId ?? undefined,
-      idMasked: p.idMasked ?? undefined,
-      tin: p.tin ?? undefined,
-      tinMasked: p.tinMasked ?? undefined,
-      openRequests: open,
-      totalRequests: total,
-      totalPaidOurs,
-      totalPaidOfficial,
-      balanceDue,
-      lastActivity,
-      tags: tagsByProfile.get(p.id) ?? [],
-      since: acc ? iso(acc.since)! : new Date().toISOString(),
-    };
-  });
+  return profs.map((p) => clientSummary(p, accMap.get(p.accountId), tagsByProfile.get(p.id) ?? [], reqsByProfile.get(p.id) ?? []));
 }
 
+/** One client's file. Without "View all cases", only clients of their own cases, and only those cases. */
 export async function getClient(profileId: string): Promise<ClientDetail | undefined> {
-  const clients = await listClients();
-  const summary = clients.find((c) => c.id === profileId);
-  if (!summary) return undefined;
-
+  const me = await requireStaff(`/console/clients/${profileId}`);
   const d = await db();
   const [profRow] = await d.select().from(s.profiles).where(eq(s.profiles.id, profileId));
   if (!profRow) return undefined;
 
-  const [accRow] = await d.select().from(s.accounts).where(eq(s.accounts.id, profRow.accountId));
-  if (!accRow) return undefined;
+  const requests = await loadRequests(and(eq(s.requests.profileId, profileId), caseScope(me)));
+  if (!seesAllCases(me) && !requests.length) return undefined;
 
-  const clientNotesRows = await d.select().from(s.clientNotes).where(eq(s.clientNotes.profileId, profileId)).orderBy(desc(s.clientNotes.at));
-  const staffRows = await d.select().from(s.staff);
+  const [[accRow], tagRows, clientNotesRows, staffRows] = await Promise.all([
+    d.select().from(s.accounts).where(eq(s.accounts.id, profRow.accountId)),
+    d.select().from(s.clientTags).where(eq(s.clientTags.profileId, profileId)),
+    d.select().from(s.clientNotes).where(eq(s.clientNotes.profileId, profileId)).orderBy(desc(s.clientNotes.at)),
+    d.select().from(s.staff),
+  ]);
+  if (!accRow) return undefined;
+  const summary = clientSummary(profRow, accRow, tagRows.map((t) => t.tag), requests);
 
   const account: Account = {
     ...accRow,
     phone: `+250 ${accRow.phone.replace(/^(\d{3})(\d{3})(\d{3})$/, "$1 $2 $3")}`,
     since: iso(accRow.since)!,
   };
-
-  const profile: Profile = {
-    ...profRow,
-    relation: profRow.relation ?? undefined,
-    idMasked: profRow.idMasked ?? undefined,
-    nationalId: profRow.nationalId ?? undefined,
-    tin: profRow.tin ?? undefined,
-    tinMasked: profRow.tinMasked ?? undefined,
-    district: profRow.district ?? undefined,
-  };
-
-  const requests = await loadRequests(eq(s.requests.profileId, profileId));
+  const profile = toProfile(profRow);
 
   const documents: LibraryDoc[] = [];
   const messages: Message[] = [];
@@ -385,9 +381,13 @@ export async function getClient(profileId: string): Promise<ClientDetail | undef
 }
 
 // ---------------- console: saved views & targets ----------------
+/** The shared views, plus the ones this person saved. */
 export async function listSavedViews(entity: "requests" | "clients"): Promise<SavedView[]> {
+  const me = await requireStaff();
   const d = await db();
-  const rows = await d.select().from(s.savedViews).where(eq(s.savedViews.entity, entity)).orderBy(asc(s.savedViews.createdAt));
+  const rows = await d.select().from(s.savedViews)
+    .where(and(eq(s.savedViews.entity, entity), or(isNull(s.savedViews.staffId), eq(s.savedViews.staffId, me.id))))
+    .orderBy(asc(s.savedViews.createdAt));
   return rows.map((r) => ({
     id: r.id,
     entity: r.entity,
@@ -415,8 +415,9 @@ export async function searchGlobal(q: string) {
   const term = q.trim().toLowerCase();
   if (!term) return { requests: [], clients: [], services: [] };
 
+  const me = await requireStaff();
   const [cases, clients, services] = await Promise.all([
-    loadRequests(),
+    loadRequests(caseScope(me)),
     listClients(),
     listServices({ includeHidden: true }),
   ]);
@@ -722,6 +723,3 @@ export async function whoIsSignedIn() {
   const session = await getSession();
   return session?.kind ?? null;
 }
-
-export { loadRequests };
-

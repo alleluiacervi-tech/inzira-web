@@ -13,7 +13,7 @@ export async function generateMetadata(): Promise<Metadata> {
 
 export default async function SignInPage({ searchParams }: { searchParams: Promise<{ next?: string }> }) {
   const [{ next }, session] = await Promise.all([searchParams, getSession()]);
-  if (session) redirect(session.kind === "staff" ? "/agent" : "/portal");
+  if (session) redirect(session.kind === "staff" ? "/console" : "/portal");
   return (
     <>
       <PublicNav />

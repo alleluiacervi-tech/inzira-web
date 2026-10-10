@@ -68,7 +68,7 @@ export function TopBar({
           >
             <Icon name="menu" size={20} />
           </button>
-          <Link href="/agent" className="c-topbar-logo c-mobile-only" aria-label="Inzira staff console home">
+          <Link href="/console" className="c-topbar-logo c-mobile-only" aria-label="Inzira staff console home">
             <LogoMark />
           </Link>
           <button

@@ -102,7 +102,7 @@ export const getStaffUser = cache(async (): Promise<(Staff & { permissions: Set<
   return { id: person.id, name: person.name, role: person.role, team: person.team, title: person.title, active: person.active, permissions };
 });
 
-export async function requireStaff(next = "/agent") {
+export async function requireStaff(next = "/console") {
   const me = await getStaffUser();
   if (!me) redirect(`/sign-in?next=${encodeURIComponent(next)}`);
   return me;

@@ -13,7 +13,7 @@ export default async function PortalLayout({ children }: { children: React.React
   const who = { initials: initials(account.name), name: account.name, sub: [text(DASHBOARD_LOCALE, "shell.personal"), ...others.filter((p) => p.kind !== "person").map((p) => p.name)].join(" · ") };
   return (
     <ForceEnglish>
-      <AppShell kind="customer" who={who} unread={notifications.filter((n) => n.unread).length}>{children}</AppShell>
+      <AppShell who={who} unread={notifications.filter((n) => n.unread).length}>{children}</AppShell>
     </ForceEnglish>
   );
 }
