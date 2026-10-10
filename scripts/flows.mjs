@@ -9,6 +9,9 @@
 // The checks are written against the seed data in lib/mock and change it as they go, so run them on
 // a fresh development database: `npm run db:reset`, start the app with INZIRA_DEMO=1 (codes are shown
 // on screen and payments are simulated), then run this.
+//
+// The public site defaults to Kinyarwanda; these checks read the English copy, so every tab sets the
+// language cookie to English first. `npm run smoke` checks the Kinyarwanda default.
 import { spawn } from "node:child_process";
 import { existsSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -16,14 +19,16 @@ import { join } from "node:path";
 
 const base = (process.argv[2] ?? "http://localhost:3000").replace(/\/$/, "");
 const port = 9339;
-const chromePath = process.env.CHROME_PATH ?? ["/Applications/Google Chrome.app/Contents/MacOS/Google Chrome", "/usr/bin/google-chrome", "/usr/bin/chromium"].find(existsSync);
+const chromePath = process.env.CHROME_PATH ?? ["/Applications/Google Chrome.app/Contents/MacOS/Google Chrome", "/usr/bin/google-chrome", "/usr/bin/google-chrome-stable", "/usr/bin/chromium", "/usr/bin/chromium-browser"].find(existsSync);
 if (!chromePath) { console.error("Chrome not found. Set CHROME_PATH to the browser binary."); process.exit(2); }
 if (typeof WebSocket === "undefined") { console.error("This script needs Node 22 or newer."); process.exit(2); }
 
 const work = mkdtempSync(join(tmpdir(), "inzira-flows-"));
 const png = join(work, "id_photo.png");
 writeFileSync(png, Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==", "base64"));
-const chrome = spawn(chromePath, ["--headless=new", "--disable-gpu", "--no-first-run", `--remote-debugging-port=${port}`, `--user-data-dir=${join(work, "profile")}`, "about:blank"], { stdio: "ignore" });
+// Containers and CI runners usually can't give Chrome its sandbox; this browser only opens the local app.
+const sandbox = process.platform === "linux" ? ["--no-sandbox"] : [];
+const chrome = spawn(chromePath, ["--headless=new", "--disable-gpu", "--no-first-run", ...sandbox, `--remote-debugging-port=${port}`, `--user-data-dir=${join(work, "profile")}`, "about:blank"], { stdio: "ignore" });
 const stop = (code) => { chrome.kill(); try { rmSync(work, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 }); } catch { /* temp folder is cleaned by the OS */ } process.exit(code); };
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -50,7 +55,8 @@ async function page(width = 1280) {
     pending.set(i, (v) => { clearTimeout(t); res(v); });
     ws.send(JSON.stringify({ id: i, method, params }));
   });
-  await send("Page.enable"); await send("DOM.enable"); await send("Runtime.enable");
+  await send("Page.enable"); await send("DOM.enable"); await send("Runtime.enable"); await send("Network.enable");
+  await send("Network.setCookie", { name: "inzira_lang", value: "en", url: base });
   // A tab Chrome treats as in the background gets its timers and rendering throttled.
   await send("Page.bringToFront"); await send("Emulation.setFocusEmulationEnabled", { enabled: true });
   await send("Emulation.setDeviceMetricsOverride", { width, height: 900, deviceScaleFactor: 1, mobile: width < 800 });
@@ -104,6 +110,24 @@ async function waitPath(p, ok) {
 async function waitFor(p, text) {
   for (let i = 0; i < 40 && !(await p.has(text)); i++) await sleep(250);
 }
+/** Clicks the button starting with `label` inside the smallest panel that mentions `text` (one row of a list). */
+async function clickIn(p, text, label) {
+  return p.ev(`(() => {
+    const panels = [...document.querySelectorAll(".console-panel")].filter((el) => el.innerText.includes(${JSON.stringify(text)}));
+    const row = panels.sort((a, b) => a.innerText.length - b.innerText.length)[0];
+    const button = row && [...row.querySelectorAll("button")].find((b) => b.textContent.trim().startsWith(${JSON.stringify(label)}));
+    if (!button) throw new Error("nothing to click: " + ${JSON.stringify(label)} + " in " + ${JSON.stringify(text)});
+    button.click(); return true;
+  })()`);
+}
+/** Chooses the test image in the file input matching `selector`. */
+async function attach(p, selector) {
+  const node = await p.send("DOM.querySelector", { nodeId: (await p.send("DOM.getDocument")).result.root.nodeId, selector });
+  if (!node.result?.nodeId) throw new Error("no file input " + selector);
+  await p.send("DOM.setFileInputFiles", { nodeId: node.result.nodeId, files: [png] });
+}
+/** The label of the stage the case is in, on a console request page. */
+const currentStage = (p) => p.ev(`document.querySelector(".c-step-btn[aria-current=step] .c-step-label")?.textContent ?? ""`);
 /** Waits until the page no longer shows `text`, up to 10 seconds. */
 async function waitGone(p, text) {
   for (let i = 0; i < 40 && (await p.has(text)); i++) await sleep(250);
@@ -162,7 +186,7 @@ await step("start", async () => {
   check("start: a wrong code is refused", await p.has("not right"));
   await p.set("#otp", await p.ev(`document.querySelector("[data-demo-code]").dataset.demoCode`)); await p.click("Confirm and send request"); await waitFor(p, "Request received");
   if (!(await p.has("Request received"))) console.log("    page says:", (await p.ev(`document.querySelector("main")?.innerText ?? ""`)).slice(0, 300).replace(/\s+/g, " "));
-  const ref = await p.ev(`document.querySelector("h1 + p strong")?.textContent ?? ""`);
+  const ref = await p.ev(`document.querySelector("[data-ref]")?.textContent ?? ""`);
   check("start: creates the request with a new reference", await p.has("Request received") && /^INZ-\d{4}-\d{5}$/.test(ref), ref);
   check("start: the draft is cleared after sending", (await p.ev(`sessionStorage.getItem("inzira:start:land-spouse-update")`)) === null);
   await p.click("See my request"); await waitFor(p, "We married in August.");
@@ -217,20 +241,26 @@ await step("agent", async () => {
   await signIn(p, "780000001");
   check("agent: staff land in the workspace", (await p.ev("location.pathname")) === "/agent" && await p.has("Good"));
   check("agent: My Day shows agent work queues", await p.has("Follow-ups Today") && await p.has("SLA Attention") && await p.has("My open cases ("));
-  await p.go("/agent/cases/INZ-2026-04817");
-  check("agent: another agent's case is hidden", await p.has("We couldn’t find that case"));
-  await p.go("/agent/cases/INZ-2026-04790");
+  await p.go("/console/requests/INZ-2026-04817");
+  check("agent: another agent's case is hidden", await p.has("We couldn’t find that"));
+  await p.go("/console/requests/INZ-2026-04790");
+  await p.click("Messages (", "button"); await sleep(200);
   check("agent: sees the customer's message", await p.has("Here is our product list"));
-  await p.click("Reject with reason"); await sleep(200); await p.set("#rj", "The prices are cut off on page 2. Please send the full list."); await p.click("Send rejection"); await waitFor(p, "We need a new copy");
-  check("agent: rejecting a document puts the case on hold, saved", await p.has("We need a new copy: Product & price list") && await p.has("Waiting on customer"));
-  await p.click("Clear hold"); await waitGone(p, "We need a new copy");
-  check("agent: clearing the hold", !(await p.has("We need a new copy")));
-  await p.set("#mi", "Could you confirm the VAT rate for bottled water?"); await p.click("Send and wait on customer"); await waitFor(p, "Your agent needs something from you");
-  check("agent: send-and-wait creates a hold with the question", await p.has("Your agent needs something from you"));
-  await p.set("#rf", "EBM-2026-5512"); await p.click("Mark submitted"); await waitFor(p, "Mark resubmitted");
-  check("agent: marking submitted moves to With the institution and clears the hold", !(await p.has("Your agent needs something from you")) && (await p.ev(`document.querySelector("#st").value`)) === "institution");
-  await p.set("#sf", "15000"); await sleep(200);
-  check("agent: an agent can't change our fee", await p.has("Needs a supervisor") && (await p.ev(`[...document.querySelectorAll("button")].find((b) => b.textContent === "Save fees")?.disabled`)) === true);
+  await p.click("Documents (", "button"); await sleep(200);
+  await clickIn(p, "price_list_sept.pdf", "Reject"); await sleep(200);
+  await p.set(".console-dialog textarea", "The prices are cut off on page 2. Please send the full list."); await p.click("Send rejection", "button"); await waitFor(p, "Waiting on customer");
+  await p.click("Messages (", "button"); await sleep(200);
+  check("agent: rejecting a document puts the case on hold and tells the customer why", await p.has("Waiting on customer") && await p.has("The prices are cut off on page 2"));
+  await p.click("Clear hold", "button"); await waitGone(p, "Waiting on customer");
+  check("agent: clearing the hold", !(await p.has("Waiting on customer")));
+  await p.set("#rq-msg", "Could you confirm the VAT rate for bottled water?"); await p.click("Send & wait on customer", "button"); await waitFor(p, "Waiting on customer");
+  check("agent: send-and-wait puts the case on hold with the question", await p.has("Waiting on customer") && await p.has("Could you confirm the VAT rate"));
+  await p.click("Overview", "button"); await sleep(200);
+  await p.set("#rq-oref", "EBM-2026-5512"); await p.click("Save submission reference", "button"); await waitGone(p, "Waiting on customer");
+  check("agent: saving the official reference moves the case to the institution and clears the hold", !(await p.has("Waiting on customer")) && (await currentStage(p)) === "With the institution", await currentStage(p));
+  await p.click("Payments & Fees", "button"); await sleep(200);
+  await p.set("#rq-ours", "15000"); await sleep(200);
+  check("agent: an agent can't change our fee", await p.has("Only a supervisor or administrator can change our fee") && (await p.ev(`[...document.querySelectorAll("button")].find((b) => b.textContent.trim() === "Save fee adjustments")?.disabled`)) === true);
   await p.go("/agent/intake"); await p.click("Open case"); await sleep(200);
   check("intake: needs a name and number", await p.has("Enter the customer’s name"));
   await p.set("#in-name", "Walk-in Customer"); await p.set("#in-phone", "788 321 654"); await p.click("Open case"); await waitFor(p, "opened");
@@ -238,27 +268,29 @@ await step("agent", async () => {
   await p.close();
 });
 
-// ---------- Patrick (agent): approve the customer's new upload ----------
+// ---------- Patrick (agent): approve the customer's new upload, deliver, send fees ----------
 await step("patrick", async () => {
   const p = await page();
   await signIn(p, "780000003");
-  await p.go("/agent/cases/INZ-2026-04817");
-  check("review: the customer's upload is waiting", await p.has("Review: National ID — front") && await p.has("I will send a new photo this afternoon."));
+  await p.go("/console/requests/INZ-2026-04817");
+  await p.click("Messages (", "button"); await sleep(200);
+  check("review: the customer's message is there", await p.has("I will send a new photo this afternoon."));
+  await p.click("Documents (", "button"); await sleep(200);
+  check("review: the customer's upload is waiting", await p.ev(`[...document.querySelectorAll(".console-panel")].some((el) => el.innerText.includes("National ID — front") && el.innerText.includes("Received") && el.innerText.includes("Approve"))`));
   check("review: the agent can open the uploaded file", (await p.ev(`[...document.querySelectorAll('a[href^="/files/"]')].length`)) > 0);
-  await p.click("Approve"); await waitGone(p, "Returned · waiting on customer");
-  check("review: approving the last missing document clears the hold", !(await p.has("Returned · waiting on customer")) && await p.has("With the institution"));
-  await p.set("#dn", "E-title — Aline Uwase");
-  let node = await p.send("DOM.querySelector", { nodeId: (await p.send("DOM.getDocument")).result.root.nodeId, selector: 'section[aria-labelledby="out-h"] input[type=file]' });
-  await p.send("DOM.setFileInputFiles", { nodeId: node.result.nodeId, files: [png] }); await waitFor(p, "Delivered · customer notified");
-  await waitFor(p, "E-title — Aline Uwase");
-  check("deliver: the agent attaches the final document", await p.has("E-title — Aline Uwase"));
-  await p.go("/agent/cases/INZ-2026-04821");
-  node = await p.send("DOM.querySelector", { nodeId: (await p.send("DOM.getDocument")).result.root.nodeId, selector: 'section[aria-labelledby="fee-h"] input[type=file]' });
-  await p.send("DOM.setFileInputFiles", { nodeId: node.result.nodeId, files: [png] }); await waitFor(p, "Official receipt: attached");
-  check("receipt: the official receipt is attached", await p.has("Official receipt: attached"));
-  check("quote: can't send fees without the official fee", await p.has("Enter the official fee for this case first"));
-  await p.set("#of", "12000"); await sleep(200); await p.click("Send fees to customer"); await waitFor(p, "Fees sent. Waiting");
-  check("quote: fees are saved and sent", await p.has("Fees sent. Waiting for the customer"));
+  await clickIn(p, "National ID — front", "Approve"); await waitGone(p, "Waiting on customer");
+  check("review: approving the last missing document clears the hold", !(await p.has("Waiting on customer")) && (await currentStage(p)) === "With the institution", await currentStage(p));
+  await p.click("Overview", "button"); await sleep(200);
+  await p.set("#rq-dname", "E-title — Aline Uwase"); await attach(p, "#rq-dfile"); await waitFor(p, "E-title — Aline Uwase");
+  check("deliver: the agent attaches the final document", await p.ev(`[...document.querySelectorAll(".console-panel strong")].some((el) => el.textContent === "E-title — Aline Uwase")`));
+  await p.go("/console/requests/INZ-2026-04821");
+  await p.click("Payments & Fees", "button"); await sleep(200);
+  await attach(p, "#rq-receipt"); await waitFor(p, "Replace receipt");
+  check("receipt: the official receipt is attached", await p.has("Replace receipt") && await p.has("Attached"));
+  const sendDisabled = () => p.ev(`[...document.querySelectorAll("button")].find((b) => b.textContent.trim() === "Send confirmed quote to client")?.disabled`);
+  check("quote: can't send fees without the official fee", (await sendDisabled()) === true);
+  await p.set("#rq-official", "12000"); await sleep(200); await p.click("Send confirmed quote to client", "button"); await waitGone(p, "Send confirmed quote to client");
+  check("quote: fees are saved and sent", !(await p.has("Send confirmed quote to client")) && (await p.ev(`document.querySelector("#rq-official").value`)) === "12000" && await p.has("Awaiting payment"));
   await p.close();
 });
 
@@ -370,6 +402,37 @@ await step("console", async () => {
   await p.close();
 });
 
+
+// ---------- who sees what ----------
+// Searches the page and the data sent with it, not only what is on screen.
+const pageData = (p) => p.ev("document.documentElement.outerHTML");
+const FULL_IDS = ["0045123", "0021345", "0034129", "0012934", "109876456", "102345991", "108543312", "101890774"]; // seeded national IDs (middle digits) and TINs
+const fullIds = (html) => FULL_IDS.filter((x) => html.includes(x));
+await step("staff scope", async () => {
+  const p = await page();
+  await signIn(p, "780000001"); // Eric: no "View all cases"
+  await p.go("/console/requests"); await sleep(500);
+  let html = await pageData(p);
+  check("scope: an agent's request list has their cases only", html.includes("INZ-2026-04790") && !html.includes("INZ-2026-04817") && !html.includes("INZ-2026-04821"));
+  check("scope: no full ID numbers are sent with the request list", !fullIds(html).length, fullIds(html).join(", "));
+  await p.go("/console/clients"); await sleep(500); html = await pageData(p);
+  check("scope: an agent's client list has the clients of their cases only", html.includes("Kigali Fresh Foods") && !html.includes("Chantal Mukeshimana") && !html.includes("Jean Claude Habimana"));
+  check("scope: no full ID numbers are sent with the client list", !fullIds(html).length, fullIds(html).join(", "));
+  await p.go("/console/clients/p-chantal"); await sleep(500);
+  check("scope: another agent's client is not found", await p.has("We couldn’t find that") && !(await pageData(p)).includes("Chantal Mukeshimana"));
+  await p.go("/console/clients/p-umucyo"); await sleep(500); html = await pageData(p);
+  check("scope: a shared client shows only the agent's own case", html.includes("INZ-2026-04761") && !html.includes("RDB-APP-778120") && !html.includes("shareholder split"));
+  check("scope: no full TIN on the client page", !fullIds(html).length, fullIds(html).join(", "));
+  await p.go("/console/overview"); await sleep(500);
+  check("scope: an agent can't open the overview", await p.has("Your role doesn’t include the operations overview"));
+  await p.go("/console/inbox"); await sleep(500);
+  check("scope: an agent can't open the triage inbox", await p.has("Your role doesn’t include the triage inbox"));
+  check("scope: the agent's menu has no Overview or Payments", !(await p.ev(`[...document.querySelectorAll(".console-nav-item")].some((a) => /Overview|Payments/.test(a.textContent))`)));
+  await signIn(p, "780000008"); // Diane: owner
+  await p.go("/console/clients/p-aline"); await sleep(500); html = await pageData(p);
+  check("scope: even the owner gets the masked ID until they reveal it", html.includes("1 1995 8 •••• 0 17") && !fullIds(html).length, fullIds(html).join(", "));
+  await p.close();
+});
 
 // ---------- Aline again: the delivered document ----------
 await step("delivered", async () => {

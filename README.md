@@ -40,10 +40,13 @@ number.
 npm run typecheck
 npm run build && npm start   # production build; add INZIRA_DEMO=1 to keep demo codes and payments
 npm run smoke                # with the app running: every page loads, is styled, private pages need sign-in
-npm run flows                # with the app running in demo mode on a fresh database: 87 end-to-end checks
-                             # (needs Chrome and Node 22+)
+npm run flows                # with the app running in demo mode on a fresh database: 99 end-to-end checks,
+                             # including what each role can see (needs Chrome and Node 22+)
 npm run check:providers      # with real keys set: tests SMS, MTN MoMo, Airtel Money and Blob storage end to end
 ```
+
+GitHub Actions (`.github/workflows/ci.yml`) runs typecheck, build, smoke and flows on every pull request
+and on pushes to `main`, against a fresh demo database.
 
 Run one server at a time from this folder: two servers, or a build while a server is running,
 fight over `.next` and the embedded database.
@@ -171,7 +174,8 @@ by every server action.
 - **Backups** of the Postgres database, and a retention rule for uploaded documents.
 - **Placeholders:** company details in `lib/site.ts`, the sample testimonials, and the four legal pages
   the footer links to (terms, privacy, refunds, complaints).
-- **Languages.** The EN/RW/FR switch is UI-only; all copy is English.
+- **Languages.** The public site is in Kinyarwanda by default, with English as a choice. The customer
+  portal, the staff console and every SMS are English only.
 - Not set up: ESLint (`npm run lint` has no config yet).
 - **Staff alerts** are a daily SMS summary. Nothing alerts staff the moment a customer replies; they see it
   in the console.

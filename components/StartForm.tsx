@@ -1,6 +1,6 @@
 "use client";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { Fragment, useEffect, useState, type ReactNode } from "react";
 import { displayOfficial, displayOurs, displayTotal } from "@/lib/i18n/present";
 import { trError } from "@/lib/i18n/errors";
 import type { Service } from "@/lib/types";
@@ -9,6 +9,14 @@ import { submitRequest } from "@/app/actions/customer";
 import { useI18n } from "./I18n";
 import { CodeEntry, isMobile, prettyMobile } from "./PhoneCode";
 import { Alert, FeeLines, Icon } from "./ui";
+
+/** Puts React elements where a translated sentence has `{name}` placeholders, e.g. the reference in bold. */
+function withStrong(sentence: string, parts: Record<string, ReactNode>) {
+  return sentence.split(/(\{\w+\})/).map((piece, i) => {
+    const key = /^\{(\w+)\}$/.exec(piece)?.[1];
+    return key && key in parts ? <Fragment key={i}>{parts[key]}</Fragment> : piece;
+  });
+}
 
 type Key = "about" | "request" | "docs" | "review";
 const EMPTY = { forWho: "me", name: "", subject: "", nid: "", phone: "", purpose: "", notes: "" };
@@ -107,7 +115,10 @@ export default function StartForm({ service: s }: { service: Service | null }) {
         <div className="card stack g16" style={{ maxWidth: 560, margin: "0 auto", padding: 32, alignItems: "center", textAlign: "center" }}>
           <span style={{ width: 64, height: 64, borderRadius: "50%", background: "var(--ok-bg)", color: "var(--ok)", display: "flex", alignItems: "center", justifyContent: "center" }}><Icon name="check" size={32} /></span>
           <h1 className="h-flow">{t("start.received")}</h1>
-          <p style={{ fontSize: 16, lineHeight: 1.55 }}>{t("start.receivedBody", { ref, what: s ? t("start.checkDocs") : t("start.readSent"), phone: `+250 ${prettyMobile(f.phone)}`, time: t("responseTime") })}</p>
+          <p style={{ fontSize: 16, lineHeight: 1.55 }}>{withStrong(t("start.receivedBody", { ref: "{ref}", phone: "{phone}", what: s ? t("start.checkDocs") : t("start.readSent"), time: t("responseTime") }), {
+            ref: <strong className="m" style={{ fontSize: 15 }} data-ref>{ref}</strong>,
+            phone: <strong>+250 {prettyMobile(f.phone)}</strong>,
+          })}</p>
           <p className="hint">{t("start.ready")}</p>
           <div className="row g10 wrapx" style={{ justifyContent: "center" }}><Link className="btn btn-d" href={`/portal/requests/${ref}`}>{t("start.see")}</Link><Link className="btn btn-s" href="/services">{t("start.more")}</Link></div>
         </div>

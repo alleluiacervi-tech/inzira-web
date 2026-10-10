@@ -47,7 +47,7 @@ export default async function ServiceDetail({ params }: { params: Promise<{ slug
         <section className="wrap split" style={{ ["--aside" as string]: "440px", gap: 64, paddingTop: 28, paddingBottom: 80 }}>
           <div className="stack" style={{ gap: 48 }}>
             <div className="stack g18">
-              {office && <p className="row g12" style={{ fontSize: 15, color: "var(--ink-2)" }}><Plate code={office.code} size="sm" />{training ? t("service.trainingVia", { via: s.via }) : t("service.filedWith", { office: office.code === "Irembo" ? "Irembo" : officeName, channel: s.channel })}</p>}
+              {office && <p className="row g12" style={{ fontSize: 15, color: "var(--ink-2)" }}><Plate code={office.code} size="sm" />{training ? t("service.trainingVia", { via: s.via }) : t("service.filedWith", { office: office.code === "Irembo" ? "Irembo" : locale === "en" ? `the ${officeName}` : officeName, channel: s.channel })}</p>}
               <h1 className="d h-1">{s.name}</h1>
               {s.aka && <p className="mut" style={{ fontSize: 16 }}>{t("service.also", { aka: s.aka })}</p>}
               <p style={{ fontSize: 18, lineHeight: 1.6, color: "var(--ink-2)", maxWidth: 720 }}>{s.summary}</p>

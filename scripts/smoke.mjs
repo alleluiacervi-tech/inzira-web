@@ -5,8 +5,11 @@
 //
 // It fails if a page does not return 200, if expected text is missing, or if the page's own
 // stylesheet cannot be fetched (which is what a stale .next folder looks like: pages render unstyled).
+// The public site defaults to Kinyarwanda: the text checks ask for English with the language cookie,
+// and LANGUAGES checks the default.
 
 const base = (process.argv[2] ?? "http://localhost:3000").replace(/\/$/, "");
+const english = { headers: { cookie: "inzira_lang=en" } };
 
 /** [path, ...text that must appear in the HTML] */
 const ROUTES = [
@@ -29,16 +32,24 @@ const PRIVATE = [
   "/agent",
   "/agent/intake",
   "/agent/cases/INZ-2026-04817",
+  "/console/requests/INZ-2026-04817",
+  "/console/clients/p-aline",
   "/admin",
   "/admin/services",
   "/admin/payments",
   "/admin/roles",
   "/admin/audit",
+  "/admin/system",
   "/console/inbox",
   "/console/requests",
   "/console/clients",
   "/console/my-day",
   "/console/overview",
+];
+/** [what, cookie or null, the html lang, text that must appear on the home page] */
+const LANGUAGES = [
+  ["Kinyarwanda by default", null, "rw", "Inyandiko za leta, zigukorerwa bitakugoye."],
+  ["English when chosen", "inzira_lang=en", "en", "Government paperwork, handled for you."],
 ];
 const NOT_FOUND = ["/services/does-not-exist", "/services/criminal-record-certificate", "/start/does-not-exist"];
 
@@ -50,7 +61,7 @@ const text = (html) => html.replace(/<!-- -->/g, "").replace(/&amp;/g, "&").repl
 let cssChecked = false;
 for (const [path, ...expect] of ROUTES) {
   let res;
-  try { res = await fetch(base + path); } catch (e) { fail(path, `cannot connect to ${base} (${e.cause?.code ?? e.message})`); break; }
+  try { res = await fetch(base + path, english); } catch (e) { fail(path, `cannot connect to ${base} (${e.cause?.code ?? e.message})`); break; }
   if (res.status !== 200) { fail(path, `status ${res.status}`); continue; }
   const html = await res.text();
   const body = text(html);
@@ -69,6 +80,11 @@ for (const [path, ...expect] of ROUTES) {
   console.log(`  ok   ${path}`);
 }
 if (!failures.length) {
+  for (const [what, cookie, lang, expect] of LANGUAGES) {
+    const html = text(await (await fetch(base + "/", cookie ? { headers: { cookie } } : {})).text());
+    if (!html.includes(`<html lang="${lang}"`) || !html.includes(expect)) fail("/", `${what}: expected lang="${lang}" and “${expect}”`);
+    else console.log(`  ok   / (${what})`);
+  }
   for (const path of PRIVATE) {
     const res = await fetch(base + path, { redirect: "manual" });
     const to = res.headers.get("location") ?? "";
@@ -87,7 +103,7 @@ if (!failures.length) {
   if (file.status !== 401) fail("/files/anything", `files must need a session, got ${file.status}`);
   else console.log("  ok   /files/… (needs a session)");
   for (const path of NOT_FOUND) {
-    const res = await fetch(base + path);
+    const res = await fetch(base + path, english);
     // Signed-in areas stream a loading state first, so they answer 200 and then show "not found".
     const shown = text(await res.text()).includes("We couldn’t find that");
     if (res.status !== 404 && !shown) fail(path, `expected a not-found page, got ${res.status}`);
@@ -95,5 +111,5 @@ if (!failures.length) {
   }
 }
 
-console.log(failures.length ? `\n${failures.length} problem(s) on ${base}` : `\nAll ${ROUTES.length + PRIVATE.length + NOT_FOUND.length + 5} checks passed on ${base}`);
+console.log(failures.length ? `\n${failures.length} problem(s) on ${base}` : `\nAll ${ROUTES.length + LANGUAGES.length + PRIVATE.length + NOT_FOUND.length + 5} checks passed on ${base}`);
 process.exit(failures.length ? 1 : 0);

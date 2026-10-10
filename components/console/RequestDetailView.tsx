@@ -357,14 +357,15 @@ export function RequestDetailView({
             <div className="console-panel stack g14" style={{ padding: 18 }}>
               <h3 className="console-section-title" style={{ margin: 0 }}>Official submission</h3>
               <div className="console-form-group">
-                <label className="console-label">Channel</label>
-                <select className="console-select" value={channel} onChange={(e) => setChannel(e.target.value)} disabled={finished}>
+                <label className="console-label" htmlFor="rq-channel">Channel</label>
+                <select id="rq-channel" className="console-select" value={channel} onChange={(e) => setChannel(e.target.value)} disabled={finished}>
                   {[c.channel, ...CHANNELS].filter((v, i, a) => a.indexOf(v) === i).map((o) => <option key={o}>{o}</option>)}
                 </select>
               </div>
               <div className="console-form-group">
-                <label className="console-label">Official reference / application no.</label>
+                <label className="console-label" htmlFor="rq-oref">Official reference / application no.</label>
                 <input
+                  id="rq-oref"
                   className="console-input tabular-nums"
                   value={officialRef}
                   onChange={(e) => setOfficialRef(e.target.value)}
@@ -407,8 +408,9 @@ export function RequestDetailView({
 
               {can("complete") && !closed && (
                 <div className="stack g8" style={{ paddingTop: 8, borderTop: "1px solid var(--c-border-subtle)" }}>
-                  <label className="console-label">Deliverable name</label>
+                  <label className="console-label" htmlFor="rq-dname">Deliverable name</label>
                   <input
+                    id="rq-dname"
                     className="console-input"
                     value={deliverableName}
                     onChange={(e) => setDeliverableName(e.target.value)}
@@ -417,6 +419,7 @@ export function RequestDetailView({
                   <label className="c-btn c-btn-primary c-btn-sm" style={{ alignSelf: "flex-start", cursor: "pointer" }}>
                     <Icon name="upload" size={14} /> Upload &amp; deliver to client
                     <input
+                      id="rq-dfile"
                       type="file"
                       accept="image/*,application/pdf"
                       className="sr-only"
@@ -442,6 +445,7 @@ export function RequestDetailView({
               <label className="c-btn c-btn-secondary c-btn-sm" style={{ cursor: "pointer" }}>
                 <Icon name="upload" size={14} /> Upload customer copy
                 <input
+                  id="rq-docfile"
                   type="file"
                   accept="image/*,application/pdf"
                   className="sr-only"
@@ -572,6 +576,8 @@ export function RequestDetailView({
                 ))}
               </div>
               <textarea
+                id="rq-msg"
+                aria-label="Message to the client"
                 className="console-textarea"
                 rows={3}
                 value={msg}
@@ -608,11 +614,12 @@ export function RequestDetailView({
             <h3 className="console-section-title" style={{ margin: 0 }}>Fee breakdown (Two lines)</h3>
 
             <div className="console-form-group">
-              <label className="console-label row g6">
+              <label className="console-label row g6" htmlFor="rq-official">
                 <span className="c-fee-tag-official">Official</span>
                 <span>Official government fee (RWF)</span>
               </label>
               <input
+                id="rq-official"
                 className="console-input tabular-nums"
                 inputMode="numeric"
                 value={officialFee}
@@ -623,11 +630,12 @@ export function RequestDetailView({
             </div>
 
             <div className="console-form-group">
-              <label className="console-label row g6">
+              <label className="console-label row g6" htmlFor="rq-ours">
                 <span className="c-fee-tag-ours">Inzira</span>
                 <span>Assistance fee (RWF)</span>
               </label>
               <input
+                id="rq-ours"
                 className="console-input tabular-nums"
                 inputMode="numeric"
                 value={oursFee}
@@ -669,11 +677,44 @@ export function RequestDetailView({
               <button
                 type="button"
                 className="c-btn c-btn-primary c-btn-sm"
-                disabled={finished || busy || (!c.billing.officialMode && officialVal === null)}
-                onClick={() => run("Fees sent to customer", () => sendQuote(c.ref))}
+                disabled={finished || busy || (!c.billing.officialMode && officialVal === null) || (oursChanged && !can("changeOurs"))}
+                onClick={() => run("Fees sent to customer", async () => {
+                  // Amounts typed but not saved yet are what the agent means to send.
+                  if (feesDirty) {
+                    const saved = await saveFees(c.ref, officialVal, oursVal);
+                    if (!saved.ok) return saved;
+                  }
+                  return sendQuote(c.ref);
+                })}
               >
                 Send confirmed quote to client
               </button>
+            )}
+
+            {c.billing.officialReceipt !== "na" && (
+              <div className="row between g12 wrapx" style={{ paddingTop: 12, borderTop: "1px solid var(--c-border-subtle)" }}>
+                <div className="stack" style={{ gap: 2 }}>
+                  <strong style={{ fontSize: 13 }}>Official receipt</strong>
+                  <span style={{ fontSize: 12.5, color: c.billing.officialReceipt === "attached" ? "var(--c-green)" : "var(--c-text-muted)" }}>
+                    {c.billing.officialReceipt === "attached" ? "Attached" : "Not attached yet. Add the institution’s receipt once the official fee is paid."}
+                  </span>
+                </div>
+                {can("recordOfficial") && !closed && (
+                  <label className="c-btn c-btn-secondary c-btn-sm" style={{ cursor: "pointer" }}>
+                    <Icon name="upload" size={14} /> {c.billing.officialReceipt === "attached" ? "Replace receipt" : "Attach receipt"}
+                    <input
+                      id="rq-receipt"
+                      type="file"
+                      accept="image/*,application/pdf"
+                      className="sr-only"
+                      onChange={(e) => {
+                        uploadFile("receipt", e.target.files?.[0], {}, "Official receipt attached");
+                        e.target.value = "";
+                      }}
+                    />
+                  </label>
+                )}
+              </div>
             )}
           </div>
 
@@ -752,6 +793,8 @@ export function RequestDetailView({
               className="stack g8"
             >
               <textarea
+                id="rq-note"
+                aria-label="Private staff note"
                 className="console-textarea"
                 rows={2}
                 value={internalNote}
