@@ -53,9 +53,16 @@ export default function AccountSettings({ account, profiles, data }: Props) {
           </div>
           <label className="check"><input type="checkbox" name="whatsapp" defaultChecked={account.whatsapp} /><span>{t("account.whatsapp")}</span></label>
           <fieldset className="acct-langs">
+            <legend className="label">{t("account.locale")}</legend>
+            <div className="row g20 wrapx">
+              {(["rw", "en"] as const).map((code) => <label key={code} className="check"><input type="radio" name="locale" value={code} defaultChecked={locale === code} /><span>{code === "rw" ? t("nav.kinyarwanda") : t("nav.english")}</span></label>)}
+            </div>
+            <span className="hint">{t("account.localeHint")}</span>
+          </fieldset>
+          <fieldset className="acct-langs">
             <legend className="label">{t("account.langs")}</legend>
             <div className="row g20 wrapx">
-              {LANGUAGES.map((l) => <label key={l} className="check"><input type="checkbox" name="languages" value={l} defaultChecked={account.languages.includes(l)} /><span>{l}</span></label>)}
+              {LANGUAGES.map((l) => <label key={l} className="check"><input type="checkbox" name="languages" value={l} defaultChecked={account.languages.includes(l)} /><span>{t(`account.langNames.${l}`)}</span></label>)}
             </div>
           </fieldset>
           {error && <Alert kind="err" title={t("account.notSaved")} live>{error}</Alert>}
@@ -74,7 +81,7 @@ export default function AccountSettings({ account, profiles, data }: Props) {
               <span className="acct-ico"><Icon name={p.kind === "person" ? "user" : "briefcase"} size={18} /></span>
               <span className="stack" style={{ gap: 2, minWidth: 0 }}>
                 <strong>{p.relation === "self" ? t("account.you", { name: p.name }) : p.name}</strong>
-                <span className="hint">{[p.kind === "person" ? (p.relation === "family" ? t("account.family") : t("account.person")) : t("account.business"), p.idMasked && `ID ${p.idMasked}`, p.tinMasked && `TIN ${p.tinMasked}`].filter(Boolean).join(", ")}</span>
+                <span className="hint">{[p.kind === "person" ? (p.relation === "family" ? t("account.family") : t("account.person")) : t("account.business"), p.idMasked && t("account.idShort", { id: p.idMasked }), p.tinMasked && t("account.tinShort", { tin: p.tinMasked })].filter(Boolean).join(", ")}</span>
               </span>
             </li>
           ))}

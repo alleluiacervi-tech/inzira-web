@@ -12,7 +12,7 @@ const SOURCES = ["Walk-in", "Phone call", "WhatsApp", "Referred by a customer"];
 /** Opens a case for someone who came to the office or called, so they get the same tracking as
  *  a customer who started online. Prototype: nothing is saved. */
 export default function Intake({ services }: { services: Service[] }) {
-  const [f, setF] = useState({ slug: "", name: "", phone: "", kind: "person", source: SOURCES[0], notes: "" });
+  const [f, setF] = useState({ slug: "", name: "", phone: "", kind: "person", source: SOURCES[0], notes: "", locale: "rw" });
   const [touched, setTouched] = useState(false);
   const [done, setDone] = useState("");
   const [busy, setBusy] = useState(false);
@@ -39,7 +39,7 @@ export default function Intake({ services }: { services: Service[] }) {
         e.preventDefault(); setTouched(true);
         if (!valid) return;
         setBusy(true); setError("");
-        const r = await createIntake({ ...f, kind: f.kind as "person" | "business" | "organization" }).catch(() => ({ ok: false as const, error: "Not saved. Check your connection and try again." }));
+        const r = await createIntake({ ...f, kind: f.kind as "person" | "business" | "organization", locale: f.locale === "en" ? "en" : "rw" }).catch(() => ({ ok: false as const, error: "Not saved. Check your connection and try again." }));
         setBusy(false);
         if (!r.ok) { setError(r.error); return; }
         setDone(r.ref);
@@ -54,6 +54,9 @@ export default function Intake({ services }: { services: Service[] }) {
           <div className="field"><label htmlFor="in-phone">Phone</label><div className="row g8"><span className="in in-prefix" aria-hidden="true">+250</span><input id="in-phone" className={`in ${touched && errors.phone ? "in-err" : ""}`} inputMode="tel" placeholder="788 123 456" value={f.phone} onChange={(e) => set("phone", e.target.value)} aria-describedby="in-phone-err" /></div>{touched && errors.phone && <span className="err-text" id="in-phone-err"><Icon name="alert" size={15} /> {errors.phone}</span>}</div>
           <div className="field"><label htmlFor="in-src">How did they reach us?</label><select id="in-src" className="in" value={f.source} onChange={(e) => set("source", e.target.value)}>{SOURCES.map((x) => <option key={x}>{x}</option>)}</select></div>
         </div>
+        <div className="field"><label htmlFor="in-lang">Language for SMS and portal</label>
+          <select id="in-lang" className="in" value={f.locale} onChange={(e) => set("locale", e.target.value)}><option value="rw">Kinyarwanda</option><option value="en">English</option></select>
+          <span className="hint">Only for a new customer. Someone who already has an account keeps the language they chose.</span></div>
         {error && <span className="err-text" role="alert"><Icon name="alert" size={15} /> {error}</span>}
         <div className="field"><label htmlFor="in-notes">What they need <span className="mut" style={{ fontWeight: 400 }}>(optional)</span></label><textarea id="in-notes" className="in" rows={3} value={f.notes} onChange={(e) => set("notes", e.target.value)} placeholder="In their words. Becomes the first internal note." /></div>
         <div className="row g8" style={{ justifyContent: "flex-end" }}><Link className="btn btn-g" href="/console/my-day">Cancel</Link><button className="btn btn-p" type="submit" disabled={busy}>{busy ? <><span className="spin" /> Opening…</> : "Open case"}</button></div>

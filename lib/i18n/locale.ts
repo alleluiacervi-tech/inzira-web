@@ -8,10 +8,18 @@ export function asLocale(value: string | undefined | null): Locale {
   return value === "en" ? "en" : "rw";
 }
 
-/** Customer portal and staff dashboards stay English, whatever the public site is showing. */
-export const DASHBOARD_LOCALE: Locale = "en";
-
-/** Language chosen on the public site. Dashboards do not read this. */
+/** Language chosen on the public site. A signed-in customer's portal follows their account instead
+ *  (repo.getPortalLocale), and the two are kept in step when either changes. */
 export async function getLocale(): Promise<Locale> {
   return asLocale((await cookies()).get(LANG_COOKIE)?.value);
+}
+
+/** Remembers the language for the public site, for a year. */
+export async function rememberLocale(locale: Locale) {
+  (await cookies()).set(LANG_COOKIE, locale, {
+    path: "/",
+    maxAge: 60 * 60 * 24 * 365,
+    sameSite: "lax",
+    secure: process.env.NODE_ENV === "production",
+  });
 }

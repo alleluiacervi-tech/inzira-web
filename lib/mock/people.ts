@@ -2,7 +2,7 @@
 import type { Account, Profile, Staff } from "../types";
 
 const acc = (id: string, name: string, phone: string, since: string, languages = ["Kinyarwanda", "English"]): Account =>
-  ({ id, name, first: name.split(" ")[0], phone, whatsapp: true, languages, since: `${since}T09:00:00+02:00` });
+  ({ id, name, first: name.split(" ")[0], phone, whatsapp: true, languages, since: `${since}T09:00:00+02:00`, locale: "rw" });
 
 export const ACCOUNTS: Account[] = [
   acc("acc-aline", "Aline Uwase", "+250 788 123 456", "2026-01-14"),

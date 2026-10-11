@@ -5,9 +5,13 @@ import { canSeeCase, canTriage, caseScope, seesAllCases } from "./access";
 import { getSession, requireCustomerId, requireStaff } from "./auth";
 import { db, iso, schema as s } from "./db";
 import { fmtDay, phoneDigits, shortName } from "./format";
+import type { Locale } from "./i18n/locale";
+import { text } from "./i18n/messages";
+import { channelName } from "./i18n/present";
+import { documentNote, hasPart, legacyText, say, type Part } from "./i18n/stored";
 import { PERMISSION_GROUPS, PERMISSIONS, ROLES, type Permission } from "./permissions";
 import { amountDue, isOpen, payStatus } from "./status";
-import { STAGES, type Account, type AuditEntry, type Category, type ClientDetail, type ClientSummary, type CustomerRequest, type LibraryDoc, type Message, type Note, type Notification, type Profile, type Request, type RequestEvent, type RequestView, type SavedView, type Service, type Staff, type Stage, type StageTarget, type TrackResult } from "./types";
+import { STAGES, type Account, type AuditEntry, type Category, type ClientDetail, type ClientSummary, type CustomerRequest, type Hold, type LibraryDoc, type Message, type Msg, type MsgVars, type Note, type Notification, type Profile, type Request, type RequestEvent, type RequestView, type SavedView, type Service, type Staff, type Stage, type StageTarget, type TrackResult } from "./types";
 
 export const getNow = async () => new Date().toISOString();
 const DAY = 864e5;
@@ -42,6 +46,18 @@ export async function getServiceDemand(): Promise<Record<string, number>> {
   return Object.fromEntries(rows.map((r) => [r.slug, r.n]));
 }
 
+// ---------------- stored sentences ----------------
+/** A stored sentence in the reader's language: the message when the row has one, otherwise the
+ *  English it was stored with. */
+const told = (locale: Locale, m: Msg | null | undefined, part: Part | undefined, stored: string) => (m ? say(locale, m, part) : undefined) ?? legacyText(locale, stored);
+const rowMsg = (key: string | null, vars: MsgVars | null): Msg | null => (key ? { key, vars: vars ?? undefined } : null);
+const localHold = (locale: Locale, h: Hold): Hold => ({
+  ...h,
+  title: told(locale, h.msg, "title", h.title),
+  // An information hold's detail is the agent's own question, shown as typed.
+  detail: h.msg && hasPart(h.msg, "detail") ? told(locale, h.msg, "detail", h.detail) : legacyText(locale, h.detail),
+});
+
 // ---------------- loading requests ----------------
 type ProfileRow = typeof s.profiles.$inferSelect;
 /** A profile as screens receive it: the national ID and TIN only in their masked form. */
@@ -50,8 +66,9 @@ const toProfile = (p: ProfileRow): Profile => ({
   idMasked: p.idMasked ?? undefined, tinMasked: p.tinMasked ?? undefined, district: p.district ?? undefined,
 });
 
-/** Loads requests with everything they point to, in a handful of queries. */
-async function loadRequests(where?: SQL): Promise<RequestView[]> {
+/** Loads requests with everything they point to, in a handful of queries. Stored sentences (timeline,
+ *  summary, next step, hold, closing reason) come in `locale`: staff read English. */
+async function loadRequests(where?: SQL, locale: Locale = "en"): Promise<RequestView[]> {
   const d = await db();
   const rows = await d.select().from(s.requests).where(where);
   if (!rows.length) return [];
@@ -78,23 +95,33 @@ async function loadRequests(where?: SQL): Promise<RequestView[]> {
     const service = toService(svcs.find((x) => x.slug === r.serviceSlug)!);
     const agentRow = staffRows.find((x) => x.id === r.agentId);
     const name = (who?: string | null) => (who === "customer" ? account.name : !who || who === "system" ? "System" : staffRows.find((x) => x.id === who)?.name ?? "Inzira");
+    const sm = r.summary.msg;
     const req: Request = {
       ref: r.ref, serviceSlug: r.serviceSlug, title: r.title ?? undefined, profileId: r.profileId, agentId: r.agentId, openedAt: iso(r.openedAt)!,
-      stage: r.stage, stageDates: r.stageDates, hold: r.hold ?? undefined, closed: r.closed ?? undefined, channel: r.channel,
-      officialRef: r.officialRef ?? undefined, dependsOn: r.dependsOn ?? undefined, purpose: r.purpose ?? undefined, summary: r.summary, next: r.next, followUp: r.followUp ?? undefined,
+      stage: r.stage, stageDates: r.stageDates, channel: r.channel,
+      hold: r.hold ? localHold(locale, r.hold) : undefined,
+      closed: r.closed ? { ...r.closed, reason: told(locale, r.closed.msg, undefined, r.closed.reason) } : undefined,
+      officialRef: r.officialRef ?? undefined, dependsOn: r.dependsOn ?? undefined, purpose: r.purpose ?? undefined,
+      summary: { ...r.summary, title: told(locale, sm, "title", r.summary.title), body: sm && hasPart(sm, "body") ? told(locale, sm, "body", r.summary.body) : legacyText(locale, r.summary.body) },
+      next: sm && hasPart(sm, "next") ? told(locale, sm, "next", r.next) : legacyText(locale, r.next),
+      followUp: r.followUp ?? undefined,
       billing: {
         invoice: r.invoice, official: r.official, officialMode: r.officialMode ?? undefined, officialLabel: r.officialLabel, ours: r.ours, oursStandard: r.oursStandard,
         oursUnit: r.oursUnit ?? undefined, oursNote: r.oursNote ?? undefined, quote: r.quote, dueAt: iso(r.dueAt), officialReceipt: r.officialReceipt,
         transactions: (txBy.get(r.ref) ?? []).map((t) => ({ receipt: t.receipt, at: iso(t.at)!, method: t.method, official: t.official, ours: t.ours, status: t.status })),
       },
       documents: (docsBy.get(r.ref) ?? []).map((x) => ({
-        id: x.id, name: x.name, group: x.group, required: x.required, status: x.status, note: x.note ?? undefined, reviewedAt: iso(x.reviewedAt), reviewedBy: x.reviewedBy ?? undefined,
+        id: x.id, name: x.name, group: x.group, required: x.required, status: x.status, note: documentNote(locale, x.note ?? undefined), reviewedAt: iso(x.reviewedAt), reviewedBy: x.reviewedBy ?? undefined,
         file: x.fileName ? { name: x.fileName, size: x.fileSize ?? "", uploadedAt: iso(x.uploadedAt)!, id: x.fileId ?? undefined } : undefined,
       })),
       deliverables: (outsBy.get(r.ref) ?? []).map((x) => ({ id: x.id, name: x.name, issuedAt: iso(x.issuedAt)!, issuedBy: x.issuedBy, fileId: x.fileId ?? undefined })),
       messages: (msgsBy.get(r.ref) ?? []).map((m) => ({ id: String(m.id), at: iso(m.at)!, by: m.by, name: name(m.by), body: m.body })),
       notes: (notesBy.get(r.ref) ?? []).map((n) => ({ id: String(n.id), at: iso(n.at)!, by: n.by, name: name(n.by), body: n.body })),
-      events: (evBy.get(r.ref) ?? []).map((e) => ({ at: iso(e.at)!, title: e.title, by: e.by ?? undefined, name: name(e.by), body: e.body ?? undefined })),
+      events: (evBy.get(r.ref) ?? []).map((e) => {
+        const m = rowMsg(e.key, e.vars);
+        const body = m && hasPart(m, "body") ? told(locale, m, "body", e.body ?? "") : legacyText(locale, e.body ?? undefined);
+        return { at: iso(e.at)!, title: told(locale, m, "title", e.title), by: e.by ?? undefined, name: name(e.by), body };
+      }),
     };
     const times = [req.events[0]?.at, req.messages[req.messages.length - 1]?.at, req.closed?.at, req.openedAt].filter(Boolean) as string[];
     return {
@@ -124,55 +151,70 @@ export async function getAccount(): Promise<Account & { profiles: Profile[] }> {
     profiles: profiles.map(toProfile),
   };
 }
+/** The language of the signed-in customer's portal and SMS.
+ *  Deliberately not wrapped in React's cache(): with it, the page Next renders again after a server
+ *  action was often never shown (a sent message or an upload stayed off the screen until a reload).
+ *  It is one indexed lookup. */
+export async function getPortalLocale(): Promise<Locale> {
+  const id = await requireCustomerId();
+  const [a] = await (await db()).select({ locale: s.accounts.locale }).from(s.accounts).where(eq(s.accounts.id, id));
+  return a?.locale === "en" ? "en" : "rw";
+}
 /** The signed-in customer's requests: anything waiting on them first, then open, then finished. */
 export async function listMyRequests(): Promise<CustomerRequest[]> {
   const id = await requireCustomerId();
   const profileIds = (await (await db()).select({ id: s.profiles.id }).from(s.profiles).where(eq(s.profiles.accountId, id))).map((p) => p.id);
   if (!profileIds.length) return [];
   const rank = (r: RequestView) => (r.hold && isOpen(r) ? 0 : isOpen(r) ? 1 : 2);
-  return (await loadRequests(inArray(s.requests.profileId, profileIds)))
+  return (await loadRequests(inArray(s.requests.profileId, profileIds), await getPortalLocale()))
     .sort((a, b) => rank(a) - rank(b) || Date.parse(b.openedAt) - Date.parse(a.openedAt)).map(forCustomer);
 }
 export async function getMyRequest(ref: string): Promise<CustomerRequest | undefined> {
   return (await listMyRequests()).find((r) => r.ref === ref);
 }
 export async function listMyDocuments(): Promise<LibraryDoc[]> {
+  const locale = await getPortalLocale();
+  const t = (path: string, vars?: Record<string, string | number>) => text(locale, path, vars);
   const staffRows = await (await db()).select({ id: s.staff.id, name: s.staff.name }).from(s.staff);
-  const reviewer = (id?: string) => shortName(staffRows.find((x) => x.id === id)?.name ?? "your agent");
+  const reviewer = (id?: string) => { const n = staffRows.find((x) => x.id === id)?.name; return n ? shortName(n) : t("docs.yourAgent"); };
   const out: LibraryDoc[] = [];
   for (const r of await listMyRequests()) {
     if (r.closed) continue;
     for (const d of r.documents) {
       if (r.stage === "completed" && d.status === "approved") continue;
       const file = d.file ? `${d.file.name} · ${d.file.size}` : "";
+      // A note is the agent's own words (why a copy was rejected), shown as typed.
       const meta =
-        d.status === "rejected" ? `For ${r.ref} · ${d.note ?? "needs replacing"}`
-        : d.status === "approved" ? `${file} · approved by ${reviewer(d.reviewedBy)}`
-        : d.status === "received" ? `${file} · awaiting review`
-        : `Needed for ${r.ref}${d.note ? ` · ${d.note}` : ""}`;
+        d.status === "rejected" ? (d.note ? t("docs.metaRejected", { ref: r.ref, note: d.note }) : t("docs.metaReplace", { ref: r.ref }))
+        : d.status === "approved" ? t("docs.metaApproved", { file, name: reviewer(d.reviewedBy) })
+        : d.status === "received" ? t("docs.metaReceived", { file })
+        : d.note ? t("docs.metaNeededNote", { ref: r.ref, note: d.note }) : t("docs.metaNeeded", { ref: r.ref });
       out.push({ key: d.id, ref: r.ref, name: d.name, group: d.group, status: d.status, meta, action: d.status === "rejected" ? "replace" : d.status === "required" ? "upload" : undefined, fileId: d.file?.id });
     }
-    for (const o of r.deliverables) out.push({ key: o.id, ref: r.ref, name: o.name, group: "Certificates", status: "issued", meta: `Issued by ${o.issuedBy} · ${fmtDay(o.issuedAt)} · ${r.ref}`, action: "download", fileId: o.fileId });
+    for (const o of r.deliverables) out.push({ key: o.id, ref: r.ref, name: o.name, group: "Certificates", status: "issued", meta: t("docs.metaIssued", { who: channelName(o.issuedBy, locale), date: fmtDay(o.issuedAt, locale), ref: r.ref }), action: "download", fileId: o.fileId });
   }
   return out;
 }
 export async function listMyNotifications(): Promise<Notification[]> {
   const id = await requireCustomerId();
+  const locale = await getPortalLocale();
   const rows = await (await db()).select().from(s.notifications).where(eq(s.notifications.accountId, id)).orderBy(desc(s.notifications.at)).limit(20);
-  return rows.map((n) => ({ id: String(n.id), icon: n.icon, title: n.title, at: iso(n.at)!, unread: n.unread, href: n.href }));
+  return rows.map((n) => ({ id: String(n.id), icon: n.icon, title: told(locale, rowMsg(n.key, n.vars), undefined, n.title), at: iso(n.at)!, unread: n.unread, href: n.href }));
 }
 export async function listMyReminders() {
   const id = await requireCustomerId();
-  return (await db()).select().from(s.reminders).where(and(eq(s.reminders.accountId, id), eq(s.reminders.dismissed, false)));
+  const locale = await getPortalLocale();
+  const rows = await (await db()).select().from(s.reminders).where(and(eq(s.reminders.accountId, id), eq(s.reminders.dismissed, false)));
+  return rows.map((m) => ({ ...m, title: legacyText(locale, m.title), body: legacyText(locale, m.body), cta: legacyText(locale, m.cta) }));
 }
 
 /** Public status check: needs the reference and the phone number on the request, and returns no personal data. */
 export async function trackRequest(ref: string, phone: string): Promise<TrackResult | null> {
-  const [v] = await loadRequests(eq(s.requests.ref, ref.trim().toUpperCase()));
-  if (!v || phoneDigits(v.account.phone) !== phoneDigits(phone)) return null;
   const { getLocale } = await import("./i18n/locale");
   const { localizeService, requestTitle } = await import("./i18n/present");
   const locale = await getLocale();
+  const [v] = await loadRequests(eq(s.requests.ref, ref.trim().toUpperCase()), locale);
+  if (!v || phoneDigits(v.account.phone) !== phoneDigits(phone)) return null;
   const local = localizeService(v.service, locale);
   return {
     ref: v.ref, name: requestTitle(v.name, v.service, locale), via: local.via, stage: v.stage, stageDates: v.stageDates, flow: v.flow, labels: v.labels, closed: v.closed, next: v.next,

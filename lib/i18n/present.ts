@@ -159,6 +159,17 @@ export function requestTitle(name: string, service: Service, locale: Locale) {
   return name;
 }
 
+/** A service's name in this language, from its slug; the stored English name when it has no translation. */
+export function serviceName(slug: string | undefined, english: string, locale: Locale) {
+  if (locale !== "rw" || !slug) return english;
+  return RW.services[slug]?.name || english;
+}
+
+/** An official channel's name in this language, e.g. "RDB online registration". */
+export function channelName(channel: string, locale: Locale) {
+  return locale === "rw" ? channels.get(channel) || channel : channel;
+}
+
 export function requestChannel(channel: string, service: Service, locale: Locale) {
   if (locale === "rw" && channel === service.channel) return RW.services[service.slug]?.channel || channel;
   return channel;

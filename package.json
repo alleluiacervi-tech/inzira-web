@@ -10,6 +10,7 @@
     "typecheck": "tsc --noEmit",
     "smoke": "node scripts/smoke.mjs",
     "flows": "node scripts/flows.mjs",
+    "check:i18n": "node scripts/i18n-check.mjs",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "tsx scripts/db.mts migrate",
     "db:seed": "tsx scripts/db.mts seed",

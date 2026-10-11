@@ -37,13 +37,13 @@ export function PageError({ error, reset }: { error: Error & { digest?: string }
 }
 
 /** Shown inside a signed-in area when a request or case does not exist (or is not yours to see). */
-export function PageMissing({ what, href, back }: { what: string; href: string; back: string }) {
+export function PageMissing({ what, href, back, title, hint }: { what: string; href: string; back: string; title?: string; hint?: string }) {
   return (
     <div className="content">
       <div className="card stack g12" style={{ padding: "40px 24px", alignItems: "center", textAlign: "center" }}>
         <span className="ico-tile"><Icon name="search" size={22} /></span>
-        <strong>We couldn’t find that {what}</strong>
-        <span className="hint" style={{ maxWidth: 420 }}>Check the reference, or go back to the list and open it from there.</span>
+        <strong>{title ?? `We couldn’t find that ${what}`}</strong>
+        <span className="hint" style={{ maxWidth: 420 }}>{hint ?? "Check the reference, or go back to the list and open it from there."}</span>
         <Link className="btn btn-p btn-sm" href={href}>{back}</Link>
       </div>
     </div>

@@ -38,9 +38,9 @@ export function LogoMark({ dark = false }: { dark?: boolean }) {
   );
 }
 
-export function Logo({ dark = false, href = "/" }: { dark?: boolean; href?: string }) {
+export function Logo({ dark = false, href = "/", label = "Inzira home" }: { dark?: boolean; href?: string; label?: string }) {
   return (
-    <Link href={href} className="row g10" style={{ textDecoration: "none", color: dark ? "var(--on-dark)" : "var(--brand)" }} aria-label="Inzira home">
+    <Link href={href} className="row g10" style={{ textDecoration: "none", color: dark ? "var(--on-dark)" : "var(--brand)" }} aria-label={label}>
       <LogoMark dark={dark} />
       <span className="d" style={{ fontSize: 23, fontWeight: 800, letterSpacing: "-0.035em" }}>inzira</span>
     </Link>
@@ -163,12 +163,12 @@ export function DocCard({ name, meta, badge, action, icon = "file", compact }: {
   );
 }
 
-export function Notif({ icon, title, meta, unread, href }: { icon: string; title: string; meta: string; unread?: boolean; href?: string }) {
+export function Notif({ icon, title, meta, unread, href, unreadLabel = "Unread" }: { icon: string; title: string; meta: string; unread?: boolean; href?: string; unreadLabel?: string }) {
   const inner = (
     <>
       <span className="kpi-ico" style={{ width: 34, height: 34 }}><Icon name={icon} size={17} /></span>
       <div className="stack grow" style={{ gap: 3 }}><span style={{ fontSize: 14, lineHeight: 1.45, fontWeight: unread ? 700 : 400 }}>{title}</span><span className="mut" style={{ fontSize: 12.5 }}>{meta}</span></div>
-      {unread ? <span style={{ width: 8, height: 8, borderRadius: "50%", background: "var(--ember)", flexShrink: 0, marginTop: 7 }}><span className="sr-only">Unread</span></span> : <span style={{ width: 8 }} />}
+      {unread ? <span style={{ width: 8, height: 8, borderRadius: "50%", background: "var(--ember)", flexShrink: 0, marginTop: 7 }}><span className="sr-only">{unreadLabel}</span></span> : <span style={{ width: 8 }} />}
     </>
   );
   const st: CSSProperties = { display: "flex", gap: 12, padding: "14px 0", borderBottom: "1px solid var(--line-2)", textDecoration: "none", color: "var(--ink)" };

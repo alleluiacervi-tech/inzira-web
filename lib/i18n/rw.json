@@ -11,7 +11,8 @@
     "documentsTitle": "Inyandiko",
     "accountTitle": "Konti",
     "requestsTitle": "Ubusabe bwanjye",
-    "requestTitle": "Ubusabe"
+    "requestTitle": "Ubusabe",
+    "portalTemplate": "%s · Konti ya Inzira"
   },
   "nav": {
     "main": "Ahabanza",
@@ -409,7 +410,8 @@
     "openNav": "Fungura ibiyobora",
     "nav": "Ibiyobora",
     "closeNav": "Funga ibiyobora",
-    "personal": "Ibyanjye bwite"
+    "personal": "Ibyanjye bwite",
+    "logo": "Ahabanza ha Inzira"
   },
   "portal": {
     "searchLabel": "Shakisha mu busabe bwawe",
@@ -454,7 +456,11 @@
     "noMatchHint": "Gerageza gukoresha nomero y'ubusabe yakugezeho kuri SMS, urugero: INZ-2026-04817, cyangwa izina rya serivisi.",
     "showAll": "Erekana ubusabe bwose",
     "docsSub": "Inyandiko zose waduhaye n'inyandiko zose twaguhaye",
-    "accountSub": "Imyirondoro yawe, uko winjira muri konti, n'amakuru tubika"
+    "accountSub": "Imyirondoro yawe, uko winjira muri konti, n'amakuru tubika",
+    "comingUp": "Ibiri imbere",
+    "unread": "Bitarasomwa",
+    "missingTitle": "Ntitwabonye ubwo busabe",
+    "missingHint": "Reba nimero y'ubusabe, cyangwa usubire ku rutonde uhafungurire."
   },
   "request": {
     "mine": "Ubusabe bwanjye",
@@ -604,7 +610,15 @@
     "tip2": "Inguni enye zose z'urupapuro zigomba kugaragara",
     "tip3": "Imibare igomba gusomeka neza n'iyo wayegereza",
     "private": "Wowe, umukozi ugukurikirana n'ikipe yacu ishinzwe ireme ni bo bonyine bashobora gufungura inyandiko zawe.",
-    "open": "Fungura {name}"
+    "open": "Fungura {name}",
+    "yourAgent": "umukozi wawe",
+    "metaRejected": "Kuri {ref} · {note}",
+    "metaReplace": "Kuri {ref} · igomba gusimbuzwa",
+    "metaApproved": "{file} · yemejwe na {name}",
+    "metaReceived": "{file} · itegereje gusuzumwa",
+    "metaNeeded": "Irakenewe kuri {ref}",
+    "metaNeededNote": "Irakenewe kuri {ref} · {note}",
+    "metaIssued": "Yatanzwe na {who} · {date} · {ref}"
   },
   "account": {
     "details": "Imyirondoro yawe",
@@ -653,7 +667,16 @@
     "notDeleted": "Ntabwo byasibwe",
     "accountFail": "Ntitwashoboye gusiba iyi konti. Nyabuneka ongera ugerageze.",
     "keepAccount": "Reka konti yanjye igumeho",
-    "deleteMine": "Siba konti yanjye"
+    "deleteMine": "Siba konti yanjye",
+    "locale": "Ururimi rwa konti yawe n'ubutumwa bugufi",
+    "localeHint": "Ubutumwa bugufi bwose tukoherereza ku busabe bwawe buzaba buri muri uru rurimi.",
+    "langNames": {
+      "Kinyarwanda": "Ikinyarwanda",
+      "English": "Icyongereza",
+      "French": "Igifaransa"
+    },
+    "idShort": "Indangamuntu {id}",
+    "tinShort": "TIN {tin}"
   },
   "dates": {
     "today": "Uyu munsi",
@@ -702,5 +725,256 @@
     "cancelFree": "Nta kintu cyishyuwe, bityo guhagarika ntamafaranga bisaba.",
     "why": "Kubera iki uhagarika ubusabe?",
     "ph": "urugero: ntacyo ngikeneye"
+  },
+  "stored": {
+    "ev": {
+      "opened": {
+        "title": "Ubusabe bwatangiye"
+      },
+      "docUploaded": {
+        "title": "Inyandiko yoherejwe",
+        "body": "{doc}"
+      },
+      "docAddedByAgent": {
+        "title": "Umukozi yongeyeho inyandiko",
+        "body": "{doc}"
+      },
+      "docApproved": {
+        "title": "Inyandiko yemejwe",
+        "body": "{doc}"
+      },
+      "docRejected": {
+        "title": "Inyandiko yanzwe",
+        "body": "{doc} — {reason}"
+      },
+      "infoRequested": {
+        "title": "Hasabwe andi makuru"
+      },
+      "holdCleared": {
+        "title": "Ubusabe bwongeye gukorwa"
+      },
+      "moved": {
+        "title": "Bwageze ku ntambwe: {stage}"
+      },
+      "completed": {
+        "title": "Byarangiye"
+      },
+      "submitted": {
+        "title": "Bwoherejwe binyuze kuri {channel}",
+        "body": "Nomero mu rwego rwa leta: {officialRef}"
+      },
+      "resubmitted": {
+        "title": "Bwongeye koherezwa",
+        "body": "Nomero mu rwego rwa leta: {officialRef}"
+      },
+      "followUp": {
+        "title": "Hateganyijwe gukurikirana",
+        "body": "Ejo saa 10:00"
+      },
+      "assigned": {
+        "title": "Bwahawe {name}"
+      },
+      "unassigned": {
+        "title": "Nta mukozi ubufite"
+      },
+      "acceptedAssigned": {
+        "title": "Bwakiriwe kandi buhabwa {name}"
+      },
+      "feeChanged": {
+        "title": "Amafaranga ya Inzira yahinduwe",
+        "body": "{from} → {to}"
+      },
+      "feesConfirmed": {
+        "title": "Amafaranga yemejwe",
+        "body": "{officialText} + amafaranga yacu {ours}"
+      },
+      "declined": {
+        "title": "Ubusabe bwanzwe"
+      },
+      "cancelled": {
+        "title": "Bwahagaritswe"
+      },
+      "rejected": {
+        "title": "Bwanzwe n'urwego rwa leta"
+      },
+      "cancelledByCustomer": {
+        "title": "Umukiriya yahagaritse ubusabe"
+      },
+      "delivered": {
+        "title": "Inyandiko yatanzwe",
+        "body": "{doc}"
+      },
+      "receiptAttached": {
+        "title": "Inyemezabwishyu y'urwego yongewemo"
+      },
+      "paymentRecorded": {
+        "title": "Ubwishyu bwanditswe ({method})",
+        "body": "Byose hamwe {total} (Inzira {ours}, urwego {official}) · Nomero: {receipt}"
+      },
+      "paymentReceived": {
+        "title": "Ubwishyu bwakiriwe",
+        "body": "{amount}"
+      },
+      "paymentFailed": {
+        "title": "Ubwishyu ntibwarangiye",
+        "body": "{amount}: kwishyura byanzwe cyangwa byarengeje igihe"
+      },
+      "paymentReminder": {
+        "title": "Hoherejwe kwibutsa kwishyura",
+        "body": "{amount} byarengeje igihe cyo kwishyurwa"
+      },
+      "refunded": {
+        "title": "Amafaranga ya Inzira yasubijwe",
+        "body": "{amount}"
+      },
+      "docsDeletedCustomer": {
+        "title": "Inyandiko z'umukiriya zasibwe",
+        "body": "Dosiye {n}, ku busabe bw'umukiriya"
+      },
+      "docsDeletedRetention": {
+        "title": "Inyandiko z'umukiriya zasibwe",
+        "body": "Dosiye {n}, nyuma y'iminsi {days} ubusabe burangiye"
+      },
+      "docsDeletedAccount": {
+        "title": "Inyandiko z'umukiriya zasibwe",
+        "body": "Dosiye {n}, igihe umukiriya yasibaga konti ye"
+      }
+    },
+    "nt": {
+      "received": "Ubusabe bwakiriwe: {service} · {ref}",
+      "docsApproved": "Inyandiko zawe za {ref} zemejwe",
+      "newCopy": "{agent} akeneye indi kopi ya {doc} kuri {ref}",
+      "agentMessage": "{agent}: “{excerpt}”",
+      "moved": "{ref}: {stage}",
+      "completed": "Ubusabe {ref} bwarangiye",
+      "submitted": "Bwoherejwe binyuze kuri {channel}. Nomero mu rwego rwa leta: {officialRef}",
+      "resubmitted": "Bwongeye koherezwa binyuze kuri {channel}. Nomero mu rwego rwa leta: {officialRef}",
+      "fees": "Amafaranga ya {ref} yemejwe: {officialText} + amafaranga yacu {ours}",
+      "taken": "{agent} yafashe ubusabe bwawe {ref}",
+      "declined": "Ubusabe {ref} bwanzwe",
+      "cancelled": "Ubusabe {ref} bwahagaritswe",
+      "rejected": "Ubusabe {ref} bwanzwe n'urwego rwa leta",
+      "delivered": "Inyandiko {doc} iboneka muri konti yawe",
+      "paymentRecorded": "Ubwishyu bwa {total} bwakiriwe kuri {ref}",
+      "paymentReceived": "Ubwishyu bwakiriwe — {total}",
+      "paymentReceivedSplit": "Ubwishyu bwakiriwe — {total} ({official} y'urwego + {ours} ya Inzira)",
+      "overdue": "Ubwishyu bwa {amount} kuri {ref} bwarengeje igihe",
+      "refund": "Hasubijwe {amount} kuri {ref}"
+    },
+    "sum": {
+      "received": {
+        "title": "Twakiriye ubusabe bwawe",
+        "body": "Umukozi arabusuzuma mu masaha 2 y'akazi, maze akuvugishe kuri {phone}.",
+        "next": "Umukozi asuzuma ubusabe bwawe mu masaha 2 y'akazi."
+      },
+      "receivedIntake": {
+        "title": "Twakiriye ubusabe bwawe",
+        "body": "{agent} ni we ukurikirana ubusabe bwawe, kandi azakuvugisha mu masaha 2 y'akazi.",
+        "next": "{agent} arasuzuma inyandiko zawe."
+      },
+      "taken": {
+        "title": "{agent} arimo gukora ku busabe bwawe",
+        "body": "{agent} arimo gusuzuma inyandiko zawe no gutegura dosiye.",
+        "next": "{agent} arimo gusuzuma ubusabe bwawe."
+      },
+      "takenOwnWords": {
+        "title": "{agent} arimo gukora ku busabe bwawe",
+        "next": "{agent} arimo gusuzuma ubusabe bwawe."
+      },
+      "declined": {
+        "title": "Ubusabe bwanzwe",
+        "next": "Bwanzwe."
+      },
+      "cancelled": {
+        "title": "Bwahagaritswe",
+        "next": "Dosiye yafunzwe."
+      },
+      "rejected": {
+        "title": "Bwanzwe n'urwego rwa leta",
+        "next": "Bwanzwe n'urwego rwa leta."
+      },
+      "cancelledByCustomer": {
+        "title": "Bwahagaritswe",
+        "body": "Wahagaritse ubu busabe. Nta mafaranga wishyujwe.",
+        "next": "Dosiye yafunzwe."
+      }
+    },
+    "hold": {
+      "newCopy": {
+        "title": "Dukeneye indi kopi: {doc}"
+      },
+      "question": {
+        "title": "Umukozi wawe hari icyo agukeneyeho"
+      },
+      "overdue": {
+        "title": "Ubwishyu bwa {amount} bwarengeje igihe",
+        "detail": "Ibindi byose biriteguye. Turakomeza tukimara kubona ubwishyu."
+      }
+    },
+    "closed": {
+      "byCustomer": "Wabuhagaritse: {why}",
+      "byCustomerNoReason": "Wabuhagaritse."
+    },
+    "fee": {
+      "none": "nta mafaranga y'urwego",
+      "direct": "amafaranga y'urwego wishyura ubwawe",
+      "amount": "amafaranga y'urwego {official}"
+    },
+    "docNote": {
+      "deletedCustomer": "Dosiye yasibwe ku busabe bwawe ku wa {date}.",
+      "deletedRetention": "Dosiye yasibwe nyuma y'iminsi {days} ubusabe burangiye, ku wa {date}.",
+      "deletedAccount": "Dosiye yasibwe igihe konti yasibwaga, ku wa {date}."
+    }
+  },
+  "sms": {
+    "code": "Inzira: kode yawe ni {code}. Irarangira mu minota 10. Ntuzayihe undi muntu.",
+    "opened": "Inzira: ubusabe bwawe {ref} ({service}) bwafunguwe. Bukurikirane cyangwa winjire ukoresheje iyi nomero kuri {url}.",
+    "ownWords": "{text}",
+    "docsApproved": "inyandiko zawe zemejwe. Turakomeza gukora ku busabe bwawe.",
+    "newCopy": "dukeneye indi kopi ya {doc}: {reason} Yohereze muri konti yawe.",
+    "question": "{agent} hari icyo agukeneyeho: {question}",
+    "moved": "ubusabe bwawe bugeze ku ntambwe: {stage}.",
+    "completed": "ubusabe bwawe bwarangiye. Reba muri konti yawe.",
+    "submitted": "bwoherejwe binyuze kuri {channel}. Nomero mu rwego rwa leta: {officialRef}.",
+    "fees": "amafaranga yemejwe: {officialText} + amafaranga yacu {ours}. Yemeze kandi wishyure muri konti yawe.",
+    "taken": "{agent} ni we ukurikirana ubusabe bwawe {ref}. Reba aho bugeze muri konti yawe.",
+    "declined": "ubusabe bwawe {ref} bwanzwe: {reason}",
+    "cancelled": "bwahagaritswe: {reason}",
+    "rejected": "bwanzwe n'urwego rwa leta: {reason}",
+    "delivered": "inyandiko {doc} iriteguye. Uyikure muri konti yawe.",
+    "paymentRecorded": "twakiriye ubwishyu bwawe bwa {total} kuri {ref}. Inyemezabwishyu: {receipt}.",
+    "paymentReceived": "twakiriye {total}. Inyemezabwishyu {receipt}.",
+    "overdue": "ubwishyu bwa {amount} bwarengeje igihe. Wishyure muri konti yawe maze duhite dukomeza.",
+    "refund": "twagusubije {amount} kuri nomero wishyuriyeho."
+  },
+  "custErr": {
+    "badPhone": "Shyiramo nomero ya telefoni yo mu Rwanda.",
+    "name": "Shyiramo amazina yawe yose.",
+    "service": "Iyo serivisi ntiboneka.",
+    "fileBig": "{name} irengeje 10 MB. Gerageza gufata ifoto aho kuyisikana, cyangwa ugabanye ingano ya PDF.",
+    "fileType": "{name}: nyabuneka ohereza PDF, JPG cyangwa PNG.",
+    "tooMany": "Wagerageje kenshi birenze urugero. Tegereza iminota mike maze wongere ugerageze.",
+    "request": "Ubusabe ntibubonetse.",
+    "message": "Banza wandike ubutumwa.",
+    "chooseFile": "Banza uhitemo dosiye.",
+    "document": "Inyandiko ntibonetse.",
+    "payPhone": "Shyiramo nomero ya MoMo cyangwa Airtel Money izishyurwa, urugero: 788 123 456.",
+    "notConfirmed": "Umukozi wawe ntaremeza amafaranga asabwa.",
+    "nothingDue": "Nta mafaranga asigaye kwishyurwa kuri ubu busabe.",
+    "promptWaiting": "Hari ubusabe bwo kwishyura butegereje kuri telefoni yawe. Bwemeze, cyangwa utegereze iminota mike maze wongere ugerageze.",
+    "momoDown": "Ntitwashoboye kugera kuri mobile money aka kanya. Nta mafaranga yakuweho. Ongera ugerageze.",
+    "payment": "Ubwishyu ntibubonetse.",
+    "finished": "Ubu busabe bwamaze kurangira.",
+    "withInstitution": "Ubu busabe bwamaze kugera mu rwego rwa leta. Andikira umukozi wawe kugira ngo abuhagarike.",
+    "alreadyPaid": "Wamaze kwishyura ubu busabe. Andikira umukozi wawe kugira ngo abuhagarike kandi agusubize amafaranga.",
+    "noDocs": "Nta nyandiko z'ubusabe bwarangiye zo gusiba zihari.",
+    "typeDelete": "Andika DELETE kugira ngo wemeze.",
+    "openOne": "Ufite ubusabe 1 bukirimo gukorwa. Buhagarike cyangwa utegereze burangire, hanyuma usibe konti yawe.",
+    "openMany": "Ufite ubusabe {n} bukirimo gukorwa. Buhagarike cyangwa utegereze burangire, hanyuma usibe konti yawe."
+  },
+  "fileRoute": {
+    "signIn": "Injira muri konti kugira ngo urebe iyi dosiye.",
+    "notFound": "Ntibibonetse",
+    "gone": "Iyi dosiye ntikibitswe."
   }
 }

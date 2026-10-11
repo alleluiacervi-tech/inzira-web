@@ -196,7 +196,7 @@ export function CancelRequest({ reqRef }: { reqRef: string }) {
         if (!r.ok) { setError(trError(locale, r.error)); return; }
       }}>
         <p className="hint">{t("side.cancelFree")}</p>
-        <label htmlFor="cx">{t("side.why")} <span className="mut" style={{ fontWeight: 400 }}>{t("form.optional")}</span></label>
+        <label htmlFor="cx">{t("side.why")} <span className="mut" style={{ fontWeight: 400 }}>{t("start.optional")}</span></label>
         <textarea id="cx" className="in" rows={2} value={reason} onChange={(e) => setReason(e.target.value)} placeholder={t("side.ph")} />
         {error && <span className="err-text" role="alert"><Icon name="alert" size={15} /> {error}</span>}
         <button className="btn btn-danger btn-sm" type="submit" disabled={busy} style={{ alignSelf: "flex-start" }}>{busy ? t("pay.cancelling") : t("pay.cancel")}</button>

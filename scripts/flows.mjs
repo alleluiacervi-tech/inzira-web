@@ -86,14 +86,29 @@ async function page(width = 1280) {
     async close() { await fetch(`http://127.0.0.1:${port}/json/close/${t.id}`); ws.close(); },
   };
 }
-/** Signs in with a phone number, reading the demo code shown on screen. */
-async function signIn(p, phone) {
+/** Signs in with a phone number, reading the demo code shown on screen. A customer's portal is in
+ *  the language of their account (Kinyarwanda for the demo customers); the checks read English, so
+ *  it is switched unless `language` says otherwise. */
+async function signIn(p, phone, { language = "en" } = {}) {
   await p.go("/sign-in");
   if ((await p.ev("location.pathname")) !== "/sign-in") { await signOut(p); await p.go("/sign-in"); }
   await p.set("#si-phone", phone); await p.click("Send me a code"); await waitCode(p);
   const code = await p.ev(`document.querySelector("[data-demo-code]")?.dataset.demoCode ?? ""`);
   if (!code) throw new Error("no demo code shown (start the app with INZIRA_DEMO=1)");
   await p.set("#otp", code); await p.click("Sign in", "button"); await waitPath(p, (path) => path !== "/sign-in"); await sleep(500); await p.help();
+  if (language && (await p.ev("location.pathname")).startsWith("/portal")) await portalLanguage(p, language);
+}
+/** Switches the portal language with the switch in its sidebar (also there, inside the drawer, on a
+ *  phone). It is a form post that reloads the page. */
+async function portalLanguage(p, language) {
+  if ((await p.ev("document.documentElement.lang")) === language) return;
+  await p.ev(`(() => {
+    const button = [...document.querySelectorAll('form[action="/api/locale"] button')].find((b) => b.value === ${JSON.stringify(language)});
+    if (!button) throw new Error("no language switch");
+    button.click(); return true;
+  })()`);
+  for (let i = 0; i < 40 && (await p.ev("document.readyState === 'complete' ? document.documentElement.lang : ''").catch(() => "")) !== language; i++) await sleep(250);
+  await sleep(500); await p.help();
 }
 async function signOut(p) {
   if (await p.ev(`!!document.querySelector('button[aria-label="Staff profile menu"]')`)) {
@@ -143,7 +158,9 @@ async function waitUntil(p, expression) {
 async function waitGone(p, text) {
   for (let i = 0; i < 40 && (await p.has(text)); i++) await sleep(250);
 }
-const step = async (name, fn) => { console.log(`# ${name}`); try { await fn(); } catch (e) { check(name, false, e.message.split("\n")[0]); } };
+// FLOWS_ONLY=customer,delivered runs just those steps (for debugging; they may rely on earlier ones).
+const only = process.env.FLOWS_ONLY?.split(",").map((x) => x.trim()).filter(Boolean);
+const step = async (name, fn) => { if (only?.length && !only.includes(name)) return; console.log(`# ${name}`); try { await fn(); } catch (e) { check(name, false, e.message.split("\n")[0]); } };
 
 // ---------- public ----------
 await step("track", async () => {
@@ -210,8 +227,15 @@ await step("start", async () => {
 // ---------- Aline: pay, message, upload ----------
 await step("customer", async () => {
   const p = await page();
-  await signIn(p, "788123456");
-  check("customer: lands on the portal", (await p.ev("location.pathname")) === "/portal" && await p.has("We need a clearer ID photo"));
+  await signIn(p, "788123456", { language: null });
+  // Aline's account is in Kinyarwanda: the portal, the seeded hold and its title follow it.
+  check("customer: lands on the portal in their language", (await p.ev("location.pathname")) === "/portal" && (await p.ev("document.documentElement.lang")) === "rw"
+    && await p.has("Kora icyo usabwa nonaha") && await p.has("Dukeneye ifoto y'indangamuntu igaragara neza") && !(await p.has("We need a clearer ID photo")));
+  await portalLanguage(p, "en");
+  check("customer: switching to English changes the portal", await p.has("We need a clearer ID photo") && await p.has("Resolve now"),
+    `lang ${await p.ev("document.documentElement.lang")} at ${await p.ev("location.pathname")}: ${(await p.ev(`document.body.innerText`)).replace(/\s+/g, " ").slice(0, 300)}`);
+  await p.go("/portal/account"); await waitFor(p, "Your details");
+  check("customer: the choice is saved on their account", (await p.ev(`document.querySelector('input[name=locale][value=en]')?.checked`)) === true);
   await p.go("/portal/requests/INZ-2026-04761");
   check("pay: unpaid request offers review and pay", await p.has("Awaiting payment") && await p.has("Review and pay RWF 20,000"));
   await p.click("Review and pay"); await sleep(300);

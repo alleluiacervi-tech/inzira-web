@@ -7,6 +7,8 @@ import { getStaffUser, normalisePhone } from "@/lib/auth";
 import { rwf } from "@/lib/format";
 import { audit, db, event, fail, invoiceFor, nextNumber, notify, refFor, s, type Result } from "@/lib/mutate";
 import { PERMISSIONS, type Permission } from "@/lib/permissions";
+import { asLocale, type Locale } from "@/lib/i18n/locale";
+import { english, feeVars, msg, sms, smsText } from "@/lib/i18n/stored";
 import { STAGE_LABEL } from "@/lib/status";
 import { SITE } from "@/lib/site";
 import { sendSms } from "@/lib/sms";
@@ -38,20 +40,21 @@ export async function reviewDocument(ref: string, docId: string, decision: "appr
   await d.transaction(async (tx) => {
     if (decision === "approve") {
       await tx.update(s.requestDocuments).set({ status: "approved", reviewedAt: now(), reviewedBy: me.id, note: null }).where(eq(s.requestDocuments.id, docId));
-      await event(tx, ref, "Document approved", me.id, doc.name);
+      await event(tx, ref, msg("ev.docApproved", { doc: doc.name }), me.id);
       const all = await tx.select().from(s.requestDocuments).where(eq(s.requestDocuments.ref, ref));
       const blocked = all.some((x) => x.status === "rejected" || (x.required && x.status === "required"));
       if (r.hold?.reason === "document" && !blocked) {
         await tx.update(s.requests).set({ hold: null }).where(eq(s.requests.ref, ref));
-        await notify(tx, ref, { icon: "check", title: `Your documents for ${ref} are approved`, sms: "your documents are approved. We are carrying on with your request." });
+        await notify(tx, ref, { icon: "check", title: msg("nt.docsApproved", { ref }), sms: sms("docsApproved") });
       }
     } else {
-      const hold: Hold = { reason: "document", title: `We need a new copy: ${doc.name}`, detail: reason.trim(), since: now() };
+      const holdMsg = msg("hold.newCopy", { doc: doc.name });
+      const hold: Hold = { reason: "document", title: english(holdMsg, "title"), detail: reason.trim(), since: now(), msg: holdMsg };
       await tx.update(s.requestDocuments).set({ status: "rejected", reviewedAt: now(), reviewedBy: me.id, note: reason.trim() }).where(eq(s.requestDocuments.id, docId));
       await tx.update(s.requests).set({ hold }).where(eq(s.requests.ref, ref));
       await tx.insert(s.messages).values({ ref, by: me.id, body: reason.trim() });
-      await event(tx, ref, "Document rejected", me.id, `${doc.name} — ${reason.trim()}`);
-      await notify(tx, ref, { icon: "alert", title: `${me.name.split(" ")[0]} needs a new copy of ${doc.name} for ${ref}`, sms: `we need a new copy of ${doc.name}: ${reason.trim()} Upload it in your portal.` });
+      await event(tx, ref, msg("ev.docRejected", { doc: doc.name, reason: reason.trim() }), me.id);
+      await notify(tx, ref, { icon: "alert", title: msg("nt.newCopy", { agent: me.name.split(" ")[0], doc: doc.name, ref }), sms: sms("newCopy", { doc: doc.name, reason: reason.trim() }) });
     }
     await audit(tx, { actor: me.name, role: me.role, action: decision === "approve" ? "Approved document" : "Rejected document", entity: `${ref} · ${doc.name}` });
   });
@@ -67,10 +70,12 @@ export async function messageCustomer(ref: string, body: string, wait: boolean):
   await d.transaction(async (tx) => {
     await tx.insert(s.messages).values({ ref, by: me.id, body: body.trim() });
     if (wait) {
-      await tx.update(s.requests).set({ hold: { reason: "information", title: "Your agent needs something from you", detail: body.trim(), since: now() } }).where(eq(s.requests.ref, ref));
-      await event(tx, ref, "Information requested", me.id, body.trim());
+      const holdMsg = msg("hold.question");
+      await tx.update(s.requests).set({ hold: { reason: "information", title: english(holdMsg, "title"), detail: body.trim(), since: now(), msg: holdMsg } }).where(eq(s.requests.ref, ref));
+      await event(tx, ref, msg("ev.infoRequested"), me.id, body.trim());
     }
-    await notify(tx, ref, { icon: "msg", title: `${me.name.split(" ")[0]}: “${body.trim().slice(0, 90)}”`, sms: wait ? `${me.name.split(" ")[0]} needs something from you: ${body.trim().slice(0, 300)}` : undefined });
+    const agent = me.name.split(" ")[0];
+    await notify(tx, ref, { icon: "msg", title: msg("nt.agentMessage", { agent, excerpt: body.trim().slice(0, 90) }), sms: wait ? sms("question", { agent, question: body.trim().slice(0, 300) }) : undefined });
   });
   return done(ref);
 }
@@ -80,7 +85,7 @@ export async function clearHold(ref: string): Promise<Result> {
   if ("error" in w) return fail(w.error!);
   await w.d.transaction(async (tx) => {
     await tx.update(s.requests).set({ hold: null }).where(eq(s.requests.ref, ref));
-    await event(tx, ref, "Hold cleared", w.me.id);
+    await event(tx, ref, msg("ev.holdCleared"), w.me.id);
   });
   return done(ref);
 }
@@ -93,8 +98,14 @@ export async function setStage(ref: string, stage: Stage, message: string, tell:
   if (r.closed) return fail("This case is closed.");
   await d.transaction(async (tx) => {
     await tx.update(s.requests).set({ stage, stageDates: { ...r.stageDates, [stage]: r.stageDates[stage] ?? now() }, hold: stage === "completed" ? null : r.hold }).where(eq(s.requests.ref, ref));
-    await event(tx, ref, stage === "completed" ? "Completed" : `Moved to: ${STAGE_LABEL[stage]}`, me.id, message.trim() || undefined);
-    if (tell) await notify(tx, ref, { icon: stage === "completed" ? "check" : "send", title: stage === "completed" ? `${ref} is completed` : `${ref}: ${STAGE_LABEL[stage]}`, sms: message.trim() || (stage === "completed" ? "your request is completed. See your portal." : `your request moved to: ${STAGE_LABEL[stage]}.`) });
+    const done = stage === "completed";
+    await event(tx, ref, done ? msg("ev.completed") : msg("ev.moved", { stage: STAGE_LABEL[stage] }), me.id, message.trim() || undefined);
+    // The agent's own message, when they wrote one, is the SMS as typed.
+    if (tell) await notify(tx, ref, {
+      icon: done ? "check" : "send",
+      title: done ? msg("nt.completed", { ref }) : msg("nt.moved", { ref, stage: STAGE_LABEL[stage] }),
+      sms: message.trim() ? sms("ownWords", { text: message.trim() }) : done ? sms("completed") : sms("moved", { stage: STAGE_LABEL[stage] }),
+    });
     await audit(tx, { actor: me.name, role: me.role, action: "Changed stage", entity: `${ref} · ${STAGE_LABEL[r.stage]} → ${STAGE_LABEL[stage]}` });
   });
   return done(ref);
@@ -109,8 +120,9 @@ export async function markSubmitted(ref: string, channel: string, officialRef: s
   const again = r.stage === "institution";
   await d.transaction(async (tx) => {
     await tx.update(s.requests).set({ stage: "institution", channel: channel || r.channel, officialRef: officialRef.trim(), hold: null, stageDates: { ...r.stageDates, institution: r.stageDates.institution ?? now() } }).where(eq(s.requests.ref, ref));
-    await event(tx, ref, again ? "Resubmitted" : `Submitted via ${channel || r.channel}`, me.id, `Official ref ${officialRef.trim()}`);
-    await notify(tx, ref, { icon: "send", title: `${again ? "Resubmitted" : "Submitted"} via ${channel || r.channel}. Official ref ${officialRef.trim()}`, sms: `submitted via ${channel || r.channel}. Official reference ${officialRef.trim()}.` });
+    const vars = { channel: channel || r.channel, officialRef: officialRef.trim() };
+    await event(tx, ref, again ? msg("ev.resubmitted", vars) : msg("ev.submitted", vars), me.id);
+    await notify(tx, ref, { icon: "send", title: again ? msg("nt.resubmitted", vars) : msg("nt.submitted", vars), sms: sms("submitted", vars) });
     await audit(tx, { actor: me.name, role: me.role, action: "Added official reference", entity: `${ref} · ${officialRef.trim()}` });
   });
   return done(ref);
@@ -123,7 +135,7 @@ export async function scheduleFollowUp(ref: string, what: string): Promise<Resul
   const t = new Date(Date.now() + 864e5); t.setUTCHours(8, 0, 0, 0);
   await w.d.transaction(async (tx) => {
     await tx.update(s.requests).set({ followUp: { at: t.toISOString(), what: what.trim() || "Follow up" } }).where(eq(s.requests.ref, ref));
-    await event(tx, ref, "Follow-up scheduled", w.me.id, "Tomorrow 10:00");
+    await event(tx, ref, msg("ev.followUp"), w.me.id);
   });
   return done(ref);
 }
@@ -143,7 +155,7 @@ export async function assignCase(ref: string, agentId: string | null): Promise<R
   if (agentId && !agent?.active) return fail("Agent not found.");
   await w.d.transaction(async (tx) => {
     await tx.update(s.requests).set({ agentId }).where(eq(s.requests.ref, ref));
-    await event(tx, ref, agent ? `Assigned to ${agent.name}` : "Unassigned", w.me.id);
+    await event(tx, ref, agent ? msg("ev.assigned", { name: agent.name }) : msg("ev.unassigned"), w.me.id);
     await audit(tx, { actor: w.me.name, role: w.me.role, action: "Assigned case", entity: `${ref} → ${agent?.name ?? "nobody"}` });
   });
   return done(ref);
@@ -160,7 +172,7 @@ export async function saveFees(ref: string, official: number | null, ours: numbe
     await tx.update(s.requests).set({ official: r.officialMode ? null : official, ours }).where(eq(s.requests.ref, ref));
     if (!r.officialMode && official !== r.official) await audit(tx, { actor: me.name, role: me.role, action: "Recorded official fee", entity: `${ref} · ${official === null ? "cleared" : rwf(official)}`, fee: true });
     if (ours !== r.ours) {
-      await event(tx, ref, "Assistance fee changed", me.id, `${rwf(r.ours)} → ${rwf(ours)}`);
+      await event(tx, ref, msg("ev.feeChanged", { from: rwf(r.ours), to: rwf(ours) }), me.id);
       await audit(tx, { actor: me.name, role: me.role, action: "Changed assistance fee on a case", entity: `${ref} · ${rwf(r.ours)} → ${rwf(ours)}`, fee: true });
     }
   });
@@ -174,13 +186,13 @@ export async function sendQuote(ref: string): Promise<Result> {
   const { me, d, r } = w;
   if (!r.officialMode && r.official === null) return fail("Record the official fee for this case first.");
   if (r.ours <= 0) return fail("Set our fee for this case first.");
-  const officialText = r.officialMode === "none" ? "no official fee" : r.officialMode ? "official fee paid by you directly" : `official ${rwf(r.official ?? 0)}`;
+  const fees = { ...feeVars(r.officialMode, r.official), ours: rwf(r.ours) };
   await d.transaction(async (tx) => {
     // Fees are due three days after they are sent, unless a date was already agreed.
     await tx.update(s.requests).set({ quote: "confirmed", dueAt: r.dueAt ?? new Date(Date.now() + 3 * 864e5).toISOString() }).where(eq(s.requests.ref, ref));
-    await event(tx, ref, "Fees confirmed", me.id, `${officialText} + our fee ${rwf(r.ours)}`);
-    await notify(tx, ref, { icon: "card", title: `Fees confirmed for ${ref}: ${officialText} + our fee ${rwf(r.ours)}`, sms: `fees confirmed: ${officialText} + our fee ${rwf(r.ours)}. Approve and pay in your portal.` });
-    await audit(tx, { actor: me.name, role: me.role, action: "Sent quote", entity: `${ref} · ${officialText} + ${rwf(r.ours)}`, fee: true });
+    await event(tx, ref, msg("ev.feesConfirmed", fees), me.id);
+    await notify(tx, ref, { icon: "card", title: msg("nt.fees", { ref, ...fees }), sms: sms("fees", fees) });
+    await audit(tx, { actor: me.name, role: me.role, action: "Sent quote", entity: `${ref} · ${english(msg("ev.feesConfirmed", fees), "body")}`, fee: true });
   });
   return done(ref);
 }
@@ -190,17 +202,21 @@ export async function closeCase(ref: string, kind: Closed["kind"], reason: strin
   if ("error" in w) return fail(w.error!);
   if (!reason.trim()) return fail("Write the reason the customer will see.");
   const closed: Closed = { kind, at: now(), reason: reason.trim() };
+  const cancelled = kind === "cancelled";
+  // The reason is the agent's own words; the summary around it is ours.
+  const summary = msg(cancelled ? "sum.cancelled" : "sum.rejected");
   await w.d.transaction(async (tx) => {
-    await tx.update(s.requests).set({ closed, hold: null, summary: { title: kind === "cancelled" ? "Cancelled" : "Rejected by the institution", body: reason.trim() }, next: kind === "cancelled" ? "Closed." : "Rejected by the institution." }).where(eq(s.requests.ref, ref));
-    await event(tx, ref, kind === "cancelled" ? "Cancelled" : "Rejected by the institution", w.me.id, reason.trim());
-    await notify(tx, ref, { icon: "alert", title: `${ref} was ${kind === "cancelled" ? "cancelled" : "rejected by the institution"}`, sms: `${kind === "cancelled" ? "cancelled" : "rejected by the institution"}: ${reason.trim()}` });
+    await tx.update(s.requests).set({ closed, hold: null, summary: { title: english(summary, "title"), body: reason.trim(), msg: summary }, next: english(summary, "next") }).where(eq(s.requests.ref, ref));
+    await event(tx, ref, msg(cancelled ? "ev.cancelled" : "ev.rejected"), w.me.id, reason.trim());
+    await notify(tx, ref, { icon: "alert", title: msg(cancelled ? "nt.cancelled" : "nt.rejected", { ref }), sms: sms(cancelled ? "cancelled" : "rejected", { reason: reason.trim() }) });
     await audit(tx, { actor: w.me.name, role: w.me.role, action: kind === "cancelled" ? "Cancelled case" : "Recorded rejection", entity: ref });
   });
   return done(ref);
 }
 
-/** Opens a case for a walk-in, a caller or a WhatsApp message. */
-export async function createIntake(input: { slug: string; name: string; phone: string; kind: "person" | "business" | "organization"; source: string; notes: string }): Promise<Result<{ ref: string }>> {
+/** Opens a case for a walk-in, a caller or a WhatsApp message. `locale` is the language of a new
+ *  customer's portal and SMS; an existing customer keeps theirs. */
+export async function createIntake(input: { slug: string; name: string; phone: string; kind: "person" | "business" | "organization"; source: string; notes: string; locale?: Locale }): Promise<Result<{ ref: string }>> {
   const me = await getStaffUser();
   if (!me) return fail("Your session has ended. Sign in again.");
   if (!me.permissions.has(WORKS_CASES)) return fail(`Your role can’t do this (${PERMISSIONS[WORKS_CASES]}).`);
@@ -210,27 +226,28 @@ export async function createIntake(input: { slug: string; name: string; phone: s
   const service = await getService(input.slug || "other-online-service");
   if (!service) return fail("Service not found.");
   const d = await db();
-  const ref = await d.transaction(async (tx) => {
+  const { ref, locale } = await d.transaction(async (tx) => {
     let [account] = await tx.select().from(s.accounts).where(eq(s.accounts.phone, phone));
-    if (!account) [account] = await tx.insert(s.accounts).values({ id: `acc-${randomBytes(6).toString("hex")}`, name: input.name.trim(), first: input.name.trim().split(" ")[0], phone, languages: [] }).returning();
+    if (!account) [account] = await tx.insert(s.accounts).values({ id: `acc-${randomBytes(6).toString("hex")}`, name: input.name.trim(), first: input.name.trim().split(" ")[0], phone, languages: [], locale: asLocale(input.locale) }).returning();
     const [profile] = await tx.insert(s.profiles).values({ id: `p-${randomBytes(6).toString("hex")}`, accountId: account.id, kind: input.kind, name: input.name.trim(), relation: input.kind === "person" ? "self" : null }).returning();
     const ref = refFor(await nextNumber(tx, "request"));
     const at = now();
+    const summary = msg("sum.receivedIntake", { agent: me.name.split(" ")[0] });
     await tx.insert(s.requests).values({
       ref, serviceSlug: service.slug, profileId: profile.id, agentId: me.id, stage: "received", stageDates: { received: at }, channel: service.channel,
-      summary: { title: "We’ve received your request", body: `${me.name.split(" ")[0]} is handling it and will contact you within 2 working hours.` },
-      next: `${me.name.split(" ")[0]} checks your documents.`, invoice: invoiceFor(await nextNumber(tx, "invoice")),
+      summary: { title: english(summary, "title"), body: english(summary, "body"), msg: summary },
+      next: english(summary, "next"), invoice: invoiceFor(await nextNumber(tx, "invoice")),
       official: service.official.mode ? null : service.official.amount, officialMode: service.official.mode ?? null,
       officialLabel: service.official.mode === "none" ? "Official fee" : `${service.official.label ?? "Official fee"} · ${service.channel}`,
       ours: service.ours, oursStandard: service.ours, oursUnit: service.oursUnit ?? null, quote: "estimate", officialReceipt: service.official.mode ? "na" : "awaiting",
     });
     if (service.documents.length) await tx.insert(s.requestDocuments).values(service.documents.map((doc, i) => ({ id: `${ref}-d${i + 1}`, ref, position: i, name: doc.name, group: doc.group, required: doc.required, status: "required" as const })));
-    await event(tx, ref, "Request opened", me.id, input.source);
+    await event(tx, ref, msg("ev.opened"), me.id, input.source);
     if (input.notes.trim()) await tx.insert(s.notes).values({ ref, by: me.id, body: input.notes.trim() });
     await audit(tx, { actor: me.name, role: me.role, action: "Opened case from intake", entity: `${ref} · ${service.name} · ${input.source}` });
-    return ref;
+    return { ref, locale: account.locale };
   });
-  sendSms(phone, `Inzira: your request ${ref} (${service.name}) is open. Track it or sign in with this number at ${SITE.url}.`).catch((e) => console.error("[sms]", e));
+  sendSms(phone, smsText(locale, sms("opened", { ref, service: service.name, serviceSlug: service.slug, url: SITE.url }))).catch((e) => console.error("[sms]", e));
   revalidatePath("/console", "layout");
   return { ok: true, ref };
 }
@@ -258,12 +275,12 @@ export async function uploadCaseFile(fd: FormData): Promise<Result> {
     await tx.insert(s.files).values({ id: fileId, ref, storageKey: `${ref}/${fileId}`, name: file.name, mime: file.type, bytes: file.size, uploadedBy: me.id });
     if (kind === "deliverable") {
       await tx.insert(s.deliverables).values({ id: `${ref}-o${randomBytes(3).toString("hex")}`, ref, name, issuedAt: now(), issuedBy: r.channel, fileId });
-      await event(tx, ref, "Document delivered", me.id, name);
-      await notify(tx, ref, { icon: "check", title: `${name} is ready in your portal`, sms: `${name} is ready. Download it from your portal.` });
+      await event(tx, ref, msg("ev.delivered", { doc: name }), me.id);
+      await notify(tx, ref, { icon: "check", title: msg("nt.delivered", { doc: name }), sms: sms("delivered", { doc: name }) });
       await audit(tx, { actor: me.name, role: me.role, action: "Delivered document", entity: `${ref} · ${name}` });
     } else if (kind === "receipt") {
       await tx.update(s.requests).set({ officialReceipt: "attached" }).where(eq(s.requests.ref, ref));
-      await event(tx, ref, "Official receipt attached", me.id);
+      await event(tx, ref, msg("ev.receiptAttached"), me.id);
       await audit(tx, { actor: me.name, role: me.role, action: "Attached official receipt", entity: `${ref} · ${file.name}`, fee: true });
     } else {
       const [doc] = docId ? await tx.select().from(s.requestDocuments).where(eq(s.requestDocuments.id, docId)) : [];
@@ -271,7 +288,7 @@ export async function uploadCaseFile(fd: FormData): Promise<Result> {
       const fields = { status: "received" as const, fileId, fileName: file.name, fileSize: humanSize(file.size), uploadedAt: now(), note: null, reviewedAt: null, reviewedBy: null };
       if (doc) await tx.update(s.requestDocuments).set(fields).where(eq(s.requestDocuments.id, doc.id));
       else await tx.insert(s.requestDocuments).values({ id: `${ref}-x${randomBytes(3).toString("hex")}`, ref, position: 99, name, group: "Other", required: false, ...fields });
-      await event(tx, ref, "Document added by agent", me.id, doc?.name ?? name);
+      await event(tx, ref, msg("ev.docAddedByAgent", { doc: doc?.name ?? name }), me.id);
       await audit(tx, { actor: me.name, role: me.role, action: "Added document", entity: `${ref} · ${doc?.name ?? name}` });
     }
   });

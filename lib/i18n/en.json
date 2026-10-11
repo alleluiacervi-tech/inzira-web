@@ -11,7 +11,8 @@
     "documentsTitle": "Documents",
     "accountTitle": "Account",
     "requestsTitle": "My requests",
-    "requestTitle": "Request"
+    "requestTitle": "Request",
+    "portalTemplate": "%s · Inzira portal"
   },
   "nav": {
     "main": "Main",
@@ -144,7 +145,7 @@
     "ask": "Ask us",
     "searchLabel": "What service do you need?",
     "search": "Search",
-    "clear": "Clear search",
+    "clear": "Clear",
     "category": "Category",
     "all": "All services",
     "one": "service",
@@ -157,7 +158,6 @@
     "closeFilters": "Close filters",
     "empty": "No service matches those filters.",
     "clearFilters": "Clear filters",
-    "clear": "Clear",
     "show": "Show {n} {what}",
     "noQuery": "No service matches “{q}”",
     "noFilters": "No service matches these filters",
@@ -410,7 +410,8 @@
     "openNav": "Open navigation",
     "nav": "Navigation",
     "closeNav": "Close navigation",
-    "personal": "Personal"
+    "personal": "Personal",
+    "logo": "Inzira home"
   },
   "portal": {
     "searchLabel": "Search your requests",
@@ -455,7 +456,11 @@
     "noMatchHint": "Try the reference from your SMS, e.g. INZ-2026-04817, or the name of the service.",
     "showAll": "Show all requests",
     "docsSub": "Everything you’ve shared with us and everything we’ve delivered to you",
-    "accountSub": "Your details, signing in, and what we keep"
+    "accountSub": "Your details, signing in, and what we keep",
+    "comingUp": "Coming up",
+    "unread": "Unread",
+    "missingTitle": "We couldn’t find that request",
+    "missingHint": "Check the reference, or go back to the list and open it from there."
   },
   "request": {
     "mine": "My requests",
@@ -605,7 +610,15 @@
     "tip2": "All four corners visible",
     "tip3": "Numbers readable when you zoom in",
     "private": "Only you, your agent and our quality team can open your files.",
-    "open": "Open {name}"
+    "open": "Open {name}",
+    "yourAgent": "your agent",
+    "metaRejected": "For {ref} · {note}",
+    "metaReplace": "For {ref} · needs replacing",
+    "metaApproved": "{file} · approved by {name}",
+    "metaReceived": "{file} · awaiting review",
+    "metaNeeded": "Needed for {ref}",
+    "metaNeededNote": "Needed for {ref} · {note}",
+    "metaIssued": "Issued by {who} · {date} · {ref}"
   },
   "account": {
     "details": "Your details",
@@ -654,7 +667,16 @@
     "notDeleted": "Not deleted",
     "accountFail": "We couldn’t delete the account. Please try again.",
     "keepAccount": "Keep my account",
-    "deleteMine": "Delete my account"
+    "deleteMine": "Delete my account",
+    "locale": "Language of your portal and text messages",
+    "localeHint": "We send every SMS about your requests in this language.",
+    "langNames": {
+      "Kinyarwanda": "Kinyarwanda",
+      "English": "English",
+      "French": "French"
+    },
+    "idShort": "ID {id}",
+    "tinShort": "TIN {tin}"
   },
   "dates": {
     "today": "Today",
@@ -703,5 +725,256 @@
     "cancelFree": "Nothing has been charged, so cancelling costs nothing.",
     "why": "Why are you cancelling?",
     "ph": "e.g. I no longer need it"
+  },
+  "stored": {
+    "ev": {
+      "opened": {
+        "title": "Request opened"
+      },
+      "docUploaded": {
+        "title": "Document uploaded",
+        "body": "{doc}"
+      },
+      "docAddedByAgent": {
+        "title": "Document added by agent",
+        "body": "{doc}"
+      },
+      "docApproved": {
+        "title": "Document approved",
+        "body": "{doc}"
+      },
+      "docRejected": {
+        "title": "Document rejected",
+        "body": "{doc} — {reason}"
+      },
+      "infoRequested": {
+        "title": "Information requested"
+      },
+      "holdCleared": {
+        "title": "Hold cleared"
+      },
+      "moved": {
+        "title": "Moved to: {stage}"
+      },
+      "completed": {
+        "title": "Completed"
+      },
+      "submitted": {
+        "title": "Submitted via {channel}",
+        "body": "Official ref {officialRef}"
+      },
+      "resubmitted": {
+        "title": "Resubmitted",
+        "body": "Official ref {officialRef}"
+      },
+      "followUp": {
+        "title": "Follow-up scheduled",
+        "body": "Tomorrow 10:00"
+      },
+      "assigned": {
+        "title": "Assigned to {name}"
+      },
+      "unassigned": {
+        "title": "Unassigned"
+      },
+      "acceptedAssigned": {
+        "title": "Accepted and assigned to {name}"
+      },
+      "feeChanged": {
+        "title": "Assistance fee changed",
+        "body": "{from} → {to}"
+      },
+      "feesConfirmed": {
+        "title": "Fees confirmed",
+        "body": "{officialText} + our fee {ours}"
+      },
+      "declined": {
+        "title": "Request declined"
+      },
+      "cancelled": {
+        "title": "Cancelled"
+      },
+      "rejected": {
+        "title": "Rejected by the institution"
+      },
+      "cancelledByCustomer": {
+        "title": "Cancelled by the customer"
+      },
+      "delivered": {
+        "title": "Document delivered",
+        "body": "{doc}"
+      },
+      "receiptAttached": {
+        "title": "Official receipt attached"
+      },
+      "paymentRecorded": {
+        "title": "Payment recorded ({method})",
+        "body": "Total {total} (Inzira {ours}, Official {official}) · Ref: {receipt}"
+      },
+      "paymentReceived": {
+        "title": "Payment received",
+        "body": "{amount}"
+      },
+      "paymentFailed": {
+        "title": "Payment not completed",
+        "body": "{amount} prompt declined or expired"
+      },
+      "paymentReminder": {
+        "title": "Payment reminder sent",
+        "body": "{amount} overdue"
+      },
+      "refunded": {
+        "title": "Assistance fee refunded",
+        "body": "{amount}"
+      },
+      "docsDeletedCustomer": {
+        "title": "Customer documents deleted",
+        "body": "{n} file(s), at the customer's request"
+      },
+      "docsDeletedRetention": {
+        "title": "Customer documents deleted",
+        "body": "{n} file(s), {days} days after the request finished"
+      },
+      "docsDeletedAccount": {
+        "title": "Customer documents deleted",
+        "body": "{n} file(s), when the customer deleted their account"
+      }
+    },
+    "nt": {
+      "received": "Request received: {service} · {ref}",
+      "docsApproved": "Your documents for {ref} are approved",
+      "newCopy": "{agent} needs a new copy of {doc} for {ref}",
+      "agentMessage": "{agent}: “{excerpt}”",
+      "moved": "{ref}: {stage}",
+      "completed": "{ref} is completed",
+      "submitted": "Submitted via {channel}. Official ref {officialRef}",
+      "resubmitted": "Resubmitted via {channel}. Official ref {officialRef}",
+      "fees": "Fees confirmed for {ref}: {officialText} + our fee {ours}",
+      "taken": "{agent} has taken your request {ref}",
+      "declined": "Request {ref} was declined",
+      "cancelled": "{ref} was cancelled",
+      "rejected": "{ref} was rejected by the institution",
+      "delivered": "{doc} is ready in your portal",
+      "paymentRecorded": "Payment of {total} received for {ref}",
+      "paymentReceived": "Payment received — {total}",
+      "paymentReceivedSplit": "Payment received — {total} ({official} official + {ours} ours)",
+      "overdue": "Payment of {amount} is overdue for {ref}",
+      "refund": "Refund of {amount} issued for {ref}"
+    },
+    "sum": {
+      "received": {
+        "title": "We’ve received your request",
+        "body": "An agent will check it within 2 working hours and contact you on {phone}.",
+        "next": "An agent checks your request within 2 working hours."
+      },
+      "receivedIntake": {
+        "title": "We’ve received your request",
+        "body": "{agent} is handling it and will contact you within 2 working hours.",
+        "next": "{agent} checks your documents."
+      },
+      "taken": {
+        "title": "{agent} is working on your request",
+        "body": "{agent} is checking your documents and preparing the submission.",
+        "next": "{agent} is checking your request."
+      },
+      "takenOwnWords": {
+        "title": "{agent} is working on your request",
+        "next": "{agent} is checking your request."
+      },
+      "declined": {
+        "title": "Request declined",
+        "next": "Declined."
+      },
+      "cancelled": {
+        "title": "Cancelled",
+        "next": "Closed."
+      },
+      "rejected": {
+        "title": "Rejected by the institution",
+        "next": "Rejected by the institution."
+      },
+      "cancelledByCustomer": {
+        "title": "Cancelled",
+        "body": "You cancelled this request. Nothing was charged.",
+        "next": "Closed."
+      }
+    },
+    "hold": {
+      "newCopy": {
+        "title": "We need a new copy: {doc}"
+      },
+      "question": {
+        "title": "Your agent needs something from you"
+      },
+      "overdue": {
+        "title": "Payment of {amount} is overdue",
+        "detail": "Everything else is ready. We carry on as soon as it is paid."
+      }
+    },
+    "closed": {
+      "byCustomer": "Cancelled by you: {why}",
+      "byCustomerNoReason": "Cancelled by you."
+    },
+    "fee": {
+      "none": "no official fee",
+      "direct": "official fee paid by you directly",
+      "amount": "official {official}"
+    },
+    "docNote": {
+      "deletedCustomer": "File deleted at your request on {date}.",
+      "deletedRetention": "File deleted {days} days after the request finished, on {date}.",
+      "deletedAccount": "File deleted when the account was deleted, on {date}."
+    }
+  },
+  "sms": {
+    "code": "Inzira: your code is {code}. It expires in 10 minutes. Never share it.",
+    "opened": "Inzira: your request {ref} ({service}) is open. Track it or sign in with this number at {url}.",
+    "ownWords": "{text}",
+    "docsApproved": "your documents are approved. We are carrying on with your request.",
+    "newCopy": "we need a new copy of {doc}: {reason} Upload it in your portal.",
+    "question": "{agent} needs something from you: {question}",
+    "moved": "your request moved to: {stage}.",
+    "completed": "your request is completed. See your portal.",
+    "submitted": "submitted via {channel}. Official reference {officialRef}.",
+    "fees": "fees confirmed: {officialText} + our fee {ours}. Approve and pay in your portal.",
+    "taken": "{agent} is handling your request {ref}. See progress in your portal.",
+    "declined": "your request {ref} was declined: {reason}",
+    "cancelled": "cancelled: {reason}",
+    "rejected": "rejected by the institution: {reason}",
+    "delivered": "{doc} is ready. Download it from your portal.",
+    "paymentRecorded": "we received your payment of {total} for {ref}. Official receipt: {receipt}.",
+    "paymentReceived": "we received {total}. Receipt {receipt}.",
+    "overdue": "payment of {amount} is overdue. Pay in your portal and we carry on straight away.",
+    "refund": "we refunded {amount} to the number you paid from."
+  },
+  "custErr": {
+    "badPhone": "Enter a Rwandan mobile number.",
+    "name": "Enter your full name.",
+    "service": "That service is not available.",
+    "fileBig": "{name} is larger than 10 MB. Try a photo instead of a scan, or compress the PDF.",
+    "fileType": "{name}: please upload a PDF, JPG or PNG.",
+    "tooMany": "Too many attempts. Please wait a few minutes and try again.",
+    "request": "Request not found.",
+    "message": "Write a message first.",
+    "chooseFile": "Choose a file first.",
+    "document": "Document not found.",
+    "payPhone": "Enter the MoMo or Airtel Money number to charge, e.g. 788 123 456.",
+    "notConfirmed": "Your agent has not confirmed the amounts yet.",
+    "nothingDue": "Nothing is due on this request.",
+    "promptWaiting": "A payment prompt is already waiting on your phone. Approve it, or wait a few minutes and try again.",
+    "momoDown": "We couldn’t reach mobile money just now. Nothing was charged. Please try again.",
+    "payment": "Payment not found.",
+    "finished": "This request is already finished.",
+    "withInstitution": "This request is already with the institution. Message your agent to stop it.",
+    "alreadyPaid": "You have already paid for this request. Message your agent to cancel it and arrange a refund.",
+    "noDocs": "There are no documents from finished requests to delete.",
+    "typeDelete": "Type DELETE to confirm.",
+    "openOne": "You have 1 request still in progress. Cancel it or wait until it is finished, then delete your account.",
+    "openMany": "You have {n} requests still in progress. Cancel them or wait until they are finished, then delete your account."
+  },
+  "fileRoute": {
+    "signIn": "Sign in to see this file.",
+    "notFound": "Not found",
+    "gone": "The file is no longer stored."
   }
 }

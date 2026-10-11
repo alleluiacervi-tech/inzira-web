@@ -6,6 +6,10 @@
 // - Payments, invoices and official receipts are financial records and are kept, as the law requires.
 import { and, eq, inArray, isNotNull } from "drizzle-orm";
 import { db, schema as s, type Db } from "./db";
+import type { Locale } from "./i18n/locale";
+import { text } from "./i18n/messages";
+import { msg } from "./i18n/stored";
+import { event } from "./mutate";
 import { deleteFile } from "./storage";
 
 type Tx = Parameters<Parameters<Db["transaction"]>[0]>[0];
@@ -31,7 +35,15 @@ async function storedDocuments(tx: Tx | Db, refs: string[]) {
  * the checklist (which keeps its review status, so the history still reads correctly).
  * Returns how many files were removed.
  */
-export async function purgeDocuments(refs: string[], reason: string): Promise<number> {
+export type PurgeReason = "customer" | "retention" | "account";
+// The checklist note is English for the staff screens; i18n/stored.documentNote translates it for customers.
+const NOTE_REASON: Record<PurgeReason, string> = {
+  customer: "at the customer’s request",
+  retention: `${RETENTION_DAYS} days after the request finished`,
+  account: "when the customer deleted their account",
+};
+export async function purgeDocuments(refs: string[], why: PurgeReason): Promise<number> {
+  const reason = NOTE_REASON[why];
   const d = await db();
   const docs = await storedDocuments(d, refs);
   if (!docs.length) return 0;
@@ -41,7 +53,8 @@ export async function purgeDocuments(refs: string[], reason: string): Promise<nu
       .where(inArray(s.requestDocuments.id, docs.map((x) => x.docId)));
     await tx.delete(s.files).where(inArray(s.files.id, docs.map((x) => x.fileId)));
     for (const ref of new Set(docs.map((x) => x.ref))) {
-      await tx.insert(s.events).values({ ref, title: "Customer documents deleted", by: "system", body: `${docs.filter((x) => x.ref === ref).length} file(s), ${reason}` });
+      const n = docs.filter((x) => x.ref === ref).length;
+      await event(tx, ref, why === "customer" ? msg("ev.docsDeletedCustomer", { n }) : why === "account" ? msg("ev.docsDeletedAccount", { n }) : msg("ev.docsDeletedRetention", { n, days: RETENTION_DAYS }), "system");
     }
   });
   // Bytes go after the database: a failed delete leaves an orphan file, never a row pointing at nothing.
@@ -65,21 +78,21 @@ export async function retentionSweep() {
   const cutoff = Date.now() - RETENTION_DAYS * 864e5;
   const rows = await d.select({ ref: s.requests.ref, stage: s.requests.stage, stageDates: s.requests.stageDates, closed: s.requests.closed }).from(s.requests);
   const due = rows.filter((r) => { const f = finishedAt(r); return f && Date.parse(f) < cutoff; }).map((r) => r.ref);
-  return { deleted: await purgeDocuments(due, `${RETENTION_DAYS} days after the request finished`) };
+  return { deleted: await purgeDocuments(due, "retention") };
 }
 
 /**
  * Deletes a customer account. Only allowed when nothing is open. Personal details are wiped and every
  * stored file of theirs is deleted; requests, payments and receipts stay, anonymised, for the accounts.
  */
-export async function deleteAccount(accountId: string): Promise<{ ok: true } | { ok: false; error: string }> {
+export async function deleteAccount(accountId: string, locale: Locale = "en"): Promise<{ ok: true } | { ok: false; error: string }> {
   const d = await db();
   const { open } = await finishedWithDocuments(accountId);
-  if (open > 0) return { ok: false, error: `You have ${open} request${open === 1 ? "" : "s"} still in progress. Cancel ${open === 1 ? "it" : "them"} or wait until ${open === 1 ? "it is" : "they are"} finished, then delete your account.` };
+  if (open > 0) return { ok: false, error: open === 1 ? text(locale, "custErr.openOne") : text(locale, "custErr.openMany", { n: open }) };
   const profiles = await d.select({ id: s.profiles.id }).from(s.profiles).where(eq(s.profiles.accountId, accountId));
   const profileIds = profiles.map((p) => p.id);
   const refs = profileIds.length ? (await d.select({ ref: s.requests.ref }).from(s.requests).where(inArray(s.requests.profileId, profileIds))).map((r) => r.ref) : [];
-  await purgeDocuments(refs, "when the customer deleted their account");
+  await purgeDocuments(refs, "account");
 
   // Deliverables are the customer's to keep, so they go with the account.
   const delivered = refs.length ? await d.select({ id: s.files.id, key: s.files.storageKey }).from(s.deliverables).innerJoin(s.files, eq(s.files.id, s.deliverables.fileId)).where(inArray(s.deliverables.ref, refs)) : [];

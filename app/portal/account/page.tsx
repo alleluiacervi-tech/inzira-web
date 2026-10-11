@@ -1,16 +1,15 @@
 import AccountSettings from "@/components/AccountSettings";
 import { PageHead } from "@/components/ui";
 import { requireCustomerId } from "@/lib/auth";
-import { DASHBOARD_LOCALE } from "@/lib/i18n/locale";
 import { text } from "@/lib/i18n/messages";
 import { finishedWithDocuments, RETENTION_DAYS } from "@/lib/privacy";
-import { getAccount } from "@/lib/repo";
+import { getAccount, getPortalLocale } from "@/lib/repo";
 
 export async function generateMetadata() {
-  return { title: text(DASHBOARD_LOCALE, "meta.accountTitle") };
+  return { title: text(await getPortalLocale(), "meta.accountTitle") };
 }
 export default async function AccountPage() {
-  const locale = DASHBOARD_LOCALE;
+  const locale = await getPortalLocale();
   const id = await requireCustomerId("/portal/account");
   const [account, data] = await Promise.all([getAccount(), finishedWithDocuments(id)]);
   const profiles = account.profiles.map(({ id, name, kind, relation, idMasked, tinMasked }) => ({ id, name, kind, relation, idMasked, tinMasked }))

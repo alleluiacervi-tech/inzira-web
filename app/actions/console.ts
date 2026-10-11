@@ -6,6 +6,7 @@ import { WORKS_CASES, canSeeCase, canSeeClient, seesAllCases } from "@/lib/acces
 import { getStaffUser, normalisePhone } from "@/lib/auth";
 import type { Db } from "@/lib/db";
 import { maskNationalId, maskTin, rwf, shortName } from "@/lib/format";
+import { english, feeVars, msg, sms } from "@/lib/i18n/stored";
 import { audit, db, event, fail, notify, s, type Result } from "@/lib/mutate";
 import { PERMISSIONS, type Permission } from "@/lib/permissions";
 import { searchGlobal } from "@/lib/repo";
@@ -76,23 +77,20 @@ export async function acceptAndAssignRequest(ref: string, agentId: string, messa
     const nextStage = req.stage === "received" ? "checking" : req.stage;
     const stageDates = { ...req.stageDates, [nextStage]: req.stageDates[nextStage] ?? now() };
 
+    // A message from the person assigning replaces our standard body, as they wrote it.
+    const own = message?.trim();
+    const summary = msg(own ? "sum.takenOwnWords" : "sum.taken", { agent: shortName(agent.name) });
     await tx.update(s.requests).set({
       agentId,
       stage: nextStage,
       stageDates,
-      summary: {
-        title: `${shortName(agent.name)} is working on your request`,
-        body: message?.trim() || `${shortName(agent.name)} is checking your documents and preparing the submission.`,
-      },
-      next: `${shortName(agent.name)} is checking your request.`,
+      summary: { title: english(summary, "title"), body: own || english(summary, "body"), msg: summary },
+      next: english(summary, "next"),
     }).where(eq(s.requests.ref, ref));
 
-    await event(tx, ref, `Accepted and assigned to ${agent.name}`, me.id, message?.trim() || undefined);
-    await notify(tx, ref, {
-      icon: "user",
-      title: `${agent.name.split(" ")[0]} has taken your request ${ref}`,
-      sms: `${agent.name.split(" ")[0]} is handling your request ${ref}. See progress in your portal.`,
-    });
+    await event(tx, ref, msg("ev.acceptedAssigned", { name: agent.name }), me.id, own || undefined);
+    const first = agent.name.split(" ")[0];
+    await notify(tx, ref, { icon: "user", title: msg("nt.taken", { agent: first, ref }), sms: sms("taken", { agent: first, ref }) });
     await audit(tx, { actor: me.name, role: me.role, action: "Accepted & assigned case", entity: `${ref} → ${agent.name}` });
   });
 
@@ -109,20 +107,17 @@ export async function declineRequest(ref: string, reason: string): Promise<Resul
   if (!reason.trim()) return fail("Write the reason the customer will see.");
 
   const closed: Closed = { kind: "rejected", at: now(), reason: reason.trim() };
+  const summary = msg("sum.declined");
   await d.transaction(async (tx) => {
     await tx.update(s.requests).set({
       closed,
       hold: null,
-      summary: { title: "Request declined", body: reason.trim() },
-      next: "Declined.",
+      summary: { title: english(summary, "title"), body: reason.trim(), msg: summary },
+      next: english(summary, "next"),
     }).where(eq(s.requests.ref, ref));
 
-    await event(tx, ref, "Request declined", me.id, reason.trim());
-    await notify(tx, ref, {
-      icon: "alert",
-      title: `Request ${ref} was declined`,
-      sms: `your request ${ref} was declined: ${reason.trim()}`,
-    });
+    await event(tx, ref, msg("ev.declined"), me.id, reason.trim());
+    await notify(tx, ref, { icon: "alert", title: msg("nt.declined", { ref }), sms: sms("declined", { ref, reason: reason.trim() }) });
     await audit(tx, { actor: me.name, role: me.role, action: "Declined request", entity: `${ref} · ${reason.trim()}` });
   });
 
@@ -154,14 +149,11 @@ export async function quoteCustomRequest(ref: string, official: number | null, o
       dueAt,
     }).where(eq(s.requests.ref, ref));
 
-    const officialText = req.officialMode === "none" ? "no official fee" : req.officialMode === "direct" ? "official fee paid directly" : `official ${rwf(officialAmount ?? 0)}`;
-    await event(tx, ref, "Quote prepared & sent", me.id, `${officialText} + our fee ${rwf(ours)}`);
-    await notify(tx, ref, {
-      icon: "card",
-      title: `Quote ready for ${ref}: ${officialText} + our fee ${rwf(ours)}`,
-      sms: `quote ready: ${officialText} + our fee ${rwf(ours)}. Review and approve in your portal.`,
-    });
-    await audit(tx, { actor: me.name, role: me.role, action: "Sent custom quote", entity: `${ref} · ${officialText} + ${rwf(ours)}`, fee: true });
+    // The same messages as sending fees from the case page.
+    const fees = { ...feeVars(req.officialMode, officialAmount), ours: rwf(ours) };
+    await event(tx, ref, msg("ev.feesConfirmed", fees), me.id);
+    await notify(tx, ref, { icon: "card", title: msg("nt.fees", { ref, ...fees }), sms: sms("fees", fees) });
+    await audit(tx, { actor: me.name, role: me.role, action: "Sent custom quote", entity: `${ref} · ${english(msg("ev.feesConfirmed", fees), "body")}`, fee: true });
     if (ours !== req.ours) await audit(tx, { actor: me.name, role: me.role, action: "Changed assistance fee on a case", entity: `${ref} · ${rwf(req.ours)} → ${rwf(ours)}`, fee: true });
   });
 
@@ -181,7 +173,7 @@ export async function bulkAssignRequests(refs: string[], agentId: string | null)
   await d.transaction(async (tx) => {
     for (const ref of a.refs) {
       await tx.update(s.requests).set({ agentId }).where(eq(s.requests.ref, ref));
-      await event(tx, ref, agent ? `Assigned to ${agent.name}` : "Unassigned", me.id);
+      await event(tx, ref, agent ? msg("ev.assigned", { name: agent.name }) : msg("ev.unassigned"), me.id);
       await audit(tx, { actor: me.name, role: me.role, action: "Bulk assigned case", entity: `${ref} → ${agent?.name ?? "nobody"}` });
     }
   });
@@ -199,7 +191,7 @@ export async function bulkMessageRequests(refs: string[], body: string): Promise
   await d.transaction(async (tx) => {
     for (const ref of a.refs) {
       await tx.insert(s.messages).values({ ref, by: me.id, body: body.trim() });
-      await notify(tx, ref, { icon: "msg", title: `${me.name.split(" ")[0]}: “${body.trim().slice(0, 90)}”` });
+      await notify(tx, ref, { icon: "msg", title: msg("nt.agentMessage", { agent: me.name.split(" ")[0], excerpt: body.trim().slice(0, 90) }) });
       await audit(tx, { actor: me.name, role: me.role, action: "Bulk messaged customer", entity: ref });
     }
   });
@@ -254,12 +246,9 @@ export async function recordManualPayment(input: {
     if (req.hold?.reason === "payment") await tx.update(s.requests).set({ hold: null }).where(eq(s.requests.ref, ref));
 
     const total = input.official + input.ours;
-    await event(tx, ref, `Payment recorded (${input.method})`, me.id, `Total ${rwf(total)} (Inzira ${rwf(input.ours)}, Official ${rwf(input.official)}) · Ref: ${input.receipt.trim()}`);
-    await notify(tx, ref, {
-      icon: "card",
-      title: `Payment of ${rwf(total)} received for ${ref}`,
-      sms: `we received your payment of ${rwf(total)} for ${ref}. Official receipt: ${input.receipt.trim()}.`,
-    });
+    const paid = { method: input.method, total: rwf(total), ours: rwf(input.ours), official: rwf(input.official), receipt: input.receipt.trim(), ref };
+    await event(tx, ref, msg("ev.paymentRecorded", paid), me.id);
+    await notify(tx, ref, { icon: "card", title: msg("nt.paymentRecorded", paid), sms: sms("paymentRecorded", paid) });
     await audit(tx, {
       actor: me.name,
       role: me.role,

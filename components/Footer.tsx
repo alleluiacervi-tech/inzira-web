@@ -24,7 +24,7 @@ export default async function Footer() {
     <footer className="footer wrap" id="contact">
       <div className="footer-grid">
         <div className="stack g18">
-          <Logo dark />
+          <Logo dark label={t("shell.logo")} />
           <p style={{ fontSize: 15, lineHeight: 1.6, maxWidth: 320 }}>{t("footer.blurb")}</p>
           <ul className="stack g10 ft-contact" style={{ listStyle: "none", margin: 0, padding: 0, fontSize: 14.5 }}>
             {contact.map((c) => (

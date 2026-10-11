@@ -38,14 +38,15 @@ number.
 
 ```bash
 npm run typecheck
+npm run check:i18n           # both languages have every key and placeholder; SMS texts stay GSM-7
 npm run build && npm start   # production build; add INZIRA_DEMO=1 to keep demo codes and payments
 npm run smoke                # with the app running: every page loads, is styled, private pages need sign-in
-npm run flows                # with the app running in demo mode on a fresh database: 99 end-to-end checks,
+npm run flows                # with the app running in demo mode on a fresh database: 107 end-to-end checks,
                              # including what each role can see (needs Chrome and Node 22+)
 npm run check:providers      # with real keys set: tests SMS, MTN MoMo, Airtel Money and Blob storage end to end
 ```
 
-GitHub Actions (`.github/workflows/ci.yml`) runs typecheck, build, smoke and flows on every pull request
+GitHub Actions (`.github/workflows/ci.yml`) runs typecheck, the i18n check, build, smoke and flows on every pull request
 and on pushes to `main`, against a fresh demo database.
 
 Run one server at a time from this folder: two servers, or a build while a server is running,
@@ -129,7 +130,7 @@ lib/
   types.ts           the domain model · status.ts, format.ts: how it is shown
   mock/              the catalogue and the sample data used to seed a database
 drizzle/             SQL migrations
-scripts/             db.mts (migrate / setup / seed / reset), smoke.mjs, flows.mjs
+scripts/             db.mts (migrate / setup / seed / reset), smoke.mjs, flows.mjs, i18n-check.mjs
 ```
 
 ## The model
@@ -178,8 +179,13 @@ by every server action.
 - **Backups** of the Postgres database, and a retention rule for uploaded documents.
 - **Placeholders:** company details in `lib/site.ts`, the sample testimonials, and the four legal pages
   the footer links to (terms, privacy, refunds, complaints).
-- **Languages.** The public site is in Kinyarwanda by default, with English as a choice. The customer
-  portal, the staff console and every SMS are English only.
+- **Languages.** The public site, the customer portal and every SMS to a customer are in Kinyarwanda by
+  default, with English as a choice. A customer's choice is saved on their account (portal switch or
+  Account page; staff pick it for walk-ins) and every portal page and SMS follows it. Timeline events,
+  notifications, holds and summaries are stored as message keys (`lib/i18n/stored.ts`) and shown in
+  each reader's language; older rows fall back to an exact-match table (`lib/i18n/legacy-rw.json`).
+  The staff console and staff SMS are English. The Kinyarwanda was not written by a native speaker:
+  have one review `lib/i18n/rw.json` before launch.
 - Not set up: ESLint (`npm run lint` has no config yet).
 - **Staff alerts** are a daily SMS summary. Nothing alerts staff the moment a customer replies; they see it
   in the console.

@@ -1,15 +1,14 @@
 import Link from "next/link";
 import { Alert, DocBadge, DocCard, FeeTag, Icon, Kpi, Notif, PageHead, RequestRow } from "@/components/ui";
 import { dayPart, fmtAgo, fmtDay, fmtLong, fmtMonth, rwf } from "@/lib/format";
-import { DASHBOARD_LOCALE } from "@/lib/i18n/locale";
 import { text } from "@/lib/i18n/messages";
 import { displayDocName } from "@/lib/i18n/present";
-import { getAccount, getNow, listMyNotifications, listMyReminders, listMyRequests } from "@/lib/repo";
+import { getAccount, getNow, getPortalLocale, listMyNotifications, listMyReminders, listMyRequests } from "@/lib/repo";
 import { isOpen, paidSplit } from "@/lib/status";
 import { markNotificationsRead } from "@/app/actions/customer";
 
 export default async function PortalHome() {
-  const locale = DASHBOARD_LOCALE;
+  const locale = await getPortalLocale();
   const t = (path: string, vars?: Record<string, string | number>) => text(locale, path, vars);
   const [account, requests, notifications, reminders, now] = await Promise.all([getAccount(), listMyRequests(), listMyNotifications(), listMyReminders(), getNow()]);
   const open = requests.filter(isOpen);
@@ -70,12 +69,12 @@ export default async function PortalHome() {
           <div className="stack g16">
             <section id="notifications" className="card" style={{ padding: "18px 20px 6px" }} aria-labelledby="n-h">
               <div className="row between"><h2 id="n-h" className="d" style={{ fontSize: 19 }}>{t("portal.notifications")}</h2>{unread ? <form action={markNotificationsRead}><button className="linkish" type="submit" style={{ fontSize: 13 }}>{t("portal.mark", { n: unread })}</button></form> : <span className="mut" style={{ fontSize: 13 }}>{t("portal.allRead")}</span>}</div>
-              {notifications.map((n) => <Notif key={n.id} icon={n.icon} title={n.title} meta={fmtAgo(n.at, now, locale)} unread={n.unread} href={n.href} />)}
+              {notifications.map((n) => <Notif key={n.id} icon={n.icon} title={n.title} meta={fmtAgo(n.at, now, locale)} unread={n.unread} href={n.href} unreadLabel={t("portal.unread")} />)}
               {notifications.length === 0 && <p className="hint" style={{ padding: "14px 0" }}>{t("portal.updatesEmpty")}</p>}
             </section>
             {reminders.map((m) => (
               <div key={m.id} className="card dark stack g12" style={{ padding: 20, borderColor: "var(--ink)" }}>
-                <span className="eb" style={{ color: "var(--ember-light)" }}>Coming up</span>
+                <span className="eb" style={{ color: "var(--ember-light)" }}>{t("portal.comingUp")}</span>
                 <strong style={{ fontSize: 16 }}>{m.title}</strong>
                 <p style={{ fontSize: 14, lineHeight: 1.5, color: "var(--on-dark-2)" }}>{m.body}</p>
                 <Link className="btn btn-p btn-sm" href={m.href}>{m.cta}</Link>

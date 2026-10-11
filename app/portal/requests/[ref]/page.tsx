@@ -3,20 +3,19 @@ import { notFound } from "next/navigation";
 import { DocBadge, DocCard, Icon, RequestBadge, StageTimeline, TimelineV } from "@/components/ui";
 import { CancelRequest, Messages, PaymentPanel } from "@/components/RequestSide";
 import { fmtDate, fmtDay, fmtWhen, initials, shortName } from "@/lib/format";
-import { DASHBOARD_LOCALE } from "@/lib/i18n/locale";
 import { text } from "@/lib/i18n/messages";
 import { displayDocName, requestChannel, requestTitle, teamName } from "@/lib/i18n/present";
-import { getMyRequest, getNow } from "@/lib/repo";
+import { getMyRequest, getNow, getPortalLocale } from "@/lib/repo";
 import { whatsappUrl } from "@/lib/site";
 
 export async function generateMetadata({ params }: { params: Promise<{ ref: string }> }) {
   const r = await getMyRequest((await params).ref);
-  const locale = DASHBOARD_LOCALE;
+  const locale = await getPortalLocale();
   return { title: r ? `${requestTitle(r.name, r.service, locale)} · ${r.ref}` : text(locale, "request.missing") };
 }
 
 export default async function RequestPage({ params }: { params: Promise<{ ref: string }> }) {
-  const locale = DASHBOARD_LOCALE;
+  const locale = await getPortalLocale();
   const t = (path: string, vars?: Record<string, string | number>) => text(locale, path, vars);
   const holdAction = {
     document: { href: "/portal/documents", icon: "upload", label: t("request.uploadDoc") },
