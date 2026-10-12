@@ -1,4 +1,5 @@
 "use client";
+import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
 import { uploadDocument } from "@/app/actions/customer";
 import { trError } from "@/lib/i18n/errors";
@@ -27,6 +28,7 @@ export default function DocumentCenter({ initial: docs }: { initial: LibraryDoc[
   const [done, setDone] = useState("");
   const [error, setError] = useState("");
   const [drag, setDrag] = useState(false);
+  const router = useRouter();
   const panel = useRef<HTMLDivElement>(null);
   const t = docs.find((d) => d.key === target) ?? null;
 
@@ -43,6 +45,8 @@ export default function DocumentCenter({ initial: docs }: { initial: LibraryDoc[
     setBusy(null);
     if (!r.ok) { setError(trError(locale, r.error)); return; }
     setDone(f.name);
+    // The action's own refresh of the list is sometimes dropped by the router; ask for it again.
+    router.refresh();
   };
 
   const count = (k: (typeof TABS)[number]) => (k === "all" ? docs.length : docs.filter((d) => d.status === k).length);

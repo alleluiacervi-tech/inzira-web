@@ -2,7 +2,7 @@ import Link from "next/link";
 import { Alert, DocBadge, DocCard, FeeTag, Icon, Kpi, Notif, PageHead, RequestRow } from "@/components/ui";
 import { dayPart, fmtAgo, fmtDay, fmtLong, fmtMonth, rwf } from "@/lib/format";
 import { text } from "@/lib/i18n/messages";
-import { displayDocName } from "@/lib/i18n/present";
+import { displayDocName, requestTitle } from "@/lib/i18n/present";
 import { getAccount, getNow, getPortalLocale, listMyNotifications, listMyReminders, listMyRequests } from "@/lib/repo";
 import { isOpen, paidSplit } from "@/lib/status";
 import { markNotificationsRead } from "@/app/actions/customer";
@@ -29,7 +29,7 @@ export default async function PortalHome() {
       <div className="content">
         {holds.map((r) => (
           <Alert key={r.ref} kind="act" title={r.hold!.title} action={<Link className="btn btn-p btn-sm" href={`/portal/requests/${r.ref}`}>{t("portal.resolve")}</Link>}>
-            {r.name} · {r.ref}. {r.hold!.reason === "payment" ? t("portal.holdPay") : t("portal.holdFix")}
+            {requestTitle(r.name, r.service, locale)} · {r.ref}. {r.hold!.reason === "payment" ? t("portal.holdPay") : t("portal.holdFix")}
           </Alert>
         ))}
         <div className="grid cols-4 m-cols-2" style={{ gap: 14 }}>

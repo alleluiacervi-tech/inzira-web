@@ -160,7 +160,8 @@ async function waitGone(p, text) {
 }
 // FLOWS_ONLY=customer,delivered runs just those steps (for debugging; they may rely on earlier ones).
 const only = process.env.FLOWS_ONLY?.split(",").map((x) => x.trim()).filter(Boolean);
-const step = async (name, fn) => { if (only?.length && !only.includes(name)) return; console.log(`# ${name}`); try { await fn(); } catch (e) { check(name, false, e.message.split("\n")[0]); } };
+const seen = new Set();
+const step = async (name, fn) => { seen.add(name); if (only?.length && !only.includes(name)) return; console.log(`# ${name}`); try { await fn(); } catch (e) { check(name, false, e.message.split("\n")[0]); } };
 
 // ---------- public ----------
 await step("track", async () => {
@@ -552,6 +553,9 @@ await step("mobile", async () => {
   await p.close();
 });
 
+const unknown = (only ?? []).filter((name) => !seen.has(name));
+if (unknown.length) { console.error(`FLOWS_ONLY names no step: ${unknown.join(", ")} (steps: ${[...seen].join(", ")})`); stop(2); }
+if (!pass && !fails.length) { console.error("No checks ran."); stop(2); }
 console.log(`\n${pass} passed, ${fails.length} failed on ${base}`);
 if (fails.length) console.log(fails.map((f) => " - " + f).join("\n"));
 stop(fails.length ? 1 : 0);

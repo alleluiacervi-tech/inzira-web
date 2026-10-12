@@ -55,7 +55,7 @@ export default function AccountSettings({ account, profiles, data }: Props) {
           <fieldset className="acct-langs">
             <legend className="label">{t("account.locale")}</legend>
             <div className="row g20 wrapx">
-              {(["rw", "en"] as const).map((code) => <label key={code} className="check"><input type="radio" name="locale" value={code} defaultChecked={locale === code} /><span>{code === "rw" ? t("nav.kinyarwanda") : t("nav.english")}</span></label>)}
+              {(["rw", "en"] as const).map((code) => <label key={code} className="check"><input type="radio" name="locale" value={code} defaultChecked={locale === code} /><span>{t(code === "rw" ? "account.langNames.Kinyarwanda" : "account.langNames.English")}</span></label>)}
             </div>
             <span className="hint">{t("account.localeHint")}</span>
           </fieldset>

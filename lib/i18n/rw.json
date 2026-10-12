@@ -30,7 +30,7 @@
     "closeMenu": "Funga menu",
     "talk": "Vugana natwe",
     "english": "English",
-    "kinyarwanda": "Kinyarwanda"
+    "kinyarwanda": "Ikinyarwanda"
   },
   "footer": {
     "blurb": "Inyandiko za leta ku bucuruzi n'abanyamwuga mu Rwanda, zirasuzumwa, zikoherezwa kandi zigakurikiranwa ku bwawe.",
@@ -170,7 +170,7 @@
   },
   "service": {
     "trainingVia": "Amahugurwa ya Inzira, {via}",
-    "filedWith": "Bisabwa muri {office}, binyuze kuri {channel}",
+    "filedWith": "Bisabwa muri {office} ({channel})",
     "also": "Yitwa kandi: {aka}",
     "oneDoc": "inyandiko",
     "manyDocs": "inyandiko",
@@ -464,7 +464,7 @@
   },
   "request": {
     "mine": "Ubusabe bwanjye",
-    "via": "binyuze kuri {channel}",
+    "via": "Uburyo: {channel}",
     "for": "Ubusabe bwa {name}",
     "ourRef": "Nomero y'ubusabe muri Inzira",
     "officialNo": "Nomero y'ubusabe mu rwego rwa leta",
@@ -489,7 +489,7 @@
     "pay": "Komeza ku bwishyu",
     "progress": "Aho ubusabe bugeze",
     "since": "Kuva ku wa {date}",
-    "forLine": "Ubusabe bwa {name} · binyuze kuri {channel}",
+    "forLine": "Ubusabe bwa {name} · {channel}",
     "step": "Intambwe ya {n} kuri {total}",
     "closed": "Dosiye yafunzwe ku wa {date}",
     "delivered": "Byatanzwe ku wa {date}",
@@ -580,7 +580,14 @@
     "send": "Ohereza ubutumwa",
     "notSaved": "Ntibyabitswe. Reba ko interineti yawe ikora neza maze wongere ugerageze.",
     "cancelling": "Guhagarika…",
-    "cancel": "Hagarika ubusabe"
+    "cancel": "Hagarika ubusabe",
+    "methods": {
+      "MTN MoMo": "MTN MoMo",
+      "Airtel Money": "Airtel Money",
+      "Bank transfer": "Kohereza kuri banki",
+      "Card": "Ikarita",
+      "Cash": "Amafaranga mu ntoki"
+    }
   },
   "docs": {
     "filter": "Gushungura ku miterere yazo",
@@ -760,7 +767,7 @@
         "title": "Byarangiye"
       },
       "submitted": {
-        "title": "Bwoherejwe binyuze kuri {channel}",
+        "title": "Bwoherejwe ({channel})",
         "body": "Nomero mu rwego rwa leta: {officialRef}"
       },
       "resubmitted": {
@@ -847,8 +854,8 @@
       "agentMessage": "{agent}: “{excerpt}”",
       "moved": "{ref}: {stage}",
       "completed": "Ubusabe {ref} bwarangiye",
-      "submitted": "Bwoherejwe binyuze kuri {channel}. Nomero mu rwego rwa leta: {officialRef}",
-      "resubmitted": "Bwongeye koherezwa binyuze kuri {channel}. Nomero mu rwego rwa leta: {officialRef}",
+      "submitted": "Bwoherejwe ({channel}). Nomero mu rwego rwa leta: {officialRef}",
+      "resubmitted": "Bwongeye koherezwa ({channel}). Nomero mu rwego rwa leta: {officialRef}",
       "fees": "Amafaranga ya {ref} yemejwe: {officialText} + amafaranga yacu {ours}",
       "taken": "{agent} yafashe ubusabe bwawe {ref}",
       "declined": "Ubusabe {ref} bwanzwe",
@@ -935,7 +942,7 @@
     "question": "{agent} hari icyo agukeneyeho: {question}",
     "moved": "ubusabe bwawe bugeze ku ntambwe: {stage}.",
     "completed": "ubusabe bwawe bwarangiye. Reba muri konti yawe.",
-    "submitted": "bwoherejwe binyuze kuri {channel}. Nomero mu rwego rwa leta: {officialRef}.",
+    "submitted": "bwoherejwe ({channel}). Nomero mu rwego rwa leta: {officialRef}.",
     "fees": "amafaranga yemejwe: {officialText} + amafaranga yacu {ours}. Yemeze kandi wishyure muri konti yawe.",
     "taken": "{agent} ni we ukurikirana ubusabe bwawe {ref}. Reba aho bugeze muri konti yawe.",
     "declined": "ubusabe bwawe {ref} bwanzwe: {reason}",

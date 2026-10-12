@@ -10,7 +10,7 @@ import en from "./en.json";
 import legacyRw from "./legacy-rw.json";
 import type { Locale } from "./locale";
 import { fill, messages, text } from "./messages";
-import { channelName, displayDocName, serviceName } from "./present";
+import { channelName, displayDocName, methodName, serviceName } from "./present";
 
 type Stored = typeof en.stored;
 /** Every stored message, checked when the code is compiled: "group.name". */
@@ -40,7 +40,7 @@ const statusLabel = (locale: Locale, label: string) => {
 /**
  * The values as this reader should see them. By convention a value named `service` is a catalogue
  * service name (with `serviceSlug`), `doc` a checklist document name, `stage` a stage label and
- * `channel` an official channel; those are translated. `officialMode` ("none", "direct" or "amount",
+ * `channel` an official channel and `method` a payment method; those are translated. `officialMode` ("none", "direct" or "amount",
  * with `official`) becomes `officialText`, the official-fee phrase. Everything else (amounts,
  * references, names, someone's own words) is shown as stored.
  */
@@ -56,6 +56,7 @@ function localVars(locale: Locale, vars: MsgVars | undefined): MsgVars {
   if (typeof vars.doc === "string") out.doc = displayDocName(vars.doc, locale);
   if (typeof vars.stage === "string") out.stage = statusLabel(locale, vars.stage);
   if (typeof vars.channel === "string") out.channel = channelName(vars.channel, locale);
+  if (typeof vars.method === "string") out.method = methodName(vars.method, locale);
   return out;
 }
 

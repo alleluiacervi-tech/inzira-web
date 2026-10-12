@@ -11,7 +11,8 @@ import { readFile } from "@/lib/storage";
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const session = await getSession();
-  const locale = await getLocale();
+  // Staff read the console in English; everyone else in the language they last picked.
+  const locale = session?.kind === "staff" ? "en" : await getLocale();
   const say = (key: "signIn" | "notFound" | "gone", status: number) => new Response(text(locale, `fileRoute.${key}`), { status, headers: { "Content-Type": "text/plain; charset=utf-8" } });
   if (!session) return say("signIn", 401);
   const d = await db();

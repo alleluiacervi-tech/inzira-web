@@ -3,10 +3,20 @@ import { getSession } from "@/lib/auth";
 import { db, schema as s } from "@/lib/db";
 import { asLocale, rememberLocale } from "@/lib/i18n/locale";
 
-/** Only a path on this site, never another site ("//evil.example", "/\evil.example"). */
+/**
+ * Only a path on this site, never another site. Browsers drop tabs and newlines from a Location
+ * before resolving it ("/\t/evil.example" becomes "//evil.example"), so control characters are
+ * refused and the path is rebuilt from what the URL parser makes of it.
+ */
 function backTo(value: unknown): string {
-  const path = typeof value === "string" ? value : "";
-  return path.startsWith("/") && !path.startsWith("//") && !path.startsWith("/\\") ? path : "/";
+  const raw = typeof value === "string" ? value : "";
+  if (!raw.startsWith("/") || /[\u0000-\u001f\u007f\\]/.test(raw)) return "/";
+  try {
+    const url = new URL(raw, "http://local.invalid");
+    return url.origin === "http://local.invalid" ? url.pathname + url.search + url.hash : "/";
+  } catch {
+    return "/";
+  }
 }
 
 /**

@@ -29,7 +29,7 @@
  "Will be added from INZ-2026-04802": "Izongerwamo ivuye muri INZ-2026-04802",
  "Optional — helps us set up your products": "Si ngombwa — idufasha gutunganya ibicuruzwa byawe",
  "Completed": "Byarangiye",
- "Both declarations were filed with RRA. You paid the property tax directly to RRA.": "Imenyekanisha ryombi ryoherejwe muri RRA. Umusoro ku mutungo wawishyuye muri RRA ubwawe.",
+ "Both declarations were filed with RRA. You paid the property tax directly to RRA.": "Amamenyekanisha yombi yoherejwe muri RRA. Umusoro ku mutungo wawishyuye muri RRA ubwawe.",
  "Filed 1 Sep.": "Byoherejwe ku wa 1 Nzeri.",
  "Filing confirmations delivered": "Ibyemeza imenyekanisha byatanzwe",
  "Filed with RRA": "Byoherejwe muri RRA",
@@ -38,7 +38,7 @@
  "Certificate delivered": "Icyemezo cyatanzwe",
  "Submitted to RRA": "Bwoherejwe muri RRA",
  "We’ve received your request": "Twakiriye ubusabe bwawe",
- "Patrick will check your documents within 2 working hours and confirm the official fees before you pay anything.": "Patrick arasuzuma inyandiko zawe mu masaha 2 y'akazi kandi akwemeze amafaranga y'urwego mbere y'uko wishyura ikintu na kimwe.",
+ "Patrick will check your documents within 2 working hours and confirm the official fees before you pay anything.": "Patrick arasuzuma inyandiko zawe mu masaha 2 y'akazi, kandi akumenyeshe amafaranga y'urwego yemejwe mbere y'uko wishyura ikintu na kimwe.",
  "An agent checks your documents within 2 working hours.": "Umukozi asuzuma inyandiko zawe mu masaha 2 y'akazi.",
  "Eric is checking your documents": "Eric arimo gusuzuma inyandiko zawe",
  "We received your product and price list this morning. Eric will confirm it and then request the EBM.": "Twakiriye urutonde rw'ibicuruzwa byawe n'ibiciro mu gitondo. Eric arabyemeza hanyuma asabe EBM.",
@@ -48,7 +48,7 @@
  "RWF 20,000": "RWF 20,000",
  "Document check started": "Gusuzuma inyandiko byatangiye",
  "Preparing your September declarations": "Turimo gutegura imenyekanisha ryawe rya Nzeri",
- "Eric files before the 15th and tells you each amount to pay RRA.": "Eric aramenyekanisha mbere y'itariki 15 kandi akubwire buri mafaranga ugomba kwishyura RRA.",
+ "Eric files before the 15th and tells you each amount to pay RRA.": "Eric aramenyekanisha mbere y'itariki 15 kandi akubwire amafaranga ugomba kwishyura RRA kuri buri musoro.",
  "Send your September payroll by 10 Oct.": "Ohereza urutonde rw'imishahara ya Nzeri bitarenze ku wa 10 Ukwakira.",
  "We need your September payroll": "Dukeneye urutonde rw'imishahara yawe ya Nzeri",
  "We have your sales records. Please send the September payroll (names, salaries and allowances) by 10 October so we can file PAYE before the 15th.": "Twabonye inyandiko z'ibyo wagurishije. Nyabuneka ohereza urutonde rw'imishahara ya Nzeri (amazina, imishahara n'ibindi bigenerwa abakozi) bitarenze ku wa 10 Ukwakira kugira ngo tumenyekanishe PAYE mbere y'itariki 15.",
@@ -98,5 +98,8 @@
  "Payment received — RWF 2,000 assistance fee for your e-title. The Irembo fee is paid on Irembo.": "Ubwishyu bwakiriwe — RWF 2,000 y'amafaranga ya Inzira yo gufasha kuri e-title yawe. Amafaranga ya Irembo yishyurirwa kuri Irembo.",
  "Next for Umucyo Tech Ltd: a trading licence": "Igikurikiraho kuri Umucyo Tech Ltd: ipatanti",
  "Most new businesses also need to register for the trading licence tax. We can do it as soon as the company is registered.": "Ubucuruzi bushya bwinshi bukenera no kwiyandikisha ku musoro w'ipatanti. Twabikora sosiyete ikimara kwandikwa.",
- "Register the trading licence": "Iyandikishe ku ipatanti"
+ "Register the trading licence": "Iyandikishe ku ipatanti",
+ "Walk-in": "Yaje ku biro",
+ "Phone call": "Yahamagaye kuri telefoni",
+ "Referred by a customer": "Yoherejwe n'undi mukiriya"
 }

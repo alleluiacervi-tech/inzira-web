@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Icon, PageHead, RequestRow } from "@/components/ui";
 import { text } from "@/lib/i18n/messages";
+import { requestTitle } from "@/lib/i18n/present";
 import { getPortalLocale, listMyRequests } from "@/lib/repo";
 import { isOpen } from "@/lib/status";
 
@@ -14,7 +15,7 @@ export default async function RequestsPage({ searchParams }: { searchParams: Pro
   const [sp, all] = await Promise.all([searchParams, listMyRequests()]);
   const q = (sp.q ?? "").trim();
   const term = q.toLowerCase();
-  const requests = term ? all.filter((r) => [r.ref, r.name, r.service.name, r.profile.name, r.officialRef].join(" ").toLowerCase().includes(term)) : all;
+  const requests = term ? all.filter((r) => [r.ref, r.name, requestTitle(r.name, r.service, locale), r.service.name, r.profile.name, r.officialRef].join(" ").toLowerCase().includes(term)) : all;
   const groups: [string, typeof requests][] = [
     [t("portal.needsAction"), requests.filter((r) => isOpen(r) && r.hold)],
     [t("portal.inProgress"), requests.filter((r) => isOpen(r) && !r.hold)],

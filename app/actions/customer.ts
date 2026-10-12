@@ -111,10 +111,12 @@ export async function submitRequest(fd: FormData): Promise<Result<{ ref: string 
     const received = msg("nt.received", { service: service.name, serviceSlug: service.slug, ref });
     await tx.insert(s.notifications).values({ accountId: account.id, icon: "check", title: english(received), key: received.key, vars: received.vars, href: `/portal/requests/${ref}` });
     await audit(tx, { actor: account.name, role: "Customer", action: "Opened request", entity: `${ref} · ${service.name}` });
-    return { ref, accountId: account.id };
+    return { ref, accountId: account.id, locale: asLocale(account.locale) };
   });
 
   await startSession("customer", result.accountId);
+  // A returning customer's account may be in the other language; the whole site follows it, as on sign-in.
+  await rememberLocale(result.locale);
   revalidatePath("/", "layout");
   return { ok: true, ref: result.ref };
 }

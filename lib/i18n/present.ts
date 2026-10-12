@@ -170,6 +170,13 @@ export function channelName(channel: string, locale: Locale) {
   return locale === "rw" ? channels.get(channel) || channel : channel;
 }
 
+/** A payment method in this language; brand names (MTN MoMo, Airtel Money) stay as they are. */
+export function methodName(method: string, locale: Locale) {
+  const path = `pay.methods.${method}`;
+  const name = text(locale, path);
+  return name === path ? method : name;
+}
+
 export function requestChannel(channel: string, service: Service, locale: Locale) {
   if (locale === "rw" && channel === service.channel) return RW.services[service.slug]?.channel || channel;
   return channel;

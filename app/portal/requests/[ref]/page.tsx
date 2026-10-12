@@ -4,7 +4,7 @@ import { DocBadge, DocCard, Icon, RequestBadge, StageTimeline, TimelineV } from 
 import { CancelRequest, Messages, PaymentPanel } from "@/components/RequestSide";
 import { fmtDate, fmtDay, fmtWhen, initials, shortName } from "@/lib/format";
 import { text } from "@/lib/i18n/messages";
-import { displayDocName, requestChannel, requestTitle, teamName } from "@/lib/i18n/present";
+import { channelName, displayDocName, requestChannel, requestTitle, teamName } from "@/lib/i18n/present";
 import { getMyRequest, getNow, getPortalLocale } from "@/lib/repo";
 import { whatsappUrl } from "@/lib/site";
 
@@ -73,7 +73,7 @@ export default async function RequestPage({ params }: { params: Promise<{ ref: s
                   ))}
                 </div>
                 <div className="stack g10"><span className="eb" style={{ fontSize: 11 }}>{t("request.completed")}</span>
-                  {r.deliverables.map((d) => <DocCard key={d.id} compact name={displayDocName(d.name, locale)} meta={t("request.issued", { who: d.issuedBy, date: fmtDay(d.issuedAt, locale) })} badge={<DocBadge s="issued" />} action={d.fileId ? <a className="btn btn-s btn-sm" href={`/files/${d.fileId}`} target="_blank" rel="noopener" aria-label={t("portal.download", { name: displayDocName(d.name, locale) })}><Icon name="download" size={16} /> {t("request.download")}</a> : <span className="hint">{t("request.askCopy")}</span>} />)}
+                  {r.deliverables.map((d) => <DocCard key={d.id} compact name={displayDocName(d.name, locale)} meta={t("request.issued", { who: channelName(d.issuedBy, locale), date: fmtDay(d.issuedAt, locale) })} badge={<DocBadge s="issued" />} action={d.fileId ? <a className="btn btn-s btn-sm" href={`/files/${d.fileId}`} target="_blank" rel="noopener" aria-label={t("portal.download", { name: displayDocName(d.name, locale) })}><Icon name="download" size={16} /> {t("request.download")}</a> : <span className="hint">{t("request.askCopy")}</span>} />)}
                   {r.stage !== "completed" && !r.closed && <div className="row g12 mut" style={{ padding: "14px 16px", border: "1px dashed var(--line-3)", borderRadius: 8 }}><Icon name="clock" size={18} /><span style={{ fontSize: 14 }}>{t("request.final")}</span></div>}
                 </div>
               </div>

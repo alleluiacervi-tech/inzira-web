@@ -37,9 +37,11 @@ export async function issueCode(phoneInput: string, locale: Locale = "rw"): Prom
   const row = { phone, codeHash: sha(`${phone}:${code}`), expiresAt: new Date(Date.now() + CODE_TTL).toISOString(), attempts: 0, sentAt: new Date().toISOString() };
   await d.insert(s.otpCodes).values(row).onConflictDoUpdate({ target: s.otpCodes.phone, set: row });
   try {
-    // A customer gets it in their account's language; anyone else in the language of the page they asked from.
-    const [account] = await d.select({ locale: s.accounts.locale }).from(s.accounts).where(eq(s.accounts.phone, phone));
-    await sendSms(phone, smsText(account?.locale ?? locale, sms("code", { code })));
+    // Staff get it in English, like all their SMS (staff sign-in wins when a number is both); a customer
+    // in their account's language; anyone else in the language of the page they asked from.
+    const [staff] = await d.select({ id: s.staff.id }).from(s.staff).where(and(eq(s.staff.phone, phone), eq(s.staff.active, true)));
+    const [account] = staff ? [] : await d.select({ locale: s.accounts.locale }).from(s.accounts).where(eq(s.accounts.phone, phone));
+    await sendSms(phone, smsText(staff ? "en" : account?.locale ?? locale, sms("code", { code })));
   } catch (e) {
     console.error(e);
     await d.delete(s.otpCodes).where(eq(s.otpCodes.phone, phone));

@@ -580,7 +580,14 @@
     "send": "Send message",
     "notSaved": "Not saved. Check your connection and try again.",
     "cancelling": "Cancelling…",
-    "cancel": "Cancel request"
+    "cancel": "Cancel request",
+    "methods": {
+      "MTN MoMo": "MTN MoMo",
+      "Airtel Money": "Airtel Money",
+      "Bank transfer": "Bank transfer",
+      "Card": "Card",
+      "Cash": "Cash"
+    }
   },
   "docs": {
     "filter": "Filter by status",
