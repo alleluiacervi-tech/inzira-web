@@ -54,10 +54,18 @@ export type Service = {
 };
 
 export type { Permission } from "./permissions";
+import type { Locale } from "./i18n/locale";
+
+/** A sentence kept as a message key and its values (lib/i18n/stored.ts), so each reader sees it in
+ *  their own language. Rows keep the English sentence as well, for anything that reads them raw. */
+export type MsgVars = Record<string, string | number>;
+export type Msg = { key: string; vars?: MsgVars };
 
 // ---------------- people ----------------
 /** An account is one login (a phone number). It can hold several profiles. */
-export type Account = { id: string; name: string; first: string; phone: string; whatsapp: boolean; languages: string[]; since: string };
+export type Account = { id: string; name: string; first: string; phone: string; whatsapp: boolean; languages: string[]; since: string;
+  /** The language of their portal and of every SMS we send them. */
+  locale: Locale };
 /** Who a request is for: the account holder, a family member, or a business they act for. */
 export type Profile = {
   id: string; accountId: string; kind: "person" | "business" | "organization"; name: string;
@@ -81,9 +89,11 @@ export type Hold = {
   since: string;
   /** True when the institution sent the application back. */
   returned?: boolean;
+  /** title (and detail, unless the detail is someone's own words) as a message. */
+  msg?: Msg;
 };
-/** How a request ended when it did not complete. */
-export type Closed = { kind: "cancelled" | "rejected"; at: string; reason: string };
+/** How a request ended when it did not complete. `msg` is set when the reason is ours, not typed by staff. */
+export type Closed = { kind: "cancelled" | "rejected"; at: string; reason: string; msg?: Msg };
 /** The minimum needed to show where a request is: enough for a badge and the timeline. */
 export type Progress = {
   stage: Stage; stageDates: Partial<Record<Stage, string>>; hold?: { returned?: boolean }; closed?: { kind: Closed["kind"]; at: string };
@@ -145,8 +155,9 @@ export type Request = {
   dependsOn?: string;
   /** The reason the customer picked when starting, e.g. "Add a spouse after marriage". */
   purpose?: string;
-  /** What the customer reads at the top of the request when nothing is blocking it. */
-  summary: { title: string; body: string };
+  /** What the customer reads at the top of the request when nothing is blocking it. With `msg`, the
+   *  message also gives `next`. */
+  summary: { title: string; body: string; msg?: Msg };
   /** One line for lists: what happens next and who does it. */
   next: string;
   billing: Billing;

@@ -4,6 +4,7 @@ import { and, eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { getStaffUser, normalisePhone } from "@/lib/auth";
 import { rwf } from "@/lib/format";
+import { msg, sms } from "@/lib/i18n/stored";
 import { audit, db, event, fail, notify, s, type Result } from "@/lib/mutate";
 import { PERMISSIONS, ROLES, type Permission } from "@/lib/permissions";
 import { SITE } from "@/lib/site";
@@ -77,8 +78,8 @@ export async function refund(ref: string): Promise<Result> {
   if (!ours) return fail("Nothing to refund on this request.");
   await d.transaction(async (tx) => {
     for (const t of paid) await tx.update(s.transactions).set({ status: "refunded" }).where(eq(s.transactions.id, t.id));
-    await event(tx, ref, "Assistance fee refunded", me.id, rwf(ours));
-    await notify(tx, ref, { icon: "refresh", title: `Refund of ${rwf(ours)} issued for ${ref}`, sms: `we refunded ${rwf(ours)} to the number you paid from.` });
+    await event(tx, ref, msg("ev.refunded", { amount: rwf(ours) }), me.id);
+    await notify(tx, ref, { icon: "refresh", title: msg("nt.refund", { amount: rwf(ours), ref }), sms: sms("refund", { amount: rwf(ours) }) });
     await audit(tx, { actor: me.name, role: me.role, action: "Issued refund", entity: `${ref} · ${rwf(ours)} ours`, fee: true });
   });
   // The money itself is returned through the payment provider's dashboard until refunds are automated.

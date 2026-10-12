@@ -42,8 +42,8 @@ export function fmtAgo(iso: string, now: string, lang: Lang = "en") {
   const min = Math.round((Date.parse(now) - Date.parse(iso)) / 60e3);
   if (lang === "rw") {
     if (min < 1) return "Ubu";
-    if (min < 60) return `iminota ${min} ishize`;
-    if (min < 180) return `isaha ${Math.floor(min / 60)} ishize`;
+    if (min < 60) return min === 1 ? "hashize umunota 1" : `hashize iminota ${min}`;
+    if (min < 180) return min < 120 ? "hashize isaha 1" : `hashize amasaha ${Math.floor(min / 60)}`;
     const r = rel(iso, now, lang);
     return r === "Uyu munsi" ? `Uyu munsi ${fmtTime(iso)}` : r ?? fmtDay(iso, lang);
   }

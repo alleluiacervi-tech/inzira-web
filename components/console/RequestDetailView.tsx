@@ -344,6 +344,7 @@ export function RequestDetailView({
                 {c.profile.name !== c.account.name && <div className="row between"><span style={{ color: "var(--c-text-muted)" }}>Contact:</span><span>{c.account.name}</span></div>}
                 <div className="row between"><span style={{ color: "var(--c-text-muted)" }}>Phone:</span><strong>{c.account.phone}</strong></div>
                 <div className="row between"><span style={{ color: "var(--c-text-muted)" }}>WhatsApp:</span><span>{c.account.whatsapp ? "Same number · opted in" : "Not opted in"}</span></div>
+                <div className="row between"><span style={{ color: "var(--c-text-muted)" }}>SMS and portal in:</span><span>{c.account.locale === "en" ? "English" : "Kinyarwanda"}</span></div>
                 {c.account.languages.length > 0 && <div className="row between"><span style={{ color: "var(--c-text-muted)" }}>Language:</span><span>{c.account.languages.join(", ")}</span></div>}
                 {c.profile.district && <div className="row between"><span style={{ color: "var(--c-text-muted)" }}>District:</span><span>{c.profile.district}</span></div>}
                 {c.profile.idMasked && <div className="row between"><span style={{ color: "var(--c-text-muted)" }}>National ID:</span><span className="tabular-nums">{c.profile.idMasked}</span></div>}

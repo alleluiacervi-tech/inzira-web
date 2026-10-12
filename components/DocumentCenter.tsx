@@ -13,8 +13,13 @@ const GROUP_ICON: Record<string, string> = { Identification: "c-id", "Business d
 const TABS: ("all" | LibraryDoc["status"])[] = ["all", "required", "received", "rejected", "approved", "issued"];
 const MAX = 10 * 1024 * 1024;
 
-export default function DocumentCenter({ initial: docs }: { initial: LibraryDoc[] }) {
+export default function DocumentCenter({ initial }: { initial: LibraryDoc[] }) {
   const { locale, t: tr } = useI18n();
+  // The list comes back with each upload: the page Next re-renders after the action was often never
+  // shown, leaving the old status on screen. A newer list from the server still replaces it.
+  const [docs, setDocs] = useState(initial);
+  const [fromServer, setFromServer] = useState(initial);
+  if (initial !== fromServer) { setFromServer(initial); setDocs(initial); }
   const groupName = (g: string) => {
     const next = text(locale, `groups.${g}`);
     return next === `groups.${g}` ? g : next;
@@ -42,6 +47,7 @@ export default function DocumentCenter({ initial: docs }: { initial: LibraryDoc[
     const r = await uploadDocument(fd).catch(() => ({ ok: false as const, error: tr("docs.fail") }));
     setBusy(null);
     if (!r.ok) { setError(trError(locale, r.error)); return; }
+    setDocs(r.docs);
     setDone(f.name);
   };
 

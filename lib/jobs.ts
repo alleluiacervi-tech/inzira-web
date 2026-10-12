@@ -6,6 +6,7 @@ import { sendSms } from "./sms";
 import { reconcileStalePayments } from "./billing";
 import { db, iso, schema as s } from "./db";
 import { rwf } from "./format";
+import { english, msg, sms } from "./i18n/stored";
 import { event, notify } from "./mutate";
 import { amountDue } from "./status";
 
@@ -24,9 +25,11 @@ export async function holdOverduePayments() {
     });
     if (due <= 0 || txs.some((t) => t.status === "pending")) continue;
     await d.transaction(async (tx) => {
-      await tx.update(s.requests).set({ hold: { reason: "payment", title: `Payment of ${rwf(due)} is overdue`, detail: "Everything else is ready. We carry on as soon as it is paid.", since: now } }).where(eq(s.requests.ref, r.ref));
-      await event(tx, r.ref, "Payment reminder sent", "system", `${rwf(due)} overdue`);
-      await notify(tx, r.ref, { icon: "card", title: `Payment of ${rwf(due)} is overdue for ${r.ref}`, sms: `payment of ${rwf(due)} is overdue. Pay in your portal and we carry on straight away.` });
+      const amount = rwf(due);
+      const holdMsg = msg("hold.overdue", { amount });
+      await tx.update(s.requests).set({ hold: { reason: "payment", title: english(holdMsg, "title"), detail: english(holdMsg, "detail"), since: now, msg: holdMsg } }).where(eq(s.requests.ref, r.ref));
+      await event(tx, r.ref, msg("ev.paymentReminder", { amount }), "system");
+      await notify(tx, r.ref, { icon: "card", title: msg("nt.overdue", { amount, ref: r.ref }), sms: sms("overdue", { amount }) });
     });
     held++;
   }

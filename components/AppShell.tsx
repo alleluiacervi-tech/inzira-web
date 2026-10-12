@@ -5,6 +5,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { signOut } from "@/app/actions/auth";
 import { whatsappUrl } from "@/lib/site";
 import { useI18n } from "./I18n";
+import { LanguageSwitch } from "./LanguageSwitch";
 import { Icon, Logo } from "./ui";
 import { useDialog } from "./useDialog";
 
@@ -31,7 +32,7 @@ function Sidebar({ path, who }: { path: string; who: Who }) {
   return (
     <aside className="side side-light">
       <div className="stack g10" style={{ padding: "0 8px" }}>
-        <Logo />
+        <Logo label={t("shell.logo")} />
       </div>
       <Link className="btn btn-brand btn-block" href="/services"><Icon name="plus" size={18} /> {t("shell.start")}</Link>
       <nav aria-label={n.label} className="stack" style={{ gap: 2 }}>
@@ -52,7 +53,9 @@ function Sidebar({ path, who }: { path: string; who: Who }) {
             <span style={{ fontSize: 12.5, color: "var(--muted)" }}>{who.sub}</span>
           </div>
         </div>
-        <div className="row g6 wrapx" style={{ padding: "0 8px", fontSize: 12.5 }}>
+        <div className="row g6 wrapx" style={{ padding: "0 8px", fontSize: 12.5, alignItems: "center" }}>
+          {/* Changes the portal and every SMS we send them. */}
+          <LanguageSwitch />
           <form action={signOut} style={{ marginLeft: "auto" }}><button type="submit" className="linkish" style={{ color: "var(--muted)", fontWeight: 500 }}>{t("shell.signOut")}</button></form>
         </div>
       </div>
@@ -72,7 +75,7 @@ export default function AppShell({ who, unread = 0, children }: { who: Who; unre
       <Sidebar path={path} who={who} />
       <div className="main">
         <header className="mobtop">
-          <Logo />
+          <Logo label={t("shell.logo")} />
           <div className="row g4">
             <Link className="btn btn-g btn-ico" href="/portal#notifications" aria-label={unread ? t("shell.unread", { n: unread }) : t("shell.notifications")} style={{ position: "relative" }}>
               <Icon name="bell" size={22} />{unread > 0 && <span style={{ position: "absolute", top: 10, right: 11, width: 8, height: 8, borderRadius: "50%", background: "var(--ember)" }} />}

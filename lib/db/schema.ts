@@ -2,7 +2,8 @@
 // Change this file, then run `npm run db:generate` to write a migration into ./drizzle.
 import { sql } from "drizzle-orm";
 import { boolean, index, integer, jsonb, pgTable, primaryKey, serial, text, timestamp } from "drizzle-orm/pg-core";
-import type { Closed, DocGroup, DocStatus, Hold, OfficialMode, Service, Stage, StaffRole } from "../types";
+import type { Locale } from "../i18n/locale";
+import type { Closed, DocGroup, DocStatus, Hold, MsgVars, OfficialMode, Request, Service, Stage, StaffRole } from "../types";
 
 const ts = (name: string) => timestamp(name, { withTimezone: true, mode: "string" });
 
@@ -64,6 +65,8 @@ export const accounts = pgTable("accounts", {
   since: ts("since").notNull().defaultNow(),
   /** Set when the customer deleted their account. Personal details are then wiped; financial records stay. */
   deletedAt: ts("deleted_at"),
+  /** Language of their portal and SMS. */
+  locale: text("locale").$type<Locale>().notNull().default("rw"),
 });
 
 export const profiles = pgTable("profiles", {
@@ -112,7 +115,7 @@ export const requests = pgTable("requests", {
   channel: text("channel").notNull(),
   officialRef: text("official_ref"),
   dependsOn: text("depends_on"),
-  summary: jsonb("summary").$type<{ title: string; body: string }>().notNull(),
+  summary: jsonb("summary").$type<Request["summary"]>().notNull(),
   next: text("next").notNull(),
   purpose: text("purpose"),
   followUp: jsonb("follow_up").$type<{ at: string; what: string }>(),
@@ -178,10 +181,13 @@ export const events = pgTable("events", {
   id: serial("id").primaryKey(),
   ref: text("ref").notNull().references(() => requests.ref),
   at: ts("at").notNull().defaultNow(),
+  /** English. With `key`, the title (and the body, if the message has one) is shown in the reader's language. */
   title: text("title").notNull(),
   /** "customer", "system" or a staff id. */
   by: text("by"),
   body: text("body"),
+  key: text("key"),
+  vars: jsonb("vars").$type<MsgVars>(),
 }, (t) => [index("events_ref_idx").on(t.ref)]);
 
 export const transactions = pgTable("transactions", {
@@ -214,7 +220,10 @@ export const notifications = pgTable("notifications", {
   id: serial("id").primaryKey(),
   accountId: text("account_id").notNull().references(() => accounts.id),
   icon: text("icon").notNull(),
+  /** English. With `key`, shown in the customer's language. */
   title: text("title").notNull(),
+  key: text("key"),
+  vars: jsonb("vars").$type<MsgVars>(),
   at: ts("at").notNull().defaultNow(),
   unread: boolean("unread").notNull().default(true),
   href: text("href").notNull(),

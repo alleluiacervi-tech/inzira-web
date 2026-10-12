@@ -4,6 +4,7 @@
 import { and, eq, lt } from "drizzle-orm";
 import { db, iso, schema as s } from "./db";
 import { rwf } from "./format";
+import { msg, sms } from "./i18n/stored";
 import { audit, event, notify } from "./mutate";
 import { PROMPT_TTL_MS, providerStatus, type PayStatus } from "./payments";
 
@@ -31,17 +32,14 @@ export async function reconcilePayment(txId: number): Promise<PayStatus | null> 
       .where(and(eq(s.transactions.id, txId), eq(s.transactions.status, "pending"))).returning();
     if (!updated) return; // someone else settled it first
     if (status !== "paid") {
-      await event(tx, t.ref, "Payment not completed", "system", `${rwf(t.official + t.ours)} prompt declined or expired`);
+      await event(tx, t.ref, msg("ev.paymentFailed", { amount: rwf(t.official + t.ours) }), "system");
       return;
     }
     const [r] = await tx.select().from(s.requests).where(eq(s.requests.ref, t.ref));
     if (r.hold?.reason === "payment") await tx.update(s.requests).set({ hold: null }).where(eq(s.requests.ref, t.ref));
-    await event(tx, t.ref, "Payment received", "system", rwf(t.official + t.ours));
-    await notify(tx, t.ref, {
-      icon: "check",
-      title: `Payment received — ${rwf(t.official + t.ours)}${t.official ? ` (${rwf(t.official)} official + ${rwf(t.ours)} ours)` : ""}`,
-      sms: `we received ${rwf(t.official + t.ours)}. Receipt ${t.receipt}.`,
-    });
+    const paid = { total: rwf(t.official + t.ours), official: rwf(t.official), ours: rwf(t.ours), receipt: t.receipt };
+    await event(tx, t.ref, msg("ev.paymentReceived", { amount: paid.total }), "system");
+    await notify(tx, t.ref, { icon: "check", title: msg(t.official ? "nt.paymentReceivedSplit" : "nt.paymentReceived", paid), sms: sms("paymentReceived", paid) });
     await audit(tx, { actor: "System", role: "—", action: "Payment reconciled", entity: `${t.receipt} · ${rwf(t.official)} official + ${rwf(t.ours)} ours · ${t.method}`, fee: true });
   });
   return status;

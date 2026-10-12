@@ -7,6 +7,8 @@ import { redirect } from "next/navigation";
 import { cache } from "react";
 import { db, iso, schema as s } from "./db";
 import type { Permission } from "./permissions";
+import type { Locale } from "./i18n/locale";
+import { sms, smsText } from "./i18n/stored";
 import { sendsRealSms, sendSms } from "./sms";
 import type { Staff } from "./types";
 
@@ -24,7 +26,8 @@ export const normalisePhone = (v: string) => {
 };
 
 // ---------------- codes ----------------
-export async function issueCode(phoneInput: string): Promise<{ ok: true; demoCode?: string } | { ok: false; error: string }> {
+/** Texts a sign-in code: in the account's language for a customer, else in `locale`, the page's. */
+export async function issueCode(phoneInput: string, locale: Locale = "rw"): Promise<{ ok: true; demoCode?: string } | { ok: false; error: string }> {
   const phone = normalisePhone(phoneInput);
   if (!phone) return { ok: false, error: "Enter a Rwandan mobile number, e.g. 788 123 456." };
   const d = await db();
@@ -34,7 +37,11 @@ export async function issueCode(phoneInput: string): Promise<{ ok: true; demoCod
   const row = { phone, codeHash: sha(`${phone}:${code}`), expiresAt: new Date(Date.now() + CODE_TTL).toISOString(), attempts: 0, sentAt: new Date().toISOString() };
   await d.insert(s.otpCodes).values(row).onConflictDoUpdate({ target: s.otpCodes.phone, set: row });
   try {
-    await sendSms(phone, `Inzira: your code is ${code}. It expires in 10 minutes. Never share it.`);
+    // Staff get it in English, like all their SMS (staff sign-in wins when a number is both); a customer
+    // in their account's language; anyone else in the language of the page they asked from.
+    const [staff] = await d.select({ id: s.staff.id }).from(s.staff).where(and(eq(s.staff.phone, phone), eq(s.staff.active, true)));
+    const [account] = staff ? [] : await d.select({ locale: s.accounts.locale }).from(s.accounts).where(eq(s.accounts.phone, phone));
+    await sendSms(phone, smsText(staff ? "en" : account?.locale ?? locale, sms("code", { code })));
   } catch (e) {
     console.error(e);
     await d.delete(s.otpCodes).where(eq(s.otpCodes.phone, phone));

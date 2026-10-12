@@ -27,7 +27,7 @@ export default function PublicNav() {
     <>
       <header className="pubnav wrap">
         <div className="row" style={{ gap: 48 }}>
-          <Logo />
+          <Logo label={t("shell.logo")} />
           <nav aria-label={t("nav.main")} className="pubnav-links">
             {links.map((l) => (
               <Link key={l.href} className="pub" href={l.href} aria-current={(l.href === "/services" || l.href === "/track") && path.startsWith(l.href) ? "page" : undefined}>{l.label}</Link>
@@ -51,7 +51,7 @@ export default function PublicNav() {
       {open && (
         <div ref={dialog} className="mobmenu" role="dialog" aria-modal="true" aria-label={t("nav.menu")}>
           <div className="row between" style={{ height: 60, padding: "0 16px", borderBottom: "1px solid var(--line)" }}>
-            <Logo />
+            <Logo label={t("shell.logo")} />
             <button className="btn btn-g btn-ico" type="button" aria-label={t("nav.closeMenu")} onClick={() => setOpen(false)}><Icon name="x" size={22} /></button>
           </div>
           <nav aria-label={t("nav.mobile")} className="stack" style={{ padding: "8px 16px" }}>

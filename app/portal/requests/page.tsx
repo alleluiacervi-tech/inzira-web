@@ -1,21 +1,21 @@
 import Link from "next/link";
 import { Icon, PageHead, RequestRow } from "@/components/ui";
-import { DASHBOARD_LOCALE } from "@/lib/i18n/locale";
 import { text } from "@/lib/i18n/messages";
-import { listMyRequests } from "@/lib/repo";
+import { requestTitle } from "@/lib/i18n/present";
+import { getPortalLocale, listMyRequests } from "@/lib/repo";
 import { isOpen } from "@/lib/status";
 
 export async function generateMetadata() {
-  return { title: text(DASHBOARD_LOCALE, "meta.requestsTitle") };
+  return { title: text(await getPortalLocale(), "meta.requestsTitle") };
 }
 
 export default async function RequestsPage({ searchParams }: { searchParams: Promise<{ q?: string }> }) {
-  const locale = DASHBOARD_LOCALE;
+  const locale = await getPortalLocale();
   const t = (path: string, vars?: Record<string, string | number>) => text(locale, path, vars);
   const [sp, all] = await Promise.all([searchParams, listMyRequests()]);
   const q = (sp.q ?? "").trim();
   const term = q.toLowerCase();
-  const requests = term ? all.filter((r) => [r.ref, r.name, r.service.name, r.profile.name, r.officialRef].join(" ").toLowerCase().includes(term)) : all;
+  const requests = term ? all.filter((r) => [r.ref, r.name, requestTitle(r.name, r.service, locale), r.service.name, r.profile.name, r.officialRef].join(" ").toLowerCase().includes(term)) : all;
   const groups: [string, typeof requests][] = [
     [t("portal.needsAction"), requests.filter((r) => isOpen(r) && r.hold)],
     [t("portal.inProgress"), requests.filter((r) => isOpen(r) && !r.hold)],

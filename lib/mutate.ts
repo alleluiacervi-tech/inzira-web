@@ -3,7 +3,9 @@
 import { eq, sql } from "drizzle-orm";
 import { headers } from "next/headers";
 import { db, schema as s, type Db } from "./db";
+import { english, hasPart, smsText } from "./i18n/stored";
 import { sendSms } from "./sms";
+import type { Msg } from "./types";
 
 type Tx = Parameters<Parameters<Db["transaction"]>[0]>[0];
 
@@ -27,18 +29,26 @@ export async function audit(tx: Tx | Db, e: { actor: string; role: string; actio
   await tx.insert(s.audit).values({ ...e, fee: !!e.fee, source: await source() });
 }
 
-export async function event(tx: Tx | Db, ref: string, title: string, by: string, body?: string) {
-  await tx.insert(s.events).values({ ref, title, by, body });
+/** A line on the request's timeline, which the customer sees too. `body` is someone's own words,
+ *  shown as typed; a message with a body part of its own takes no `body`. */
+export async function event(tx: Tx | Db, ref: string, what: Msg, by: string, body?: string) {
+  const ownBody = hasPart(what, "body");
+  if (ownBody && body !== undefined) console.error(`[i18n] ${what.key} has its own body; the text passed was dropped`);
+  await tx.insert(s.events).values({
+    ref, by, key: what.key, vars: what.vars ?? null,
+    title: english(what, "title"), body: ownBody ? english(what, "body") : body,
+  });
 }
 
-/** A notification in the customer's portal, and optionally an SMS. SMS failures never block the action. */
-export async function notify(tx: Tx | Db, ref: string, n: { icon: string; title: string; sms?: string }) {
-  const [row] = await tx.select({ accountId: s.profiles.accountId, phone: s.accounts.phone })
+/** A notification in the customer's portal and, with `sms`, a text message, both in the customer's
+ *  language. SMS failures never block the action. */
+export async function notify(tx: Tx | Db, ref: string, n: { icon: string; title: Msg; sms?: Msg }) {
+  const [row] = await tx.select({ accountId: s.profiles.accountId, phone: s.accounts.phone, locale: s.accounts.locale })
     .from(s.requests).innerJoin(s.profiles, eq(s.profiles.id, s.requests.profileId)).innerJoin(s.accounts, eq(s.accounts.id, s.profiles.accountId))
     .where(eq(s.requests.ref, ref));
   if (!row) return;
-  await tx.insert(s.notifications).values({ accountId: row.accountId, icon: n.icon, title: n.title, href: `/portal/requests/${ref}` });
-  if (n.sms) sendSms(row.phone, `Inzira ${ref}: ${n.sms}`).catch((e) => console.error("[sms]", e));
+  await tx.insert(s.notifications).values({ accountId: row.accountId, icon: n.icon, title: english(n.title), key: n.title.key, vars: n.title.vars ?? null, href: `/portal/requests/${ref}` });
+  if (n.sms) sendSms(row.phone, `Inzira ${ref}: ${smsText(row.locale, n.sms)}`).catch((e) => console.error("[sms]", e));
 }
 
 export type Result<T = object> = ({ ok: true } & T) | { ok: false; error: string };

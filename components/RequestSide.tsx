@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { cancelRequest, checkPayment, sendMessage, startPayment } from "@/app/actions/customer";
 import { billOfficial, fmtDay, fmtWhen, initials, rwf } from "@/lib/format";
 import { trError } from "@/lib/i18n/errors";
-import { feeCaption, phrase, unitLabel } from "@/lib/i18n/present";
+import { feeCaption, methodName, phrase, unitLabel } from "@/lib/i18n/present";
 import { amountDue, paidSplit, payStatus } from "@/lib/status";
 import type { Billing, Message } from "@/lib/types";
 import { useI18n } from "./I18n";
@@ -82,7 +82,7 @@ export function PaymentPanel({ reqRef, billing: b, now, phone }: { reqRef: strin
         <ul className="stack g8" style={{ listStyle: "none", margin: 0, padding: 0 }}>
           {shown.map((tx) => (
             <li key={tx.receipt + tx.at} className="row between g8" style={{ fontSize: 13.5 }}>
-              <span className="mut">{tx.status === "refunded" ? t("pay.refunded") : tx.status === "pending" ? t("pay.waiting") : t("pay.paid")} {rwf(tx.official + tx.ours)} · {fmtDay(tx.at, locale)} · {tx.method}<br /><span className="m">{tx.receipt}</span></span>
+              <span className="mut">{tx.status === "refunded" ? t("pay.refunded") : tx.status === "pending" ? t("pay.waiting") : t("pay.paid")} {rwf(tx.official + tx.ours)} · {fmtDay(tx.at, locale)} · {methodName(tx.method, locale)}<br /><span className="m">{tx.receipt}</span></span>
             </li>
           ))}
         </ul>
@@ -196,7 +196,7 @@ export function CancelRequest({ reqRef }: { reqRef: string }) {
         if (!r.ok) { setError(trError(locale, r.error)); return; }
       }}>
         <p className="hint">{t("side.cancelFree")}</p>
-        <label htmlFor="cx">{t("side.why")} <span className="mut" style={{ fontWeight: 400 }}>{t("form.optional")}</span></label>
+        <label htmlFor="cx">{t("side.why")} <span className="mut" style={{ fontWeight: 400 }}>{t("start.optional")}</span></label>
         <textarea id="cx" className="in" rows={2} value={reason} onChange={(e) => setReason(e.target.value)} placeholder={t("side.ph")} />
         {error && <span className="err-text" role="alert"><Icon name="alert" size={15} /> {error}</span>}
         <button className="btn btn-danger btn-sm" type="submit" disabled={busy} style={{ alignSelf: "flex-start" }}>{busy ? t("pay.cancelling") : t("pay.cancel")}</button>

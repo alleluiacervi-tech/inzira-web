@@ -11,7 +11,7 @@ concurrency:
 
 jobs:
   check:
-    name: Typecheck, build, smoke and flows
+    name: Typecheck, i18n, build, smoke and flows
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -24,6 +24,7 @@ jobs:
 
       - run: npm ci
       - run: npm run typecheck
+      - run: npm run check:i18n
       - run: npm run build
 
       # Demo mode on a fresh embedded database: sign-in codes are shown on screen and payments are
