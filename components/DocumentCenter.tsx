@@ -1,5 +1,4 @@
 "use client";
-import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
 import { uploadDocument } from "@/app/actions/customer";
 import { trError } from "@/lib/i18n/errors";
@@ -14,8 +13,13 @@ const GROUP_ICON: Record<string, string> = { Identification: "c-id", "Business d
 const TABS: ("all" | LibraryDoc["status"])[] = ["all", "required", "received", "rejected", "approved", "issued"];
 const MAX = 10 * 1024 * 1024;
 
-export default function DocumentCenter({ initial: docs }: { initial: LibraryDoc[] }) {
+export default function DocumentCenter({ initial }: { initial: LibraryDoc[] }) {
   const { locale, t: tr } = useI18n();
+  // The list comes back with each upload: the page Next re-renders after the action was often never
+  // shown, leaving the old status on screen. A newer list from the server still replaces it.
+  const [docs, setDocs] = useState(initial);
+  const [fromServer, setFromServer] = useState(initial);
+  if (initial !== fromServer) { setFromServer(initial); setDocs(initial); }
   const groupName = (g: string) => {
     const next = text(locale, `groups.${g}`);
     return next === `groups.${g}` ? g : next;
@@ -28,7 +32,6 @@ export default function DocumentCenter({ initial: docs }: { initial: LibraryDoc[
   const [done, setDone] = useState("");
   const [error, setError] = useState("");
   const [drag, setDrag] = useState(false);
-  const router = useRouter();
   const panel = useRef<HTMLDivElement>(null);
   const t = docs.find((d) => d.key === target) ?? null;
 
@@ -44,9 +47,8 @@ export default function DocumentCenter({ initial: docs }: { initial: LibraryDoc[
     const r = await uploadDocument(fd).catch(() => ({ ok: false as const, error: tr("docs.fail") }));
     setBusy(null);
     if (!r.ok) { setError(trError(locale, r.error)); return; }
+    setDocs(r.docs);
     setDone(f.name);
-    // The action's own refresh of the list is sometimes dropped by the router; ask for it again.
-    router.refresh();
   };
 
   const count = (k: (typeof TABS)[number]) => (k === "all" ? docs.length : docs.filter((d) => d.status === k).length);

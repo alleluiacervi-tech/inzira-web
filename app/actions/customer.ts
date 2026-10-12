@@ -9,6 +9,7 @@ import { iso } from "@/lib/db";
 import { asLocale, getLocale, rememberLocale, type Locale } from "@/lib/i18n/locale";
 import { text as tr } from "@/lib/i18n/messages";
 import type en from "@/lib/i18n/en.json";
+import type { LibraryDoc } from "@/lib/types";
 import { english, msg } from "@/lib/i18n/stored";
 import { maskNationalId, rwf } from "@/lib/format";
 import { audit, db, event, fail, invoiceFor, nextNumber, notify, refFor, s, type Result } from "@/lib/mutate";
@@ -16,7 +17,7 @@ import { reconcilePayment } from "@/lib/billing";
 import { methodFor, providerFor } from "@/lib/payments";
 import { SITE } from "@/lib/site";
 import { amountDue } from "@/lib/status";
-import { getService } from "@/lib/repo";
+import { getService, listMyDocuments } from "@/lib/repo";
 import { allowIp } from "@/lib/ratelimit";
 import { ALLOWED, MAX_BYTES, humanSize, putFile } from "@/lib/storage";
 
@@ -141,7 +142,7 @@ export async function sendMessage(ref: string, body: string): Promise<Result> {
 }
 
 /** Uploads or replaces one document on a request. */
-export async function uploadDocument(fd: FormData): Promise<Result> {
+export async function uploadDocument(fd: FormData): Promise<Result<{ docs: LibraryDoc[] }>> {
   const docId = text(fd, "docId");
   const file = fd.get("file");
   if (!(file instanceof File) || !file.size) return refuse("chooseFile");
@@ -162,7 +163,7 @@ export async function uploadDocument(fd: FormData): Promise<Result> {
     await audit(tx, { actor: own.name, role: "Customer", action: "Uploaded document", entity: `${doc.ref} · ${doc.name}` });
   });
   revalidatePath("/portal", "layout");
-  return { ok: true };
+  return { ok: true, docs: await listMyDocuments() };
 }
 
 /** Approves the quote and sends a mobile money prompt for what is still due. */
