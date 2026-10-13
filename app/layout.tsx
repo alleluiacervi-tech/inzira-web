@@ -1,17 +1,16 @@
 import type { Metadata, Viewport } from "next";
-import { Public_Sans, Source_Serif_4 } from "next/font/google";
+import { Hanken_Grotesk } from "next/font/google";
 import { LocaleProvider } from "@/components/I18n";
 import { getLocale } from "@/lib/i18n/locale";
 import { text } from "@/lib/i18n/messages";
 import { siteOrigin } from "@/lib/site";
 import "./globals.css";
+import "./public.css";
 
 // Fonts are downloaded at build time and served from our own domain: no request to Google when a
 // page loads, which matters on slow mobile connections.
-// Public Sans for everything people read and use; Source Serif 4 only for public page headlines.
-const sans = Public_Sans({ subsets: ["latin"], variable: "--f-sans", display: "swap" });
-// Not preloaded: only public headlines use it, so staff and portal pages never download it.
-const serif = Source_Serif_4({ subsets: ["latin"], axes: ["opsz"], variable: "--f-serif", display: "swap", preload: false });
+// One family for everything: Hanken Grotesk, with the weight and size doing the hierarchy.
+const sans = Hanken_Grotesk({ subsets: ["latin"], variable: "--f-sans", display: "swap" });
 
 export async function generateMetadata(): Promise<Metadata> {
   const locale = await getLocale();
@@ -30,7 +29,7 @@ export const viewport: Viewport = { themeColor: "#ffffff", width: "device-width"
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const locale = await getLocale();
   return (
-    <html lang={locale} className={`${sans.variable} ${serif.variable}`}>
+    <html lang={locale} className={sans.variable}>
       <body><LocaleProvider locale={locale}>{children}</LocaleProvider></body>
     </html>
   );

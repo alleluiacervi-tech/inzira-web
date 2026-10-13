@@ -38,7 +38,7 @@ export default async function ServiceDetail({ params }: { params: Promise<{ slug
   return (
     <>
       <PublicNav />
-      <main>
+      <main id="main">
         <div className="wrap" style={{ paddingTop: 28 }}>
           <nav aria-label={t("catalogue.crumb")} className="crumbs">
             <Link href="/services">{t("nav.services")}</Link><Icon name="right" size={14} /><Link href={`/services?category=${s.category}`}>{officeName}</Link><Icon name="right" size={14} /><span aria-current="page">{s.name}</span>

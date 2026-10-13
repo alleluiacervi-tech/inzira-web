@@ -6,7 +6,7 @@ export default function ErrorPage(props: { error: Error & { digest?: string }; r
   return (
     <>
       <PublicNav />
-      <main className="wrap" style={{ paddingTop: 48, paddingBottom: 96 }}><PageError {...props} /></main>
+      <main id="main" className="wrap" style={{ paddingTop: 48, paddingBottom: 96 }}><PageError {...props} /></main>
     </>
   );
 }
