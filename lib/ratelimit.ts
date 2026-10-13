@@ -29,7 +29,8 @@ export async function allow(key: string, max: number, windowMs: number): Promise
 
 /** Limits per IP for the public, abuse-prone actions. */
 export const LIMITS = {
-  code: { max: 10, windowMs: 15 * 60e3 },      // SMS codes requested
+  code: { max: 10, windowMs: 15 * 60e3 },      // sign-in codes requested
+  codeTo: { max: 5, windowMs: 60 * 60e3 },     // sign-in codes sent to one number or address
   signIn: { max: 20, windowMs: 15 * 60e3 },    // codes tried
   track: { max: 30, windowMs: 15 * 60e3 },     // tracking look-ups
   request: { max: 10, windowMs: 60 * 60e3 },   // new requests sent
@@ -40,5 +41,10 @@ export async function allowIp(kind: keyof typeof LIMITS) {
   const { max, windowMs } = LIMITS[kind];
   // Demos and automated tests sign in many times from one machine.
   return allow(`${kind}:ip:${await clientIp()}`, isDemo() ? max * 10 : max, windowMs);
+}
+/** The same limits, counted per person (a phone number or an email address) instead of per IP address. */
+export async function allowFor(kind: keyof typeof LIMITS, subject: string) {
+  const { max, windowMs } = LIMITS[kind];
+  return allow(`${kind}:${subject}`, isDemo() ? max * 10 : max, windowMs);
 }
 export const TOO_MANY = "Too many attempts. Please wait a few minutes and try again.";

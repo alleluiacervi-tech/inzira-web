@@ -6,7 +6,7 @@ import { ACCOUNTS, PROFILES, STAFF } from "../mock/people";
 import { AUDIT, NOTIFICATIONS, REQUESTS } from "../mock/requests";
 import { REMINDERS } from "../mock/admin";
 import { DEFAULT_MATRIX, ROLES, type Permission } from "../permissions";
-import { sendsRealSms } from "../sms";
+import { isDemo, sendsRealSms } from "../sms";
 import { putFile } from "../storage";
 import type { Db } from "./index";
 import * as s from "./schema";
@@ -155,7 +155,8 @@ export async function seed(db: Db) {
 /** Makes the documented sample numbers able to sign in while SMS is not connected.
  *  Skipped once Africa's Talking is the provider, and it never overwrites an existing number. */
 export async function ensureDemoSignIns(database: Db) {
-  if (sendsRealSms()) return;
+  // Sample people with published phone numbers exist only in development and demo builds, never on a live site.
+  if (sendsRealSms() || !isDemo()) return;
   const accountPhones = ACCOUNTS.map((a) => digits(a.phone));
   const staffPhones = Object.values(STAFF_PHONES);
   const [haveAccounts, haveStaff, perm] = await Promise.all([

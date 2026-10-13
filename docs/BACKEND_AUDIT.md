@@ -5,6 +5,12 @@ Method: full read of the code, `npm audit`, and the existing smoke and flows run
 Not done: no live penetration test, no load test, no run against a real Postgres, no review of Vercel project settings.
 Findings below come from the code; each says where to look.
 
+## Status of the first fixes (2026-10-13)
+
+- **C1 fixed.** Codes are shown on screen and sample users are created only in development and demo builds (`showsCodeOnScreen`, `canDeliverCodes` in `lib/sms.ts`; guard in `ensureDemoSignIns`). On a live site without a real provider, requesting a code is refused. `SMS_PROVIDER=console` is refused outside demo. Checked for six environment combinations. For a database that may already hold sample staff, run `npm run db:remove-samples` (lists first; `--yes` switches them off).
+- **H1 fixed.** The attempt counter is one atomic statement (30 parallel wrong guesses counted exactly 5), a code works once, and one number can receive at most 5 codes an hour. Set `AUTH_SECRET` on the live site so stored codes are keyed to the server.
+- **H3 partly fixed.** `next` is now 15.5.27 and `npm audit fix` ran. Left: a copy of `postcss` bundled inside `next` (moderate and high; fixed only in Next 16.4). It processes our own CSS at build time, so the practical risk is low; plan the Next 16 upgrade separately.
+
 ## What is solid
 
 - Authorization is checked on the server in every action: `caseScope`, `canSeeCase`, `canSeeClient` (`lib/access.ts`), and the same rules in the file route.

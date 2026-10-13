@@ -286,7 +286,9 @@
     "noAccount": "We don’t have an account for this number yet. Start a service and your portal is created with your first request.",
     "tooMany": "Too many attempts. Please wait a few minutes and try again.",
     "sendFail": "We couldn’t send the code. Check your connection and try again.",
-    "submitFail": "We couldn’t send your request. Check your connection and try again."
+    "submitFail": "We couldn’t send your request. Check your connection and try again.",
+    "unavailable": "Sign-in codes can’t be sent right now. Please contact us.",
+    "numberLimit": "We’ve sent several codes to this number. Try again in an hour."
   },
   "track": {
     "title": "Track a request",

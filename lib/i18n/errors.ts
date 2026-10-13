@@ -14,6 +14,8 @@ const KNOWN: Record<string, string> = {
   "That code is not right. Check the SMS and try again.": "authErr.wrong",
   "We don’t have an account for this number yet. Start a service and your portal is created with your first request.": "authErr.noAccount",
   [TOO_MANY]: "authErr.tooMany",
+  "Sign-in codes can’t be sent right now. Please contact us.": "authErr.unavailable",
+  "We’ve sent several codes to this number. Try again in an hour.": "authErr.numberLimit",
   "We couldn’t send the code. Check your connection and try again.": "authErr.sendFail",
   "We couldn’t send your request. Check your connection and try again.": "authErr.submitFail",
   "Something went wrong. Please try again.": "code.wrong",

@@ -1,7 +1,7 @@
 // Sign-in with a phone number and a one-time SMS code, and the session that follows.
 // Codes and session tokens are stored only as SHA-256 hashes.
-import { createHash, randomBytes, randomInt, timingSafeEqual } from "node:crypto";
-import { and, eq, gt } from "drizzle-orm";
+import { createHash, createHmac, randomBytes, randomInt, timingSafeEqual } from "node:crypto";
+import { and, eq, gt, lt, sql } from "drizzle-orm";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { cache } from "react";
@@ -9,7 +9,8 @@ import { db, iso, schema as s } from "./db";
 import type { Permission } from "./permissions";
 import type { Locale } from "./i18n/locale";
 import { sms, smsText } from "./i18n/stored";
-import { sendsRealSms, sendSms } from "./sms";
+import { allowFor } from "./ratelimit";
+import { canDeliverCodes, sendSms, showsCodeOnScreen } from "./sms";
 import type { Staff } from "./types";
 
 const COOKIE = "inzira_session";
@@ -19,6 +20,9 @@ const MAX_ATTEMPTS = 5;
 const SESSION_DAYS = { customer: 30, staff: 1 } as const;
 
 const sha = (v: string) => createHash("sha256").update(v).digest("hex");
+/** Codes are six digits, so a plain hash could be reversed in moments if the table leaked. With AUTH_SECRET set they
+ *  are keyed to the server instead. Without it (development, demos) the plain hash is used. */
+const codeHash = (phone: string, code: string) => (process.env.AUTH_SECRET ? createHmac("sha256", process.env.AUTH_SECRET).update(`${phone}:${code}`).digest("hex") : sha(`${phone}:${code}`));
 /** Nine digits after +250, or null if it is not a Rwandan mobile number. */
 export const normalisePhone = (v: string) => {
   const d = v.replace(/\D/g, "").replace(/^250/, "").replace(/^0/, "");
@@ -30,11 +34,15 @@ export const normalisePhone = (v: string) => {
 export async function issueCode(phoneInput: string, locale: Locale = "rw"): Promise<{ ok: true; demoCode?: string } | { ok: false; error: string }> {
   const phone = normalisePhone(phoneInput);
   if (!phone) return { ok: false, error: "Enter a Rwandan mobile number, e.g. 788 123 456." };
+  // Without a real SMS provider a live site cannot deliver a code, and must not hand it out on screen instead.
+  if (!canDeliverCodes()) return { ok: false, error: "Sign-in codes can’t be sent right now. Please contact us." };
   const d = await db();
   const [prev] = await d.select().from(s.otpCodes).where(eq(s.otpCodes.phone, phone));
   if (prev && Date.now() - Date.parse(iso(prev.sentAt)!) < RESEND_AFTER) return { ok: false, error: "We just sent a code. Wait a few seconds before asking for another." };
+  // One number cannot be texted over and over, even from many addresses.
+  if (!(await allowFor("codeTo", phone))) return { ok: false, error: "We’ve sent several codes to this number. Try again in an hour." };
   const code = String(randomInt(0, 1_000_000)).padStart(6, "0");
-  const row = { phone, codeHash: sha(`${phone}:${code}`), expiresAt: new Date(Date.now() + CODE_TTL).toISOString(), attempts: 0, sentAt: new Date().toISOString() };
+  const row = { phone, codeHash: codeHash(phone, code), expiresAt: new Date(Date.now() + CODE_TTL).toISOString(), attempts: 0, sentAt: new Date().toISOString() };
   await d.insert(s.otpCodes).values(row).onConflictDoUpdate({ target: s.otpCodes.phone, set: row });
   try {
     // Staff get it in English, like all their SMS (staff sign-in wins when a number is both); a customer
@@ -47,23 +55,28 @@ export async function issueCode(phoneInput: string, locale: Locale = "rw"): Prom
     await d.delete(s.otpCodes).where(eq(s.otpCodes.phone, phone));
     return { ok: false, error: "We couldn’t send the SMS. Please try again in a minute." };
   }
-  // Without a live SMS provider the code is shown on screen, including on a deployed demo.
-  return sendsRealSms() ? { ok: true } : { ok: true, demoCode: code };
+  // In a demo without a live SMS provider the code is shown on screen. Never on a live site.
+  return showsCodeOnScreen() ? { ok: true, demoCode: code } : { ok: true };
 }
 
 export async function consumeCode(phoneInput: string, code: string): Promise<{ ok: true; phone: string } | { ok: false; error: string }> {
   const phone = normalisePhone(phoneInput);
   if (!phone || !/^\d{6}$/.test(code)) return { ok: false, error: "Enter the 6-digit code from the SMS." };
   const d = await db();
-  const [row] = await d.select().from(s.otpCodes).where(eq(s.otpCodes.phone, phone));
-  if (!row || Date.parse(iso(row.expiresAt)!) < Date.now()) return { ok: false, error: "That code has expired. Ask for a new one." };
-  if (row.attempts >= MAX_ATTEMPTS) return { ok: false, error: "Too many wrong codes. Ask for a new one." };
-  const a = Buffer.from(row.codeHash), b = Buffer.from(sha(`${phone}:${code}`));
-  if (a.length !== b.length || !timingSafeEqual(a, b)) {
-    await d.update(s.otpCodes).set({ attempts: row.attempts + 1 }).where(eq(s.otpCodes.phone, phone));
-    return { ok: false, error: "That code is not right. Check the SMS and try again." };
+  // Count the attempt and read the hash in one statement, so guesses sent in parallel cannot share one count.
+  const [row] = await d.update(s.otpCodes).set({ attempts: sql`${s.otpCodes.attempts} + 1` })
+    .where(and(eq(s.otpCodes.phone, phone), gt(s.otpCodes.expiresAt, new Date().toISOString()), lt(s.otpCodes.attempts, MAX_ATTEMPTS)))
+    .returning({ codeHash: s.otpCodes.codeHash });
+  if (!row) {
+    const [existing] = await d.select({ expiresAt: s.otpCodes.expiresAt }).from(s.otpCodes).where(eq(s.otpCodes.phone, phone));
+    if (existing && Date.parse(iso(existing.expiresAt)!) >= Date.now()) return { ok: false, error: "Too many wrong codes. Ask for a new one." };
+    return { ok: false, error: "That code has expired. Ask for a new one." };
   }
-  await d.delete(s.otpCodes).where(eq(s.otpCodes.phone, phone));
+  const a = Buffer.from(row.codeHash), b = Buffer.from(codeHash(phone, code));
+  if (a.length !== b.length || !timingSafeEqual(a, b)) return { ok: false, error: "That code is not right. Check the SMS and try again." };
+  // A code works once: only the request that deletes the row gets in.
+  const used = await d.delete(s.otpCodes).where(and(eq(s.otpCodes.phone, phone), eq(s.otpCodes.codeHash, row.codeHash))).returning({ phone: s.otpCodes.phone });
+  if (!used.length) return { ok: false, error: "That code has expired. Ask for a new one." };
   return { ok: true, phone };
 }
 

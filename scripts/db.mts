@@ -3,6 +3,9 @@
 //   npm run db:setup     production first run: fill an EMPTY database with the catalogue and one
 //                        owner (OWNER_NAME and OWNER_PHONE must be set). No sample data.
 //   npm run db:seed      development: fill an EMPTY database with the catalogue and sample data
+//   npm run db:remove-samples [--yes]
+//                        live database: switch off the sample staff and list the sample customers that a
+//                        demo build may have added. Shows what it would do until you pass --yes.
 //   npm run db:reset     local PGlite only: delete .data/pglite so it is rebuilt on next start
 import { rmSync } from "node:fs";
 import path from "node:path";
@@ -36,6 +39,23 @@ if (cmd === "migrate") {
   if (existing.length) { console.log("The database already has data; nothing changed."); process.exit(0); }
   await setupProduction(d, { name, phone });
   console.log(`Set up. ${name} can now sign in with ${phone} and invite the team.`);
+} else if (cmd === "remove-samples") {
+  const { and, eq, inArray } = await import("drizzle-orm");
+  const { STAFF_PHONES } = await import("../lib/db/seed.ts");
+  const { ACCOUNTS } = await import("../lib/mock/people.ts");
+  const d = await db();
+  const keep = (process.env.OWNER_PHONE ?? "").replace(/\D/g, "").replace(/^250/, "").replace(/^0/, "");
+  const samplePhones = Object.values(STAFF_PHONES).filter((p) => p !== keep);
+  const people = await d.select({ id: schema.staff.id, name: schema.staff.name, role: schema.staff.role, active: schema.staff.active }).from(schema.staff).where(inArray(schema.staff.phone, samplePhones));
+  const accounts = await d.select({ id: schema.accounts.id, name: schema.accounts.name }).from(schema.accounts).where(inArray(schema.accounts.phone, ACCOUNTS.map((a) => a.phone.replace(/\D/g, "").replace(/^250/, "").replace(/^0/, ""))));
+  console.log(`Sample staff with published numbers: ${people.length ? people.map((p) => `${p.name} (${p.role}${p.active ? "" : ", already off"})`).join(", ") : "none"}`);
+  console.log(`Sample customers: ${accounts.length ? accounts.map((a) => a.name).join(", ") : "none"} (kept: their requests and payments are records)`);
+  if (!process.argv.includes("--yes")) { console.log("Nothing changed. Run again with --yes to switch the sample staff off and end their sessions."); process.exit(0); }
+  for (const p of people) {
+    await d.update(schema.staff).set({ active: false }).where(eq(schema.staff.id, p.id));
+    await d.delete(schema.sessions).where(and(eq(schema.sessions.kind, "staff"), eq(schema.sessions.subjectId, p.id)));
+  }
+  console.log(`Switched off ${people.length} sample staff and ended their sessions.`);
 } else if (cmd === "seed") {
   const d = await db();
   const existing = await d.select({ id: schema.categories.id }).from(schema.categories).limit(1);
@@ -43,7 +63,7 @@ if (cmd === "migrate") {
   await seed(d);
   console.log("Seeded.");
 } else {
-  console.error("Usage: tsx scripts/db.mts migrate | setup | seed | reset");
+  console.error("Usage: tsx scripts/db.mts migrate | setup | seed | remove-samples | reset");
   process.exit(1);
 }
 process.exit(0);

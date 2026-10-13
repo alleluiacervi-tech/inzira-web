@@ -286,7 +286,9 @@
     "noAccount": "Nta konti ifitanye isano n'iyi nomero irabaho. Saba serivisi maze konti yawe ihite ifungurwa hamwe n'ubusabe bwawe bwa mbere.",
     "tooMany": "Wagerageje kenshi birenze urugero. Tegereza iminota mike maze wongere ugerageze.",
     "sendFail": "Ntitwashoboye kohereza kode. Reba ko interineti yawe ikora neza maze wongere ugerageze.",
-    "submitFail": "Ntitwashoboye kohereza ubusabe bwawe. Reba ko interineti yawe ikora neza maze wongere ugerageze."
+    "submitFail": "Ntitwashoboye kohereza ubusabe bwawe. Reba ko interineti yawe ikora neza maze wongere ugerageze.",
+    "unavailable": "Ntidushobora kohereza kode yo kwinjira ubu. Twandikire.",
+    "numberLimit": "Twohereje kode nyinshi kuri iyi nimero. Ongera ugerageze nyuma y’isaha imwe."
   },
   "track": {
     "title": "Kurikirana ubusabe",
