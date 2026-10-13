@@ -2,7 +2,7 @@
 import { randomBytes } from "node:crypto";
 import { eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
-import { WORKS_CASES, canSeeCase } from "@/lib/access";
+import { WORKS_CASES, assignableStaff, canSeeCase } from "@/lib/access";
 import { getStaffUser, normalisePhone } from "@/lib/auth";
 import { rwf } from "@/lib/format";
 import { audit, db, event, fail, invoiceFor, nextNumber, notify, refFor, s, type Result } from "@/lib/mutate";
@@ -151,8 +151,8 @@ export async function addNote(ref: string, body: string): Promise<Result> {
 export async function assignCase(ref: string, agentId: string | null): Promise<Result> {
   const w = await work(ref, "assign");
   if ("error" in w) return fail(w.error!);
-  const [agent] = agentId ? await w.d.select().from(s.staff).where(eq(s.staff.id, agentId)) : [null];
-  if (agentId && !agent?.active) return fail("Agent not found.");
+  const agent = agentId ? await assignableStaff(w.d, agentId) : null;
+  if (agentId && !agent) return fail("That person can’t take cases.");
   await w.d.transaction(async (tx) => {
     await tx.update(s.requests).set({ agentId }).where(eq(s.requests.ref, ref));
     await event(tx, ref, agent ? msg("ev.assigned", { name: agent.name }) : msg("ev.unassigned"), w.me.id);

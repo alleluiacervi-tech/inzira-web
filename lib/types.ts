@@ -110,7 +110,8 @@ export type RequestDoc = {
 export type Deliverable = { id: string; name: string; issuedAt: string; issuedBy: string; fileId?: string };
 
 /** `by` is "customer", "system" or a staff id. `name` is filled in by the repo. */
-export type RequestEvent = { at: string; title: string; by?: string; name?: string; body?: string };
+/** `key` names the stored message (e.g. "ev.resubmitted"), when the event has one. */
+export type RequestEvent = { at: string; key?: string; title: string; by?: string; name?: string; body?: string };
 export type Message = { id: string; at: string; by: string; name?: string; body: string };
 export type Note = { id: string; at: string; by: string; name?: string; body: string };
 

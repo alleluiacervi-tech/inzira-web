@@ -1,16 +1,17 @@
 // The data-access layer: every screen reads through these functions, and only they touch the
 // database. Writes live in app/actions. Only import this from server code.
 import { and, asc, desc, eq, gte, inArray, isNull, ne, or, sql, type SQL } from "drizzle-orm";
-import { canSeeCase, canTriage, caseScope, seesAllCases } from "./access";
+import { WORKS_CASES, canSeeCase, canTriage, caseScope, seesAllCases } from "./access";
 import { getSession, requireCustomerId, requireStaff } from "./auth";
 import { db, iso, schema as s } from "./db";
-import { fmtDay, phoneDigits, shortName } from "./format";
+import { fmtDay, isOnOrBeforeDay, kigaliMonthStart, monthShort, phoneDigits, shortName } from "./format";
 import type { Locale } from "./i18n/locale";
 import { text } from "./i18n/messages";
 import { channelName } from "./i18n/present";
 import { documentNote, hasPart, legacyText, say, type Part } from "./i18n/stored";
 import { PERMISSION_GROUPS, PERMISSIONS, ROLES, type Permission } from "./permissions";
-import { amountDue, isOpen, payStatus } from "./status";
+import { attentionCounts, caseTargetHours, isLate, median, sourceOf, stageClock, wasReturned, workQueue } from "./dashboard";
+import { amountDue, isOpen, payStatus, STAGE_LABEL } from "./status";
 import { STAGES, type Account, type AuditEntry, type Category, type ClientDetail, type ClientSummary, type CustomerRequest, type Hold, type LibraryDoc, type Message, type Msg, type MsgVars, type Note, type Notification, type Profile, type Request, type RequestEvent, type RequestView, type SavedView, type Service, type Staff, type Stage, type StageTarget, type TrackResult } from "./types";
 
 export const getNow = async () => new Date().toISOString();
@@ -120,7 +121,7 @@ async function loadRequests(where?: SQL, locale: Locale = "en"): Promise<Request
       events: (evBy.get(r.ref) ?? []).map((e) => {
         const m = rowMsg(e.key, e.vars);
         const body = m && hasPart(m, "body") ? told(locale, m, "body", e.body ?? "") : legacyText(locale, e.body ?? undefined);
-        return { at: iso(e.at)!, title: told(locale, m, "title", e.title), by: e.by ?? undefined, name: name(e.by), body };
+        return { at: iso(e.at)!, key: e.key ?? undefined, title: told(locale, m, "title", e.title), by: e.by ?? undefined, name: name(e.by), body };
       }),
     };
     const times = [req.events[0]?.at, req.messages[req.messages.length - 1]?.at, req.closed?.at, req.openedAt].filter(Boolean) as string[];
@@ -232,10 +233,13 @@ export const getMyPermissions = async (): Promise<Permission[]> => [...(await re
 export async function listStaff(): Promise<(Staff & { phone: string | null })[]> {
   return (await db()).select().from(s.staff).orderBy(asc(s.staff.name));
 }
-/** Active agents a case can be assigned to, without their phone numbers. */
+/** Active staff a case can be assigned to: everyone whose role works cases, owners and admins
+ *  included, so a one-person team can take its own requests. Without their phone numbers. */
 export async function listAgents(): Promise<Staff[]> {
-  const rows = await (await db()).select().from(s.staff).where(and(eq(s.staff.role, "Agent"), eq(s.staff.active, true))).orderBy(asc(s.staff.name));
-  return rows.map(({ phone: _phone, ...rest }) => rest);
+  const rows = await (await db()).select({ staff: s.staff }).from(s.staff)
+    .innerJoin(s.rolePermissions, and(eq(s.rolePermissions.role, s.staff.role), eq(s.rolePermissions.permission, WORKS_CASES), eq(s.rolePermissions.allowed, true)))
+    .where(eq(s.staff.active, true)).orderBy(asc(s.staff.name));
+  return rows.map(({ staff: { phone: _phone, ...rest } }) => rest);
 }
 
 /** New requests nobody has taken yet, for the triage inbox. */
@@ -490,258 +494,146 @@ export async function searchGlobal(q: string) {
   };
 }
 
-// ---------------- console: needs attention ----------------
-export async function getNeedsAttentionCounts() {
-  const now = new Date().toISOString();
-  const [cases, services, targets] = await Promise.all([
-    loadRequests(),
-    listServices({ includeHidden: true }),
-    listStageTargets(),
-  ]);
-
-  const open = cases.filter(isOpen);
-
-  // 1. New submissions to assign
-  const unassigned = open.filter((r) => r.stage === "received" && !r.agentId);
-
-  // 2. Overdue payments
-  const overdue = open.filter((r) => payStatus(r.billing, now) === "overdue");
-
-  // 3. Past target time (SLA)
-  const slaBreached = open.filter((r) => {
-    const stageEntered = r.stageDates[r.stage];
-    if (!stageEntered) return false;
-    const targetHours = targets[r.stage] ?? 24;
-    if (targetHours <= 0) return false;
-    const hoursElapsed = (Date.now() - Date.parse(stageEntered)) / (3600 * 1000);
-    return hoursElapsed > targetHours;
-  });
-
-  // 4. Waiting on client > 3 days
-  const waiting3d = open.filter((r) => {
-    if (!r.hold) return false;
-    const days = (Date.now() - Date.parse(r.hold.since)) / DAY;
-    return days >= 3;
-  });
-
-  // 5. Official fees not checked
-  const uncheckedOfficial = services.filter((s) => !s.official.mode && !s.official.verifiedAt);
-
-  // 6. Official receipts missing
-  const missingReceipts = open.filter((r) =>
-    !r.billing.officialMode &&
-    r.billing.officialReceipt !== "attached" &&
-    (r.stage === "preparing" || r.stage === "institution" || r.stage === "completed")
-  );
-
-  return {
-    unassigned: unassigned.length,
-    overdue: overdue.length,
-    slaBreached: slaBreached.length,
-    waiting3d: waiting3d.length,
-    uncheckedOfficial: uncheckedOfficial.length,
-    missingReceipts: missingReceipts.length,
-  };
-}
-
 // ---------------- console: agent my day ----------------
 export async function getMyDayData(agentId?: string) {
   const me = agentId ? { id: agentId } : await requireStaff();
-  const now = new Date().toISOString();
-  const [cases, targets] = await Promise.all([
-    loadRequests(eq(s.requests.agentId, me.id)),
-    listStageTargets(),
-  ]);
-
+  const [cases, targets, now] = await Promise.all([loadRequests(eq(s.requests.agentId, me.id)), listStageTargets(), getNow()]);
   const open = cases.filter(isOpen);
-
-  // 1. Follow-ups due today
-  const todayFollowUps = open.filter((c) => {
-    if (!c.followUp) return false;
-    const fuDate = new Date(c.followUp.at).toDateString();
-    const todayDate = new Date().toDateString();
-    return fuDate === todayDate;
-  });
-
-  // 2. Cases near or past SLA target
-  const slaCases = open.filter((c) => {
-    const stageEntered = c.stageDates[c.stage];
-    if (!stageEntered) return false;
-    const targetHours = targets[c.stage] ?? 24;
-    if (targetHours <= 0) return false;
-    const hoursElapsed = (Date.now() - Date.parse(stageEntered)) / (3600 * 1000);
-    return hoursElapsed >= targetHours * 0.75; // 75% or over target time
-  }).map((c) => {
-    const stageEntered = c.stageDates[c.stage]!;
-    const targetHours = targets[c.stage] ?? 24;
-    const hoursElapsed = (Date.now() - Date.parse(stageEntered)) / (3600 * 1000);
-    return {
-      case: c,
-      hoursElapsed: Math.round(hoursElapsed),
-      targetHours,
-      breached: hoursElapsed > targetHours,
-    };
-  });
-
-  // 3. Clients who replied
-  const clientReplies = open.filter((c) => {
-    const lastMsg = c.messages[c.messages.length - 1];
-    return lastMsg && lastMsg.by === "customer";
-  });
-
-  // 4. Documents waiting for review
-  const pendingDocs = open.flatMap((c) =>
-    c.documents.filter((d) => d.status === "received").map((d) => ({ case: c, doc: d }))
-  );
+  const oldestFirst = <T,>(list: T[], at: (x: T) => string) => [...list].sort((a, b) => Date.parse(at(a)) - Date.parse(at(b)));
 
   return {
-    todayFollowUps,
-    slaCases,
-    clientReplies,
-    pendingDocs,
+    // Due today, or missed on an earlier day and still not done.
+    todayFollowUps: oldestFirst(open.filter((c) => c.followUp && isOnOrBeforeDay(c.followUp.at, now)), (c) => c.followUp!.at),
+    // At 75% of the stage target or over it, unless the case is waiting on the customer.
+    slaCases: open.filter((c) => !c.hold).flatMap((c) => {
+      const k = stageClock(c, targets, now);
+      return k?.near ? [{ case: c, hoursElapsed: k.hoursElapsed, targetHours: k.targetHours, breached: k.breached }] : [];
+    }),
+    clientReplies: oldestFirst(open.filter((c) => c.messages[c.messages.length - 1]?.by === "customer"), (c) => c.messages[c.messages.length - 1].at),
+    pendingDocs: oldestFirst(open.flatMap((c) => c.documents.filter((d) => d.status === "received").map((d) => ({ case: c, doc: d }))), (x) => x.doc.file?.uploadedAt ?? x.case.updatedAt),
     openCasesCount: open.length,
   };
 }
 
 // ---------------- admin / overview ----------------
-export async function getAdminOverview(rangeDays = 30) {
-  const d = await db();
-  const now = Date.now();
-  const since = now - rangeDays * DAY;
-  const prevSince = since - rangeDays * DAY;
-  const monthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1).getTime();
+export const OVERVIEW_RANGES = [7, 30, 90] as const;
+export type OverviewRange = (typeof OVERVIEW_RANGES)[number];
 
-  const [cases, accountRows, txs, cats, needsAttention] = await Promise.all([
+/** Everything the operations overview shows, from one load of the cases. Needs "View all cases". */
+export async function getAdminOverview(rangeDays: OverviewRange = 30) {
+  const me = await requireStaff();
+  if (!seesAllCases(me)) throw new Error("The overview needs “View all cases”.");
+  const d = await db();
+  const now = await getNow();
+  const nowMs = Date.parse(now);
+  const since = nowMs - rangeDays * DAY;
+  const prevSince = since - rangeDays * DAY;
+  const inRange = (at: string | undefined) => !!at && Date.parse(at) >= since;
+  const inPrev = (at: string | undefined) => !!at && Date.parse(at) >= prevSince && Date.parse(at) < since;
+
+  const [cases, accountRows, txRows, cats, services, targets, workers] = await Promise.all([
     loadRequests(),
     d.select({ since: s.accounts.since }).from(s.accounts),
     d.select().from(s.transactions),
     listCategories(),
-    getNeedsAttentionCounts(),
+    listServices({ includeHidden: true }),
+    listStageTargets(),
+    listAgents(),
   ]);
-
+  const txs = txRows.map((x) => ({ ...x, at: iso(x.at)! }));
   const open = cases.filter(isOpen);
-  const t = (v: string) => Date.parse(iso(v)!);
 
-  const paidInRange = txs.filter((x) => x.status === "paid" && t(x.at) >= since);
-  const paidPrevRange = txs.filter((x) => x.status === "paid" && t(x.at) >= prevSince && t(x.at) < since);
-  const refundedInRange = txs.filter((x) => x.status === "refunded" && t(x.at) >= since);
-
+  const paidInRange = txs.filter((x) => x.status === "paid" && inRange(x.at));
+  const paidPrevRange = txs.filter((x) => x.status === "paid" && inPrev(x.at));
+  const refundedInRange = txs.filter((x) => x.status === "refunded" && inRange(x.at));
   const ours = paidInRange.reduce((n, x) => n + x.ours, 0);
   const prevOurs = paidPrevRange.reduce((n, x) => n + x.ours, 0);
   const official = paidInRange.reduce((n, x) => n + x.official, 0);
-  const gross = ours + official;
+  const methods = new Map<string, number>();
+  for (const x of paidInRange) methods.set(x.method, (methods.get(x.method) ?? 0) + x.ours + x.official);
 
-  const openedInRange = cases.filter((r) => Date.parse(r.openedAt) >= since);
-  const openedPrevRange = cases.filter((r) => Date.parse(r.openedAt) >= prevSince && Date.parse(r.openedAt) < since);
-
-  const completedInRange = cases.filter((r) => r.stage === "completed" && r.stageDates.completed && Date.parse(r.stageDates.completed) >= since);
-  const completedPrevRange = cases.filter((r) => r.stage === "completed" && r.stageDates.completed && Date.parse(r.stageDates.completed) >= prevSince && Date.parse(r.stageDates.completed) < since);
+  const openedInRange = cases.filter((r) => inRange(r.openedAt));
+  const openedPrevRange = cases.filter((r) => inPrev(r.openedAt));
+  const completedInRange = cases.filter((r) => r.stage === "completed" && inRange(r.stageDates.completed));
+  const completedPrevRange = cases.filter((r) => r.stage === "completed" && inPrev(r.stageDates.completed));
+  const days = (r: RequestView) => (Date.parse(r.stageDates.completed!) - Date.parse(r.openedAt)) / DAY;
+  const onTime = completedInRange.filter((r) => days(r) * 24 <= caseTargetHours(r, targets)).length;
 
   const pending = open.filter((r) => r.billing.quote !== "estimate" && amountDue(r.billing) > 0);
   const totalBalanceDue = pending.reduce((n, r) => n + amountDue(r.billing), 0);
 
-  // Delta helpers: meaningful percentage only when baseline >= 5
+  // A percentage only means something against a baseline of five or more.
   const deltaStr = (current: number, previous: number) => {
     const diff = current - previous;
     const sign = diff >= 0 ? "+" : "";
-    if (previous >= 5) {
-      const pct = Math.round((diff / previous) * 100);
-      return `${sign}${diff} (${sign}${pct}%) vs prev ${rangeDays}d`;
-    }
-    return `${sign}${diff} vs prev ${rangeDays}d`;
+    return previous >= 5 ? `${sign}${diff} (${sign}${Math.round((diff / previous) * 100)}%) vs prev ${rangeDays}d` : `${sign}${diff} vs prev ${rangeDays}d`;
   };
-
   const revenueDelta = prevOurs >= 50000
     ? `${ours >= prevOurs ? "+" : ""}${rwfShort(ours - prevOurs)} (${ours >= prevOurs ? "+" : ""}${Math.round(((ours - prevOurs) / prevOurs) * 100)}%) vs prev ${rangeDays}d`
     : "";
 
-  // Monthly trend for last 6 months
+  // The last six Kigali calendar months, oldest first.
   const months = Array.from({ length: 6 }, (_, i) => {
-    const start = new Date(new Date().getFullYear(), new Date().getMonth() - 5 + i, 1);
-    const end = new Date(start.getFullYear(), start.getMonth() + 1, 1);
-    const inMonth = txs.filter((x) => x.status === "paid" && t(x.at) >= start.getTime() && t(x.at) < end.getTime());
-    return {
-      label: start.toLocaleString("en-GB", { month: "short", timeZone: "Africa/Kigali" }),
-      official: thousands(inMonth.reduce((n, x) => n + x.official, 0)),
-      ours: thousands(inMonth.reduce((n, x) => n + x.ours, 0)),
-    };
+    const start = kigaliMonthStart(now, i - 5), end = kigaliMonthStart(now, i - 4);
+    const inMonth = txs.filter((x) => x.status === "paid" && Date.parse(x.at) >= start && Date.parse(x.at) < end);
+    return { label: monthShort(start), official: thousands(inMonth.reduce((n, x) => n + x.official, 0)), ours: thousands(inMonth.reduce((n, x) => n + x.ours, 0)) };
   });
 
   const popularMap = new Map<string, { n: number; cat: string }>();
-  for (const r of openedInRange) {
-    popularMap.set(r.service.name, {
-      n: (popularMap.get(r.service.name)?.n ?? 0) + 1,
-      cat: cats.find((c) => c.id === r.service.category)?.short ?? "",
-    });
-  }
+  for (const r of openedInRange) popularMap.set(r.service.name, { n: (popularMap.get(r.service.name)?.n ?? 0) + 1, cat: cats.find((c) => c.id === r.service.category)?.short ?? "" });
+  const sources = new Map<string, number>();
+  for (const r of openedInRange) sources.set(sourceOf(r), (sources.get(sourceOf(r)) ?? 0) + 1);
 
-  // Stage distribution
-  const stageCounts: Record<Stage, number> = { received: 0, checking: 0, preparing: 0, institution: 0, completed: 0 };
-  for (const r of open) {
-    if (stageCounts[r.stage] !== undefined) stageCounts[r.stage]++;
-  }
+  const pipeline = STAGES.filter((st) => st !== "completed").map((stage) => {
+    const here = open.filter((r) => r.stage === stage);
+    const oldest = here.map((r) => ({ ref: r.ref, since: r.stageDates[stage] ?? r.openedAt })).sort((a, b) => Date.parse(a.since) - Date.parse(b.since))[0] ?? null;
+    return { stage, label: STAGE_LABEL[stage], count: here.length, late: here.filter((r) => isLate(r, targets, now)).length, onHold: here.filter((r) => r.hold).length, targetHours: targets[stage], oldest };
+  });
 
-  return {
-    period: rangeDays === 7 ? "Last 7 days" : rangeDays === 90 ? "Last 90 days" : "Last 30 days",
-    rangeDays,
-    needsAttention,
-    customers: {
-      value: accountRows.length.toLocaleString("en-US"),
-      delta: `+${accountRows.filter((a) => t(a.since) >= monthStart).length} this month`,
-    },
-    activeCases: {
-      value: open.length,
-      needCustomer: open.filter((r) => r.hold).length,
-    },
-    opened: {
-      value: openedInRange.length,
-      delta: deltaStr(openedInRange.length, openedPrevRange.length),
-    },
-    completed: {
-      value: completedInRange.length,
-      delta: deltaStr(completedInRange.length, completedPrevRange.length),
-    },
-    pending: {
-      value: rwfShort(totalBalanceDue),
-      rawAmount: totalBalanceDue,
-      invoices: pending.length,
-      overdue: pending.filter((r) => payStatus(r.billing, new Date().toISOString()) === "overdue").length,
-    },
-    revenue: {
-      ours: rwfShort(ours),
-      rawOurs: ours,
-      delta: revenueDelta,
-      official: rwfShort(official),
-      rawOfficial: official,
-      gross: rwfShort(gross),
-      refunds: rwfShort(refundedInRange.reduce((n, x) => n + x.ours + x.official, 0)),
-      refundCount: refundedInRange.length,
-    },
-    monthly: months,
-    stageCounts,
-    byCategory: cats.filter((c) => !c.href).map((c) => [c.name, open.filter((r) => r.service.category === c.id).length] as [string, number]).filter(([, n]) => n > 0).sort((a, b) => b[1] - a[1]),
-    popular: [...popularMap.entries()].sort((a, b) => b[1].n - a[1].n).slice(0, 5).map(([n, v]) => [n, v.n, v.cat] as [string, number, string]),
-    recentActivity: cases.flatMap((c) => c.events.map((e) => ({ ...e, ref: c.ref, clientName: c.profile.name }))).sort((a, b) => Date.parse(b.at) - Date.parse(a.at)).slice(0, 10),
-  };
-}
-
-export async function getAgentPerformance() {
-  const [people, cases] = await Promise.all([listStaff(), loadRequests()]);
-  const since30 = Date.now() - 30 * DAY;
-  return people.filter((p) => p.role === "Agent" && p.active).map((p) => {
+  const team = workers.map((p) => {
     const mine = cases.filter((r) => r.agentId === p.id);
-    const done = mine.filter((r) => r.stage === "completed" && r.stageDates.completed);
-    const days = done.map((r) => (Date.parse(r.stageDates.completed!) - Date.parse(r.openedAt)) / DAY);
-    const firstTime = done.filter((r) => !r.events.some((e) => e.title.startsWith("Returned"))).length;
+    const done = completedInRange.filter((r) => r.agentId === p.id);
+    const turnaround = median(done.map(days));
     return {
-      ...p,
+      id: p.id, name: p.name, team: p.team, role: p.role,
       active: mine.filter(isOpen).length,
-      completed: done.filter((r) => Date.parse(r.stageDates.completed!) >= since30).length,
-      turnaround: days.length ? `${(days.reduce((a, b) => a + b, 0) / days.length).toFixed(1)} days` : "—",
-      firstTime: done.length ? `${Math.round((firstTime / done.length) * 100)}%` : "—",
+      late: mine.filter((r) => isLate(r, targets, now)).length,
+      completed: done.length,
+      turnaround: turnaround === null ? "—" : `${turnaround.toFixed(1)} days`,
+      firstTime: done.length ? `${Math.round((done.filter((r) => !wasReturned(r)).length / done.length) * 100)}%` : "—",
     };
   });
+  const turnaround = median(completedInRange.map(days));
+
+  return {
+    now,
+    period: `Last ${rangeDays} days`,
+    rangeDays,
+    needsAttention: attentionCounts(cases, services, targets, now),
+    queue: workQueue(cases, targets, now),
+    customers: { value: accountRows.length.toLocaleString("en-US"), delta: `+${accountRows.filter((a) => Date.parse(iso(a.since)!) >= kigaliMonthStart(now)).length} this month` },
+    activeCases: { value: open.length, needCustomer: open.filter((r) => r.hold).length },
+    opened: { value: openedInRange.length, delta: deltaStr(openedInRange.length, openedPrevRange.length) },
+    completed: { value: completedInRange.length, delta: deltaStr(completedInRange.length, completedPrevRange.length) },
+    onTime: { pct: completedInRange.length ? Math.round((onTime / completedInRange.length) * 100) : null, of: completedInRange.length, medianDays: turnaround === null ? null : Number(turnaround.toFixed(1)) },
+    pending: { value: rwfShort(totalBalanceDue), rawAmount: totalBalanceDue, invoices: pending.length, overdue: pending.filter((r) => payStatus(r.billing, now) === "overdue").length },
+    revenue: {
+      ours: rwfShort(ours), rawOurs: ours, delta: revenueDelta,
+      official: rwfShort(official), rawOfficial: official,
+      gross: rwfShort(ours + official),
+      refunds: rwfShort(refundedInRange.reduce((n, x) => n + x.ours + x.official, 0)), refundCount: refundedInRange.length,
+      methods: [...methods.entries()].sort((a, b) => b[1] - a[1]),
+    },
+    monthly: months,
+    pipeline,
+    byCategory: cats.filter((c) => !c.href).map((c) => [c.name, open.filter((r) => r.service.category === c.id).length] as [string, number]).filter(([, n]) => n > 0).sort((a, b) => b[1] - a[1]),
+    popular: [...popularMap.entries()].sort((a, b) => b[1].n - a[1].n).slice(0, 5).map(([n, v]) => [n, v.n, v.cat] as [string, number, string]),
+    sources: [...sources.entries()].sort((a, b) => b[1] - a[1]),
+    team,
+    recentActivity: cases.flatMap((c) => c.events.map((e) => ({ at: e.at, title: e.title, name: e.name, ref: c.ref, client: c.profile.name }))).sort((a, b) => Date.parse(b.at) - Date.parse(a.at)).slice(0, 8),
+  };
 }
+export type AdminOverview = Awaited<ReturnType<typeof getAdminOverview>>;
 
 export async function listAudit(): Promise<AuditEntry[]> {
   const rows = await (await db()).select().from(s.audit).orderBy(desc(s.audit.at), desc(s.audit.id)).limit(200);

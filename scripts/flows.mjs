@@ -274,7 +274,7 @@ await step("agent", async () => {
   const p = await page();
   await signIn(p, "780000001");
   check("agent: agents land on My day in the console", (await p.ev("location.pathname")) === "/console/my-day" && await p.has("Good"));
-  check("agent: My Day shows agent work queues", await p.has("Follow-ups Today") && await p.has("SLA Attention") && await p.has("My open cases ("));
+  check("agent: My Day shows agent work queues", await p.has("Follow-ups due") && await p.has("Past or near target") && await p.has("My open cases ("));
   await p.go("/console/requests/INZ-2026-04817");
   check("agent: another agent's case is hidden", await p.has("We couldn’t find that"));
   await p.go("/console/requests/INZ-2026-04790");
@@ -344,7 +344,7 @@ await step("patrick", async () => {
 await step("admin", async () => {
   const p = await page();
   await signIn(p, "780000008");
-  check("admin: the owner lands on the overview", (await p.ev("location.pathname")) === "/console/overview" && await p.has("Needs attention"));
+  check("admin: the owner lands on the overview", (await p.ev("location.pathname")) === "/console/overview" && await p.has("Do next"));
   await p.go("/admin/services");
   check("services: unchecked official fees are flagged", await p.has("official fees not yet checked"));
   await p.click("Edit Company registration"); await sleep(400);
@@ -374,30 +374,41 @@ await step("console", async () => {
   await signIn(p, "780000008"); // Diane (Owner)
   let triageRef = "";
 
-  // 1. Overview & Needs Attention link-through
+  // A received case with nobody on it is a new request waiting in the inbox.
+  await p.go("/console/requests/INZ-2026-04821");
+  await p.set("#agent-asg", ""); await waitFor(p, "Unassigned");
+
+  // 1. Overview: the work queue, its filters, the stage pipeline and the period switch
   await p.go("/console/overview");
-  check("console: overview loads with needs attention", await p.has("Needs attention") && await p.has("Fee breakdown trend"));
-  await p.click("New submissions to assign"); await waitFor(p, "Inbox / Triage");
-  check("console: clicking needs attention card navigates to inbox", (await p.ev("location.pathname")).includes("/console/inbox"));
+  check("console: overview leads with the work queue and the pipeline", await p.has("Do next") && await p.has("Open cases by stage") && await p.has("Fees by month"));
+  const lateCount = Number(await p.ev(`[...document.querySelectorAll(".c-chip")].find((b) => b.textContent.startsWith("Past target"))?.querySelector("b")?.textContent ?? "-1"`));
+  await p.click("Past target", "button"); await sleep(300);
+  const lateRows = await p.ev(`document.querySelectorAll(".c-donext .c-list-row").length`);
+  check("console: a queue chip shows only that kind of work", lateCount > 0 && lateRows === Math.min(lateCount, 6) && await p.ev(`[...document.querySelectorAll(".c-donext .c-list-name")].every((e) => e.textContent === "Past target time")`), `chip ${lateCount}, rows ${lateRows}`);
+  await p.go("/console/requests?attention=sla");
+  const slaRows = await p.ev(`document.querySelectorAll('.console-table tbody input[aria-label^="Select row"]').length`);
+  check("console: a dashboard link opens the requests list already filtered", await p.has("Needs attention: Past target time") && slaRows === lateCount, `${slaRows} rows, dashboard said ${lateCount}`);
+  await p.go("/console/overview?range=7");
+  check("console: the period switch changes the results period", await p.has("Results · last 7 days") && (await p.ev(`document.querySelector('.c-segmented [aria-current="page"]')?.textContent`)) === "7 days");
+  await p.go("/console/overview");
+  const newChip = await p.ev(`(() => { const b = [...document.querySelectorAll(".c-chip")].find((e) => e.textContent.startsWith("New")); b?.click(); return !!b; })()`);
+  await sleep(300);
+  check("console: the request sent earlier waits in the queue to be accepted", newChip && await p.has("Waiting to be accepted"));
+  await p.click("Accept", "a"); await waitFor(p, "Inbox / Triage");
+  check("console: a new request in the queue leads to the inbox", (await p.ev("location.pathname")) === "/console/inbox");
 
-  // 2. Inbox view & assign
+  // 2. Inbox: the owner takes the request sent earlier in one tap
   await p.go("/console/inbox");
-  check("console: inbox lists unassigned requests", await p.has("Inbox / Triage"));
-  const canAssign = await p.has("Accept & assign");
-  if (canAssign) {
-    triageRef = await p.ev(`document.querySelector(".console-panel .c-mono-ref")?.textContent?.trim() ?? ""`);
-    await p.click("Accept & assign"); await sleep(300);
-    const suggested = await p.has("Suggested:");
-    await p.click("Confirm & assign"); await waitFor(p, "assigned to");
-    check("console: inbox suggests an agent and assigns the request", suggested && await p.has("assigned to"));
-  } else {
-    check("console: inbox has no unassigned cases to assign", true);
+  triageRef = await p.ev(`document.querySelector(".console-panel .c-mono-ref")?.textContent?.trim() ?? ""`);
+  check("console: the owner can take a new request themselves", !!triageRef && await p.has("Accept & take it"));
+  if (triageRef) {
+    await p.click("Accept & take it", "button"); await waitFor(p, "You took");
+    check("console: taking a request assigns it to the owner", await p.has(`You took ${triageRef}`));
   }
 
-  if (triageRef) {
-    await p.go(`/console/requests/${triageRef}`);
-    await p.set("#agent-asg", ""); await waitFor(p, "Unassigned");
-  }
+  // Back to Patrick, whose case it is in the seed: later checks rely on who has which case.
+  await p.go("/console/requests/INZ-2026-04821");
+  await p.set("#agent-asg", "s-patrick"); await waitFor(p, "Assigned to");
 
   // 3. Requests list & Saved views
   await p.go("/console/requests");
@@ -442,7 +453,11 @@ await step("console", async () => {
 
   // 5. My Day view
   await p.go("/console/my-day");
-  check("console: my day command center loads", await p.has("Good day") && await p.has("Follow-ups Today") && await p.has("SLA Attention"));
+  check("console: my day command center loads", await p.has("Good day") && await p.has("Follow-ups due") && await p.has("Past or near target"));
+
+  // 6. A link to a case tab opens that tab
+  await p.go("/console/requests/INZ-2026-04790#messages"); await sleep(500);
+  check("console: a #messages link opens the messages tab", ((await p.ev(`document.querySelector('[role="tab"][aria-selected="true"]')?.textContent`)) ?? "").startsWith("Messages"));
 
   await signOut(p); await sleep(500);
   await p.close();

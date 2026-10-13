@@ -1,6 +1,6 @@
 "use client";
 import Link from "next/link";
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import {
   addNote,
   assignCase,
@@ -28,6 +28,9 @@ import { RecordPaymentModal } from "./RecordPaymentModal";
 
 const CHANNELS = ["Irembo", "RRA e-Tax", "RRA EBM", "RDB online registration", "RURA online services", "In person"];
 
+const TABS = ["overview", "documents", "messages", "payments", "activity"] as const;
+type Tab = (typeof TABS)[number];
+
 export function RequestDetailView({
   c,
   me,
@@ -46,7 +49,14 @@ export function RequestDetailView({
   const [busy, start] = useTransition();
   const can = (p: Permission) => perms.includes(p) || me.role === "Owner";
 
-  const [activeTab, setActiveTab] = useState<"overview" | "documents" | "messages" | "payments" | "activity">("overview");
+  const [activeTab, setActiveTab] = useState<Tab>("overview");
+  // Links from the dashboards open a tab by its hash: /console/requests/R-1#messages.
+  useEffect(() => {
+    const fromHash = () => { const h = window.location.hash.slice(1); if ((TABS as readonly string[]).includes(h)) setActiveTab(h as Tab); };
+    fromHash();
+    window.addEventListener("hashchange", fromHash);
+    return () => window.removeEventListener("hashchange", fromHash);
+  }, []);
   const [toast, setToast] = useState("");
   const [error, setError] = useState("");
 
@@ -298,7 +308,7 @@ export function RequestDetailView({
             role="tab"
             aria-selected={activeTab === tab.id}
             className="c-tab"
-            onClick={() => setActiveTab(tab.id as any)}
+            onClick={() => setActiveTab(tab.id as Tab)}
           >
             <Icon name={tab.icon} size={14} />
             <span>{tab.label}</span>

@@ -27,3 +27,11 @@ export async function canSeeClient(d: Db, me: Viewer, profileId: string): Promis
 /** Opening cases, adding clients and writing on their file is for the people who work cases;
  *  Finance and Quality reviewers read. "Update case status" is the permission that marks them. */
 export const WORKS_CASES: Permission = "updateStatus";
+
+/** The active member of staff a case may be assigned to: someone whose role works cases. */
+export async function assignableStaff(d: Db, staffId: string) {
+  const [row] = await d.select({ staff: s.staff }).from(s.staff)
+    .innerJoin(s.rolePermissions, and(eq(s.rolePermissions.role, s.staff.role), eq(s.rolePermissions.permission, WORKS_CASES), eq(s.rolePermissions.allowed, true)))
+    .where(and(eq(s.staff.id, staffId), eq(s.staff.active, true)));
+  return row?.staff ?? null;
+}

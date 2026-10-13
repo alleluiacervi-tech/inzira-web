@@ -14,10 +14,13 @@ import { Toast } from "./Toast";
 export function InboxView({
   requests,
   agents,
+  meId,
   now,
 }: {
   requests: RequestView[];
   agents: Staff[];
+  /** The signed-in person: offered first, so a one-person team takes its own requests in one tap. */
+  meId: string;
   now: string;
 }) {
   const [busy, start] = useTransition();
@@ -34,14 +37,8 @@ export function InboxView({
   const [quoteOurs, setQuoteOurs] = useState("");
   const [quoteNote, setQuoteNote] = useState("");
 
-  // Agent recommendation helper: lowest workload in matching category or overall
-  const recommendAgent = (req: RequestView) => {
-    const category = req.service.category;
-    // Agents matching team or lowest load
-    const matching = agents.filter((a) => a.active && a.role === "Agent");
-    if (!matching.length) return agents[0];
-    return matching[0];
-  };
+  const canTake = agents.some((a) => a.id === meId);
+  const others = agents.filter((a) => a.id !== meId);
 
   const handleAcceptAssign = (req: RequestView, agentId: string) => {
     start(async () => {
@@ -49,8 +46,8 @@ export function InboxView({
       if (res.ok) {
         setAssignReq(null);
         setSelectedReq(null);
-        setToast(`Request ${req.ref} assigned to ${shortName(agents.find((a) => a.id === agentId)?.name ?? "agent")}.`);
-      }
+        setToast(agentId === meId ? `You took ${req.ref}.` : `Request ${req.ref} assigned to ${shortName(agents.find((a) => a.id === agentId)?.name ?? "agent")}.`);
+      } else setToast(res.error);
     });
   };
 
@@ -117,7 +114,6 @@ export function InboxView({
       ) : (
         <div className="stack g10">
           {requests.map((r) => {
-            const suggested = recommendAgent(r);
             const ageHours = Math.round((Date.parse(now) - Date.parse(r.openedAt)) / (3600 * 1000));
             const isUrgent = ageHours > 2;
 
@@ -199,17 +195,30 @@ export function InboxView({
                     Decline
                   </button>
 
-                  <button
-                    type="button"
-                    className="c-btn c-btn-primary c-btn-sm"
-                    onClick={() => {
-                      setAssignReq(r);
-                      setChosenAgentId(suggested?.id ?? agents[0]?.id ?? "");
-                    }}
-                  >
-                    <Icon name="user" size={13} />
-                    <span>Accept &amp; assign</span>
-                  </button>
+                  {others.length > 0 && (
+                    <button
+                      type="button"
+                      className={`c-btn ${canTake ? "c-btn-secondary" : "c-btn-primary"} c-btn-sm`}
+                      onClick={() => {
+                        setAssignReq(r);
+                        setChosenAgentId(canTake ? meId : others[0].id);
+                      }}
+                    >
+                      <Icon name="users" size={13} />
+                      <span>{canTake ? "Assign…" : "Accept & assign"}</span>
+                    </button>
+                  )}
+                  {canTake && (
+                    <button
+                      type="button"
+                      className="c-btn c-btn-primary c-btn-sm"
+                      disabled={busy}
+                      onClick={() => handleAcceptAssign(r, meId)}
+                    >
+                      <Icon name="check" size={13} />
+                      <span>Accept &amp; take it</span>
+                    </button>
+                  )}
                 </div>
               </div>
             );
@@ -229,18 +238,25 @@ export function InboxView({
               <Link href={`/console/requests/${selectedReq.ref}`} className="c-btn c-btn-secondary c-btn-sm">
                 Open full page →
               </Link>
-              <button
-                type="button"
-                className="c-btn c-btn-primary c-btn-sm"
-                onClick={() => {
-                  const req = selectedReq;
-                  setSelectedReq(null);
-                  setAssignReq(req);
-                  setChosenAgentId(recommendAgent(req)?.id ?? agents[0]?.id ?? "");
-                }}
-              >
-                Accept &amp; assign
-              </button>
+              {canTake && others.length === 0 ? (
+                <button type="button" className="c-btn c-btn-primary c-btn-sm" disabled={busy} onClick={() => handleAcceptAssign(selectedReq, meId)}>
+                  Accept &amp; take it
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  className="c-btn c-btn-primary c-btn-sm"
+                  disabled={!agents.length}
+                  onClick={() => {
+                    const req = selectedReq;
+                    setSelectedReq(null);
+                    setAssignReq(req);
+                    setChosenAgentId(canTake ? meId : agents[0]?.id ?? "");
+                  }}
+                >
+                  Accept &amp; assign
+                </button>
+              )}
             </div>
           )
         }
@@ -309,18 +325,6 @@ export function InboxView({
                 Select an agent to handle <strong>{assignReq.name}</strong> for <strong>{assignReq.profile.name}</strong>.
               </div>
 
-              {/* Recommendation Box */}
-              <div
-                className="row g10 console-panel"
-                style={{ padding: 12, background: "var(--c-ember-bg)", borderColor: "var(--c-ember-border)" }}
-              >
-                <Icon name="user" size={18} color="var(--c-ember)" />
-                <div className="stack" style={{ gap: 2, fontSize: 12.5 }}>
-                  <strong style={{ color: "var(--c-ember)" }}>Suggested: {recommendAgent(assignReq)?.name}</strong>
-                  <span style={{ color: "var(--c-text)" }}>Specializes in {assignReq.service.category} &amp; ready for new cases.</span>
-                </div>
-              </div>
-
               <div className="console-form-group">
                 <label className="console-label">Choose agent</label>
                 <select
@@ -328,9 +332,9 @@ export function InboxView({
                   value={chosenAgentId}
                   onChange={(e) => setChosenAgentId(e.target.value)}
                 >
-                  {agents.filter((a) => a.active && a.role === "Agent").map((a) => (
+                  {agents.map((a) => (
                     <option key={a.id} value={a.id}>
-                      {a.name} ({a.team})
+                      {a.id === meId ? `Me (${a.name})` : `${a.name} (${a.team})`}
                     </option>
                   ))}
                 </select>

@@ -23,6 +23,12 @@ export const fmtLong = (iso: string, lang: Lang = "en") => lang === "rw"
   : `${WEEKDAY[at(iso).getUTCDay()]}, ${at(iso).getUTCDate()} ${MONTH[at(iso).getUTCMonth()]} ${at(iso).getUTCFullYear()}`;
 export const fmtMonth = (iso: string, lang: Lang = "en") => `${lang === "rw" ? MONTH_RW[at(iso).getUTCMonth()] : MONTH[at(iso).getUTCMonth()]} ${at(iso).getUTCFullYear()}`;
 export const isSameDay = (a: string, b: string) => dayNo(a) === dayNo(b);
+/** True when `a` falls on `b`'s Kigali day or earlier. */
+export const isOnOrBeforeDay = (a: string, b: string) => dayNo(a) <= dayNo(b);
+/** The instant the Kigali month starts, `add` months from the one `iso` falls in. */
+export const kigaliMonthStart = (iso: string, add = 0) => Date.UTC(at(iso).getUTCFullYear(), at(iso).getUTCMonth() + add, 1) - KIGALI;
+/** "Oct" for the Kigali month that starts at `ms`. */
+export const monthShort = (ms: number) => MON[new Date(ms + KIGALI).getUTCMonth()];
 export const dayPart = (iso: string) => (at(iso).getUTCHours() < 12 ? "morning" : at(iso).getUTCHours() < 17 ? "afternoon" : "evening");
 
 const rel = (iso: string, now: string, lang: Lang) => {
@@ -53,6 +59,9 @@ export function fmtAgo(iso: string, now: string, lang: Lang = "en") {
   const r = rel(iso, now, lang);
   return r === "Today" ? `Today ${fmtTime(iso)}` : r ?? fmtDay(iso);
 }
+
+/** A span of hours: 5 → "5h", 26 → "1d 2h". */
+export const fmtHours = (h: number) => (h < 24 ? `${h}h` : `${Math.floor(h / 24)}d${h % 24 ? ` ${h % 24}h` : ""}`);
 
 // ---------------- money ----------------
 export const rwf = (n: number) => `RWF ${n.toLocaleString("en-US")}`;
