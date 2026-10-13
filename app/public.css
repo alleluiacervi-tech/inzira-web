@@ -176,6 +176,7 @@
 
 /* ============ fee schedule rows (services list, related services) ============ */
 .pl { display: flex; flex-direction: column; gap: clamp(36px, 4vw, 52px); }
+.pl-cols { display: flex; justify-content: space-between; gap: 16px; padding-right: 30px; margin-bottom: -20px; font-size: var(--fs-sm); font-weight: 600; color: var(--muted); }
 .pl-head { display: flex; justify-content: space-between; align-items: baseline; gap: 6px 16px; flex-wrap: wrap; padding-bottom: 12px; border-bottom: 1.5px solid var(--brand); }
 .pl-office { font-size: var(--fs-lg); font-weight: 750; letter-spacing: -0.015em; line-height: 1.25; }
 .pl-area { font-size: var(--fs-sm); color: var(--muted); }
@@ -308,3 +309,20 @@
 /* ============ sign in and track ============ */
 .auth-main { padding-top: clamp(24px, 6vw, 64px); padding-bottom: 96px; }
 .auth-card { max-width: 520px; margin: 0 auto; padding: clamp(20px, 4vw, 36px); background: var(--paper); border: 1px solid var(--line); border-radius: var(--r-lg); box-shadow: 0 24px 48px -36px rgba(20, 40, 80, .4); }
+
+/* Every service and our fee for it, one tap away on the home page. */
+.fee-all { grid-column: 1 / -1; background: var(--paper); border: 1px solid var(--line); border-radius: var(--r-card); }
+.fee-all > summary { display: flex; justify-content: space-between; align-items: center; gap: 16px; min-height: 64px; padding: 14px 24px; font-size: var(--fs-md); font-weight: 650; }
+.fee-all > summary:hover { color: var(--brand); }
+.fee-all > div { padding: 8px 24px 28px; }
+@media (max-width: 560px) { .fee-all > summary { padding: 12px 16px; } .fee-all > div { padding: 8px 16px 20px; } }
+
+/* ============ touch targets ============ */
+.logo-link { min-height: var(--touch); }
+.pubnav .nav-mob { flex-shrink: 0; }
+.pubnav .nav-mob .btn-ico { flex-shrink: 0; }
+.crumbs a { display: inline-flex; align-items: center; min-height: 32px; }
+@media (pointer: coarse) { .crumbs a { min-height: var(--touch); } }
+
+/* In-page links (How it works, Help, Contact) land below the sticky header. */
+.home section[id] { scroll-margin-top: 84px; }

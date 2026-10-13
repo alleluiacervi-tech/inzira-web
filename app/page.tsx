@@ -7,6 +7,7 @@ import { OFFICES } from "@/lib/institutions";
 import { rwf } from "@/lib/format";
 import { SITE } from "@/lib/site";
 import { ContactList } from "@/components/Contact";
+import { PriceList } from "@/components/PriceList";
 import { getLocale } from "@/lib/i18n/locale";
 import { text } from "@/lib/i18n/messages";
 import { localizeCategory, localizeServices, officeText } from "@/lib/i18n/present";
@@ -166,6 +167,13 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ a
                 <p>{t("home.twoOursD")}</p>
               </div>
             </div>
+            <details className="fee-all">
+              <summary>{t("home.feesTitle")}<span className="chev"><Icon name="down" size={20} /></span></summary>
+              <div className="stack g24" style={{ paddingTop: 8 }}>
+                <p className="sec-lead">{t("home.feesLead")}</p>
+                <PriceList services={services} />
+              </div>
+            </details>
           </div>
         </section>
 

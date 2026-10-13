@@ -40,7 +40,7 @@ export function LogoMark({ dark = false }: { dark?: boolean }) {
 
 export function Logo({ dark = false, href = "/", label = "Inzira home" }: { dark?: boolean; href?: string; label?: string }) {
   return (
-    <Link href={href} className="row g10" style={{ textDecoration: "none", color: dark ? "var(--on-dark)" : "var(--brand)" }} aria-label={label}>
+    <Link href={href} className="row g10 logo-link" style={{ textDecoration: "none", color: dark ? "var(--on-dark)" : "var(--brand)" }} aria-label={label}>
       <LogoMark dark={dark} />
       <span className="d" style={{ fontSize: 23, fontWeight: 800, letterSpacing: "-0.035em" }}>inzira</span>
     </Link>
@@ -98,7 +98,7 @@ export function FeeBreakdown({ official, officialNote, ours, oursNote, total, ch
           <div className="row g8"><FeeTag kind="ours" /><strong style={{ fontSize: 15 }}>{t("service.assistFee")}</strong></div>
           <p className="hint" style={{ maxWidth: 360 }}>{oursNote ?? t("service.assistNote")}</p>
         </div>
-        <span className="d fig fee-ours nowrap" style={{ fontSize: 20, textAlign: "right" }}>{ours}</span>
+        <span className="d fig fee-ours" style={{ fontSize: 20, textAlign: "right", maxWidth: 190 }}>{ours}</span>
       </div>
       <div className="total-row"><strong>{t("service.total")}</strong><span className="d fig" style={{ fontSize: 20, textAlign: "right", marginLeft: "auto" }}>{total}</span></div>
       {children}
@@ -254,7 +254,7 @@ export function RequestRow({ r }: { r: CustomerRequest }) {
         {open && <div className="progress" style={{ width: "100%" }} role="img" aria-label={t("request.step", { n: step, total: steps })}><span style={{ width: `${(step / steps) * 100}%`, background: act ? "var(--signal-deep)" : undefined }} /></div>}
         <span className="mut" style={{ fontSize: 12.5 }}>{open ? `${t("request.step", { n: step, total: steps })} · ${shown(locale, "status", stageLabel(r, r.stage))}` : r.closed ? t("request.closed", { date: fmtDay(r.closed.at, locale) }) : t("request.delivered", { date: fmtDay(r.stageDates.completed ?? r.updatedAt, locale) })}{r.agent ? ` · ${t("request.agent", { name: r.agent.name })}` : ""}</span>
       </div>
-      <div className="row between g12">
+      <div className="stack g10" style={{ alignItems: "flex-start" }}>
         <div className="stack g4"><span className="req-next" style={{ color: act ? "var(--ember-deep)" : "var(--muted)" }}>{act ? t("request.yourAction") : open ? t("request.next") : t("request.outcome")}</span><span style={{ fontSize: 14, lineHeight: 1.45 }}>{r.next}</span></div>
         <Link className={`btn btn-sm ${act ? "btn-p" : "btn-s"}`} href={`/portal/requests/${r.ref}`} aria-label={t("request.viewName", { action: act ? t("request.resolve") : t("request.view"), name, ref: r.ref })}>{act ? t("request.resolve") : t("request.view")}</Link>
       </div>
