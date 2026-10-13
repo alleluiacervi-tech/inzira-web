@@ -107,7 +107,11 @@ export default function StartForm({ service: s }: { service: Service | null }) {
     if (s) s.documents.forEach((d, i) => { if (files[d.name]) fd.set(`file-${i}`, files[d.name]); });
     else Object.values(files).forEach((file) => fd.append("file-extra", file));
     const r = await submitRequest(fd).catch(() => ({ ok: false as const, error: t("authErr.submitFail") }));
-    if (!r.ok) return trError(locale, r.error);
+    if (!r.ok) {
+      // A phone number that belongs to another account: back to the first step to fix it, not stuck on the code.
+      if (r.error === t("custErr.phoneTaken")) { setSendError(trError(locale, r.error)); setPhase("form"); setStep(0); window.scrollTo({ top: 0 }); return null; }
+      return trError(locale, r.error);
+    }
     try { sessionStorage.removeItem(draftKey); } catch { /* ignore */ }
     setRef(r.ref);
     setPortalOpened(r.portal);
