@@ -18,7 +18,7 @@ export default async function StartPage({ params }: { params: Promise<{ slug: st
   return (
     <>
       <PublicNav />
-      <main><StartForm service={localizeService(s, locale)} /></main>
+      <main id="main"><StartForm service={localizeService(s, locale)} /></main>
     </>
   );
 }

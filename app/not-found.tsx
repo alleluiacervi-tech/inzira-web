@@ -12,7 +12,7 @@ export default async function NotFound() {
   return (
     <>
       <PublicNav />
-      <main className="wrap stack g24" style={{ paddingTop: "clamp(48px, 9vw, 96px)", paddingBottom: 96, maxWidth: 820, marginLeft: 0 }}>
+      <main id="main" className="wrap stack g24" style={{ paddingTop: "clamp(48px, 9vw, 96px)", paddingBottom: 96, maxWidth: 820, marginLeft: 0 }}>
         <div className="stack g12">
           <span className="eb">{t("notFound.kicker")}</span>
           <h1 className="d h-1">{t("notFound.title")}</h1>

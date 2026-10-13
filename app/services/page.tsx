@@ -18,7 +18,7 @@ export default async function ServicesPage({ searchParams }: { searchParams: Pro
   return (
     <>
       <PublicNav />
-      <main><Catalogue services={localizeServices(services, locale)} categories={categories.map((c) => localizeCategory(c, locale))} initialQuery={sp.q ?? ""} initialCategory={sp.category ?? "all"} /></main>
+      <main id="main"><Catalogue services={localizeServices(services, locale)} categories={categories.map((c) => localizeCategory(c, locale))} initialQuery={sp.q ?? ""} initialCategory={sp.category ?? "all"} /></main>
       <Footer />
     </>
   );

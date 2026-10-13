@@ -2,17 +2,19 @@ import Link from "next/link";
 import PublicNav from "@/components/PublicNav";
 import Footer from "@/components/Footer";
 import { Alert, Icon } from "@/components/ui";
-import { listServices } from "@/lib/repo";
+import { listCategories, listServices } from "@/lib/repo";
 import { OFFICES } from "@/lib/institutions";
+import { rwf } from "@/lib/format";
 import { SITE } from "@/lib/site";
 import { ContactList } from "@/components/Contact";
 import { PriceList } from "@/components/PriceList";
 import { getLocale } from "@/lib/i18n/locale";
 import { text } from "@/lib/i18n/messages";
-import { localizeServices, officeText } from "@/lib/i18n/present";
+import { localizeCategory, localizeServices, officeText } from "@/lib/i18n/present";
 
 type T = (path: string, vars?: Record<string, string | number>) => string;
 
+/** A made-up request, labelled as an example, showing what following a request looks like. */
 function CaseFile({ t }: { t: T }) {
   const steps: { title: string; meta: string; state: "done" | "now" | "next" }[] = [
     { title: t("home.step1t"), meta: t("home.step1m"), state: "done" },
@@ -25,6 +27,7 @@ function CaseFile({ t }: { t: T }) {
       <div className="case-tab fig">{t("home.caseTab")}</div>
       <div className="case-sheet">
         <header className="case-head">
+          <span className="case-ex">{t("home.example")}</span>
           <strong className="case-title">{t("home.caseTitle")}</strong>
           <span className="case-sub">Umucyo Tech Ltd</span>
         </header>
@@ -55,7 +58,10 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ a
   const deleted = (await searchParams).account === "deleted";
   const locale = await getLocale();
   const t: T = (path, vars) => text(locale, path, vars);
-  const services = localizeServices(await listServices(), locale);
+  const [rawServices, rawCategories] = await Promise.all([listServices(), listCategories()]);
+  const services = localizeServices(rawServices, locale);
+  const categories = rawCategories.map((c) => localizeCategory(c, locale));
+  const popular = services.filter((s) => s.popular).slice(0, 4);
   const steps = [["home.s1t", "home.s1d"], ["home.s2t", "home.s2d"], ["home.s3t", "home.s3d"], ["home.s4t", "home.s4d"]];
   const faqs = [
     ["home.q1", t("home.a1", { legal: SITE.legalName, city: SITE.city })],
@@ -65,10 +71,16 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ a
     ["home.q5", t("home.a5")],
   ] as const;
 
+  // For each category, how many services it holds and the lowest fee of ours among them.
+  const browse = categories.map((c) => {
+    const list = services.filter((s) => s.category === c.id);
+    return { c, count: list.length, from: list.length ? Math.min(...list.map((s) => s.ours)) : null };
+  }).filter((b) => b.c.href || b.count > 0);
+
   return (
     <>
       <PublicNav />
-      <main className="home">
+      <main id="main" className="home">
         {deleted && <div className="wrap" style={{ paddingTop: 20, paddingBottom: 20 }}><Alert kind="ok" title={t("home.deletedTitle")} live>{t("home.deletedBody")}</Alert></div>}
 
         <section className="top" aria-labelledby="hero-h">
@@ -76,14 +88,24 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ a
             <div className="top-copy">
               <h1 id="hero-h" className="h-hero">{t("home.hero")}</h1>
               <p className="top-lead">{t("home.lead")}</p>
-              <div className="top-ctas">
-                <Link className="btn btn-p btn-lg" href="/services">{t("home.start")}</Link>
-                <Link className="btn btn-s btn-lg" href="#prices">{t("home.seeFees")}</Link>
-              </div>
+              <form className="hero-search" role="search" action="/services" method="get">
+                <label htmlFor="hero-q" className="hero-search-label">{t("home.searchLabel")}</label>
+                <div className="hero-search-box">
+                  <Icon name="search" size={22} />
+                  <input id="hero-q" name="q" type="search" placeholder={t("home.searchPh")} autoComplete="off" enterKeyHint="search" />
+                  <button className="btn btn-p btn-lg" type="submit">{t("home.searchBtn")}</button>
+                </div>
+              </form>
+              {popular.length > 0 && (
+                <div className="hero-popular">
+                  <span>{t("home.popular")}</span>
+                  <ul>{popular.map((s) => <li key={s.slug}><Link href={`/services/${s.slug}`}>{s.name}</Link></li>)}</ul>
+                </div>
+              )}
               <ul className="top-facts">
-                <li><Icon name="clock" size={17} />{t("home.reply", { time: t("responseTime") })}</li>
-                <li><Icon name="file-text" size={17} />{t("home.receipts")}</li>
-                <li><Icon name="phone" size={17} />{t("home.momo")}</li>
+                <li><Icon name="clock" size={18} />{t("home.reply", { time: t("responseTime") })}</li>
+                <li><Icon name="file-text" size={18} />{t("home.receipts")}</li>
+                <li><Icon name="phone" size={18} />{t("home.momo")}</li>
               </ul>
             </div>
             <CaseFile t={t} />
@@ -97,30 +119,65 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ a
               <span className="filed-note">{t("home.filedNote")}</span>
             </div>
           </div>
+          <div className="imigongo" aria-hidden="true" />
         </section>
 
-        <section id="prices" className="sec" aria-labelledby="prices-h">
-          <div className="wrap fees">
-            <header className="fees-head">
-              <h2 id="prices-h" className="h-2">{t("home.feesTitle")}</h2>
-              <p className="sec-lead">{t("home.feesLead")}</p>
-              <p className="fees-note">{t("home.feesNote")}</p>
-              <div className="fees-ctas m-hide">
-                <Link className="btn btn-p" href="/services">{t("home.start")}</Link>
-                <Link className="btn btn-s" href="/start">{t("home.notListed")}</Link>
+        <section id="services" className="sec" aria-labelledby="browse-h">
+          <div className="wrap stack g32">
+            <div className="sec-head">
+              <div className="stack g12">
+                <h2 id="browse-h" className="h-2">{t("home.browseTitle")}</h2>
+                <p className="sec-lead">{t("home.browseLead")}</p>
               </div>
-            </header>
-            <div className="stack g24">
-              <PriceList services={services} />
-              <div className="fees-ctas d-hide">
-                <Link className="btn btn-p btn-lg" href="/services">{t("home.start")}</Link>
-                <Link className="btn btn-s btn-lg" href="/start">{t("home.notListed")}</Link>
-              </div>
+              <Link className="btn btn-s" href="/services">{t("home.viewAll")}<Icon name="arrow" size={16} /></Link>
             </div>
+            <ul className="cats">
+              {browse.map(({ c, count, from }) => (
+                <li key={c.id}>
+                  <Link className={`cat${c.href ? " cat-alt" : ""}`} href={c.href ?? `/services?category=${c.id}`}>
+                    <span className="cat-ico"><Icon name={c.icon} size={26} /></span>
+                    <span className="cat-name">{c.name}</span>
+                    <span className="cat-desc">{c.desc}</span>
+                    <span className="cat-meta">
+                      {c.href ? <span>{t("home.notListed")}</span> : <><span>{count === 1 ? t("home.oneService") : t("home.nServices", { n: count })}</span>{from !== null && <strong className="fig">{t("home.from", { amount: rwf(from) })}</strong>}</>}
+                      <Icon name="arrow" size={18} />
+                    </span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
           </div>
         </section>
 
-        <section id="how" className="sec sec-ledger" aria-labelledby="how-h">
+        <section id="prices" className="sec sec-tint" aria-labelledby="two-h">
+          <div className="wrap two-fees">
+            <div className="stack g12">
+              <h2 id="two-h" className="h-2">{t("home.twoTitle")}</h2>
+              <p className="sec-lead">{t("home.twoLead")}</p>
+            </div>
+            <div className="fee-pair">
+              <div className="fee-card fee-card-official">
+                <span className="fo">{t("feeTag.official")}</span>
+                <h3>{t("home.twoOfficialT")}</h3>
+                <p>{t("home.twoOfficialD")}</p>
+              </div>
+              <div className="fee-card fee-card-ours">
+                <span className="fs">{t("feeTag.ours")}</span>
+                <h3>{t("home.twoOursT")}</h3>
+                <p>{t("home.twoOursD")}</p>
+              </div>
+            </div>
+            <details className="fee-all">
+              <summary>{t("home.feesTitle")}<span className="chev"><Icon name="down" size={20} /></span></summary>
+              <div className="stack g24" style={{ paddingTop: 8 }}>
+                <p className="sec-lead">{t("home.feesLead")}</p>
+                <PriceList services={services} />
+              </div>
+            </details>
+          </div>
+        </section>
+
+        <section id="how" className="sec" aria-labelledby="how-h">
           <div className="wrap stack g40">
             <div className="stack g12" style={{ maxWidth: 620 }}>
               <h2 id="how-h" className="h-2">{t("home.howTitle")}</h2>
@@ -138,7 +195,7 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ a
           </div>
         </section>
 
-        <section id="faq" className="sec" aria-labelledby="faq-h">
+        <section id="help" className="sec sec-tint" aria-labelledby="faq-h">
           <div className="wrap two-col">
             <div className="stack g12"><h2 id="faq-h" className="h-2">{t("home.faqTitle")}</h2><p className="sec-lead">{t("home.faqLead")} <Link href="#talk">{t("home.faqTalk")}</Link>. {t("home.faqFree")}</p></div>
             <div className="faq">
@@ -159,6 +216,7 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ a
               <p className="sec-lead">{t("home.closeLead")}</p>
               <div className="close-ctas">
                 <Link className="btn btn-p btn-lg" href="/services">{t("home.start")}</Link>
+                <Link className="btn btn-s btn-lg" href="/start">{t("home.notListed")}</Link>
               </div>
             </div>
             <div className="contact-card">

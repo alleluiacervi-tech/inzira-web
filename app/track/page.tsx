@@ -14,8 +14,8 @@ export default function TrackPage() {
   return (
     <>
       <PublicNav />
-      <main className="wrap" style={{ paddingTop: 56, paddingBottom: 96 }}>
-        <div style={{ maxWidth: 560, margin: "0 auto" }}><Track /></div>
+      <main id="main" className="wrap auth-main">
+        <div className="auth-card"><Track /></div>
       </main>
       <Footer />
     </>

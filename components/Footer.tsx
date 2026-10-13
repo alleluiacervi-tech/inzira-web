@@ -21,7 +21,10 @@ export default async function Footer() {
   ].filter(Boolean) as { icon: string; text: string; href?: string; external?: boolean }[];
 
   return (
-    <footer className="footer wrap" id="contact">
+    <>
+    <div className="imigongo imigongo-flip" aria-hidden="true" />
+    <footer className="footer" id="contact">
+      <div className="wrap footer-in">
       <div className="footer-grid">
         <div className="stack g18">
           <Logo dark label={t("shell.logo")} />
@@ -43,6 +46,8 @@ export default async function Footer() {
         <p style={{ fontSize: 13, lineHeight: 1.6, maxWidth: 820, color: "var(--on-dark-muted)" }}>{t("footer.disclaimer")}</p>
         <span style={{ fontSize: 13, whiteSpace: "nowrap", color: "var(--on-dark-muted)" }}>{t("footer.copy", { year: new Date().getFullYear(), legal: SITE.legalName })}{isSet(SITE.companyCode) ? `, ${SITE.companyCode}` : ""}</span>
       </div>
+      </div>
     </footer>
+    </>
   );
 }
