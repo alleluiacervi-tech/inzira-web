@@ -31,5 +31,5 @@ Date of research: 2026-10-13. Sources are the institutions' own help pages where
 ## What the admin sees: ID number and documents
 
 - Every request already lists the documents its service asks for, with each file's review status. Staff with "Download customer documents" open the files (every open is written to the audit log).
-- The full national ID number is hidden behind an audited "reveal" for each client. It requires only the basic "view assigned cases" permission plus access to that case or client, which every role has.
-- Planned change: add a separate permission, "View full ID and TIN", given to Owner and Administrator by default, so that only the people who need it can reveal the number. Agents see it for their own cases. Finance and Quality reviewers do not.
+- The full national ID number is hidden behind an audited "Show" button, on the request page and on the client page. Every use is written to the audit trail.
+- Done: a separate permission, "View full ID and TIN" (`viewIdentity`), now controls that button. Owner, Administrator, Supervisor and Agent have it by default (agents only for their own cases, as before); Finance and Quality reviewers do not. The Owner can change this in Admin › Roles & people. Existing databases get these defaults from migration `0005`.

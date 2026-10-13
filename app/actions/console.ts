@@ -260,7 +260,7 @@ export async function recordManualPayment(input: {
 
 // ---------------- Privacy & Audited Reveals ----------------
 export async function revealNationalId(profileId: string): Promise<Result<{ nationalId: string }>> {
-  const a = await clientAction(profileId, "viewAssigned");
+  const a = await clientAction(profileId, "viewIdentity");
   if ("error" in a) return fail(a.error!);
   const { me, d, profile: prof } = a;
 
@@ -275,7 +275,7 @@ export async function revealNationalId(profileId: string): Promise<Result<{ nati
 }
 
 export async function revealTin(profileId: string): Promise<Result<{ tin: string }>> {
-  const a = await clientAction(profileId, "viewAssigned");
+  const a = await clientAction(profileId, "viewIdentity");
   if ("error" in a) return fail(a.error!);
   const { me, d, profile: prof } = a;
 
