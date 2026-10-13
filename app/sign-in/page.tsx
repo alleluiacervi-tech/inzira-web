@@ -17,8 +17,8 @@ export default async function SignInPage({ searchParams }: { searchParams: Promi
   return (
     <>
       <PublicNav />
-      <main id="main" className="wrap" style={{ paddingTop: 56, paddingBottom: 96 }}>
-        <div style={{ maxWidth: 460, margin: "0 auto" }}><SignIn next={next?.startsWith("/") ? next : undefined} demo={!sendsRealSms()} /></div>
+      <main id="main" className="wrap auth-main">
+        <div className="auth-card"><SignIn next={next?.startsWith("/") ? next : undefined} demo={!sendsRealSms()} /></div>
       </main>
     </>
   );

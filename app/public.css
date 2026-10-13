@@ -304,3 +304,7 @@
   .startbar-v { font-size: var(--fs-lg); line-height: 1.2; }
   .startbar .btn { width: auto; flex-shrink: 0; }
 }
+
+/* ============ sign in and track ============ */
+.auth-main { padding-top: clamp(24px, 6vw, 64px); padding-bottom: 96px; }
+.auth-card { max-width: 520px; margin: 0 auto; padding: clamp(20px, 4vw, 36px); background: var(--paper); border: 1px solid var(--line); border-radius: var(--r-lg); box-shadow: 0 24px 48px -36px rgba(20, 40, 80, .4); }
