@@ -288,6 +288,7 @@ select.in { appearance: none; background-image: url("data:image/svg+xml,%3Csvg x
 .chip:hover { border-color: var(--ink); color: var(--ink); }
 .chip-on, .chip-on:hover { background: var(--brand); border-color: var(--brand); color: #fff; }
 .chip-sm { height: 34px; }
+@media (pointer: coarse) { .chip { height: var(--touch); } .chip-sm { height: 40px; } }
 .chips-scroll { display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; min-width: 0; max-width: 100%; }
 .chips-scroll::-webkit-scrollbar { display: none; }
 .searchbox { padding: 8px; display: flex; gap: 8px; align-items: center; }
@@ -311,7 +312,7 @@ tbody tr:hover td { background: var(--sand-2); }
 .lnk:hover { color: var(--ember-deep); }
 .progress { height: 6px; background: var(--sand); border-radius: 3px; overflow: hidden; }
 .progress > span { display: block; height: 100%; background: var(--brand); border-radius: 3px; }
-.total-row { display: flex; justify-content: space-between; align-items: center; padding: 14px 16px; background: var(--bone); border-radius: var(--r-ctl); gap: 12px; }
+.total-row { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; padding: 14px 16px; background: var(--bone); border-radius: var(--r-ctl); gap: 12px; }
 .dark { background: var(--brand); color: var(--on-dark); }
 .skel { display: block; background: var(--sand); border-radius: 3px; animation: pulse 1.4s ease-in-out infinite; }
 @media (prefers-reduced-motion: reduce) { .skel { animation: none; } .chev { transition: none; } }

@@ -267,3 +267,40 @@
   .footer nav.stack { gap: 2px; }
   .ft-contact { gap: 2px !important; }
 }
+
+/* ============ services list ============ */
+.cat-head { padding-top: clamp(24px, 4vw, 40px); padding-bottom: 20px; background: var(--sand-2); border-bottom: 1px solid var(--line); }
+.cat-search { max-width: 760px; background: #fff; }
+.cat-search input { flex: 1 1 auto; }
+@media (max-width: 560px) { .hero-search-box.cat-search { padding: 4px 6px 4px 14px; flex-wrap: nowrap; } .cat-search > svg { display: block; } .cat-search input { flex-basis: 0; padding: 0; } }
+.cat-chips { padding-bottom: 2px; }
+.cat-chips .chip { height: 44px; padding: 0 16px; border-radius: 999px; }
+.cat-chips .chip svg { color: var(--brand); }
+.cat-chips .chip-on svg { color: #fff; }
+.chip-n { min-width: 22px; height: 22px; padding: 0 6px; border-radius: 11px; display: inline-flex; align-items: center; justify-content: center; background: var(--sand); color: var(--ink-2); font-size: var(--fs-xs); font-weight: 700; }
+.chip-on .chip-n { background: rgba(255, 255, 255, .2); color: #fff; }
+.cat-body { padding-top: 32px; padding-bottom: 80px; align-items: flex-start; }
+@media (max-width: 720px) { .cat-body { padding-top: 20px; padding-bottom: 56px; } }
+
+/* ============ service page ============ */
+.svc-main { gap: 64px; padding-top: 28px; padding-bottom: 80px; }
+.svc-office { font-size: var(--fs-sm); color: var(--ink-2); }
+.svc-facts { gap: 10px 12px !important; }
+.svc-facts li { padding: 10px 14px; border: 1px solid var(--line); border-radius: var(--r-md); background: var(--sand-2); font-size: var(--fs-sm); font-weight: 600; }
+.svc-facts svg { color: var(--hill) !important; }
+.svc-req { font-size: var(--fs-base); line-height: 1.5; align-items: flex-start; }
+.svc-req svg { color: var(--hill); }
+.svc-step-t { font-size: var(--fs-md); }
+.svc-step-d { font-size: var(--fs-base); line-height: 1.55; color: var(--muted); }
+.svc-side-t { font-size: var(--fs-sm); }
+.show-split { display: none; }
+@media (max-width: 1100px) { .show-split { display: block; max-width: 420px; } .svc-main { gap: 40px; padding-bottom: 120px; } }
+@media (max-width: 720px) { .svc-main { padding-top: 20px; } }
+/* On a phone the way to start stays at the bottom of the screen, with the total beside it. */
+.startbar { display: none; }
+@media (max-width: 1100px) {
+  .startbar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 35; display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 10px 16px calc(10px + env(safe-area-inset-bottom)); background: var(--paper); border-top: 1px solid var(--line); box-shadow: 0 -10px 24px -18px rgba(20, 40, 80, .45); }
+  .startbar-l { font-size: var(--fs-xs); color: var(--muted); }
+  .startbar-v { font-size: var(--fs-lg); line-height: 1.2; }
+  .startbar .btn { width: auto; flex-shrink: 0; }
+}

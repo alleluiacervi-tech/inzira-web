@@ -1,6 +1,7 @@
 "use client";
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { billingKind } from "@/lib/format";
 import { searchText } from "@/lib/i18n/present";
 import type { Audience, Category, Service } from "@/lib/types";
@@ -11,15 +12,43 @@ import { useDialog } from "./useDialog";
 
 type FeeKind = ReturnType<typeof billingKind>;
 
+const AUDIENCES: Audience[] = ["individual", "business", "organization"];
+const FEE_KINDS: FeeKind[] = ["once", "monthly", "yearly"];
+const SORTS = ["popular", "cost", "name"];
+const listParam = <T extends string>(raw: string | null, allowed: readonly T[]) => (raw?.split(",").filter((v): v is T => (allowed as readonly string[]).includes(v)) ?? []);
+
 export default function Catalogue({ services, categories, initialQuery, initialCategory }: { services: Service[]; categories: Category[]; initialQuery: string; initialCategory: string }) {
   const { t } = useI18n();
   const [q, setQ] = useState(initialQuery);
   const [cat, setCat] = useState(categories.some((c) => c.id === initialCategory) ? initialCategory : "all");
-  const [aud, setAud] = useState<Audience[]>([]);
-  const [fees, setFees] = useState<FeeKind[]>([]);
-  const [sort, setSort] = useState("popular");
+  // What you filtered by lives in the address too, so a filtered list can be shared or reopened.
+  const params = useSearchParams();
+  const [aud, setAud] = useState<Audience[]>(() => listParam(params.get("for"), AUDIENCES));
+  const [fees, setFees] = useState<FeeKind[]>(() => listParam(params.get("fee"), FEE_KINDS));
+  const [sort, setSort] = useState(() => (SORTS.includes(params.get("sort") ?? "") ? (params.get("sort") as string) : "popular"));
   const [showFilters, setShowFilters] = useState(false);
   const sheet = useDialog<HTMLDivElement>(showFilters, () => setShowFilters(false));
+
+  useEffect(() => {
+    const next = new URLSearchParams();
+    if (q.trim()) next.set("q", q.trim());
+    if (cat !== "all") next.set("category", cat);
+    if (aud.length) next.set("for", aud.join(","));
+    if (fees.length) next.set("fee", fees.join(","));
+    if (sort !== "popular") next.set("sort", sort);
+    const qs = next.toString();
+    const url = location.pathname + (qs ? `?${qs}` : "");
+    if (url !== location.pathname + location.search) window.history.replaceState(null, "", url);
+  }, [q, cat, aud, fees, sort]);
+
+  // On a phone the row of categories scrolls sideways: keep the chosen one in view.
+  const chipRow = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const row = chipRow.current, on = row?.querySelector<HTMLElement>("[aria-pressed=true]");
+    if (row && on) row.scrollTo({ left: on.offsetLeft - (row.clientWidth - on.offsetWidth) / 2, behavior: "auto" });
+  }, [cat]);
+
+  const countIn = (id: string) => services.filter((x) => x.category === id).length;
 
   const toggle = <T,>(arr: T[], v: T) => (arr.includes(v) ? arr.filter((x) => x !== v) : [...arr, v]);
 
@@ -62,25 +91,26 @@ export default function Catalogue({ services, categories, initialQuery, initialC
 
   return (
     <>
-      <section className="wrap stack g24" style={{ paddingTop: 40, paddingBottom: 28, borderBottom: "1px solid var(--line)" }}>
-        <nav aria-label={t("catalogue.crumb")} className="mut row g8" style={{ fontSize: 14 }}><Link href="/">{t("catalogue.home")}</Link><span>/</span><span>{t("catalogue.services")}</span></nav>
-        <div className="stack g10"><h1 className="d h-1">{t("catalogue.title")}</h1><p className="mut" style={{ fontSize: 17 }}>{t("catalogue.lead")} <Link href="/start">{t("catalogue.ask")}</Link>.</p></div>
-        <form className="card searchbox" style={{ maxWidth: 900 }} role="search" onSubmit={(e) => e.preventDefault()}>
-          <Icon name="search" size={22} />
-          <label htmlFor="cq" className="sr-only">{t("catalogue.searchLabel")}</label>
-          <input id="cq" value={q} onChange={(e) => setQ(e.target.value)} placeholder={t("catalogue.searchLabel")} autoComplete="off" />
-          {q && <button type="button" className="btn btn-g btn-ico" aria-label={t("catalogue.clear")} onClick={() => setQ("")}><Icon name="x" size={18} /></button>}
-          <button className="btn btn-p btn-lg m-hide" type="submit">{t("catalogue.search")}</button>
-        </form>
-        <div className="chips-scroll" role="group" aria-label={t("catalogue.category")}>
-          <button type="button" className={`chip ${cat === "all" ? "chip-on" : ""}`} aria-pressed={cat === "all"} onClick={() => setCat("all")}>{t("catalogue.all")}</button>
-          {categories.map((c) => c.href
-            ? <Link key={c.id} className="chip" href={c.href}>{c.name} <Icon name="arrow" size={15} /></Link>
-            : <button key={c.id} type="button" className={`chip ${cat === c.id ? "chip-on" : ""}`} aria-pressed={cat === c.id} onClick={() => setCat(c.id)}>{c.name}</button>)}
+      <section className="cat-head">
+        <div className="wrap stack g20">
+          <nav aria-label={t("catalogue.crumb")} className="crumbs"><Link href="/">{t("catalogue.home")}</Link><Icon name="right" size={14} /><span aria-current="page">{t("catalogue.services")}</span></nav>
+          <div className="stack g8"><h1 className="h-1">{t("catalogue.title")}</h1><p className="sec-lead">{t("catalogue.lead")} <Link href="/start">{t("catalogue.ask")}</Link>.</p></div>
+          <form className="hero-search-box cat-search" role="search" onSubmit={(e) => e.preventDefault()}>
+            <Icon name="search" size={22} />
+            <label htmlFor="cq" className="sr-only">{t("catalogue.searchLabel")}</label>
+            <input id="cq" type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder={t("catalogue.searchLabel")} autoComplete="off" enterKeyHint="search" />
+            {q && <button type="button" className="btn btn-g btn-ico" aria-label={t("catalogue.clear")} onClick={() => setQ("")}><Icon name="x" size={18} /></button>}
+          </form>
+          <div ref={chipRow} className="chips-scroll cat-chips" role="group" aria-label={t("catalogue.category")}>
+            <button type="button" className={`chip ${cat === "all" ? "chip-on" : ""}`} aria-pressed={cat === "all"} onClick={() => setCat("all")}>{t("catalogue.all")}<span className="chip-n">{services.length}</span></button>
+            {categories.map((c) => c.href
+              ? <Link key={c.id} className="chip" href={c.href}><Icon name={c.icon} size={18} />{c.name} <Icon name="arrow" size={15} /></Link>
+              : <button key={c.id} type="button" className={`chip ${cat === c.id ? "chip-on" : ""}`} aria-pressed={cat === c.id} onClick={() => setCat(c.id)}><Icon name={c.icon} size={18} />{c.name}<span className="chip-n">{countIn(c.id)}</span></button>)}
+          </div>
         </div>
       </section>
 
-      <section className="wrap row g40" style={{ paddingTop: 32, paddingBottom: 80, alignItems: "flex-start" }}>
+      <section className="wrap row g40 cat-body">
         <div className="m-hide">{filters}</div>
         <div className="stack g18 grow">
           <div className="row between g12 wrapx">

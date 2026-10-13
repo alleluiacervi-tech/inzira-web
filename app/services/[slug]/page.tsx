@@ -44,24 +44,29 @@ export default async function ServiceDetail({ params }: { params: Promise<{ slug
             <Link href="/services">{t("nav.services")}</Link><Icon name="right" size={14} /><Link href={`/services?category=${s.category}`}>{officeName}</Link><Icon name="right" size={14} /><span aria-current="page">{s.name}</span>
           </nav>
         </div>
-        <section className="wrap split" style={{ ["--aside" as string]: "440px", gap: 64, paddingTop: 28, paddingBottom: 80 }}>
+        <section className="wrap split svc-main" style={{ ["--aside" as string]: "440px" }}>
           <div className="stack" style={{ gap: 48 }}>
             <div className="stack g18">
-              {office && <p className="row g12" style={{ fontSize: 15, color: "var(--ink-2)" }}><Plate code={office.code} size="sm" />{training ? t("service.trainingVia", { via: s.via }) : t("service.filedWith", { office: office.code === "Irembo" ? "Irembo" : locale === "en" ? `the ${officeName}` : officeName, channel: s.channel })}</p>}
+              {office && <p className="row g12 svc-office"><Plate code={office.code} size="sm" />{training ? t("service.trainingVia", { via: s.via }) : t("service.filedWith", { office: office.code === "Irembo" ? "Irembo" : locale === "en" ? `the ${officeName}` : officeName, channel: s.channel })}</p>}
               <h1 className="d h-1">{s.name}</h1>
-              {s.aka && <p className="mut" style={{ fontSize: 16 }}>{t("service.also", { aka: s.aka })}</p>}
-              <p style={{ fontSize: 18, lineHeight: 1.6, color: "var(--ink-2)", maxWidth: 720 }}>{s.summary}</p>
+              {s.aka && <p className="mut">{t("service.also", { aka: s.aka })}</p>}
+              <p className="sec-lead">{s.summary}</p>
               <ul className="svc-facts">
                 {!training && <li><Icon name="clock" size={18} />{s.time}*</li>}
                 {s.documents.length > 0 && <li><Icon name="file-text" size={18} />{s.documents.length} {s.documents.length === 1 ? t("service.oneDoc") : t("service.manyDocs")}</li>}
                 <li><Icon name="file" size={18} />{training ? t("service.ourFee", { fee: displayOurs(s, locale) }) : t("service.receipt")}</li>
               </ul>
+              <dl className="fee-mini show-split">
+                <div><dt>{t("service.officialShort")}</dt><dd>{displayOfficial(s, locale)}</dd></div>
+                <div><dt>{t("service.assistShort")}</dt><dd className="fee-ours">{displayOurs(s, locale)}</dd></div>
+                <div><dt>{t("service.totalShort")}</dt><dd>{displayTotal(s, locale)}</dd></div>
+              </dl>
             </div>
             <div className="stack g16"><h2 className="d h-3">{t("service.who")}</h2>
               <div className="grid cols-3" style={{ gap: 12 }}>{s.who.map((w) => <div key={w.title} className="card stack g6" style={{ padding: 18 }}><strong>{w.title}</strong><span className="hint">{w.body}</span></div>)}</div>
             </div>
             <div className="stack g14"><h2 className="d h-3">{t("service.need")}</h2>
-              <ul className="stack g12" style={{ listStyle: "none", margin: 0, padding: 0 }}>{s.requirements.map((r) => <li key={r} className="row g12" style={{ fontSize: 16, lineHeight: 1.5, alignItems: "flex-start" }}><Icon name="check" size={20} stroke={2.2} color="var(--brand-2)" />{r}</li>)}</ul>
+              <ul className="stack g12" style={{ listStyle: "none", margin: 0, padding: 0 }}>{s.requirements.map((r) => <li key={r} className="row g12 svc-req"><Icon name="check" size={20} stroke={2.2} color="var(--brand-2)" />{r}</li>)}</ul>
             </div>
             {s.documents.length > 0 && <div className="stack g14"><h2 className="d h-3">{t("service.send")}</h2>
               <p className="hint" style={{ marginTop: -4 }}>{t("service.sendHint")}</p>
@@ -80,7 +85,7 @@ export default async function ServiceDetail({ params }: { params: Promise<{ slug
                 {s.steps.map((st, i) => (
                   <li key={st.title} className={st.you ? "is-you" : undefined}>
                     <span className="svc-step-n" aria-hidden="true">{i + 1}</span>
-                    <div className="stack g4"><strong className="row g10 wrapx" style={{ fontSize: 16.5 }}>{st.title}{st.you && <span className="tag tag-ember">{t("service.you")}</span>}</strong><span className="hint" style={{ fontSize: 15 }}>{st.body}</span></div>
+                    <div className="stack g4"><strong className="row g10 wrapx svc-step-t">{st.title}{st.you && <span className="tag tag-ember">{t("service.you")}</span>}</strong><span className="svc-step-d">{st.body}</span></div>
                   </li>
                 ))}
               </ol>
@@ -98,9 +103,9 @@ export default async function ServiceDetail({ params }: { params: Promise<{ slug
             </FeeBreakdown>
             {s.official.verifiedAt && <p className="hint row g8" style={{ alignItems: "flex-start" }}><Icon name="calendar" size={16} /><span>{t("service.checked", { who: s.authority, date: fmtDate(s.official.verifiedAt, locale) })}</span></p>}
             <div className="card stack g12" style={{ padding: 18 }}>
-              <div className="row g10"><Icon name="clock" size={18} /><span style={{ fontSize: 14.5 }}>{t("service.responds", { time: t("responseTime") })}</span></div>
-              <div className="row g10"><Icon name="msg" size={18} /><span style={{ fontSize: 14.5 }}>{t("service.updates")}</span></div>
-              {!training && <div className="row g10"><Icon name="refresh" size={18} /><span style={{ fontSize: 14.5 }}>{t("service.refund")}</span></div>}
+              <div className="row g10"><Icon name="clock" size={18} /><span className="svc-side-t">{t("service.responds", { time: t("responseTime") })}</span></div>
+              <div className="row g10"><Icon name="msg" size={18} /><span className="svc-side-t">{t("service.updates")}</span></div>
+              {!training && <div className="row g10"><Icon name="refresh" size={18} /><span className="svc-side-t">{t("service.refund")}</span></div>}
             </div>
             <p className="hint row g8" style={{ alignItems: "flex-start" }}><Icon name="shield" size={16} /><span>{t("service.privateOffice", { who: office && office.code !== "Irembo" ? office.code : t("service.privateGov") })}</span></p>
           </aside>
@@ -109,6 +114,10 @@ export default async function ServiceDetail({ params }: { params: Promise<{ slug
           <h2 className="d h-3">{t("service.together")}</h2>
           <div style={{ maxWidth: 860 }}><ServiceRows services={related} /></div>
         </section>
+        <div className="startbar">
+          <span className="stack"><span className="startbar-l">{t("service.assistShort")}</span><strong className="fig startbar-v">{displayOurs(s, locale)}</strong></span>
+          <Link className="btn btn-p btn-lg" href={`/start/${s.slug}`}>{t("service.start")}</Link>
+        </div>
       </main>
       <Footer />
     </>

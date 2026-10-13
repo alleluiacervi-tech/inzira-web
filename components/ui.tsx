@@ -100,7 +100,7 @@ export function FeeBreakdown({ official, officialNote, ours, oursNote, total, ch
         </div>
         <span className="d fig fee-ours nowrap" style={{ fontSize: 20, textAlign: "right" }}>{ours}</span>
       </div>
-      <div className="total-row"><strong>{t("service.total")}</strong><span className="d fig" style={{ fontSize: 22, textAlign: "right" }}>{total}</span></div>
+      <div className="total-row"><strong>{t("service.total")}</strong><span className="d fig" style={{ fontSize: 20, textAlign: "right", marginLeft: "auto" }}>{total}</span></div>
       {children}
       <p className="hint row g8" style={{ alignItems: "flex-start" }}><Icon name="shield" size={18} color="var(--ok)" /><span>{t("service.confirmPay")}</span></p>
     </div>
