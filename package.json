@@ -17,7 +17,8 @@
     "db:reset": "tsx scripts/db.mts reset",
     "db:remove-samples": "tsx scripts/db.mts remove-samples",
     "db:setup": "tsx scripts/db.mts setup",
-    "check:providers": "tsx scripts/check-providers.mts"
+    "check:providers": "tsx scripts/check-providers.mts",
+    "check:email": "tsx scripts/check-email.mts"
   },
   "engines": {
     "node": ">=20.0.0"
@@ -27,12 +28,14 @@
     "@vercel/blob": "^2.8.0",
     "drizzle-orm": "^0.45.3",
     "next": "15.5.27",
+    "nodemailer": "7.0.13",
     "pg": "^8.23.1",
     "react": "19.1.1",
     "react-dom": "19.1.1"
   },
   "devDependencies": {
     "@types/node": "^22",
+    "@types/nodemailer": "^6.4.24",
     "@types/pg": "^8.23.1",
     "@types/react": "^19",
     "@types/react-dom": "^19",

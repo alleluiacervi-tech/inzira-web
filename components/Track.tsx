@@ -11,7 +11,7 @@ import { Alert, Icon, RequestBadge, StageTimeline } from "./ui";
 export default function Track() {
   const { locale, t } = useI18n();
   const [ref, setRef] = useState("");
-  const [phone, setPhone] = useState("");
+  const [contact, setContact] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [found, setFound] = useState<TrackResult | null>(null);
@@ -19,11 +19,12 @@ export default function Track() {
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     setFound(null);
-    if (!ref.trim() || !isMobile(phone)) { setError(t("track.needBoth")); return; }
+    const given = contact.trim();
+    if (!ref.trim() || !(given.includes("@") ? /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(given) : isMobile(given))) { setError(t("track.needBoth")); return; }
     setError("");
     setBusy(true);
     try {
-      const result = await track(ref, phone);
+      const result = await track(ref, given);
       if (result) setFound(result);
       else setError(t("track.missing"));
     } catch {
@@ -38,8 +39,8 @@ export default function Track() {
       <form className="stack g20" onSubmit={submit}>
         <div className="stack g8"><h1 className="h-flow">{t("track.title")}</h1><p className="mut" style={{ fontSize: 15 }}>{t("track.lead")}</p></div>
         <div className="field"><label htmlFor="tr-ref">{t("track.ref")}</label><input id="tr-ref" className="in m" style={{ fontSize: 15 }} value={ref} onChange={(e) => setRef(e.target.value)} placeholder="INZ-2026-04817" autoCapitalize="characters" autoComplete="off" /></div>
-        <div className="field"><label htmlFor="tr-phone">{t("track.phone")}</label>
-          <div className="row g8"><span className="in in-prefix" aria-hidden="true">+250</span><input id="tr-phone" className="in" inputMode="tel" autoComplete="tel-national" placeholder="788 123 456" value={phone} onChange={(e) => setPhone(e.target.value)} /></div>
+        <div className="field"><label htmlFor="tr-contact">{t("track.contact")}</label>
+          <input id="tr-contact" className="in" inputMode="email" autoComplete="email" autoCapitalize="none" spellCheck={false} placeholder="you@example.com · 788 123 456" value={contact} onChange={(e) => setContact(e.target.value)} />
         </div>
         {error && <Alert kind="err" title={t("track.notFound")} live>{trError(locale, error)}</Alert>}
         <button className="btn btn-p btn-lg" type="submit" disabled={busy}>{busy ? <><span className="spin" /> {t("track.checking")}</> : t("track.check")}</button>

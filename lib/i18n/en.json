@@ -259,21 +259,32 @@
     "only": "Only want to check progress?",
     "track": "Track a request",
     "onlyRest": "with its reference.",
-    "staff": "Inzira staff sign in here too, with their work number."
+    "staff": "Inzira staff sign in with their work number.",
+    "demoEmail": "Demo: no email is sent. Choose the sample customer, then use the code shown on the next screen.",
+    "liveEmail": "Enter your email address. We’ll send you a code. There’s no password.",
+    "email": "Email address",
+    "emailPh": "you@example.com",
+    "viaPhone": "Staff, or no email on your account yet? Sign in with a phone number",
+    "viaEmail": "Sign in with your email instead",
+    "livePhone": "Use the phone number on your account. We’ll send a code by SMS. There’s no password."
   },
   "code": {
     "title": "Enter the code we sent you",
     "sent": "We sent a 6-digit code by SMS to",
     "change": "Change number",
     "label": "6-digit code",
-    "digits": "Enter the 6-digit code from the SMS.",
+    "digits": "Enter the 6-digit code we sent you.",
     "wrong": "Something went wrong. Please try again.",
     "demo": "Demo mode: no SMS is sent. Your code is",
     "hint": "The code can take a minute to arrive. It expires after 10 minutes.",
     "checking": "Checking…",
     "wait": "Didn’t get it? You can ask for a new code in {n}s.",
     "resendAsk": "Didn’t get it?",
-    "resend": "Send a new code"
+    "resend": "Send a new code",
+    "sentEmail": "We sent a 6-digit code to",
+    "changeEmail": "Change email",
+    "hintEmail": "Check your inbox and your spam folder. The code can take a minute to arrive and expires after 10 minutes.",
+    "demoEmail": "Demo mode: no email is sent. Your code is"
   },
   "authErr": {
     "badPhone": "Enter a Rwandan mobile number, e.g. 788 123 456.",
@@ -288,15 +299,21 @@
     "sendFail": "We couldn’t send the code. Check your connection and try again.",
     "submitFail": "We couldn’t send your request. Check your connection and try again.",
     "unavailable": "Sign-in codes can’t be sent right now. Please contact us.",
-    "numberLimit": "We’ve sent several codes to this number. Try again in an hour."
+    "numberLimit": "We’ve sent several codes to this number. Try again in an hour.",
+    "badEmail": "Enter a valid email address.",
+    "digitsEmail": "Enter the 6-digit code from the email.",
+    "wrongEmail": "That code is not right. Check the email and try again.",
+    "email": "We couldn’t send the email. Please try again in a minute.",
+    "noAccountEmail": "We don’t have an account for this email yet. Start a service and your portal is created with your first request.",
+    "useEmail": "Customers sign in with their email address. Use the email option."
   },
   "track": {
     "title": "Track a request",
-    "lead": "Enter the reference we sent you by SMS and the phone number on the request. No sign-in needed.",
+    "lead": "Enter the reference we sent you and the email or phone number on the request. No sign-in needed.",
     "ref": "Reference",
     "phone": "Phone number",
-    "needBoth": "Enter the reference from your SMS and the phone number you gave us.",
-    "missing": "We couldn’t find a request with that reference and phone number. Check both and try again.",
+    "needBoth": "Enter the reference and the email or phone number you gave us.",
+    "missing": "We couldn’t find a request with that reference and contact. Check both and try again.",
     "down": "We couldn’t check right now. Please try again in a moment.",
     "notFound": "Not found",
     "checking": "Checking…",
@@ -306,7 +323,8 @@
     "signIn": "Sign in to respond",
     "next": "Next step",
     "details": "Sign in for details",
-    "private": "Documents, messages and payments are only shown after you sign in."
+    "private": "Documents, messages and payments are only shown after you sign in.",
+    "contact": "Email or phone number"
   },
   "start": {
     "about": "About you",
@@ -323,7 +341,7 @@
     "errNotes": "Tell us a little more so the right agent can help.",
     "errAck": "Please confirm you’ve read this.",
     "received": "Request received",
-    "receivedBody": "Your reference is {ref}. An agent will {what} and contact you on {phone} within {time}.",
+    "receivedBody": "Your reference is {ref}. An agent will {what} and contact you at {contact} within {time}.",
     "checkDocs": "check your documents",
     "readSent": "read what you sent",
     "ready": "Your number is confirmed, so your portal is ready. You won’t be charged until you approve the fees.",
@@ -400,7 +418,22 @@
     "which": "We’ll tell you which procedure applies",
     "reply": "An agent replies within {time}",
     "bothFees": "You see the official fee and our fee separately before you commit",
-    "noCharge": "Nothing is charged for asking"
+    "noCharge": "Nothing is charged for asking",
+    "email": "Your email",
+    "emailHint": "We send the confirmation code and updates about your request here.",
+    "errEmail": "Enter a valid email address.",
+    "dob": "Date of birth as on the ID",
+    "dobHint": "Type it exactly as it appears on the ID.",
+    "errDob": "Enter the date of birth from the ID.",
+    "phoneOpt": "Phone number (optional)",
+    "phoneOptHint": "For a call or WhatsApp about your request. It isn’t used to sign in.",
+    "portalAsk": "Create my portal so I can follow this request, add documents and see updates",
+    "portalHint": "Leave it unticked if you don’t want an account. You can still follow the request with its reference and your email, and open a portal later by signing in with this email.",
+    "emailUse": "We use this email for the confirmation code and for updates about your request, nothing else.",
+    "emailRow": "Email",
+    "dobRow": "Date of birth",
+    "receivedTrack": "Follow it any time on the Track page with the reference and your email.",
+    "trackIt": "Track this request"
   },
   "notFound": {
     "kicker": "Page not found",
@@ -663,7 +696,7 @@
     "details": "Your details",
     "name": "Full name",
     "phone": "Phone number",
-    "phoneHint": "This is how you sign in. To change it, message us and we’ll move your account after checking it’s you.",
+    "phoneHint": "A contact number for calls and WhatsApp. To change it, message us and we’ll check it’s you.",
     "whatsapp": "Send me updates on WhatsApp as well as SMS",
     "langs": "Languages you’re comfortable with",
     "notSaved": "Not saved",
@@ -678,7 +711,7 @@
     "business": "Business",
     "masked": "ID and tax numbers are shown masked. Only the agent handling a request can see them in full, and every time they do it is logged.",
     "signing": "Signing in",
-    "lost": "Lost a phone, or signed in on someone else’s computer? Sign out everywhere, then sign in again with a new code.",
+    "lost": "Lost a device, or signed in on someone else’s computer? Sign out everywhere, then sign in again with a new code.",
     "everywhere": "Sign out of every device",
     "data": "Your documents and data",
     "retention": "We delete the documents you uploaded {days} days after a request is finished. Certificates we delivered stay in your portal. Payments and official receipts are kept, because the law requires us to keep financial records.",
@@ -715,7 +748,20 @@
       "French": "French"
     },
     "idShort": "ID {id}",
-    "tinShort": "TIN {tin}"
+    "tinShort": "TIN {tin}",
+    "email": "Sign-in email",
+    "emailNone": "No email yet",
+    "emailAdd": "Add your email",
+    "emailChange": "Change email",
+    "emailAddHint": "Add the email you will use to sign in. We send a code to it to confirm it’s yours.",
+    "emailNew": "Email address",
+    "emailSend": "Send me a code",
+    "emailSending": "Sending…",
+    "emailCode": "6-digit code",
+    "emailSent": "We sent a code to {email}.",
+    "emailConfirm": "Confirm email",
+    "emailDone": "Your email is saved. From now on, sign in with it.",
+    "emailCancel": "Cancel"
   },
   "dates": {
     "today": "Today",
@@ -903,7 +949,7 @@
     "sum": {
       "received": {
         "title": "We’ve received your request",
-        "body": "An agent will check it within 2 working hours and contact you on {phone}.",
+        "body": "An agent will check it within 2 working hours and contact you at {contact}.",
         "next": "An agent checks your request within 2 working hours."
       },
       "receivedIntake": {
@@ -1009,11 +1055,29 @@
     "noDocs": "There are no documents from finished requests to delete.",
     "typeDelete": "Type DELETE to confirm.",
     "openOne": "You have 1 request still in progress. Cancel it or wait until it is finished, then delete your account.",
-    "openMany": "You have {n} requests still in progress. Cancel them or wait until they are finished, then delete your account."
+    "openMany": "You have {n} requests still in progress. Cancel them or wait until they are finished, then delete your account.",
+    "badEmail": "Enter a valid email address.",
+    "badDob": "Enter the date of birth exactly as it appears on the ID.",
+    "phoneTaken": "That phone number already belongs to another account. Use a different number, or leave it blank.",
+    "emailTaken": "That email address is already used by another account."
   },
   "fileRoute": {
     "signIn": "Sign in to see this file.",
     "notFound": "Not found",
     "gone": "The file is no longer stored."
+  },
+  "email": {
+    "codeSubject": "Your Inzira sign-in code",
+    "codeIntro": "Use this code to sign in to Inzira. It expires in 10 minutes.",
+    "confirmSubject": "Confirm your email for Inzira",
+    "confirmIntro": "Use this code to confirm your email address with Inzira. It expires in 10 minutes.",
+    "codeFooter": "If you didn’t ask for this, ignore this email: nobody can sign in without the code. Never share it with anyone, including Inzira staff.",
+    "updateSubject": "Update on your Inzira request {ref}",
+    "updateFooter": "You are getting this because you have a request with Inzira. Reply to this email if you need help."
+  },
+  "portalBanner": {
+    "title": "Add your email to keep your portal",
+    "body": "Sign-in is moving to email. Add yours now and you can keep signing in without a phone number.",
+    "cta": "Add my email"
   }
 }

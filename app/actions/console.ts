@@ -289,6 +289,21 @@ export async function revealTin(profileId: string): Promise<Result<{ tin: string
   return { ok: true, tin: prof.tin || prof.tinMasked || "—" };
 }
 
+/** Records that a member of staff compared the details the customer typed (name, ID number, date of birth) with the ID photo.
+ *  It is Inzira's own check, not a confirmation from the national ID system. */
+export async function markIdChecked(profileId: string, checked = true): Promise<Result<{ at: string | null }>> {
+  const a = await clientAction(profileId, "reviewDocs");
+  if ("error" in a) return fail(a.error!);
+  const { me, d, profile } = a;
+  const at = checked ? now() : null;
+  await d.transaction(async (tx) => {
+    await tx.update(s.profiles).set({ idCheckedAt: at, idCheckedBy: checked ? me.id : null }).where(eq(s.profiles.id, profileId));
+    await audit(tx, { actor: me.name, role: me.role, action: checked ? "Marked ID as checked" : "Cleared ID check", entity: `Client ${profile.name} (${profile.id})` });
+  });
+  revalidatePath("/console", "layout");
+  return { ok: true, at };
+}
+
 // ---------------- Client Management ----------------
 /** Adds a client without a case. Agents add customers through New intake, which opens their first case. */
 export async function createClient(input: {

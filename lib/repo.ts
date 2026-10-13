@@ -4,7 +4,8 @@ import { and, asc, desc, eq, gte, inArray, isNull, ne, or, sql, type SQL } from 
 import { WORKS_CASES, canSeeCase, canTriage, caseScope, seesAllCases } from "./access";
 import { getSession, requireCustomerId, requireStaff } from "./auth";
 import { db, iso, schema as s } from "./db";
-import { fmtDay, isOnOrBeforeDay, kigaliMonthStart, monthShort, phoneDigits, shortName } from "./format";
+import { timingSafeEqual } from "node:crypto";
+import { fmtDay, isOnOrBeforeDay, kigaliMonthStart, monthShort, phoneDigits, prettyPhone, shortName } from "./format";
 import type { Locale } from "./i18n/locale";
 import { text } from "./i18n/messages";
 import { channelName } from "./i18n/present";
@@ -60,11 +61,18 @@ const localHold = (locale: Locale, h: Hold): Hold => ({
 });
 
 // ---------------- loading requests ----------------
+type AccountDb = typeof s.accounts.$inferSelect;
+/** An account as screens receive it: the phone formatted (empty when only an email was given). */
+const toAccount = (a: AccountDb): Account => ({
+  id: a.id, name: a.name, first: a.first, phone: prettyPhone(a.phone), email: a.email ?? undefined, whatsapp: a.whatsapp, languages: a.languages,
+  since: iso(a.since)!, registered: !!a.registeredAt, locale: a.locale,
+});
 type ProfileRow = typeof s.profiles.$inferSelect;
 /** A profile as screens receive it: the national ID and TIN only in their masked form. */
 const toProfile = (p: ProfileRow): Profile => ({
   id: p.id, accountId: p.accountId, kind: p.kind, name: p.name, relation: p.relation ?? undefined,
   idMasked: p.idMasked ?? undefined, tinMasked: p.tinMasked ?? undefined, district: p.district ?? undefined,
+  dateOfBirth: p.dateOfBirth ?? undefined, idChecked: p.idCheckedAt ? iso(p.idCheckedAt) : undefined,
 });
 
 /** Loads requests with everything they point to, in a handful of queries. Stored sentences (timeline,
@@ -92,7 +100,7 @@ async function loadRequests(where?: SQL, locale: Locale = "en"): Promise<Request
   return rows.map((r) => {
     const profile = profs.find((p) => p.id === r.profileId)!;
     const accountRow = accs.find((a) => a.id === profile.accountId)!;
-    const account: Account = { ...accountRow, phone: `+250 ${accountRow.phone.replace(/^(\d{3})(\d{3})(\d{3})$/, "$1 $2 $3")}`, since: iso(accountRow.since)! };
+    const account: Account = toAccount(accountRow);
     const service = toService(svcs.find((x) => x.slug === r.serviceSlug)!);
     const agentRow = staffRows.find((x) => x.id === r.agentId);
     const name = (who?: string | null) => (who === "customer" ? account.name : !who || who === "system" ? "System" : staffRows.find((x) => x.id === who)?.name ?? "Inzira");
@@ -148,7 +156,7 @@ export async function getAccount(): Promise<Account & { profiles: Profile[] }> {
   const [a] = await d.select().from(s.accounts).where(eq(s.accounts.id, id));
   const profiles = await d.select().from(s.profiles).where(eq(s.profiles.accountId, id));
   return {
-    ...a, phone: `+250 ${a.phone.replace(/^(\d{3})(\d{3})(\d{3})$/, "$1 $2 $3")}`, since: iso(a.since)!,
+    ...toAccount(a),
     profiles: profiles.map(toProfile),
   };
 }
@@ -209,13 +217,19 @@ export async function listMyReminders() {
   return rows.map((m) => ({ ...m, title: legacyText(locale, m.title), body: legacyText(locale, m.body), cta: legacyText(locale, m.cta) }));
 }
 
-/** Public status check: needs the reference and the phone number on the request, and returns no personal data. */
-export async function trackRequest(ref: string, phone: string): Promise<TrackResult | null> {
+/** Public status check: needs the reference and the email or phone number on the request, and returns no personal data. */
+export async function trackRequest(ref: string, contact: string): Promise<TrackResult | null> {
   const { getLocale } = await import("./i18n/locale");
   const { localizeService, requestTitle } = await import("./i18n/present");
   const locale = await getLocale();
   const [v] = await loadRequests(eq(s.requests.ref, ref.trim().toUpperCase()), locale);
-  if (!v || phoneDigits(v.account.phone) !== phoneDigits(phone)) return null;
+  if (!v) return null;
+  // An email is compared as an email, anything else as a phone number. Both are checked in constant time.
+  const given = contact.trim();
+  const want = given.includes("@") ? (v.account.email ?? "").toLowerCase() : phoneDigits(v.account.phone);
+  const have = given.includes("@") ? given.toLowerCase() : phoneDigits(given);
+  const a = Buffer.from(want), b = Buffer.from(have);
+  if (!want || a.length !== b.length || !timingSafeEqual(a, b)) return null;
   const local = localizeService(v.service, locale);
   return {
     ref: v.ref, name: requestTitle(v.name, v.service, locale), via: local.via, stage: v.stage, stageDates: v.stageDates, flow: v.flow, labels: v.labels, closed: v.closed, next: v.next,
@@ -301,7 +315,7 @@ function clientSummary(p: ProfileRow, acc: AccountRow | undefined, tags: string[
     accountId: p.accountId,
     name: p.name,
     kind: p.kind,
-    phone: acc ? `+250 ${acc.phone.replace(/^(\d{3})(\d{3})(\d{3})$/, "$1 $2 $3")}` : "",
+    phone: acc ? prettyPhone(acc.phone) : "",
     district: p.district ?? undefined,
     idMasked: p.idMasked ?? undefined,
     tinMasked: p.tinMasked ?? undefined,
@@ -359,11 +373,7 @@ export async function getClient(profileId: string): Promise<ClientDetail | undef
   if (!accRow) return undefined;
   const summary = clientSummary(profRow, accRow, tagRows.map((t) => t.tag), requests);
 
-  const account: Account = {
-    ...accRow,
-    phone: `+250 ${accRow.phone.replace(/^(\d{3})(\d{3})(\d{3})$/, "$1 $2 $3")}`,
-    since: iso(accRow.since)!,
-  };
+  const account: Account = toAccount(accRow);
   const profile = toProfile(profRow);
 
   const documents: LibraryDoc[] = [];

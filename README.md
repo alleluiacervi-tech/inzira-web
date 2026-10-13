@@ -18,23 +18,29 @@ No database to install: without `DATABASE_URL` the app uses **PGlite**, a real P
 WebAssembly, stored in `.data/pglite`. The first page load creates the tables and fills them with
 the catalogue and sample data. `npm run db:reset` deletes it so it is rebuilt.
 
-In development no SMS is sent and payments are simulated: the sign-in code is printed in the
+In development no SMS or email is sent and payments are simulated: the sign-in code is printed in the
 terminal **and shown on screen**, and a mobile money prompt is "approved" after two seconds (a
-number ending in `0000` is "declined").
+number ending in `0000` is "declined"). Codes are shown on screen only in development and demo builds:
+a live site without a real provider refuses to send a code instead.
 
 **Sample sign-ins** (development only):
 
 | Who | Number | Lands in |
 | --- | --- | --- |
-| Aline Uwase, customer | 788 123 456 | Customer portal |
+| Aline Uwase, customer | aline.uwase@example.com | Customer portal (customers sign in with their email) |
 | Eric Niyonzima, agent | 780 000 001 | Staff console · My day (only their own cases and clients) |
 | Patrick Nshimiyimana, agent | 780 000 003 | Staff console · My day |
 | Jean Paul Hakizimana, supervisor | 780 000 006 | Staff console · My day (all cases, triage, can change fees) |
 | Solange Ishimwe, finance | 780 000 007 | Staff console · Overview (payments, refunds) |
 | Diane Mukamana, owner | 780 000 008 | Staff console · Overview (everything) |
 
-Anyone else starts a request from the catalogue; their account is created when they confirm their
-number.
+Staff sign in with their phone number: open `/sign-in?method=phone` (links to `/console` and `/admin` open it
+automatically). Customers sign in with their email; a customer who only has a phone number (entered by staff, or
+registered before email sign-in) can still use the phone until they add an email in Portal › Account.
+
+Anyone else starts a request from the catalogue. They confirm their **email** with a code. Registration is optional:
+by default a portal is created and they are signed in, but they can untick that and follow the request with its
+reference and email, then open a portal later by signing in with that email.
 
 ```bash
 npm run typecheck
@@ -44,6 +50,8 @@ npm run smoke                # with the app running: every page loads, is styled
 npm run flows                # with the app running in demo mode on a fresh database: 107 end-to-end checks,
                              # including what each role can see (needs Chrome and Node 22+)
 npm run check:providers      # with real keys set: tests SMS, MTN MoMo, Airtel Money and Blob storage end to end
+npm run check:email          # with SMTP settings set: can this machine reach the mail server, log in, and send one message?
+npm run db:remove-samples    # live database that may hold sample staff: lists them; add --yes to switch them off
 ```
 
 GitHub Actions (`.github/workflows/ci.yml`) runs typecheck, the i18n check, build, smoke and flows on every pull request
@@ -61,6 +69,9 @@ Copy `.env.example` to `.env.local`. None are needed for development.
 | `DATABASE_URL` | Persistent Postgres connection string. Required in production; PGlite is for local development and `INZIRA_DEMO=1` builds only. |
 | `DB_AUTO_MIGRATE=0` | Skip applying migrations on startup. By default the server applies `drizzle/` when it starts. |
 | `INZIRA_DEMO=1` | Demo/staging builds: allows the console SMS, the payment simulator, PGlite and local file storage in a production build. Never on the live site. |
+| `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `EMAIL_FROM` | Email through Nodemailer over SMTP: sign-in codes for customers and updates about their requests. Port 465 is implicit TLS (default), 587 is STARTTLS; `SMTP_SECURE=1/0` overrides. Use a dedicated `no-reply@` mailbox on your domain and set SPF, DKIM and DMARC. Optional: `EMAIL_REPLY_TO`, `EMAIL_DAILY_LIMIT` (default 400; the app stops short of the mailbox's own daily cap). |
+| `AUTH_SECRET` | Keys stored sign-in codes to this server. Set a long random value on the live site (`openssl rand -hex 32`). |
+| `CUSTOMER_PHONE_SIGNIN` | Set to `0` once customers have added their email, to end phone sign-in for customers. Staff keep it. |
 | `SMS_PROVIDER` | `africastalking` to send real SMS (`AT_USERNAME`, `AT_API_KEY`, optional `AT_SENDER_ID`). |
 | `PAYMENT_PROVIDER` | `live` for real mobile money (MTN numbers → MTN MoMo, 072/073 → Airtel Money), or `simulator` for demos. |
 | `MTN_MOMO_*` | `MTN_MOMO_SUBSCRIPTION_KEY`, `MTN_MOMO_API_USER`, `MTN_MOMO_API_KEY`, `MTN_MOMO_ENVIRONMENT` (`sandbox` or the live name MTN gives you, e.g. `mtnrwanda`), `MTN_MOMO_BASE_URL` (live base URL from MTN), `MTN_MOMO_CURRENCY` (default `RWF`; the sandbox uses `EUR`). |
@@ -160,8 +171,13 @@ by every server action.
   build, and pay a few requests end to end before taking real money. Without a provider, production
   refuses payments. Refunds are recorded in the admin console; the money itself is sent back from the
   provider's dashboard.
-- **SMS.** The Africa's Talking integration is written but has not been tested against a live account —
-  send a test message first. WhatsApp messages are not sent yet.
+- **Email.** Buy a mailbox on the business domain, put its SMTP settings in the environment and run
+  `npm run check:email` from where the app runs (a VPS or cloud host can block outbound mail ports; the check says which).
+  Send a real message to Gmail and Outlook and look for `spf=pass` and `dkim=pass` in its headers, or codes will land in spam.
+  A mailbox's daily limit (Hostinger: 1,000 per mailbox on Business Starter, 3,000 on Standard and Premium, rolling 24 hours,
+  subject to change) counts every sign-in code, so keep `EMAIL_DAILY_LIMIT` below it.
+- **SMS.** Now only for staff sign-in and for customers who have no email yet. The Africa's Talking integration is
+  written but has not been tested against a live account — send a test message first. WhatsApp messages are not sent yet.
 - **File storage.** Production uploads use private Vercel Blob and are delivered only after the file
   route checks customer ownership or staff permissions. Create and connect a private Blob store before deployment.
 - **Official fees, processing times and document lists** in the catalogue are drafts: check each with

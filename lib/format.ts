@@ -98,7 +98,19 @@ export const initials = (name: string) => name.replace(/\./g, "").split(" ").map
 /** "Eric Niyonzima" -> "Eric N." */
 export const shortName = (name: string) => { const p = name.split(" "); return p.length > 1 ? `${p[0]} ${p[p.length - 1][0]}.` : name; };
 export const phoneDigits = (p: string) => p.replace(/\D/g, "").slice(-9);
+/** "788123456" -> "+250 788 123 456"; empty for someone who gave only an email. */
+export const prettyPhone = (nine: string | null | undefined) => (nine ? `+250 ${nine.replace(/^(\d{3})(\d{3})(\d{3})$/, "$1 $2 $3")}` : "");
 /** What staff see of a 16-digit national ID until they reveal it, e.g. "1 1995 8 •••• 0 17". */
 export const maskNationalId = (d: string) => (d.length === 16 ? `${d[0]} ${d.slice(1, 5)} ${d[5]} •••• ${d[13]} ${d.slice(14)}` : null);
 /** What staff see of a 9-digit TIN until they reveal it, e.g. "109 ••• 456". */
 export const maskTin = (t: string) => (t.length === 9 ? `${t.slice(0, 3)} ••• ${t.slice(-3)}` : null);
+
+/** A date of birth typed as "YYYY-MM-DD" (a date field), checked to be a real date, not in the future, not before 1900. */
+export const parseDob = (v: string): string | null => {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(v.trim());
+  if (!m) return null;
+  const [y, mo, d] = [Number(m[1]), Number(m[2]), Number(m[3])];
+  const date = new Date(Date.UTC(y, mo - 1, d));
+  const real = date.getUTCFullYear() === y && date.getUTCMonth() === mo - 1 && date.getUTCDate() === d;
+  return real && y >= 1900 && date.getTime() <= Date.now() ? m[0] : null;
+};

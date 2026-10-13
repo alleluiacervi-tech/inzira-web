@@ -66,7 +66,7 @@ export async function seed(db: Db) {
   await db.transaction(async (tx) => {
     files.length = 0;
     await catalogue(tx);
-    await tx.insert(s.accounts).values(ACCOUNTS.map((a) => ({ ...a, phone: digits(a.phone) })));
+    await tx.insert(s.accounts).values(ACCOUNTS.map((a) => ({ ...a, phone: digits(a.phone), registeredAt: a.since })));
     await tx.insert(s.profiles).values(PROFILES);
     await tx.insert(s.staff).values(STAFF.map((p) => ({ ...p, phone: STAFF_PHONES[p.id] ?? null })));
 
@@ -166,7 +166,7 @@ export async function ensureDemoSignIns(database: Db) {
   ]);
   const takenAccounts = new Set(haveAccounts.map((a) => a.phone));
   const takenStaff = new Set(haveStaff.map((p) => p.phone));
-  const accounts = ACCOUNTS.filter((a) => !takenAccounts.has(digits(a.phone))).map((a) => ({ ...a, phone: digits(a.phone) }));
+  const accounts = ACCOUNTS.filter((a) => !takenAccounts.has(digits(a.phone))).map((a) => ({ ...a, phone: digits(a.phone), registeredAt: a.since }));
   if (accounts.length) await database.insert(s.accounts).values(accounts).onConflictDoNothing();
   const present = new Set((await database.select({ id: s.accounts.id }).from(s.accounts).where(inArray(s.accounts.id, ACCOUNTS.map((a) => a.id)))).map((a) => a.id));
   const profiles = PROFILES.filter((p) => present.has(p.accountId));

@@ -1,7 +1,7 @@
 // Database schema (Postgres). Mirrors the domain model in lib/types.ts.
 // Change this file, then run `npm run db:generate` to write a migration into ./drizzle.
 import { sql } from "drizzle-orm";
-import { boolean, index, integer, jsonb, pgTable, primaryKey, serial, text, timestamp } from "drizzle-orm/pg-core";
+import { boolean, index, integer, jsonb, pgTable, primaryKey, serial, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
 import type { Locale } from "../i18n/locale";
 import type { Closed, DocGroup, DocStatus, Hold, MsgVars, OfficialMode, Request, Service, Stage, StaffRole } from "../types";
 
@@ -58,16 +58,22 @@ export const accounts = pgTable("accounts", {
   id: text("id").primaryKey(),
   name: text("name").notNull(),
   first: text("first").notNull(),
-  /** Nine digits after +250, e.g. 788123456. The login. */
-  phone: text("phone").notNull().unique(),
+  /** Nine digits after +250, e.g. 788123456. A contact number, and the sign-in for staff and for customers who
+   *  have not added an email yet. Empty for someone who gave only an email. */
+  phone: text("phone").unique(),
+  /** Lower case. Confirmed with a code before it is saved, so only its owner can sign in with it. */
+  email: text("email"),
   whatsapp: boolean("whatsapp").notNull().default(true),
   languages: jsonb("languages").$type<string[]>().notNull().default(sql`'[]'::jsonb`),
   since: ts("since").notNull().defaultNow(),
+  /** First time this person signed in to the portal. Empty for a client who never did (a walk-in entered by staff,
+   *  or someone who only sent a request): they are contacts, not registered users. */
+  registeredAt: ts("registered_at"),
   /** Set when the customer deleted their account. Personal details are then wiped; financial records stay. */
   deletedAt: ts("deleted_at"),
-  /** Language of their portal and SMS. */
+  /** Language of their portal and messages. */
   locale: text("locale").$type<Locale>().notNull().default("rw"),
-});
+}, (t) => [uniqueIndex("accounts_email_unique").on(sql`lower(${t.email})`)]);
 
 export const profiles = pgTable("profiles", {
   id: text("id").primaryKey(),
@@ -81,6 +87,11 @@ export const profiles = pgTable("profiles", {
   tinMasked: text("tin_masked"),
   tin: text("tin"),
   district: text("district"),
+  /** As written on the ID, "YYYY-MM-DD". Entered by the customer; Inzira staff compare it with the ID photo. */
+  dateOfBirth: text("date_of_birth"),
+  /** When a member of staff compared the details with the ID photo. This is our own check, not a government one. */
+  idCheckedAt: ts("id_checked_at"),
+  idCheckedBy: text("id_checked_by"),
 }, (t) => [index("profiles_account_idx").on(t.accountId)]);
 
 export const staff = pgTable("staff", {
@@ -287,6 +298,15 @@ export const stageTargets = pgTable("stage_targets", {
 // ---------------- sign-in ----------------
 export const otpCodes = pgTable("otp_codes", {
   phone: text("phone").primaryKey(),
+  codeHash: text("code_hash").notNull(),
+  expiresAt: ts("expires_at").notNull(),
+  attempts: integer("attempts").notNull().default(0),
+  sentAt: ts("sent_at").notNull().defaultNow(),
+});
+
+/** Sign-in and confirmation codes sent by email: one live code per address, like otp_codes for phones. */
+export const emailCodes = pgTable("email_codes", {
+  email: text("email").primaryKey(),
   codeHash: text("code_hash").notNull(),
   expiresAt: ts("expires_at").notNull(),
   attempts: integer("attempts").notNull().default(0),

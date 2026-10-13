@@ -11,6 +11,10 @@ Findings below come from the code; each says where to look.
 - **H1 fixed.** The attempt counter is one atomic statement (30 parallel wrong guesses counted exactly 5), a code works once, and one number can receive at most 5 codes an hour. Set `AUTH_SECRET` on the live site so stored codes are keyed to the server.
 - **H3 partly fixed.** `next` is now 15.5.27 and `npm audit fix` ran. Left: a copy of `postcss` bundled inside `next` (moderate and high; fixed only in Next 16.4). It processes our own CSS at build time, so the practical risk is low; plan the Next 16 upgrade separately.
 
+## Email sign-in (built 2026-10-13)
+
+Customers sign in with an email and a one-time code sent through Nodemailer (`lib/email.ts`). Registration is optional: a request can be sent and followed (reference plus email) without a portal, and signing in with the confirmed email later opens one. Staff keep SMS. New: `email_codes` table, `accounts.email` (unique, case-insensitive), `accounts.registered_at`, `profiles.date_of_birth`, `profiles.id_checked_*` (migration `0006`). Customer updates go by email when the account has one, else SMS, after the response is sent (this also closes M1 for new messages). Same code limits as phone: atomic attempts, single use, five per hour per address. `npm run check:email` tests the mailbox. Not done: bounce handling (SMTP gives none), a send queue with retries, and an authenticator app for staff.
+
 ## What is solid
 
 - Authorization is checked on the server in every action: `caseScope`, `canSeeCase`, `canSeeClient` (`lib/access.ts`), and the same rules in the file route.

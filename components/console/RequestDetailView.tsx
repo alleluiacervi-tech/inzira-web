@@ -15,7 +15,7 @@ import {
   setStage,
   uploadCaseFile,
 } from "@/app/actions/agent";
-import { revealNationalId } from "@/app/actions/console";
+import { markIdChecked, revealNationalId } from "@/app/actions/console";
 import { Icon } from "@/components/ui";
 import { billOfficial, billOurs, fmtAgo, fmtMonth, fmtWhen, initials, rwf, shortName } from "@/lib/format";
 import type { Permission } from "@/lib/permissions";
@@ -60,6 +60,7 @@ export function RequestDetailView({
   }, []);
   const [toast, setToast] = useState("");
   const [shownId, setShownId] = useState<string | null>(null);
+  const [idChecked, setIdChecked] = useState<string | null>(c.profile.idChecked ?? null);
   const [error, setError] = useState("");
 
   // Modals & sub-state
@@ -354,9 +355,11 @@ export function RequestDetailView({
               </div>
               <div className="stack g6" style={{ fontSize: 13 }}>
                 {c.profile.name !== c.account.name && <div className="row between"><span style={{ color: "var(--c-text-muted)" }}>Contact:</span><span>{c.account.name}</span></div>}
-                <div className="row between"><span style={{ color: "var(--c-text-muted)" }}>Phone:</span><strong>{c.account.phone}</strong></div>
+                {c.account.email && <div className="row between g8"><span style={{ color: "var(--c-text-muted)" }}>Email:</span><strong style={{ overflowWrap: "anywhere", textAlign: "right" }}>{c.account.email}</strong></div>}
+                {c.account.phone && <div className="row between"><span style={{ color: "var(--c-text-muted)" }}>Phone:</span><strong>{c.account.phone}</strong></div>}
+                {!c.account.registered && <div className="row between"><span style={{ color: "var(--c-text-muted)" }}>Portal:</span><span>No account (contact only)</span></div>}
                 <div className="row between"><span style={{ color: "var(--c-text-muted)" }}>WhatsApp:</span><span>{c.account.whatsapp ? "Same number · opted in" : "Not opted in"}</span></div>
-                <div className="row between"><span style={{ color: "var(--c-text-muted)" }}>SMS and portal in:</span><span>{c.account.locale === "en" ? "English" : "Kinyarwanda"}</span></div>
+                <div className="row between"><span style={{ color: "var(--c-text-muted)" }}>Messages and portal in:</span><span>{c.account.locale === "en" ? "English" : "Kinyarwanda"}</span></div>
                 {c.account.languages.length > 0 && <div className="row between"><span style={{ color: "var(--c-text-muted)" }}>Language:</span><span>{c.account.languages.join(", ")}</span></div>}
                 {c.profile.district && <div className="row between"><span style={{ color: "var(--c-text-muted)" }}>District:</span><span>{c.profile.district}</span></div>}
                 {c.profile.idMasked && (
@@ -369,6 +372,21 @@ export function RequestDetailView({
                           const res = await revealNationalId(c.profileId);
                           if (res.ok) { setShownId(res.nationalId); setToast("National ID shown (logged in the audit trail)"); } else setError(res.error);
                         })}>Show</button>
+                      )}
+                    </span>
+                  </div>
+                )}
+                {c.profile.dateOfBirth && <div className="row between"><span style={{ color: "var(--c-text-muted)" }}>Date of birth:</span><span className="tabular-nums">{c.profile.dateOfBirth}</span></div>}
+                {c.profile.idMasked && (
+                  <div className="row between g8">
+                    <span style={{ color: "var(--c-text-muted)" }}>ID checked by Inzira:</span>
+                    <span className="row g8">
+                      <span>{idChecked ? fmtWhen(idChecked, now) : "Not yet"}</span>
+                      {can("reviewDocs") && (
+                        <button type="button" className="c-btn c-btn-secondary c-btn-sm" disabled={busy} onClick={() => start(async () => {
+                          const res = await markIdChecked(c.profileId, !idChecked);
+                          if (res.ok) { setIdChecked(res.at); setToast(res.at ? "ID marked as checked" : "ID check cleared"); } else setError(res.error);
+                        })}>{idChecked ? "Undo" : "Mark checked"}</button>
                       )}
                     </span>
                   </div>

@@ -43,6 +43,13 @@
       "when": 1791920207367,
       "tag": "0005_view_identity_permission",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1791924830979,
+      "tag": "0006_email_sign_in",
+      "breakpoints": true
     }
   ]
 }

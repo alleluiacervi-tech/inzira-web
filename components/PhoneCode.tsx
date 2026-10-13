@@ -9,15 +9,17 @@ export const mobile = (v: string) => v.replace(/\D/g, "").replace(/^250/, "").re
 export const isMobile = (v: string) => /^7\d{8}$/.test(mobile(v));
 export const prettyMobile = (v: string) => mobile(v).replace(/^(\d{3})(\d{3})(\d{0,3}).*$/, "$1 $2 $3").trim();
 
-/** Step two of signing in or confirming a request: type the code we sent by SMS.
+/** Step two of signing in or confirming a request: type the code we sent by SMS or email.
  *  `onSubmit` returns an error message, or null when it worked (it may also navigate away). */
-export function CodeEntry({ phone, demoCode, cta = "Confirm", onSubmit, onResend, onBack }: {
-  phone: string; demoCode?: string; cta?: string;
+export function CodeEntry({ phone, email, demoCode, cta = "Confirm", onSubmit, onResend, onBack }: {
+  /** Where the code went: a phone number or an email address. */
+  phone?: string; email?: string; demoCode?: string; cta?: string;
   onSubmit: (code: string) => Promise<string | null>;
   onResend: () => Promise<{ demoCode?: string; error?: string }>;
   onBack: () => void;
 }) {
   const { locale, t } = useI18n();
+  const byEmail = email !== undefined;
   const [code, setCode] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -40,14 +42,14 @@ export function CodeEntry({ phone, demoCode, cta = "Confirm", onSubmit, onResend
     }}>
       <div className="stack g8">
         <h1 className="d" style={{ fontSize: 30, lineHeight: 1.15 }}>{t("code.title")}</h1>
-        <p className="mut" style={{ fontSize: 15 }}>{t("code.sent")} <strong style={{ color: "var(--ink)" }}>+250 {prettyMobile(phone)}</strong>. <button type="button" className="linkish" onClick={onBack}>{t("code.change")}</button></p>
+        <p className="mut" style={{ fontSize: 15 }}>{t(byEmail ? "code.sentEmail" : "code.sent")} <strong style={{ color: "var(--ink)", overflowWrap: "anywhere" }}>{byEmail ? email : `+250 ${prettyMobile(phone ?? "")}`}</strong>. <button type="button" className="linkish" onClick={onBack}>{t(byEmail ? "code.changeEmail" : "code.change")}</button></p>
       </div>
       <div className="field">
         <label htmlFor="otp">{t("code.label")}</label>
         <input id="otp" className={`in code-in ${error ? "in-err" : ""}`} inputMode="numeric" autoComplete="one-time-code" maxLength={6} value={code} autoFocus
           onChange={(e) => { setCode(e.target.value.replace(/\D/g, "").slice(0, 6)); setError(""); }} aria-describedby="otp-err otp-hint" />
         {error && <span className="err-text" id="otp-err" role="alert"><Icon name="alert" size={15} /> {error}</span>}
-        <span className="hint" id="otp-hint">{demo ? <>{t("code.demo")} <strong className="m" data-demo-code={demo}>{demo}</strong>.</> : t("code.hint")}</span>
+        <span className="hint" id="otp-hint">{demo ? <>{t(byEmail ? "code.demoEmail" : "code.demo")} <strong className="m" data-demo-code={demo}>{demo}</strong>.</> : t(byEmail ? "code.hintEmail" : "code.hint")}</span>
       </div>
       <button className="btn btn-p btn-lg" type="submit" disabled={busy}>{busy ? <><span className="spin" /> {t("code.checking")}</> : cta}</button>
       <p className="hint" aria-live="polite">{wait > 0 ? t("code.wait", { n: wait }) : <>{t("code.resendAsk")} <button type="button" className="linkish" onClick={async () => {

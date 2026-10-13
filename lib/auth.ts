@@ -9,6 +9,8 @@ import { db, iso, schema as s } from "./db";
 import type { Permission } from "./permissions";
 import type { Locale } from "./i18n/locale";
 import { sms, smsText } from "./i18n/stored";
+import { canDeliverEmailCodes, sendEmail, showsEmailCodeOnScreen } from "./email";
+import { text } from "./i18n/messages";
 import { allowFor } from "./ratelimit";
 import { canDeliverCodes, sendSms, showsCodeOnScreen } from "./sms";
 import type { Staff } from "./types";
@@ -30,54 +32,110 @@ export const normalisePhone = (v: string) => {
 };
 
 // ---------------- codes ----------------
+/** One live code per phone number or email address. The two tables have the same shape. */
+type CodeStore = { table: typeof s.otpCodes; key: typeof s.otpCodes.phone };
+const PHONE_CODES: CodeStore = { table: s.otpCodes, key: s.otpCodes.phone };
+const EMAIL_CODES: CodeStore = { table: s.emailCodes as unknown as typeof s.otpCodes, key: s.emailCodes.email as unknown as typeof s.otpCodes.phone };
+
+/** Counts the attempt and reads the hash in one statement, so guesses sent in parallel cannot share one count;
+ *  a correct code is deleted by the request that used it, so it works once. */
+async function consume(store: CodeStore, key: string, code: string, tried: "sms" | "email"): Promise<{ ok: true } | { ok: false; error: string }> {
+  const d = await db();
+  const [row] = await d.update(store.table).set({ attempts: sql`${store.table.attempts} + 1` })
+    .where(and(eq(store.key, key), gt(store.table.expiresAt, new Date().toISOString()), lt(store.table.attempts, MAX_ATTEMPTS)))
+    .returning({ codeHash: store.table.codeHash });
+  if (!row) {
+    const [existing] = await d.select({ expiresAt: store.table.expiresAt }).from(store.table).where(eq(store.key, key));
+    if (existing && Date.parse(iso(existing.expiresAt)!) >= Date.now()) return { ok: false, error: "Too many wrong codes. Ask for a new one." };
+    return { ok: false, error: "That code has expired. Ask for a new one." };
+  }
+  const a = Buffer.from(row.codeHash), b = Buffer.from(codeHash(key, code));
+  if (a.length !== b.length || !timingSafeEqual(a, b)) return { ok: false, error: tried === "sms" ? "That code is not right. Check the SMS and try again." : "That code is not right. Check the email and try again." };
+  const used = await d.delete(store.table).where(and(eq(store.key, key), eq(store.table.codeHash, row.codeHash))).returning({ key: store.key });
+  if (!used.length) return { ok: false, error: "That code has expired. Ask for a new one." };
+  return { ok: true };
+}
+
+/** Stores a fresh code for `key`, refusing a second one within 30 seconds or a sixth in an hour. Returns it, or an error. */
+async function newCode(store: CodeStore, key: string): Promise<{ ok: true; code: string } | { ok: false; error: string }> {
+  const d = await db();
+  const [prev] = await d.select({ sentAt: store.table.sentAt }).from(store.table).where(eq(store.key, key));
+  if (prev && Date.now() - Date.parse(iso(prev.sentAt)!) < RESEND_AFTER) return { ok: false, error: "We just sent a code. Wait a few seconds before asking for another." };
+  // One number or address cannot be written to over and over, even from many IP addresses.
+  if (!(await allowFor("codeTo", key))) return { ok: false, error: "We’ve sent several codes to this number. Try again in an hour." };
+  const code = String(randomInt(0, 1_000_000)).padStart(6, "0");
+  const row = { codeHash: codeHash(key, code), expiresAt: new Date(Date.now() + CODE_TTL).toISOString(), attempts: 0, sentAt: new Date().toISOString() };
+  await d.insert(store.table).values({ [store.key.name === "phone" ? "phone" : "email"]: key, ...row } as never).onConflictDoUpdate({ target: store.key, set: row });
+  return { ok: true, code };
+}
+const dropCode = async (store: CodeStore, key: string) => { await (await db()).delete(store.table).where(eq(store.key, key)); };
+
+// ---- phone (staff, and customers who have not added an email yet)
 /** Texts a sign-in code: in the account's language for a customer, else in `locale`, the page's. */
 export async function issueCode(phoneInput: string, locale: Locale = "rw"): Promise<{ ok: true; demoCode?: string } | { ok: false; error: string }> {
   const phone = normalisePhone(phoneInput);
   if (!phone) return { ok: false, error: "Enter a Rwandan mobile number, e.g. 788 123 456." };
   // Without a real SMS provider a live site cannot deliver a code, and must not hand it out on screen instead.
   if (!canDeliverCodes()) return { ok: false, error: "Sign-in codes can’t be sent right now. Please contact us." };
+  const made = await newCode(PHONE_CODES, phone);
+  if (!made.ok) return made;
   const d = await db();
-  const [prev] = await d.select().from(s.otpCodes).where(eq(s.otpCodes.phone, phone));
-  if (prev && Date.now() - Date.parse(iso(prev.sentAt)!) < RESEND_AFTER) return { ok: false, error: "We just sent a code. Wait a few seconds before asking for another." };
-  // One number cannot be texted over and over, even from many addresses.
-  if (!(await allowFor("codeTo", phone))) return { ok: false, error: "We’ve sent several codes to this number. Try again in an hour." };
-  const code = String(randomInt(0, 1_000_000)).padStart(6, "0");
-  const row = { phone, codeHash: codeHash(phone, code), expiresAt: new Date(Date.now() + CODE_TTL).toISOString(), attempts: 0, sentAt: new Date().toISOString() };
-  await d.insert(s.otpCodes).values(row).onConflictDoUpdate({ target: s.otpCodes.phone, set: row });
   try {
     // Staff get it in English, like all their SMS (staff sign-in wins when a number is both); a customer
     // in their account's language; anyone else in the language of the page they asked from.
     const [staff] = await d.select({ id: s.staff.id }).from(s.staff).where(and(eq(s.staff.phone, phone), eq(s.staff.active, true)));
     const [account] = staff ? [] : await d.select({ locale: s.accounts.locale }).from(s.accounts).where(eq(s.accounts.phone, phone));
-    await sendSms(phone, smsText(staff ? "en" : account?.locale ?? locale, sms("code", { code })));
+    await sendSms(phone, smsText(staff ? "en" : account?.locale ?? locale, sms("code", { code: made.code })));
   } catch (e) {
     console.error(e);
-    await d.delete(s.otpCodes).where(eq(s.otpCodes.phone, phone));
+    await dropCode(PHONE_CODES, phone);
     return { ok: false, error: "We couldn’t send the SMS. Please try again in a minute." };
   }
   // In a demo without a live SMS provider the code is shown on screen. Never on a live site.
-  return showsCodeOnScreen() ? { ok: true, demoCode: code } : { ok: true };
+  return showsCodeOnScreen() ? { ok: true, demoCode: made.code } : { ok: true };
 }
 
 export async function consumeCode(phoneInput: string, code: string): Promise<{ ok: true; phone: string } | { ok: false; error: string }> {
   const phone = normalisePhone(phoneInput);
   if (!phone || !/^\d{6}$/.test(code)) return { ok: false, error: "Enter the 6-digit code from the SMS." };
-  const d = await db();
-  // Count the attempt and read the hash in one statement, so guesses sent in parallel cannot share one count.
-  const [row] = await d.update(s.otpCodes).set({ attempts: sql`${s.otpCodes.attempts} + 1` })
-    .where(and(eq(s.otpCodes.phone, phone), gt(s.otpCodes.expiresAt, new Date().toISOString()), lt(s.otpCodes.attempts, MAX_ATTEMPTS)))
-    .returning({ codeHash: s.otpCodes.codeHash });
-  if (!row) {
-    const [existing] = await d.select({ expiresAt: s.otpCodes.expiresAt }).from(s.otpCodes).where(eq(s.otpCodes.phone, phone));
-    if (existing && Date.parse(iso(existing.expiresAt)!) >= Date.now()) return { ok: false, error: "Too many wrong codes. Ask for a new one." };
-    return { ok: false, error: "That code has expired. Ask for a new one." };
+  const r = await consume(PHONE_CODES, phone, code, "sms");
+  return r.ok ? { ok: true, phone } : r;
+}
+
+// ---- email (customers)
+/** Lower case, one address, a plausible shape; null if it is not one. */
+export const normaliseEmail = (v: string) => {
+  const e = v.trim().toLowerCase();
+  return e.length <= 254 && /^[^\s@,;<>()]+@[^\s@,;<>()]+\.[^\s@,;<>()]{2,}$/.test(e) ? e : null;
+};
+
+/** Emails a code to sign in or to confirm an address. `locale` is the page's; a known account's own language wins. */
+export async function issueEmailCode(emailInput: string, locale: Locale = "rw", purpose: "signIn" | "confirm" = "signIn"): Promise<{ ok: true; demoCode?: string } | { ok: false; error: string }> {
+  const email = normaliseEmail(emailInput);
+  if (!email) return { ok: false, error: "Enter a valid email address." };
+  if (!canDeliverEmailCodes()) return { ok: false, error: "Sign-in codes can’t be sent right now. Please contact us." };
+  const made = await newCode(EMAIL_CODES, email);
+  if (!made.ok) return made;
+  try {
+    const [account] = await (await db()).select({ locale: s.accounts.locale }).from(s.accounts).where(sql`lower(${s.accounts.email}) = ${email}`);
+    const lang = account?.locale ?? locale;
+    await sendEmail({
+      to: email, subject: text(lang, purpose === "signIn" ? "email.codeSubject" : "email.confirmSubject"),
+      text: text(lang, purpose === "signIn" ? "email.codeIntro" : "email.confirmIntro"), highlight: made.code, footer: text(lang, "email.codeFooter"),
+    });
+  } catch (e) {
+    console.error("[email]", e);
+    await dropCode(EMAIL_CODES, email);
+    return { ok: false, error: "We couldn’t send the email. Please try again in a minute." };
   }
-  const a = Buffer.from(row.codeHash), b = Buffer.from(codeHash(phone, code));
-  if (a.length !== b.length || !timingSafeEqual(a, b)) return { ok: false, error: "That code is not right. Check the SMS and try again." };
-  // A code works once: only the request that deletes the row gets in.
-  const used = await d.delete(s.otpCodes).where(and(eq(s.otpCodes.phone, phone), eq(s.otpCodes.codeHash, row.codeHash))).returning({ phone: s.otpCodes.phone });
-  if (!used.length) return { ok: false, error: "That code has expired. Ask for a new one." };
-  return { ok: true, phone };
+  return showsEmailCodeOnScreen() ? { ok: true, demoCode: made.code } : { ok: true };
+}
+
+export async function consumeEmailCode(emailInput: string, code: string): Promise<{ ok: true; email: string } | { ok: false; error: string }> {
+  const email = normaliseEmail(emailInput);
+  if (!email || !/^\d{6}$/.test(code)) return { ok: false, error: "Enter the 6-digit code from the email." };
+  const r = await consume(EMAIL_CODES, email, code, "email");
+  return r.ok ? { ok: true, email } : r;
 }
 
 // ---------------- sessions ----------------

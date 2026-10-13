@@ -1,13 +1,13 @@
 "use client";
 import { useState, useTransition } from "react";
-import { deleteMyAccount, deleteMyDocuments, signOutEverywhere, updateAccount } from "@/app/actions/customer";
+import { confirmEmailChange, deleteMyAccount, deleteMyDocuments, requestEmailChange, signOutEverywhere, updateAccount } from "@/app/actions/customer";
 import { trError } from "@/lib/i18n/errors";
 import { useI18n } from "./I18n";
 import { Alert, Icon } from "./ui";
 import { useDialog } from "./useDialog";
 
 type Props = {
-  account: { name: string; phone: string; whatsapp: boolean; languages: string[]; since: string };
+  account: { name: string; phone: string; email: string; whatsapp: boolean; languages: string[]; since: string };
   profiles: { id: string; name: string; kind: string; relation?: string; idMasked?: string; tinMasked?: string | null }[];
   data: { files: number; requests: number; open: number; retentionDays: number };
 };
@@ -46,9 +46,10 @@ export default function AccountSettings({ account, profiles, data }: Props) {
         <h2 id="acct-details" className="acct-h">{t("account.details")}</h2>
         <form action={save} className="stack g20">
           <div className="field"><label htmlFor="acct-name">{t("account.name")}</label><input id="acct-name" name="name" className="in" defaultValue={account.name} autoComplete="name" required minLength={2} maxLength={120} /></div>
+          <EmailField current={account.email} />
           <div className="field">
             <span className="label">{t("account.phone")}</span>
-            <span className="acct-static fig">{account.phone}</span>
+            <span className="acct-static fig">{account.phone || "—"}</span>
             <span className="hint">{t("account.phoneHint")}</span>
           </div>
           <label className="check"><input type="checkbox" name="whatsapp" defaultChecked={account.whatsapp} /><span>{t("account.whatsapp")}</span></label>
@@ -155,6 +156,73 @@ function DeleteDialog({ onClose }: { onClose: () => void }) {
           </div>
         </form>
       </div>
+    </div>
+  );
+}
+
+/** The sign-in email: shown, and added or changed with a code sent to the new address. It sits inside the details
+ *  form, so its own buttons are type="button" and nothing here submits the form. */
+function EmailField({ current }: { current: string }) {
+  const { locale, t } = useI18n();
+  const [email, setEmail] = useState(current);
+  const [open, setOpen] = useState(false);
+  const [draft, setDraft] = useState("");
+  const [sentTo, setSentTo] = useState("");
+  const [code, setCode] = useState("");
+  const [demo, setDemo] = useState<string>();
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const [done, setDone] = useState(false);
+
+  const send = async () => {
+    setBusy(true); setError("");
+    const r = await requestEmailChange(draft).catch(() => ({ ok: false as const, error: t("authErr.sendFail") }));
+    setBusy(false);
+    if (!r.ok) { setError(trError(locale, r.error)); return; }
+    setSentTo(draft.trim().toLowerCase()); setDemo(r.demoCode); setCode("");
+  };
+  const confirm = async () => {
+    setBusy(true); setError("");
+    const r = await confirmEmailChange(sentTo, code).catch(() => ({ ok: false as const, error: t("code.wrong") }));
+    setBusy(false);
+    if (!r.ok) { setError(trError(locale, r.error)); return; }
+    setEmail(r.email); setOpen(false); setSentTo(""); setDraft(""); setDone(true);
+  };
+
+  return (
+    <div className="field">
+      <span className="label" id="acct-email-l">{t("account.email")}</span>
+      <div className="row between g12 wrapx">
+        <span className="acct-static grow" aria-labelledby="acct-email-l" style={{ overflowWrap: "anywhere" }}>{email || t("account.emailNone")}</span>
+        {!open && <button type="button" className="btn btn-s btn-sm" onClick={() => { setOpen(true); setDone(false); }}>{email ? t("account.emailChange") : t("account.emailAdd")}</button>}
+      </div>
+      {done && <span className="row g6 hint" role="status"><Icon name="check" size={16} color="var(--ok)" />{t("account.emailDone")}</span>}
+      {!email && !open && <span className="hint">{t("account.emailAddHint")}</span>}
+      {open && (
+        <div className="card stack g12" style={{ padding: 16 }}>
+          {!sentTo ? (
+            <>
+              <label htmlFor="acct-email-new" className="label">{t("account.emailNew")}</label>
+              <input id="acct-email-new" type="email" className="in" autoComplete="email" autoCapitalize="none" spellCheck={false} value={draft} onChange={(e) => { setDraft(e.target.value); setError(""); }} />
+              <span className="hint">{t("account.emailAddHint")}</span>
+            </>
+          ) : (
+            <>
+              <span style={{ fontSize: 14.5 }}>{t("account.emailSent", { email: sentTo })}</span>
+              <label htmlFor="acct-email-code" className="label">{t("account.emailCode")}</label>
+              <input id="acct-email-code" className="in code-in" inputMode="numeric" autoComplete="one-time-code" maxLength={6} value={code} onChange={(e) => { setCode(e.target.value.replace(/\D/g, "").slice(0, 6)); setError(""); }} />
+              {demo && <span className="hint">{t("code.demoEmail")} <strong className="m" data-demo-code={demo}>{demo}</strong>.</span>}
+            </>
+          )}
+          {error && <span className="err-text" role="alert"><Icon name="alert" size={15} /> {error}</span>}
+          <div className="row g8 wrapx">
+            {!sentTo
+              ? <button type="button" className="btn btn-p btn-sm" disabled={busy || !draft.trim()} onClick={send}>{busy ? <><span className="spin" /> {t("account.emailSending")}</> : t("account.emailSend")}</button>
+              : <button type="button" className="btn btn-p btn-sm" disabled={busy || code.length !== 6} onClick={confirm}>{busy ? <><span className="spin" /> {t("code.checking")}</> : t("account.emailConfirm")}</button>}
+            <button type="button" className="btn btn-g btn-sm" onClick={() => { setOpen(false); setSentTo(""); setDraft(""); setError(""); }}>{t("account.emailCancel")}</button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

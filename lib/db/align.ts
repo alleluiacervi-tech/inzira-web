@@ -73,6 +73,21 @@ async function addLaterObjects(database: Db) {
     `ALTER TABLE "events" ADD COLUMN IF NOT EXISTS "vars" jsonb`,
     `ALTER TABLE "notifications" ADD COLUMN IF NOT EXISTS "key" text`,
     `ALTER TABLE "notifications" ADD COLUMN IF NOT EXISTS "vars" jsonb`,
+    `CREATE TABLE IF NOT EXISTS "email_codes" (
+      "email" text PRIMARY KEY NOT NULL,
+      "code_hash" text NOT NULL,
+      "expires_at" timestamp with time zone NOT NULL,
+      "attempts" integer DEFAULT 0 NOT NULL,
+      "sent_at" timestamp with time zone DEFAULT now() NOT NULL
+    )`,
+    `ALTER TABLE "accounts" ALTER COLUMN "phone" DROP NOT NULL`,
+    `ALTER TABLE "accounts" ADD COLUMN IF NOT EXISTS "email" text`,
+    `ALTER TABLE "accounts" ADD COLUMN IF NOT EXISTS "registered_at" timestamp with time zone`,
+    `UPDATE "accounts" SET "registered_at" = "since" WHERE "registered_at" IS NULL AND "deleted_at" IS NULL`,
+    `ALTER TABLE "profiles" ADD COLUMN IF NOT EXISTS "date_of_birth" text`,
+    `ALTER TABLE "profiles" ADD COLUMN IF NOT EXISTS "id_checked_at" timestamp with time zone`,
+    `ALTER TABLE "profiles" ADD COLUMN IF NOT EXISTS "id_checked_by" text`,
+    `CREATE UNIQUE INDEX IF NOT EXISTS "accounts_email_unique" ON "accounts" USING btree (lower("email"))`,
   ];
   for (const statement of statements) await database.execute(sql.raw(statement));
 }

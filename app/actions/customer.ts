@@ -1,8 +1,8 @@
 "use server";
 import { randomBytes } from "node:crypto";
-import { and, eq } from "drizzle-orm";
+import { and, eq, ne, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
-import { consumeCode, endSession, getSession, normalisePhone, requireCustomerId, startSession } from "@/lib/auth";
+import { consumeEmailCode, endSession, getSession, issueEmailCode, normaliseEmail, normalisePhone, requireCustomerId, startSession } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { deleteAccount, finishedWithDocuments, purgeDocuments } from "@/lib/privacy";
 import { iso } from "@/lib/db";
@@ -11,14 +11,14 @@ import { text as tr } from "@/lib/i18n/messages";
 import type en from "@/lib/i18n/en.json";
 import type { LibraryDoc } from "@/lib/types";
 import { english, msg } from "@/lib/i18n/stored";
-import { maskNationalId, rwf } from "@/lib/format";
+import { maskNationalId, parseDob, prettyPhone, rwf } from "@/lib/format";
 import { audit, db, event, fail, invoiceFor, nextNumber, notify, refFor, s, type Result } from "@/lib/mutate";
 import { reconcilePayment } from "@/lib/billing";
 import { methodFor, providerFor } from "@/lib/payments";
 import { SITE } from "@/lib/site";
 import { amountDue } from "@/lib/status";
 import { getService, listMyDocuments } from "@/lib/repo";
-import { allowIp } from "@/lib/ratelimit";
+import { TOO_MANY, allowIp } from "@/lib/ratelimit";
 import { ALLOWED, MAX_BYTES, humanSize, putFile } from "@/lib/storage";
 
 const id = (prefix: string) => `${prefix}-${randomBytes(6).toString("hex")}`;
@@ -40,32 +40,54 @@ async function checkFile(f: File): Promise<string | null> {
   return null;
 }
 
-/** Sends a new request: checks the SMS code, creates the account if needed, stores the files,
- *  opens the request and signs the customer in. */
-export async function submitRequest(fd: FormData): Promise<Result<{ ref: string }>> {
-  const phone = normalisePhone(text(fd, "phone"));
+/** Sends a new request: checks the code emailed to the customer, creates their contact record if needed, stores the
+ *  files and opens the request. With "portal" (the default) it also signs them in; without it they stay a contact:
+ *  they can follow the request with its reference and email, and open a portal later by signing in with that email. */
+export async function submitRequest(fd: FormData): Promise<Result<{ ref: string; portal: boolean }>> {
+  const email = normaliseEmail(text(fd, "email"));
+  const phoneInput = text(fd, "phone");
+  const phone = phoneInput ? normalisePhone(phoneInput) : null;
   const name = text(fd, "name"), subject = text(fd, "subject"), forWho = text(fd, "forWho") || "me";
   const nid = text(fd, "nid").replace(/\D/g, "");
-  if (!phone) return refuse("badPhone");
+  const portal = fd.get("portal") !== "0";
+  if (!email) return refuse("badEmail");
+  if (phoneInput && !phone) return refuse("badPhone");
   if (!name) return refuse("name");
   const slug = text(fd, "slug") || "other-online-service";
   const service = await getService(slug);
   if (!service || (!service.visible && slug !== "other-online-service")) return refuse("service");
+  // The details as written on the ID: the date of birth goes with the number, for a person's own or a family member's request.
+  const needsId = !service.noId && forWho !== "business";
+  const dob = text(fd, "dob") ? parseDob(text(fd, "dob")) : null;
+  if (text(fd, "dob") && !dob) return refuse("badDob");
+  if (needsId && !dob) return refuse("badDob");
   const files = service.documents.map((_, i) => fd.get(`file-${i}`)).map((f) => (f instanceof File && f.size ? f : null));
   const extra = fd.getAll("file-extra").filter((f): f is File => f instanceof File && f.size > 0);
   for (const f of [...files, ...extra]) { const bad = f && (await checkFile(f)); if (bad) return fail(bad); }
 
   if (!(await allowIp("request"))) return refuse("tooMany");
-  const checked = await consumeCode(phone, text(fd, "code"));
+  const checked = await consumeEmailCode(email, text(fd, "code"));
   if (!checked.ok) return checked;
 
   const d = await db();
   const now = new Date().toISOString();
+  // A phone number belongs to one account. Someone else's account is never joined to this email just because the number matches.
+  if (phone) {
+    const [owner] = await d.select({ id: s.accounts.id, email: s.accounts.email }).from(s.accounts).where(eq(s.accounts.phone, phone));
+    if (owner && owner.email?.toLowerCase() !== email) return refuse("phoneTaken");
+  }
   const result = await d.transaction(async (tx) => {
-    let [account] = await tx.select().from(s.accounts).where(eq(s.accounts.phone, phone));
+    let [account] = await tx.select().from(s.accounts).where(sql`lower(${s.accounts.email}) = ${email}`);
     if (!account) {
-      // A new customer's portal and SMS are in the language they used to send the request.
-      [account] = await tx.insert(s.accounts).values({ id: id("acc"), name, first: name.split(" ")[0], phone, languages: [], locale: await getLocale() }).returning();
+      // A new customer's portal and messages are in the language they used to send the request.
+      [account] = await tx.insert(s.accounts).values({
+        id: id("acc"), name, first: name.split(" ")[0], phone, email, languages: [], locale: await getLocale(), registeredAt: portal ? now : null,
+      }).returning();
+    } else {
+      const set: Partial<typeof s.accounts.$inferInsert> = {};
+      if (portal && !account.registeredAt) set.registeredAt = now;
+      if (phone && !account.phone) set.phone = phone;
+      if (Object.keys(set).length) [account] = await tx.update(s.accounts).set(set).where(eq(s.accounts.id, account.id)).returning();
     }
     const profiles = await tx.select().from(s.profiles).where(eq(s.profiles.accountId, account.id));
     let profile =
@@ -76,14 +98,17 @@ export async function submitRequest(fd: FormData): Promise<Result<{ ref: string 
       [profile] = await tx.insert(s.profiles).values({
         id: id("p"), accountId: account.id, kind: forWho === "business" ? "business" : "person", name: forWho === "me" ? name : subject || name,
         relation: forWho === "business" ? null : forWho === "me" ? "self" : "family", idMasked: maskNationalId(nid), nationalId: nid || null,
+        dateOfBirth: forWho === "business" ? null : dob,
       }).returning();
-    } else if (nid && !profile.nationalId) {
-      await tx.update(s.profiles).set({ nationalId: nid, idMasked: maskNationalId(nid) }).where(eq(s.profiles.id, profile.id));
+    } else if ((nid && !profile.nationalId) || (dob && !profile.dateOfBirth)) {
+      await tx.update(s.profiles).set({
+        ...(nid && !profile.nationalId ? { nationalId: nid, idMasked: maskNationalId(nid) } : {}), ...(dob && !profile.dateOfBirth ? { dateOfBirth: dob } : {}),
+      }).where(eq(s.profiles.id, profile.id));
     }
 
     const ref = refFor(await nextNumber(tx, "request"));
     const invoice = invoiceFor(await nextNumber(tx, "invoice"));
-    const summary = msg("sum.received", { phone: `+250 ${phone.replace(/^(\d{3})(\d{3})(\d{3})$/, "$1 $2 $3")}` });
+    const summary = msg("sum.received", { contact: email });
     await tx.insert(s.requests).values({
       ref, serviceSlug: service.slug, profileId: profile.id, agentId: null, stage: "received", stageDates: { received: now }, channel: service.channel,
       summary: { title: english(summary, "title"), body: english(summary, "body"), msg: summary },
@@ -115,11 +140,13 @@ export async function submitRequest(fd: FormData): Promise<Result<{ ref: string 
     return { ref, accountId: account.id, locale: asLocale(account.locale) };
   });
 
-  await startSession("customer", result.accountId);
-  // A returning customer's account may be in the other language; the whole site follows it, as on sign-in.
-  await rememberLocale(result.locale);
+  if (portal) {
+    await startSession("customer", result.accountId);
+    // A returning customer's account may be in the other language; the whole site follows it, as on sign-in.
+    await rememberLocale(result.locale);
+  }
   revalidatePath("/", "layout");
-  return { ok: true, ref: result.ref };
+  return { ok: true, ref: result.ref, portal };
 }
 
 /** Confirms the request belongs to the signed-in customer. */
@@ -245,7 +272,7 @@ export async function cancelRequest(ref: string, reason: string): Promise<Result
 // ---------------- account ----------------
 const LANGUAGES = ["Kinyarwanda", "English", "French"] as const;
 
-/** Name, WhatsApp updates and preferred languages. The phone number is the sign-in, so support changes it. */
+/** Name, WhatsApp updates and preferred languages. The sign-in email is changed with requestEmailChange. */
 export async function updateAccount(fd: FormData): Promise<Result> {
   const accountId = await requireCustomerId("/portal/account");
   const name = text(fd, "name").replace(/\s+/g, " ").slice(0, 120);
@@ -264,6 +291,38 @@ export async function updateAccount(fd: FormData): Promise<Result> {
   if (locale) await rememberLocale(locale);
   revalidatePath("/portal", "layout");
   return { ok: true };
+}
+
+/** Step 1 of adding or changing the sign-in email: emails a code to the new address. */
+export async function requestEmailChange(emailInput: string): Promise<Result<{ demoCode?: string }>> {
+  const accountId = await requireCustomerId("/portal/account");
+  const email = normaliseEmail(emailInput);
+  if (!email) return refuse("badEmail");
+  if (!(await allowIp("code"))) return refuse("tooMany");
+  const [other] = await (await db()).select({ id: s.accounts.id }).from(s.accounts).where(and(sql`lower(${s.accounts.email}) = ${email}`, ne(s.accounts.id, accountId)));
+  if (other) return refuse("emailTaken");
+  const sent = await issueEmailCode(email, await customerLocale(), "confirm");
+  return sent.ok ? { ok: true, demoCode: sent.demoCode } : fail(sent.error);
+}
+
+/** Step 2: the code proves the address is theirs, then it becomes how they sign in. */
+export async function confirmEmailChange(emailInput: string, code: string): Promise<Result<{ email: string }>> {
+  const accountId = await requireCustomerId("/portal/account");
+  if (!(await allowIp("signIn"))) return refuse("tooMany");
+  const checked = await consumeEmailCode(emailInput, code);
+  if (!checked.ok) return checked;
+  const d = await db();
+  try {
+    await d.transaction(async (tx) => {
+      await tx.update(s.accounts).set({ email: checked.email }).where(eq(s.accounts.id, accountId));
+      await audit(tx, { actor: accountId, role: "Customer", action: "Changed sign-in email", entity: accountId });
+    });
+  } catch {
+    // Someone confirmed the same address a moment earlier: the unique index refuses a second account.
+    return refuse("emailTaken");
+  }
+  revalidatePath("/portal", "layout");
+  return { ok: true, email: checked.email };
 }
 
 /** Ends every session of this account, on every phone and computer, this one included. */
