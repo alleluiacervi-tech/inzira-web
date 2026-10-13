@@ -121,7 +121,7 @@ export function Sparkline({ values, label, width = 88, height = 28 }: { values: 
 }
 
 /** One measure across a few categories: horizontal bars, value at the tip. */
-export function BarList({ rows, unit }: { rows: [string, number][]; unit: [string, string] }) {
+export function BarList({ rows, unit, format }: { rows: [string, number][]; unit?: [string, string]; format?: (n: number) => string }) {
   const max = Math.max(...rows.map(([, n]) => n), 1);
   return (
     <ul className="c-barlist">
@@ -129,7 +129,7 @@ export function BarList({ rows, unit }: { rows: [string, number][]; unit: [strin
         <li key={name}>
           <span className="c-barlist-name">{name}</span>
           <span className="c-barlist-track"><span className="c-barlist-bar" style={{ width: `${(n / max) * 100}%` }} /></span>
-          <span className="c-barlist-value tnum">{n} <span className="c-caption">{n === 1 ? unit[0] : unit[1]}</span></span>
+          <span className="c-barlist-value tnum">{format ? format(n) : n}{unit && <> <span className="c-caption">{n === 1 ? unit[0] : unit[1]}</span></>}</span>
         </li>
       ))}
     </ul>

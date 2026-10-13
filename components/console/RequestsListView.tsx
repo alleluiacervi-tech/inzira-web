@@ -4,6 +4,7 @@ import { useMemo, useState, useTransition } from "react";
 import { bulkAssignRequests, bulkMessageRequests, saveSavedView } from "@/app/actions/console";
 import { Icon } from "@/components/ui";
 import { fmtAgo, fmtDay, fmtWhen, initials, rwf, shortName } from "@/lib/format";
+import { CASE_FILTERS } from "@/lib/dashboard";
 import { amountDue, isOpen, payStatus } from "@/lib/status";
 import type { RequestView, SavedView, Staff, Stage } from "@/lib/types";
 import { DataTable, type ColumnDef, type FilterDef } from "./DataTable";
@@ -20,6 +21,7 @@ export function RequestsListView({
   categories,
   stageTargets,
   savedViews = [],
+  initialFilters,
   now,
 }: {
   requests: RequestView[];
@@ -27,6 +29,8 @@ export function RequestsListView({
   categories: Record<string, string>;
   stageTargets: Record<Stage, number>;
   savedViews?: SavedView[];
+  /** Filters named in the page URL, e.g. ?payment=overdue from a dashboard link. */
+  initialFilters?: Record<string, string>;
   now: string;
 }) {
   const [viewMode, setViewMode] = useState<"table" | "board">("table");
@@ -210,7 +214,7 @@ export function RequestsListView({
       label: "Agent",
       options: [
         { label: "Unassigned", value: "unassigned" },
-        ...agents.filter((a) => a.active && a.role === "Agent").map((a) => ({ label: a.name, value: a.id })),
+        ...agents.filter((a) => a.active).map((a) => ({ label: a.name, value: a.id })),
       ],
       filterFn: (r, val) => val === "unassigned" ? !r.agentId : r.agentId === val,
     },
@@ -269,13 +273,31 @@ export function RequestsListView({
       },
     },
     {
+      id: "attention",
+      label: "Needs attention",
+      showInToolbar: false,
+      options: [
+        { label: "Past target time", value: "sla" },
+        { label: "Official receipt missing", value: "receipt" },
+        { label: "Balance due", value: "balance" },
+      ],
+      filterFn: (r, val) => val === "sla" ? CASE_FILTERS.sla(r, stageTargets, now) : val === "receipt" ? CASE_FILTERS.receipt(r) : val === "balance" ? CASE_FILTERS.balance(r) : true,
+    },
+    {
+      id: "state",
+      label: "Status",
+      showInToolbar: false,
+      options: [{ label: "Open", value: "open" }],
+      filterFn: (r, val) => val !== "open" || CASE_FILTERS.open(r),
+    },
+    {
       id: "closed",
       label: "Closed status",
       showInToolbar: false,
       options: [{ label: "Cancelled", value: "cancelled" }],
       filterFn: (r, val) => r.closed?.kind === val,
     },
-  ], [agents, now]);
+  ], [agents, now, stageTargets]);
 
   const usableSavedViews = useMemo(() => savedViews.map((view) => {
     const saved = view.filters as Record<string, unknown>;
@@ -358,6 +380,8 @@ export function RequestsListView({
       {/* Main View: Table or Board */}
       {viewMode === "table" ? (
         <DataTable
+          key={JSON.stringify(initialFilters ?? {})}
+          initialFilters={initialFilters}
           data={requests}
           columns={columns}
           filters={filtersDef}
@@ -548,7 +572,7 @@ export function RequestsListView({
                 onChange={(e) => setTargetAgentId(e.target.value)}
               >
                 <option value="">Unassign</option>
-                {agents.filter((a) => a.active && a.role === "Agent").map((a) => (
+                {agents.filter((a) => a.active).map((a) => (
                   <option key={a.id} value={a.id}>{a.name} ({a.team})</option>
                 ))}
               </select>

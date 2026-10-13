@@ -2,7 +2,7 @@
 import Link from "next/link";
 import { useState, type ReactNode } from "react";
 import { Icon } from "@/components/ui";
-import { fmtAgo, fmtLong, fmtWhen, shortName } from "@/lib/format";
+import { fmtAgo, fmtDayRel, fmtHours, fmtLong, fmtWhen, isSameDay, shortName } from "@/lib/format";
 import { stageLabel } from "@/lib/status";
 import type { RequestView, Staff } from "@/lib/types";
 import { RequestStatusBadge } from "./StatusBadge";
@@ -26,9 +26,6 @@ export interface MyDayData {
 }
 
 type Tone = "red" | "blue" | "amber" | "green";
-
-/** 26 → "1d 2h", 5 → "5h". */
-const fmtHours = (h: number) => (h < 24 ? `${h}h` : `${Math.floor(h / 24)}d${h % 24 ? ` ${h % 24}h` : ""}`);
 
 function Section({ id, icon, tone, title, caption, count, empty, children }: {
   id: string; icon: string; tone: Tone; title: string; caption: string; count: number;
@@ -73,6 +70,7 @@ export function MyDayView({ staff, data, now }: { staff: Staff; data: MyDayData;
   const [preview, setPreview] = useState<RequestView | null>(null);
   const overdue = data.slaCases.filter((x) => x.breached).length;
   const sla = [...data.slaCases].sort((a, b) => (b.hoursElapsed - b.targetHours) - (a.hoursElapsed - a.targetHours));
+  const missed = data.todayFollowUps.filter((c) => c.followUp && !isSameDay(c.followUp.at, now)).length;
   const waiting = data.slaCases.length + data.clientReplies.length + data.todayFollowUps.length + data.pendingDocs.length;
 
   return (
@@ -91,16 +89,16 @@ export function MyDayView({ staff, data, now }: { staff: Staff; data: MyDayData;
         </div>
         <div className="row g8 wrapx">
           <Link href="/console/inbox" className="c-btn c-btn-secondary"><Icon name="inbox" size={15} />Inbox</Link>
-          <Link href="/console/requests?view=my_open" className="c-btn c-btn-primary"><Icon name="briefcase" size={15} />My open cases ({data.openCasesCount})</Link>
+          <Link href={`/console/requests?agent=${staff.id}&state=open`} className="c-btn c-btn-primary"><Icon name="briefcase" size={15} />My open cases ({data.openCasesCount})</Link>
         </div>
       </div>
 
       <div className="c-grid-stats">
-        <StatCard title="SLA Attention" value={data.slaCases.length} icon="alert" href="#sla"
+        <StatCard title="Past or near target" value={data.slaCases.length} icon="alert" href="#sla"
           subtext={`${overdue} overdue · ${data.slaCases.length - overdue} near limit`} tone={overdue ? "red" : undefined} />
-        <StatCard title="Client Replies" value={data.clientReplies.length} icon="msg" href="#replies" subtext="Waiting for your answer" />
-        <StatCard title="Follow-ups Today" value={data.todayFollowUps.length} icon="clock" href="#follow-ups" subtext="Calls and reminders due" />
-        <StatCard title="Documents to Review" value={data.pendingDocs.length} icon="file-text" href="#documents" subtext="Uploaded by clients" />
+        <StatCard title="Client replies" value={data.clientReplies.length} icon="msg" href="#replies" subtext="Waiting for your answer" />
+        <StatCard title="Follow-ups due" value={data.todayFollowUps.length} icon="clock" href="#follow-ups" subtext={missed ? `${missed} missed on an earlier day` : "Calls and reminders for today"} tone={missed ? "red" : undefined} />
+        <StatCard title="Documents to review" value={data.pendingDocs.length} icon="file-text" href="#documents" subtext="Uploaded by clients" />
       </div>
 
       <div className="c-grid-2">
@@ -142,13 +140,13 @@ export function MyDayView({ staff, data, now }: { staff: Staff; data: MyDayData;
           })}
         </Section>
 
-        <Section id="follow-ups" icon="clock" tone="amber" title="Follow-ups due today" caption="Reminders you set on your cases"
-          count={data.todayFollowUps.length} empty={{ title: "No follow-ups due today", body: "Reminders you schedule on a case appear here on the day." }}>
+        <Section id="follow-ups" icon="clock" tone="amber" title="Follow-ups due" caption="Reminders for today, and any you missed"
+          count={data.todayFollowUps.length} empty={{ title: "No follow-ups due", body: "Reminders you schedule on a case appear here on the day, and stay until you act." }}>
           {data.todayFollowUps.map((c) => (
             <li key={c.ref} className="c-list-row">
               <div className="stack g6 grow">
                 <CaseLine c={c} />
-                {c.followUp && <p className="c-quote c-quote-amber"><strong>Reminder:</strong> {c.followUp.what}</p>}
+                {c.followUp && <p className="c-quote c-quote-amber"><strong>{isSameDay(c.followUp.at, now) ? "Today" : `Missed · ${fmtDayRel(c.followUp.at, now)}`}:</strong> {c.followUp.what}</p>}
                 <span className="c-caption">{c.profile.phone || c.account.phone} · {c.service.name}</span>
               </div>
               <Link href={`/console/requests/${c.ref}`} className="c-btn c-btn-secondary c-btn-sm">Open case</Link>

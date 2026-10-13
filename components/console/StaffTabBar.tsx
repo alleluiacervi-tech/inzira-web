@@ -2,6 +2,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Icon } from "@/components/ui";
+import { hasAdminAccess } from "@/lib/permissions";
 import type { Permission, Staff } from "@/lib/types";
 
 /** Thumb-reach navigation for staff on phones; the sidebar stays available behind the menu button. */
@@ -9,7 +10,10 @@ export function StaffTabBar({ user, permissions, inboxCount = 0 }: { user: Staff
   const path = usePathname();
   const can = (p: Permission) => user.role === "Owner" || permissions.includes(p);
   const tabs = [
-    { href: "/console/my-day", label: "My day", icon: "sun", on: path === "/console/my-day" },
+    // The first tab is home: the overview for whoever runs the business, My day for everyone else.
+    hasAdminAccess(user.role, permissions) && can("viewAll")
+      ? { href: "/console/overview", label: "Home", icon: "home", on: path === "/console/overview" }
+      : { href: "/console/my-day", label: "My day", icon: "sun", on: path === "/console/my-day" },
     { href: "/console/requests", label: "Requests", icon: "list", on: path.startsWith("/console/requests") },
     ...(can("updateStatus") ? [{ href: "/console/intake", label: "New", icon: "plus", on: path === "/console/intake", accent: true }] : []),
     can("assign") && can("viewAll")

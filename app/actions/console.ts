@@ -2,9 +2,8 @@
 import { randomBytes } from "node:crypto";
 import { and, eq, inArray } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
-import { WORKS_CASES, canSeeCase, canSeeClient, seesAllCases } from "@/lib/access";
+import { WORKS_CASES, assignableStaff, canSeeCase, canSeeClient, seesAllCases } from "@/lib/access";
 import { getStaffUser, normalisePhone } from "@/lib/auth";
-import type { Db } from "@/lib/db";
 import { maskNationalId, maskTin, rwf, shortName } from "@/lib/format";
 import { english, feeVars, msg, sms } from "@/lib/i18n/stored";
 import { audit, db, event, fail, notify, s, type Result } from "@/lib/mutate";
@@ -52,10 +51,7 @@ async function clientAction(profileId: string, perm: Permission) {
 }
 
 /** The active member of staff to hand a case to, or null. */
-async function assignee(d: Db, agentId: string) {
-  const [agent] = await d.select().from(s.staff).where(eq(s.staff.id, agentId));
-  return agent?.active ? agent : null;
-}
+const assignee = assignableStaff;
 
 export async function searchConsole(q: string) {
   const a = await staffAction("viewAssigned");
@@ -71,7 +67,7 @@ export async function acceptAndAssignRequest(ref: string, agentId: string, messa
   if (req.closed) return fail("This request is closed.");
 
   const agent = await assignee(d, agentId);
-  if (!agent) return fail("Agent not found.");
+  if (!agent) return fail("That person can’t take cases.");
 
   await d.transaction(async (tx) => {
     const nextStage = req.stage === "received" ? "checking" : req.stage;
@@ -168,7 +164,7 @@ export async function bulkAssignRequests(refs: string[], agentId: string | null)
   const { me, d } = a;
 
   const agent = agentId ? await assignee(d, agentId) : null;
-  if (agentId && !agent) return fail("Agent not found.");
+  if (agentId && !agent) return fail("That person can’t take cases.");
 
   await d.transaction(async (tx) => {
     for (const ref of a.refs) {

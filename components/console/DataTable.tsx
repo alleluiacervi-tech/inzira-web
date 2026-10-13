@@ -40,6 +40,7 @@ export function DataTable<T extends { id?: string; ref?: string }>({
   compactDefault = false,
   emptyMessage = "No records found",
   emptySubtitle = "Try adjusting your search or filters.",
+  initialFilters,
 }: {
   data: T[];
   columns: ColumnDef<T>[];
@@ -56,9 +57,12 @@ export function DataTable<T extends { id?: string; ref?: string }>({
   compactDefault?: boolean;
   emptyMessage?: string;
   emptySubtitle?: string;
+  /** Filters to start with, by filter id. Unknown ids and values are ignored. */
+  initialFilters?: Record<string, string>;
 }) {
   const [q, setQ] = useState("");
-  const [activeFilters, setActiveFilters] = useState<Record<string, string>>({});
+  const [activeFilters, setActiveFilters] = useState<Record<string, string>>(() =>
+    Object.fromEntries(Object.entries(initialFilters ?? {}).filter(([id, v]) => filters.some((f) => f.id === id && f.options.some((o) => o.value === v)))));
   const [sortCol, setSortCol] = useState<string | null>(null);
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -252,6 +256,21 @@ export function DataTable<T extends { id?: string; ref?: string }>({
                 <option key={opt.value} value={opt.value}>{opt.label}</option>
               ))}
             </select>
+          ))}
+
+          {/* Filters without a menu of their own (set by a link or a saved view) show as removable chips. */}
+          {filters.filter((f) => f.showInToolbar === false && activeFilters[f.id] && activeFilters[f.id] !== "all").map((f) => (
+            <button
+              key={f.id}
+              type="button"
+              className="c-chip"
+              aria-pressed="true"
+              aria-label={`Remove filter ${f.label}: ${f.options.find((o) => o.value === activeFilters[f.id])?.label ?? activeFilters[f.id]}`}
+              onClick={() => { const { [f.id]: _gone, ...rest } = activeFilters; setActiveFilters(rest); setPage(1); }}
+            >
+              {f.label}: {f.options.find((o) => o.value === activeFilters[f.id])?.label ?? activeFilters[f.id]}
+              <Icon name="x" size={12} />
+            </button>
           ))}
 
           {Object.values(activeFilters).some((v) => v && v !== "all") && (
