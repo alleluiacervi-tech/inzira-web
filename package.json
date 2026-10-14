@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
+    "test:unit": "tsx scripts/unit.mts",
     "smoke": "node scripts/smoke.mjs",
     "flows": "node scripts/flows.mjs",
     "check:i18n": "node scripts/i18n-check.mjs",
@@ -15,8 +16,12 @@
     "db:migrate": "tsx scripts/db.mts migrate",
     "db:seed": "tsx scripts/db.mts seed",
     "db:reset": "tsx scripts/db.mts reset",
+    "db:remove-samples": "tsx scripts/db.mts remove-samples",
+    "db:rekey": "tsx scripts/db.mts rekey",
     "db:setup": "tsx scripts/db.mts setup",
-    "check:providers": "tsx scripts/check-providers.mts"
+    "check:backend": "tsx scripts/backend-check.mts",
+    "check:providers": "tsx scripts/check-providers.mts",
+    "check:email": "tsx scripts/check-email.mts"
   },
   "engines": {
     "node": ">=20.0.0"
@@ -25,13 +30,15 @@
     "@electric-sql/pglite": "^0.5.8",
     "@vercel/blob": "^2.8.0",
     "drizzle-orm": "^0.45.3",
-    "next": "15.5.26",
+    "next": "15.5.27",
+    "nodemailer": "7.0.13",
     "pg": "^8.23.1",
     "react": "19.1.1",
     "react-dom": "19.1.1"
   },
   "devDependencies": {
     "@types/node": "^22",
+    "@types/nodemailer": "^6.4.24",
     "@types/pg": "^8.23.1",
     "@types/react": "^19",
     "@types/react-dom": "^19",

@@ -3,8 +3,10 @@
 import { eq, sql } from "drizzle-orm";
 import { headers } from "next/headers";
 import { db, schema as s, type Db } from "./db";
+import { text } from "./i18n/messages";
 import { english, hasPart, smsText } from "./i18n/stored";
-import { sendSms } from "./sms";
+import { SITE } from "./site";
+import { enqueue, sendSoon } from "./outbox";
 import type { Msg } from "./types";
 
 type Tx = Parameters<Parameters<Db["transaction"]>[0]>[0];
@@ -40,15 +42,24 @@ export async function event(tx: Tx | Db, ref: string, what: Msg, by: string, bod
   });
 }
 
-/** A notification in the customer's portal and, with `sms`, a text message, both in the customer's
- *  language. SMS failures never block the action. */
+/** A notification in the customer's portal and, with `sms`, a message to them in their language: an email when
+ *  they have one, otherwise an SMS to their phone. The message is queued in the caller's transaction (lib/outbox.ts),
+ *  so it goes out only if the change commits, and is retried if the first try fails. */
 export async function notify(tx: Tx | Db, ref: string, n: { icon: string; title: Msg; sms?: Msg }) {
-  const [row] = await tx.select({ accountId: s.profiles.accountId, phone: s.accounts.phone, locale: s.accounts.locale })
+  const [row] = await tx.select({ accountId: s.profiles.accountId, phone: s.accounts.phone, email: s.accounts.email, locale: s.accounts.locale })
     .from(s.requests).innerJoin(s.profiles, eq(s.profiles.id, s.requests.profileId)).innerJoin(s.accounts, eq(s.accounts.id, s.profiles.accountId))
     .where(eq(s.requests.ref, ref));
   if (!row) return;
   await tx.insert(s.notifications).values({ accountId: row.accountId, icon: n.icon, title: english(n.title), key: n.title.key, vars: n.title.vars ?? null, href: `/portal/requests/${ref}` });
-  if (n.sms) sendSms(row.phone, `Inzira ${ref}: ${smsText(row.locale, n.sms)}`).catch((e) => console.error("[sms]", e));
+  if (!n.sms) return;
+  const body = smsText(row.locale, n.sms);
+  const { email, phone, locale } = row;
+  if (email) {
+    const link = SITE.url.startsWith("http") ? `\n\n${SITE.url}/portal/requests/${ref}` : "";
+    sendSoon([await enqueue(tx, { channel: "email", to: email, ref, mail: { to: email, subject: text(locale, "email.updateSubject", { ref }), text: `${body}${link}`, footer: text(locale, "email.updateFooter") } })]);
+  } else if (phone && /^7\d{8}$/.test(phone)) {
+    sendSoon([await enqueue(tx, { channel: "sms", to: phone, ref, message: `Inzira ${ref}: ${body}` })]);
+  }
 }
 
 export type Result<T = object> = ({ ok: true } & T) | { ok: false; error: string };

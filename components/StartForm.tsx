@@ -4,8 +4,9 @@ import { Fragment, useEffect, useState, type ReactNode } from "react";
 import { displayOfficial, displayOurs, displayTotal } from "@/lib/i18n/present";
 import { trError } from "@/lib/i18n/errors";
 import type { Service } from "@/lib/types";
-import { requestCode } from "@/app/actions/auth";
+import { requestEmailCode } from "@/app/actions/auth";
 import { submitRequest } from "@/app/actions/customer";
+import { useHuman } from "./Human";
 import { useI18n } from "./I18n";
 import { CodeEntry, isMobile, prettyMobile } from "./PhoneCode";
 import { Alert, FeeLines, Icon } from "./ui";
@@ -19,7 +20,10 @@ function withStrong(sentence: string, parts: Record<string, ReactNode>) {
 }
 
 type Key = "about" | "request" | "docs" | "review";
-const EMPTY = { forWho: "me", name: "", subject: "", nid: "", phone: "", purpose: "", notes: "" };
+const EMPTY = { forWho: "me", name: "", subject: "", nid: "", dob: "", email: "", phone: "", purpose: "", notes: "" };
+const isEmail = (v: string) => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v.trim());
+/** A real date, as a date field gives it ("YYYY-MM-DD"), not in the future and not before 1900. */
+const isDob = (v: string) => { const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(v); if (!m) return false; const d = new Date(Date.UTC(+m[1], +m[2] - 1, +m[3])); return d.getUTCMonth() === +m[2] - 1 && +m[1] >= 1900 && d.getTime() <= Date.now(); };
 
 /** Starts a request. With a service it collects what that service needs; without one (`service` null)
  *  the customer describes their situation and an agent works out which procedure applies. */
@@ -33,6 +37,7 @@ export default function StartForm({ service: s }: { service: Service | null }) {
   const last = keys.length - 1;
   const docList = s ? s.documents : [{ name: t("start.extraDoc"), detail: t("start.extraDetail"), required: false }];
 
+  const human = useHuman();
   const [step, setStep] = useState(0);
   const [phase, setPhase] = useState<"form" | "verify" | "done">("form");
   const [f, setF] = useState(EMPTY);
@@ -43,6 +48,9 @@ export default function StartForm({ service: s }: { service: Service | null }) {
   const [sendError, setSendError] = useState("");
   const [ref, setRef] = useState("");
   const [ack, setAck] = useState(false);
+  // Making a portal is a choice: without it the customer is a contact, followed with the reference and email.
+  const [portal, setPortal] = useState(true);
+  const [portalOpened, setPortalOpened] = useState(true);
   const [touched, setTouched] = useState(false);
   const [restored, setRestored] = useState(false);
   const set = (k: keyof typeof EMPTY, v: string) => setF((cur) => ({ ...cur, [k]: v }));
@@ -70,7 +78,9 @@ export default function StartForm({ service: s }: { service: Service | null }) {
     if (f.forWho === "family" && !f.subject.trim()) errors.subject = t("start.errPerson");
     if (f.forWho === "business" && !f.subject.trim()) errors.subject = t("start.errBiz");
     if (needId && nidDigits.length !== 16) errors.nid = t("start.errId", { n: nidDigits.length });
-    if (!isMobile(f.phone)) errors.phone = t("authErr.badPhone");
+    if (needId && !isDob(f.dob)) errors.dob = t("start.errDob");
+    if (!isEmail(f.email)) errors.email = t("start.errEmail");
+    if (f.phone.trim() && !isMobile(f.phone)) errors.phone = t("authErr.badPhone");
   }
   if (key === "request" && !s && f.notes.trim().length < 10) errors.notes = t("start.errNotes");
   if (key === "review" && !ack) errors.ack = t("start.errAck");
@@ -81,9 +91,9 @@ export default function StartForm({ service: s }: { service: Service | null }) {
     if (!valid) return;
     setTouched(false);
     if (step < last) { setStep(step + 1); window.scrollTo({ top: 0 }); return; }
-    // Last step: text a code to confirm the number before anything is created.
+    // Last step: email a code to confirm the address before anything is created.
     setSending(true); setSendError("");
-    const r = await requestCode(f.phone).catch(() => ({ ok: false as const, error: t("authErr.sendFail") }));
+    const r = await requestEmailCode(f.email, await human.get()).catch(() => ({ ok: false as const, error: t("authErr.sendFail") }));
     setSending(false);
     if (!r.ok) { setSendError(trError(locale, r.error)); return; }
     setDemoCode(r.demoCode);
@@ -95,12 +105,18 @@ export default function StartForm({ service: s }: { service: Service | null }) {
     fd.set("slug", s?.slug ?? "");
     for (const [k, v] of Object.entries(f)) fd.set(k, v);
     fd.set("code", code);
+    fd.set("portal", portal ? "1" : "0");
     if (s) s.documents.forEach((d, i) => { if (files[d.name]) fd.set(`file-${i}`, files[d.name]); });
     else Object.values(files).forEach((file) => fd.append("file-extra", file));
     const r = await submitRequest(fd).catch(() => ({ ok: false as const, error: t("authErr.submitFail") }));
-    if (!r.ok) return trError(locale, r.error);
+    if (!r.ok) {
+      // A phone number that belongs to another account: back to the first step to fix it, not stuck on the code.
+      if (r.error === t("custErr.phoneTaken")) { setSendError(trError(locale, r.error)); setPhase("form"); setStep(0); window.scrollTo({ top: 0 }); return null; }
+      return trError(locale, r.error);
+    }
     try { sessionStorage.removeItem(draftKey); } catch { /* ignore */ }
     setRef(r.ref);
+    setPortalOpened(r.portal);
     setPhase("done");
     window.scrollTo({ top: 0 });
     return null;
@@ -115,12 +131,15 @@ export default function StartForm({ service: s }: { service: Service | null }) {
         <div className="card stack g16" style={{ maxWidth: 560, margin: "0 auto", padding: 32, alignItems: "center", textAlign: "center" }}>
           <span style={{ width: 64, height: 64, borderRadius: "50%", background: "var(--ok-bg)", color: "var(--ok)", display: "flex", alignItems: "center", justifyContent: "center" }}><Icon name="check" size={32} /></span>
           <h1 className="h-flow">{t("start.received")}</h1>
-          <p style={{ fontSize: 16, lineHeight: 1.55 }}>{withStrong(t("start.receivedBody", { ref: "{ref}", phone: "{phone}", what: s ? t("start.checkDocs") : t("start.readSent"), time: t("responseTime") }), {
+          <p style={{ fontSize: 16, lineHeight: 1.55 }}>{withStrong(t("start.receivedBody", { ref: "{ref}", contact: "{contact}", what: s ? t("start.checkDocs") : t("start.readSent"), time: t("responseTime") }), {
             ref: <strong className="m" style={{ fontSize: 15 }} data-ref>{ref}</strong>,
-            phone: <strong>+250 {prettyMobile(f.phone)}</strong>,
+            contact: <strong style={{ overflowWrap: "anywhere" }}>{f.email.trim().toLowerCase()}</strong>,
           })}</p>
-          <p className="hint">{t("start.ready")}</p>
-          <div className="row g10 wrapx" style={{ justifyContent: "center" }}><Link className="btn btn-d" href={`/portal/requests/${ref}`}>{t("start.see")}</Link><Link className="btn btn-s" href="/services">{t("start.more")}</Link></div>
+          <p className="hint">{portalOpened ? t("start.ready") : t("start.receivedTrack")}</p>
+          <div className="row g10 wrapx" style={{ justifyContent: "center" }}>
+            {portalOpened ? <Link className="btn btn-d" href={`/portal/requests/${ref}`}>{t("start.see")}</Link> : <Link className="btn btn-d" href="/track">{t("start.trackIt")}</Link>}
+            <Link className="btn btn-s" href="/services">{t("start.more")}</Link>
+          </div>
         </div>
       </section>
     );
@@ -131,10 +150,10 @@ export default function StartForm({ service: s }: { service: Service | null }) {
       <section className="wrap" style={{ paddingTop: 48, paddingBottom: 96 }}>
         <div className="stack g20" style={{ maxWidth: 460, margin: "0 auto" }}>
           <span className="eb" style={{ fontSize: 11 }}>{t("start.last")}</span>
-          <CodeEntry phone={f.phone} demoCode={demoCode} cta={t("start.confirm")} onBack={() => { setPhase("form"); setStep(0); }}
-            onResend={async () => { const r = await requestCode(f.phone); return r.ok ? { demoCode: r.demoCode } : { error: r.error }; }}
+          <CodeEntry email={f.email.trim().toLowerCase()} demoCode={demoCode} cta={t("start.confirm")} onBack={() => { setPhase("form"); setStep(0); }}
+            onResend={async () => { const r = await requestEmailCode(f.email, await human.get()); return r.ok ? { demoCode: r.demoCode } : { error: r.error }; }}
             onSubmit={send} />
-          <p className="hint row g8" style={{ alignItems: "flex-start" }}><Icon name="lock" size={16} /><span>{t("start.numberUse")}</span></p>
+          <p className="hint row g8" style={{ alignItems: "flex-start" }}><Icon name="lock" size={16} /><span>{t("start.emailUse")}</span></p>
         </div>
       </section>
     );
@@ -192,9 +211,15 @@ export default function StartForm({ service: s }: { service: Service | null }) {
             {needId && (
               <div className="field"><label htmlFor="f-nid">{f.forWho === "family" ? t("start.theirId") : t("start.nid")}</label><input id="f-nid" className={`in ${bad("nid")}`} inputMode="numeric" value={f.nid} onChange={(e) => set("nid", e.target.value)} placeholder="1 1995 8 0045123 0 17" aria-describedby="nid-err nid-hint" /><span className="hint" id="nid-hint">{t("start.nidHint")}</span>{err("nid")}</div>
             )}
-            <div className="field"><label htmlFor="f-phone">{t("start.phone")}</label>
+            {needId && (
+              <div className="field"><label htmlFor="f-dob">{t("start.dob")}</label><input id="f-dob" type="date" className={`in ${bad("dob")}`} value={f.dob} min="1900-01-01" max={new Date().toISOString().slice(0, 10)} onChange={(e) => set("dob", e.target.value)} autoComplete={f.forWho === "me" ? "bday" : "off"} aria-describedby="dob-err dob-hint" /><span className="hint" id="dob-hint">{t("start.dobHint")}</span>{err("dob")}</div>
+            )}
+            <div className="field"><label htmlFor="f-email">{t("start.email")}</label>
+              <input id="f-email" type="email" className={`in ${bad("email")}`} inputMode="email" value={f.email} onChange={(e) => set("email", e.target.value)} placeholder={t("signIn.emailPh")} autoComplete="email" autoCapitalize="none" spellCheck={false} aria-describedby="email-err email-hint" />
+              <span className="hint" id="email-hint">{t("start.emailHint")}</span>{err("email")}</div>
+            <div className="field"><label htmlFor="f-phone">{t("start.phoneOpt")}</label>
               <div className="row g8"><span className="in in-prefix" aria-hidden="true">+250</span><input id="f-phone" className={`in ${bad("phone")}`} inputMode="tel" value={f.phone} onChange={(e) => set("phone", e.target.value)} placeholder="788 123 456" autoComplete="tel-national" aria-describedby="phone-err phone-hint" /></div>
-              <span className="hint" id="phone-hint">{t("start.phoneHint")}</span>{err("phone")}</div>
+              <span className="hint" id="phone-hint">{t("start.phoneOptHint")}</span>{err("phone")}</div>
           </div>
         )}
 
@@ -248,7 +273,9 @@ export default function StartForm({ service: s }: { service: Service | null }) {
                 <dt>{t("start.yourName")}</dt><dd>{f.name}</dd>
                 {f.forWho !== "me" && <><dt>{t("start.for")}</dt><dd>{f.subject}</dd></>}
                 {needId && <><dt>{t("start.id")}</dt><dd className="m" style={{ fontSize: 14, fontWeight: 500 }}>{f.nid}</dd></>}
-                <dt>{t("start.phoneRow")}</dt><dd>+250 {prettyMobile(f.phone)}</dd>
+                {needId && <><dt>{t("start.dobRow")}</dt><dd>{f.dob}</dd></>}
+                <dt>{t("start.emailRow")}</dt><dd style={{ overflowWrap: "anywhere" }}>{f.email.trim().toLowerCase()}</dd>
+                {f.phone.trim() && <><dt>{t("start.phoneRow")}</dt><dd>+250 {prettyMobile(f.phone)}</dd></>}
                 {f.purpose && <><dt>{s?.noId ? t("start.attending") : t("start.purposeRow")}</dt><dd>{f.purpose}</dd></>}
                 {f.notes.trim() && <><dt>{s ? t("start.notes") : t("start.situationRow")}</dt><dd style={{ fontWeight: 400 }}>{f.notes}</dd></>}
                 <dt>{t("start.documents")}</dt><dd>{t("start.addedN", { n: Object.keys(files).length })}</dd>
@@ -256,6 +283,10 @@ export default function StartForm({ service: s }: { service: Service | null }) {
               <button type="button" className="btn btn-g btn-sm" style={{ marginTop: 12 }} onClick={() => { setStep(0); setTouched(false); }}><Icon name="edit" size={16} /> {t("start.edit")}</button>
             </div>
             {missing > 0 && <Alert kind="warn" title={t("start.missingTitle")}>{t("start.missingBody")}</Alert>}
+            <div className="stack g6">
+              <label className="check"><input type="checkbox" checked={portal} onChange={(e) => setPortal(e.target.checked)} aria-describedby="portal-hint" /> {t("start.portalAsk")}</label>
+              <span className="hint" id="portal-hint" style={{ paddingLeft: 28 }}>{t("start.portalHint")}</span>
+            </div>
             <label className="check"><input type="checkbox" checked={ack} onChange={(e) => setAck(e.target.checked)} aria-describedby="ack-err" /> {t("start.ack")}</label>
             {err("ack")}
           </div>

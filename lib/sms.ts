@@ -9,6 +9,12 @@ export const isDemo = () => process.env.INZIRA_DEMO === "1" || process.env.NODE_
 /** True when a real SMS provider is connected. Otherwise the sign-in code is shown on screen. */
 export const sendsRealSms = () => process.env.SMS_PROVIDER === "africastalking";
 
+/** Sign-in codes may be shown on screen only in development and demo builds, and only without a live provider.
+ *  On a live site a missing or misspelled SMS_PROVIDER must never turn the sign-in into an open door. */
+export const showsCodeOnScreen = () => isDemo() && !sendsRealSms();
+/** A code can reach the person: by a real SMS, or on screen in a demo. */
+export const canDeliverCodes = () => sendsRealSms() || showsCodeOnScreen();
+
 // Typographic punctuation outside the GSM-7 alphabet turns a whole SMS into UCS-2, which fits
 // 70 characters a segment instead of 160. Names from the catalogue and agents' own words can carry it.
 const PLAIN: [RegExp, string][] = [[/[‘’‚′]/g, "'"], [/[“”„″]/g, '"'], [/[–—]/g, "-"], [/[·•]/g, "-"], [/…/g, "..."], [/→/g, "->"], [/\u00a0/g, " "]];
@@ -20,9 +26,10 @@ export async function sendSms(phone9: string, raw: string): Promise<void> {
   if (!/^7\d{8}$/.test(phone9)) throw new Error("Not a Rwandan mobile number; SMS not sent.");
   const provider = process.env.SMS_PROVIDER || (isDemo() ? "console" : "");
   const to = `+250${phone9}`;
-  // No provider yet: print the message and let sign-in show the code. A live site with
-  // SMS_PROVIDER=africastalking still sends, and still fails loudly if that call fails.
-  if (provider === "console" || provider === "") {
+  // Demos and development print the message and sign-in shows the code. A live site never does:
+  // without a real provider it refuses, so nothing is silently dropped.
+  if (provider === "console") {
+    if (!isDemo()) throw new Error("SMS_PROVIDER=console only works in development or with INZIRA_DEMO=1.");
     console.log(`[sms] to ${to}: ${message}`);
     return;
   }

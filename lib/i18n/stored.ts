@@ -47,6 +47,8 @@ const statusLabel = (locale: Locale, label: string) => {
 function localVars(locale: Locale, vars: MsgVars | undefined): MsgVars {
   if (!vars) return {};
   const out: MsgVars = { ...vars };
+  // Messages written before email sign-in carry the phone number as `phone`; the sentence now says `contact`.
+  if (out.contact === undefined && typeof out.phone === "string") out.contact = out.phone;
   if (vars.officialMode === "none" || vars.officialMode === "direct" || vars.officialMode === "amount") {
     const t = template(locale, "stored", `fee.${vars.officialMode}`) ?? template("en", "stored", `fee.${vars.officialMode}`);
     out.officialText = fill(t ?? "", { official: vars.official ?? "" });

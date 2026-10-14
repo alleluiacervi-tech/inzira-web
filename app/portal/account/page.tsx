@@ -19,7 +19,7 @@ export default async function AccountPage() {
       <PageHead title={text(locale, "meta.accountTitle")} sub={text(locale, "portal.accountSub")} />
       <div className="content">
         <AccountSettings
-          account={{ name: account.name, phone: account.phone, whatsapp: account.whatsapp, languages: account.languages, since: account.since }}
+          account={{ name: account.name, phone: account.phone, email: account.email ?? "", whatsapp: account.whatsapp, languages: account.languages, since: account.since }}
           profiles={profiles}
           data={{ files: data.files, requests: data.refs.length, open: data.open, retentionDays: RETENTION_DAYS }}
         />

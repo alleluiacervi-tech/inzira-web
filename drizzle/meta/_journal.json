@@ -36,6 +36,27 @@
       "when": 1791655614633,
       "tag": "0004_stored_messages_and_locale",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1791920207367,
+      "tag": "0005_view_identity_permission",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1791924830979,
+      "tag": "0006_email_sign_in",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1792014501516,
+      "tag": "0007_backend_hardening",
+      "breakpoints": true
     }
   ]
 }

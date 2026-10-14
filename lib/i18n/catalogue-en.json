@@ -997,6 +997,14 @@
         {
           "name": "UPI or land title",
           "detail": "The number or a photo of the title"
+        },
+        {
+          "name": "Widow or widower certificate",
+          "detail": "Only when removing a spouse after a death."
+        },
+        {
+          "name": "Property-sharing agreement or court decision",
+          "detail": "Notarized agreement or final court decision. Only for a divorce or a separation of property, if you have one."
         }
       ],
       "steps": [
@@ -1079,6 +1087,10 @@
         {
           "name": "Survey plan",
           "detail": "Only if the land office asks for one"
+        },
+        {
+          "name": "Application form",
+          "detail": "The official form from the land portal. We prepare it from your details for you to check."
         }
       ],
       "steps": [

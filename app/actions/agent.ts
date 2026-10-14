@@ -11,9 +11,9 @@ import { asLocale, type Locale } from "@/lib/i18n/locale";
 import { english, feeVars, msg, sms, smsText } from "@/lib/i18n/stored";
 import { STAGE_LABEL } from "@/lib/status";
 import { SITE } from "@/lib/site";
-import { sendSms } from "@/lib/sms";
+import { enqueue, sendSoon } from "@/lib/outbox";
 import { getService } from "@/lib/repo";
-import { ALLOWED, MAX_BYTES, humanSize, putFile } from "@/lib/storage";
+import { ALLOWED, MAX_BYTES, checkUpload, deleteFile, humanSize, putFile, sniffType } from "@/lib/storage";
 import { STAGES, type Closed, type Hold, type Stage } from "@/lib/types";
 
 /** Loads a case for the signed-in staff member, if they may see it and hold `perm`. */
@@ -226,7 +226,7 @@ export async function createIntake(input: { slug: string; name: string; phone: s
   const service = await getService(input.slug || "other-online-service");
   if (!service) return fail("Service not found.");
   const d = await db();
-  const { ref, locale } = await d.transaction(async (tx) => {
+  const { ref, message } = await d.transaction(async (tx) => {
     let [account] = await tx.select().from(s.accounts).where(eq(s.accounts.phone, phone));
     if (!account) [account] = await tx.insert(s.accounts).values({ id: `acc-${randomBytes(6).toString("hex")}`, name: input.name.trim(), first: input.name.trim().split(" ")[0], phone, languages: [], locale: asLocale(input.locale) }).returning();
     const [profile] = await tx.insert(s.profiles).values({ id: `p-${randomBytes(6).toString("hex")}`, accountId: account.id, kind: input.kind, name: input.name.trim(), relation: input.kind === "person" ? "self" : null }).returning();
@@ -245,9 +245,10 @@ export async function createIntake(input: { slug: string; name: string; phone: s
     await event(tx, ref, msg("ev.opened"), me.id, input.source);
     if (input.notes.trim()) await tx.insert(s.notes).values({ ref, by: me.id, body: input.notes.trim() });
     await audit(tx, { actor: me.name, role: me.role, action: "Opened case from intake", entity: `${ref} · ${service.name} · ${input.source}` });
-    return { ref, locale: account.locale };
+    const message = await enqueue(tx, { channel: "sms", to: phone, ref, message: smsText(account.locale, sms("opened", { ref, service: service.name, serviceSlug: service.slug, url: SITE.url })) });
+    return { ref, message };
   });
-  sendSms(phone, smsText(locale, sms("opened", { ref, service: service.name, serviceSlug: service.slug, url: SITE.url }))).catch((e) => console.error("[sms]", e));
+  sendSoon([message]);
   revalidatePath("/console", "layout");
   return { ok: true, ref };
 }
@@ -266,13 +267,16 @@ export async function uploadCaseFile(fd: FormData): Promise<Result> {
   const { me, d, r } = w;
   if (!(file instanceof File) || !file.size) return fail("Choose a file first.");
   if (file.size > MAX_BYTES) return fail("That file is larger than 10 MB.");
-  if (!ALLOWED.test(file.type)) return fail("Please upload a PDF, JPG or PNG.");
+  if (!ALLOWED.test(file.type) || !(await checkUpload(file))) return fail("Please upload a PDF, JPG or PNG.");
   const name = String(fd.get("name") ?? "").trim() || file.name;
   const docId = String(fd.get("docId") ?? "");
   const fileId = `f-${randomBytes(6).toString("hex")}`;
-  await putFile(`${ref}/${fileId}`, new Uint8Array(await file.arrayBuffer()), file.type);
-  await d.transaction(async (tx) => {
-    await tx.insert(s.files).values({ id: fileId, ref, storageKey: `${ref}/${fileId}`, name: file.name, mime: file.type, bytes: file.size, uploadedBy: me.id });
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  const mime = sniffType(bytes);
+  if (!mime) return fail("Please upload a PDF, JPG or PNG.");
+  await putFile(`${ref}/${fileId}`, bytes, mime);
+  try { await d.transaction(async (tx) => {
+    await tx.insert(s.files).values({ id: fileId, ref, storageKey: `${ref}/${fileId}`, name: file.name, mime, bytes: file.size, uploadedBy: me.id });
     if (kind === "deliverable") {
       await tx.insert(s.deliverables).values({ id: `${ref}-o${randomBytes(3).toString("hex")}`, ref, name, issuedAt: now(), issuedBy: r.channel, fileId });
       await event(tx, ref, msg("ev.delivered", { doc: name }), me.id);
@@ -291,6 +295,6 @@ export async function uploadCaseFile(fd: FormData): Promise<Result> {
       await event(tx, ref, msg("ev.docAddedByAgent", { doc: doc?.name ?? name }), me.id);
       await audit(tx, { actor: me.name, role: me.role, action: "Added document", entity: `${ref} · ${doc?.name ?? name}` });
     }
-  });
+  }); } catch (e) { await deleteFile(`${ref}/${fileId}`).catch(() => {}); throw e; }
   return done(ref);
 }

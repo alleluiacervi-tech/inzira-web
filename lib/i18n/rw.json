@@ -259,21 +259,47 @@
     "only": "Ushaka gusa kureba aho ubusabe bugeze?",
     "track": "Kurikirana ubusabe",
     "onlyRest": "ukoresheje nomero yabwo.",
-    "staff": "Abakozi ba Inzira na bo binjirira hano bakoresheje nomero y'akazi."
+    "staff": "Abakozi ba Inzira binjirana nomero yabo y'akazi.",
+    "demoEmail": "Igerageza: nta imeri yoherezwa. Hitamo umukiriya w'ubugerageze, maze ukoreshe kode igaragara ku rupapuro rukurikira.",
+    "liveEmail": "Andika imeri yawe. Turakoherereza kode. Nta jambo ry'ibanga rikenewe.",
+    "email": "Imeri",
+    "emailPh": "wowe@example.com",
+    "viaPhone": "Umukozi, cyangwa nta imeri ufite kuri konti? Injira ukoresheje nomero ya telefoni",
+    "viaEmail": "Injira ukoresheje imeri",
+    "livePhone": "Koresha nomero ya telefoni iri kuri konti yawe. Turakoherereza kode kuri SMS. Nta jambo ry'ibanga rikenewe.",
+    "totpTitle": "Intambwe imwe ya nyuma",
+    "totpIntro": "Fungura porogaramu yawe yo kwemeza (authenticator) wandike kode y’imibare 6 ya Inzira.",
+    "totpLabel": "Kode ya porogaramu",
+    "totpCta": "Injira",
+    "totpRecoveryLink": "Wataye telefoni? Koresha kode yo kugaruka",
+    "totpAppLink": "Subira ukoreshe porogaramu",
+    "totpRecoveryLabel": "Kode yo kugaruka",
+    "totpRecoveryHint": "Buri kode yo kugaruka ikoreshwa rimwe gusa.",
+    "totpChecking": "Turareba…",
+    "totpExpired": "Kwinjira byatinze cyane. Ongera utangire.",
+    "totpWrong": "Iyo kode si yo. Reba porogaramu yawe wongere ugerageze.",
+    "totpLocked": "Wanditse kode zitari zo kenshi. Tegereza iminota mike wongere winjire.",
+    "totpOff": "Iyi konti nta porogaramu yo kwemeza iriho.",
+    "totpDigits": "Andika kode y’imibare 6 iri muri porogaramu.",
+    "totpBack": "Tangira bundi bushya"
   },
   "code": {
     "title": "Shyiramo kode twakoherereje",
     "sent": "Twoherereje kode y'imibare 6 kuri SMS kuri",
     "change": "Hindura nomero",
     "label": "Kode y'imibare 6",
-    "digits": "Shyiramo kode y'imibare 6 wavanye muri SMS.",
+    "digits": "Andika kode y'imibare 6 twaguhaye.",
     "wrong": "Hari ibitagenda neza. Ongera ugerageze.",
     "demo": "Uburyo bw'icyitegererezo: nta SMS yoherejwe. Kode yawe ni",
     "hint": "Kode ishobora gufata umunota umwe ngo ihagere. Ita agaciro nyuma y'iminota 10.",
     "checking": "Gusuzuma…",
     "wait": "Ntiyagezeho? Ushobora gusaba indi kode mu masegonda {n}.",
     "resendAsk": "Ntiyagezeho?",
-    "resend": "Yoherereza indi kode"
+    "resend": "Yoherereza indi kode",
+    "sentEmail": "Twohereje kode y'imibare 6 kuri",
+    "changeEmail": "Hindura imeri",
+    "hintEmail": "Reba muri imeri yawe no mu bihuha (spam). Kode ishobora gufata umunota kugira ngo ihagere, kandi irarangira nyuma y'iminota 10.",
+    "demoEmail": "Igerageza: nta imeri yoherezwa. Kode yawe ni"
   },
   "authErr": {
     "badPhone": "Shyiramo nomero ya telefoni yo mu Rwanda, urugero: 788 123 456.",
@@ -286,15 +312,24 @@
     "noAccount": "Nta konti ifitanye isano n'iyi nomero irabaho. Saba serivisi maze konti yawe ihite ifungurwa hamwe n'ubusabe bwawe bwa mbere.",
     "tooMany": "Wagerageje kenshi birenze urugero. Tegereza iminota mike maze wongere ugerageze.",
     "sendFail": "Ntitwashoboye kohereza kode. Reba ko interineti yawe ikora neza maze wongere ugerageze.",
-    "submitFail": "Ntitwashoboye kohereza ubusabe bwawe. Reba ko interineti yawe ikora neza maze wongere ugerageze."
+    "submitFail": "Ntitwashoboye kohereza ubusabe bwawe. Reba ko interineti yawe ikora neza maze wongere ugerageze.",
+    "unavailable": "Ntidushobora kohereza kode yo kwinjira ubu. Twandikire.",
+    "numberLimit": "Twohereje kode nyinshi kuri iyi nimero. Ongera ugerageze nyuma y’isaha imwe.",
+    "badEmail": "Andika imeri nyayo.",
+    "digitsEmail": "Andika kode y'imibare 6 yaje kuri imeri.",
+    "wrongEmail": "Iyo kode si yo. Reba imeri wongere ugerageze.",
+    "email": "Ntitwabashije kohereza imeri. Ongera ugerageze nyuma y'umunota.",
+    "noAccountEmail": "Nta konti dufite kuri iyi imeri. Tangira serivisi, konti yawe izafungurwa n'ubusabe bwa mbere.",
+    "useEmail": "Abakiriya binjirana imeri yabo. Koresha uburyo bwa imeri.",
+    "human": "Ntitwabashije kwemeza ko atari robo. Ongera ufungure urupapuro ugerageze."
   },
   "track": {
     "title": "Kurikirana ubusabe",
-    "lead": "Shyiramo nomero y'ubusabe twakoherereje kuri SMS na nomero yawe ya telefoni yanditse kuri dosiye. Nta kwinjira muri konti bisabwa.",
+    "lead": "Andika nomero y'ubusabe twaguhaye n'imeri cyangwa nomero ya telefoni biri ku busabe. Nta kwinjira bikenewe.",
     "ref": "Nomero y'ubusabe",
     "phone": "Nomero ya telefoni",
-    "needBoth": "Shyiramo nomero y'ubusabe yakuze muri SMS na nomero yawe ya telefoni waduhaye.",
-    "missing": "Ntitwashoboye kubona ubusabe buhuye n'iyo nomero yabwo n'iyo telefoni. Bigenzure byombi maze wongere ugerageze.",
+    "needBoth": "Andika nomero y'ubusabe n'imeri cyangwa nomero ya telefoni watanze.",
+    "missing": "Ntitwabonye ubusabe bufite iyo nomero n'ibyo bisobanuro. Ongera urebe byombi, ugerageze.",
     "down": "Ntitwashoboye kubigenzura aka kanya. Ongera ugerageze mu kanya gato.",
     "notFound": "Ntabwo bibonetse",
     "checking": "Gusuzuma…",
@@ -304,7 +339,8 @@
     "signIn": "Injira muri konti usubize",
     "next": "Intambwe ikurikira",
     "details": "Injira urebe amakuru arambuye",
-    "private": "Inyandiko, ubutumwa n'ubwishyu biboneka gusa iyo umaze kwinjira muri konti."
+    "private": "Inyandiko, ubutumwa n'ubwishyu biboneka gusa iyo umaze kwinjira muri konti.",
+    "contact": "Imeri cyangwa nomero ya telefoni"
   },
   "start": {
     "about": "Imyirondoro yawe",
@@ -321,7 +357,7 @@
     "errNotes": "Tanga ibisobanuro byisumbuyeho gato kugira ngo umukozi ubishinzwe agufashe neza.",
     "errAck": "Nyabuneka emeza ko wasomye ibi.",
     "received": "Ubusabe bwakiriwe",
-    "receivedBody": "Nomero y'ubusabe bwawe ni {ref}. Umukozi agiye {what} maze akuvugishe kuri {phone} mu {time}.",
+    "receivedBody": "Nomero y'ubusabe bwawe ni {ref}. Umukozi agiye {what} maze akuvugishe kuri {contact} mu {time}.",
     "checkDocs": "gusuzuma inyandiko zawe",
     "readSent": "gusoma ibyo wohereje",
     "ready": "Nomero yawe yemejwe, bityo konti yawe iriteguye. Nta mafaranga wishyura utabanje kwemeza amafaranga asabwa.",
@@ -398,7 +434,22 @@
     "which": "Turakubwira inzira ikwiye igufasha",
     "reply": "Umukozi agusubiza mu {time}",
     "bothFees": "Ubona amafaranga y'urwego n'amafaranga yacu ukwayo mbere yo kwemeza",
-    "noCharge": "Nta mafaranga wishyuzwa ku bwo kubaza"
+    "noCharge": "Nta mafaranga wishyuzwa ku bwo kubaza",
+    "email": "Imeri yawe",
+    "emailHint": "Aha ni ho twohereza kode yo kwemeza n'amakuru y'ubusabe bwawe.",
+    "errEmail": "Andika imeri nyayo.",
+    "dob": "Itariki y'amavuko nk'uko iri ku ndangamuntu",
+    "dobHint": "Yandike nk'uko igaragara ku ndangamuntu.",
+    "errDob": "Andika itariki y'amavuko iri ku ndangamuntu.",
+    "phoneOpt": "Nomero ya telefoni (si itegeko)",
+    "phoneOptHint": "Yo guhamagarwa cyangwa kuri WhatsApp ku bijyanye n'ubusabe bwawe. Ntikoreshwa mu kwinjira.",
+    "portalAsk": "Mfungurire konti kugira ngo nkurikirane ubu busabe, nongeremo inyandiko kandi mbone amakuru",
+    "portalHint": "Ntubishyiremo ikimenyetso niba udashaka konti. Ushobora gukomeza gukurikirana ubusabe ukoresheje nomero yabwo n'imeri yawe, ukazafungura konti nyuma winjiye ukoresheje iyi imeri.",
+    "emailUse": "Iyi imeri tuyikoresha mu kohereza kode yo kwemeza n'amakuru y'ubusabe bwawe, nta kindi.",
+    "emailRow": "Imeri",
+    "dobRow": "Itariki y'amavuko",
+    "receivedTrack": "Ushobora kububona igihe cyose ku rupapuro rwo gukurikirana, ukoresheje nomero yabwo n'imeri yawe.",
+    "trackIt": "Kurikirana ubu busabe"
   },
   "notFound": {
     "kicker": "Urupapuro ntirubonetse",
@@ -661,7 +712,7 @@
     "details": "Imyirondoro yawe",
     "name": "Amazina yose",
     "phone": "Nomero ya telefoni",
-    "phoneHint": "Iyi ni yo nomero ukoresha winjira muri konti. Kugira ngo uyihindure, twandikire maze tubigufasheho nyuma yo gusuzuma ko ari wowe.",
+    "phoneHint": "Nomero yo guhamagarwa no kuri WhatsApp. Kugira ngo uyihindure, twandikire tubanze tukwemeze.",
     "whatsapp": "Munyohereze amakuru kuri WhatsApp kimwe no kuri SMS",
     "langs": "Indimi wumva neza",
     "notSaved": "Ntibyabitswe",
@@ -676,7 +727,7 @@
     "business": "Ubucuruzi",
     "masked": "Indangamuntu na TIN bigaragazwa bihishwe igice. Umukozi ukurikirana ubusabe bwawe ni we wenyine ushobora kubibona byose uko byakabaye, kandi buri gihe abikoze birandikwa mu gitabo cy'igenzura.",
     "signing": "Kwinjira muri konti",
-    "lost": "Wataye telefoni, cyangwa winjiriye kuri mudasobwa y'abandi? Sohoka hose, maze wongere winjire ukoresheje kode nshya.",
+    "lost": "Waba wataye igikoresho, cyangwa winjiye kuri mudasobwa y'undi? Sohoka ahantu hose, hanyuma wongere winjire ukoresheje kode nshya.",
     "everywhere": "Sohoka ku bikoresho byose",
     "data": "Inyandiko zawe n'amakuru yawe",
     "retention": "Dusiba inyandiko waduhaye nyuma y'iminsi {days} ubusabe burangiye. Ibyangombwa twaguhaye biguma muri konti yawe. Amakuru y'ubwishyu n'inyemezabwishyu za leta arabikwa kubera ko amategeko adusaba kubika inyandiko z'ibaruramari.",
@@ -713,7 +764,20 @@
       "French": "Igifaransa"
     },
     "idShort": "Indangamuntu {id}",
-    "tinShort": "TIN {tin}"
+    "tinShort": "TIN {tin}",
+    "email": "Imeri yo kwinjira",
+    "emailNone": "Nta imeri irabaho",
+    "emailAdd": "Ongeraho imeri yawe",
+    "emailChange": "Hindura imeri",
+    "emailAddHint": "Ongeraho imeri uzajya wiyinjirizaho. Turayoherezaho kode kugira ngo twemeze ko ari iyawe.",
+    "emailNew": "Imeri",
+    "emailSend": "Nyoherereza kode",
+    "emailSending": "Birohereza…",
+    "emailCode": "Kode y'imibare 6",
+    "emailSent": "Twohereje kode kuri {email}.",
+    "emailConfirm": "Emeza imeri",
+    "emailDone": "Imeri yawe yabitswe. Guhera ubu, injira ukoresheje yo.",
+    "emailCancel": "Reka"
   },
   "dates": {
     "today": "Uyu munsi",
@@ -901,7 +965,7 @@
     "sum": {
       "received": {
         "title": "Twakiriye ubusabe bwawe",
-        "body": "Umukozi arabusuzuma mu masaha 2 y'akazi, maze akuvugishe kuri {phone}.",
+        "body": "Umukozi arabusuzuma mu masaha 2 y'akazi, maze akuvugishe kuri {contact}.",
         "next": "Umukozi asuzuma ubusabe bwawe mu masaha 2 y'akazi."
       },
       "receivedIntake": {
@@ -1007,11 +1071,29 @@
     "noDocs": "Nta nyandiko z'ubusabe bwarangiye zo gusiba zihari.",
     "typeDelete": "Andika DELETE kugira ngo wemeze.",
     "openOne": "Ufite ubusabe 1 bukirimo gukorwa. Buhagarike cyangwa utegereze burangire, hanyuma usibe konti yawe.",
-    "openMany": "Ufite ubusabe {n} bukirimo gukorwa. Buhagarike cyangwa utegereze burangire, hanyuma usibe konti yawe."
+    "openMany": "Ufite ubusabe {n} bukirimo gukorwa. Buhagarike cyangwa utegereze burangire, hanyuma usibe konti yawe.",
+    "badEmail": "Andika imeri nyayo.",
+    "badDob": "Andika itariki y'amavuko nk'uko iri ku ndangamuntu.",
+    "phoneTaken": "Iyo nomero ya telefoni isanzwe ikoreshwa na konti indi. Koresha indi nomero, cyangwa uyisige ubusa.",
+    "emailTaken": "Iyo imeri isanzwe ikoreshwa na konti indi."
   },
   "fileRoute": {
     "signIn": "Injira muri konti kugira ngo urebe iyi dosiye.",
     "notFound": "Ntibibonetse",
     "gone": "Iyi dosiye ntikibitswe."
+  },
+  "email": {
+    "codeSubject": "Kode yawe yo kwinjira muri Inzira",
+    "codeIntro": "Koresha iyi kode kugira ngo winjire muri Inzira. Irarangira mu minota 10.",
+    "confirmSubject": "Emeza imeri yawe kuri Inzira",
+    "confirmIntro": "Koresha iyi kode kugira ngo wemeze imeri yawe kuri Inzira. Irarangira mu minota 10.",
+    "codeFooter": "Niba atari wowe wayisabye, nta cyo uzakora kuri iyi imeri: nta wushobora kwinjira nta kode. Ntuzayihe undi muntu, harimo n'abakozi ba Inzira.",
+    "updateSubject": "Amakuru y'ubusabe bwawe bwa Inzira {ref}",
+    "updateFooter": "Wakiriye iyi imeri kuko ufite ubusabe muri Inzira. Subiza iyi imeri niba ukeneye ubufasha."
+  },
+  "portalBanner": {
+    "title": "Ongeraho imeri kugira ngo ukomeze kubona konti yawe",
+    "body": "Kwinjira bigiye gukorwa ukoresheje imeri. Yongereho ubu, uzakomeza kwinjira nta nomero ya telefoni.",
+    "cta": "Ongeraho imeri yanjye"
   }
 }

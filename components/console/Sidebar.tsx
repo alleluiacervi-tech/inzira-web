@@ -82,6 +82,12 @@ export function Sidebar({
         { label: "System", href: "/admin/system", icon: "settings", permission: "manageStaff", matchPrefix: "/admin/system" },
       ],
     },
+    {
+      group: "Account",
+      items: [
+        { label: "Sign-in security", href: "/console/security", icon: "lock", matchPrefix: "/console/security" },
+      ],
+    },
   ];
 
   const isItemActive = (item: NavItem) => {

@@ -19,6 +19,7 @@ export const PERMISSIONS = {
   complete: "Complete a case",
   reviewDocs: "Approve / reject documents",
   downloadDocs: "Download customer documents",
+  viewIdentity: "View full ID and TIN",
   deleteDocs: "Delete documents",
   recordOfficial: "Record official fees",
   changeOurs: "Change our assistance fee on a case",
@@ -32,14 +33,14 @@ export type Permission = keyof typeof PERMISSIONS;
 /** Starting matrix: one character per role, in the order of ROLES. Only used to seed a new database. */
 export const DEFAULT_MATRIX: Record<Permission, string> = {
   viewAssigned: "111111", viewAll: "111011", assign: "111000", updateStatus: "111100", complete: "111100",
-  reviewDocs: "111100", downloadDocs: "111101", deleteDocs: "100000",
+  reviewDocs: "111100", downloadDocs: "111101", viewIdentity: "111100", deleteDocs: "100000",
   recordOfficial: "111110", changeOurs: "111000", refund: "100010",
   editServices: "110000", manageStaff: "110000", viewAudit: "110001",
 };
 
 export const PERMISSION_GROUPS: { group: string; items: Permission[] }[] = [
   { group: "Cases", items: ["viewAssigned", "viewAll", "assign", "updateStatus", "complete"] },
-  { group: "Documents", items: ["reviewDocs", "downloadDocs", "deleteDocs"] },
+  { group: "Documents", items: ["reviewDocs", "downloadDocs", "viewIdentity", "deleteDocs"] },
   { group: "Payments", items: ["recordOfficial", "changeOurs", "refund"] },
   { group: "Administration", items: ["editServices", "manageStaff", "viewAudit"] },
 ];

@@ -63,13 +63,15 @@ export type Msg = { key: string; vars?: MsgVars };
 
 // ---------------- people ----------------
 /** An account is one login (a phone number). It can hold several profiles. */
-export type Account = { id: string; name: string; first: string; phone: string; whatsapp: boolean; languages: string[]; since: string;
+export type Account = { id: string; name: string; first: string; phone: string; email?: string; /** Has signed in to the portal at least once. */ registered?: boolean; whatsapp: boolean; languages: string[]; since: string;
   /** The language of their portal and of every SMS we send them. */
   locale: Locale };
 /** Who a request is for: the account holder, a family member, or a business they act for. */
 export type Profile = {
   id: string; accountId: string; kind: "person" | "business" | "organization"; name: string;
   relation?: "self" | "family"; idMasked?: string; tinMasked?: string | null; district?: string; phone?: string; email?: string;
+  /** As typed from the ID, "YYYY-MM-DD", and when Inzira staff compared it with the ID photo. */
+  dateOfBirth?: string; idChecked?: string;
 };
 // The full national ID and TIN never leave the server: screens get the masked forms, and staff
 // reveal the full number through an audited action (app/actions/console.ts).

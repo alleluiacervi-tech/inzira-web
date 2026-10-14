@@ -4,20 +4,10 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { sql } from "drizzle-orm";
+import { pgCode } from "./errors";
 import type { Db } from "./index";
 
 const migrationsFolder = path.join(process.cwd(), "drizzle");
-
-/** Postgres error code from a drizzle-wrapped failure, if it has one. */
-function pgCode(err: unknown): string | undefined {
-  let cur: unknown = err;
-  for (let i = 0; i < 6 && cur && typeof cur === "object"; i++) {
-    const c = cur as { code?: unknown; cause?: unknown };
-    if (typeof c.code === "string" && /^[0-9A-Z]{5}$/.test(c.code)) return c.code;
-    cur = c.cause;
-  }
-  return undefined;
-}
 
 /** Columns and tables added after the first release. Safe to run more than once. */
 async function addLaterObjects(database: Db) {
@@ -73,6 +63,49 @@ async function addLaterObjects(database: Db) {
     `ALTER TABLE "events" ADD COLUMN IF NOT EXISTS "vars" jsonb`,
     `ALTER TABLE "notifications" ADD COLUMN IF NOT EXISTS "key" text`,
     `ALTER TABLE "notifications" ADD COLUMN IF NOT EXISTS "vars" jsonb`,
+    `CREATE TABLE IF NOT EXISTS "email_codes" (
+      "email" text PRIMARY KEY NOT NULL,
+      "code_hash" text NOT NULL,
+      "expires_at" timestamp with time zone NOT NULL,
+      "attempts" integer DEFAULT 0 NOT NULL,
+      "sent_at" timestamp with time zone DEFAULT now() NOT NULL
+    )`,
+    `ALTER TABLE "accounts" ALTER COLUMN "phone" DROP NOT NULL`,
+    `ALTER TABLE "accounts" ADD COLUMN IF NOT EXISTS "email" text`,
+    `ALTER TABLE "accounts" ADD COLUMN IF NOT EXISTS "registered_at" timestamp with time zone`,
+    `UPDATE "accounts" SET "registered_at" = "since" WHERE "registered_at" IS NULL AND "deleted_at" IS NULL`,
+    `ALTER TABLE "profiles" ADD COLUMN IF NOT EXISTS "date_of_birth" text`,
+    `ALTER TABLE "profiles" ADD COLUMN IF NOT EXISTS "id_checked_at" timestamp with time zone`,
+    `ALTER TABLE "profiles" ADD COLUMN IF NOT EXISTS "id_checked_by" text`,
+    `CREATE UNIQUE INDEX IF NOT EXISTS "accounts_email_unique" ON "accounts" USING btree (lower("email"))`,
+    `CREATE TABLE IF NOT EXISTS "outbox" (
+      "id" serial PRIMARY KEY NOT NULL,
+      "channel" text NOT NULL,
+      "recipient" text NOT NULL,
+      "payload" jsonb NOT NULL,
+      "ref" text,
+      "status" text DEFAULT 'pending' NOT NULL,
+      "attempts" integer DEFAULT 0 NOT NULL,
+      "next_attempt_at" timestamp with time zone DEFAULT now() NOT NULL,
+      "last_error" text,
+      "created_at" timestamp with time zone DEFAULT now() NOT NULL,
+      "sent_at" timestamp with time zone
+    )`,
+    `ALTER TABLE "staff" ADD COLUMN IF NOT EXISTS "totp_secret" text`,
+    `ALTER TABLE "staff" ADD COLUMN IF NOT EXISTS "totp_enabled_at" timestamp with time zone`,
+    `ALTER TABLE "staff" ADD COLUMN IF NOT EXISTS "totp_last_step" integer`,
+    `ALTER TABLE "staff" ADD COLUMN IF NOT EXISTS "totp_recovery" jsonb`,
+    `CREATE INDEX IF NOT EXISTS "outbox_due_idx" ON "outbox" USING btree ("status","next_attempt_at")`,
+    `CREATE INDEX IF NOT EXISTS "outbox_recipient_idx" ON "outbox" USING btree ("recipient")`,
+    `CREATE INDEX IF NOT EXISTS "audit_at_idx" ON "audit" USING btree ("at")`,
+    `CREATE INDEX IF NOT EXISTS "deliverables_ref_idx" ON "deliverables" USING btree ("ref")`,
+    `CREATE INDEX IF NOT EXISTS "files_ref_idx" ON "files" USING btree ("ref")`,
+    `CREATE INDEX IF NOT EXISTS "notes_ref_idx" ON "notes" USING btree ("ref")`,
+    `CREATE INDEX IF NOT EXISTS "sessions_subject_idx" ON "sessions" USING btree ("subject_id")`,
+    `CREATE INDEX IF NOT EXISTS "sessions_expires_idx" ON "sessions" USING btree ("expires_at")`,
+    `CREATE INDEX IF NOT EXISTS "transactions_provider_ref_idx" ON "transactions" USING btree ("provider_ref" text_pattern_ops)`,
+    `UPDATE "transactions" t SET "status" = 'failed' WHERE t."status" = 'pending' AND EXISTS (SELECT 1 FROM "transactions" n WHERE n."ref" = t."ref" AND n."status" = 'pending' AND n."id" > t."id")`,
+    `CREATE UNIQUE INDEX IF NOT EXISTS "transactions_one_pending" ON "transactions" USING btree ("ref") WHERE "status" = 'pending'`,
   ];
   for (const statement of statements) await database.execute(sql.raw(statement));
 }

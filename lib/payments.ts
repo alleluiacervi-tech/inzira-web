@@ -13,7 +13,9 @@ export type PayStatus = "pending" | "paid" | "failed";
 type Method = "MTN MoMo" | "Airtel Money";
 type Provider = {
   key: "sim" | "mtn" | "airtel";
-  requestToPay(input: { phone9: string; amount: number; reference: string; callbackUrl?: string }): Promise<{ providerRef: string }>;
+  /** Our own id for the prompt, made before the call and saved with the payment first (see newPrompt). */
+  newId(phone9: string): string;
+  requestToPay(input: { id: string; phone9: string; amount: number; reference: string; callbackUrl?: string }): Promise<void>;
   status(id: string): Promise<{ status: PayStatus; providerTxId?: string }>;
 };
 
@@ -23,9 +25,8 @@ export const methodFor = (phone9: string): Method => (/^7[23]/.test(phone9) ? "A
 // ---------------- simulator ----------------
 const simulator: Provider = {
   key: "sim",
-  async requestToPay({ phone9 }) {
-    return { providerRef: `sim:${Date.now()}:${phone9}` };
-  },
+  newId: (phone9) => `${Date.now()}:${phone9}`,
+  async requestToPay() {},
   async status(id) {
     const [at, phone] = id.split(":");
     if (Date.now() - Number(at) < 2000) return { status: "pending" };
@@ -58,13 +59,21 @@ const mtnToken = () => cachedToken("mtn", async () => {
   return res.json();
 });
 
+/** The provider answered and said no (a 4xx): the prompt does not exist, so the customer can try again at once.
+ *  Anything else (a timeout, a 5xx, a dropped connection) leaves it unknown, and the status check decides. */
+export class PromptRefused extends Error {}
+const refusedIf4xx = (status: number, what: string, detail = "") => {
+  if (status >= 400 && status < 500 && status !== 408 && status !== 429) throw new PromptRefused(`${what}: ${status} ${detail}`.trim());
+  throw new Error(`${what}: ${status} ${detail}`.trim());
+};
+
 const mtn: Provider = {
   key: "mtn",
-  async requestToPay({ phone9, amount, reference, callbackUrl }) {
+  newId: () => randomUUID(),
+  async requestToPay({ id, phone9, amount, reference, callbackUrl }) {
     const base = mtnBase();
     const subKey = env("MTN_MOMO_SUBSCRIPTION_KEY");
     const token = await mtnToken();
-    const id = randomUUID();
     const res = await fetch(`${base}/collection/v1_0/requesttopay`, {
       method: "POST",
       headers: {
@@ -76,8 +85,8 @@ const mtn: Provider = {
         payer: { partyIdType: "MSISDN", partyId: `250${phone9}` }, payerMessage: `Inzira ${reference}`, payeeNote: reference,
       }),
     });
-    if (res.status !== 202) throw new Error(`MTN requesttopay: ${res.status} ${await res.text()}`);
-    return { providerRef: `mtn:${id}` };
+    // 409 means this id was already accepted (a retry of the same call): the prompt exists.
+    if (res.status !== 202 && res.status !== 409) refusedIf4xx(res.status, "MTN requesttopay", await res.text());
   },
   async status(id) {
     const token = await mtnToken();
@@ -105,14 +114,13 @@ const airtelHeaders = (token: string) => ({ Authorization: `Bearer ${token}`, "C
 
 const airtel: Provider = {
   key: "airtel",
-  async requestToPay({ phone9, amount, reference }) {
-    const id = randomUUID().replace(/-/g, "").slice(0, 20);
+  newId: () => randomUUID().replace(/-/g, "").slice(0, 20),
+  async requestToPay({ id, phone9, amount, reference }) {
     const res = await fetch(`${airtelBase()}/merchant/v1/payments/`, {
       method: "POST", headers: airtelHeaders(await airtelToken()),
       body: JSON.stringify({ reference, subscriber: { country: "RW", currency: "RWF", msisdn: phone9 }, transaction: { amount, country: "RW", currency: "RWF", id } }),
     });
-    if (!res.ok) throw new Error(`Airtel payment: ${res.status} ${await res.text()}`);
-    return { providerRef: `airtel:${id}` };
+    if (!res.ok) refusedIf4xx(res.status, "Airtel payment", await res.text());
   },
   async status(id) {
     const res = await fetch(`${airtelBase()}/standard/v1/payments/${id}`, { headers: airtelHeaders(await airtelToken()) });
@@ -134,6 +142,14 @@ export function providerFor(phone9: string): Provider {
   }
   if (mode() === "live") return methodFor(phone9) === "Airtel Money" ? airtel : mtn;
   throw new Error("Payments are not configured. Set PAYMENT_PROVIDER (see README).");
+}
+
+/** Picks the provider for this number and makes the prompt's id and reference up front, so they can be saved before the
+ *  provider is called: a call that times out after the provider accepted it is still found and settled later. */
+export function newPrompt(phone9: string) {
+  const provider = providerFor(phone9);
+  const id = provider.newId(phone9);
+  return { provider, id, providerRef: `${provider.key}:${id}` };
 }
 
 /** Asks whichever provider created `providerRef` for the current status. */

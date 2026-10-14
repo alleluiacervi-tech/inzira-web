@@ -8,6 +8,7 @@ import { msg, sms } from "@/lib/i18n/stored";
 import { audit, db, event, fail, notify, s, type Result } from "@/lib/mutate";
 import { PERMISSIONS, ROLES, type Permission } from "@/lib/permissions";
 import { SITE } from "@/lib/site";
+import { enqueue, sendSoon } from "@/lib/outbox";
 import { sendSms } from "@/lib/sms";
 import { runAndRecord } from "@/lib/jobs";
 import { allow } from "@/lib/ratelimit";
@@ -87,10 +88,16 @@ export async function refund(ref: string): Promise<Result> {
   return { ok: true };
 }
 
+/** Only the Owner decides what each role may do, and who holds the Administrator role. Otherwise an Administrator
+ *  could give themselves or a friend every permission. */
+const OWNER_ONLY = "Only the owner can do this.";
+const needsOwner = (role: string | undefined) => role === "Owner" || role === "Administrator";
+
 export async function savePermissions(matrix: Record<string, boolean[]>): Promise<Result> {
   const a = await admin("manageStaff");
   if ("error" in a) return fail(a.error!);
   const { me, d } = a;
+  if (me.role !== "Owner") return fail(OWNER_ONLY);
   await d.transaction(async (tx) => {
     for (const perm of Object.keys(PERMISSIONS) as Permission[]) {
       for (const [i, role] of ROLES.entries()) {
@@ -113,13 +120,15 @@ export async function inviteStaff(name: string, phoneInput: string, role: StaffR
   if (!name.trim()) return fail("Enter their full name.");
   if (!phone) return fail("Enter their Rwandan mobile number.");
   if (role === "Owner") return fail("There is only one owner.");
+  if (needsOwner(role) && me.role !== "Owner") return fail(OWNER_ONLY);
   const [taken] = await d.select().from(s.staff).where(eq(s.staff.phone, phone));
   if (taken) return fail(`${taken.name} already uses that number.`);
-  await d.transaction(async (tx) => {
+  const queued = await d.transaction(async (tx) => {
     await tx.insert(s.staff).values({ id: `s-${randomBytes(5).toString("hex")}`, name: name.trim(), phone, role, team: "—", title: role, active: true });
     await audit(tx, { actor: me.name, role: me.role, action: "Granted role", entity: `${name.trim()} → ${role}` });
+    return enqueue(tx, { channel: "sms", to: phone, message: `Inzira: ${me.name} added you as ${role}. Sign in with this number at ${SITE.url}/sign-in` });
   });
-  sendSms(phone, `Inzira: ${me.name} added you as ${role}. Sign in with this number at ${SITE.url}/sign-in`).catch((e) => console.error("[sms]", e));
+  sendSoon([queued]);
   revalidatePath("/admin/roles");
   return { ok: true };
 }
@@ -132,10 +141,29 @@ export async function updateStaff(id: string, change: { role?: StaffRole; active
   if (!person) return fail("Person not found.");
   if (person.role === "Owner" || change.role === "Owner") return fail("The owner can’t be changed here.");
   if (person.id === me.id) return fail("You can’t change your own access.");
+  if (me.role !== "Owner" && (needsOwner(person.role) || needsOwner(change.role))) return fail(OWNER_ONLY);
   await d.transaction(async (tx) => {
     await tx.update(s.staff).set(change).where(eq(s.staff.id, id));
     if (change.active === false) await tx.delete(s.sessions).where(eq(s.sessions.subjectId, id));
     await audit(tx, { actor: me.name, role: me.role, action: change.role ? "Changed role" : change.active ? "Reactivated person" : "Deactivated person", entity: change.role ? `${person.name} → ${change.role}` : person.name });
+  });
+  revalidatePath("/admin/roles");
+  return { ok: true };
+}
+
+/** For a colleague who lost their phone and their recovery codes: the owner removes their authenticator step so they can
+ *  sign in by SMS and set it up again. Only the owner, and every use is logged. */
+export async function resetStaffTotp(id: string): Promise<Result> {
+  const a = await admin("manageStaff");
+  if ("error" in a) return fail(a.error!);
+  const { me, d } = a;
+  if (me.role !== "Owner") return fail(OWNER_ONLY);
+  const [person] = await d.select().from(s.staff).where(eq(s.staff.id, id));
+  if (!person) return fail("Person not found.");
+  await d.transaction(async (tx) => {
+    await tx.update(s.staff).set({ totpSecret: null, totpEnabledAt: null, totpLastStep: null, totpRecovery: null }).where(eq(s.staff.id, id));
+    await tx.delete(s.sessions).where(eq(s.sessions.subjectId, id));
+    await audit(tx, { actor: me.name, role: me.role, action: "Reset authenticator step", entity: person.name });
   });
   revalidatePath("/admin/roles");
   return { ok: true };

@@ -1,7 +1,7 @@
 // Database schema (Postgres). Mirrors the domain model in lib/types.ts.
 // Change this file, then run `npm run db:generate` to write a migration into ./drizzle.
 import { sql } from "drizzle-orm";
-import { boolean, index, integer, jsonb, pgTable, primaryKey, serial, text, timestamp } from "drizzle-orm/pg-core";
+import { boolean, index, integer, jsonb, pgTable, primaryKey, serial, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
 import type { Locale } from "../i18n/locale";
 import type { Closed, DocGroup, DocStatus, Hold, MsgVars, OfficialMode, Request, Service, Stage, StaffRole } from "../types";
 
@@ -58,16 +58,22 @@ export const accounts = pgTable("accounts", {
   id: text("id").primaryKey(),
   name: text("name").notNull(),
   first: text("first").notNull(),
-  /** Nine digits after +250, e.g. 788123456. The login. */
-  phone: text("phone").notNull().unique(),
+  /** Nine digits after +250, e.g. 788123456. A contact number, and the sign-in for staff and for customers who
+   *  have not added an email yet. Empty for someone who gave only an email. */
+  phone: text("phone").unique(),
+  /** Lower case. Confirmed with a code before it is saved, so only its owner can sign in with it. */
+  email: text("email"),
   whatsapp: boolean("whatsapp").notNull().default(true),
   languages: jsonb("languages").$type<string[]>().notNull().default(sql`'[]'::jsonb`),
   since: ts("since").notNull().defaultNow(),
+  /** First time this person signed in to the portal. Empty for a client who never did (a walk-in entered by staff,
+   *  or someone who only sent a request): they are contacts, not registered users. */
+  registeredAt: ts("registered_at"),
   /** Set when the customer deleted their account. Personal details are then wiped; financial records stay. */
   deletedAt: ts("deleted_at"),
-  /** Language of their portal and SMS. */
+  /** Language of their portal and messages. */
   locale: text("locale").$type<Locale>().notNull().default("rw"),
-});
+}, (t) => [uniqueIndex("accounts_email_unique").on(sql`lower(${t.email})`)]);
 
 export const profiles = pgTable("profiles", {
   id: text("id").primaryKey(),
@@ -81,6 +87,11 @@ export const profiles = pgTable("profiles", {
   tinMasked: text("tin_masked"),
   tin: text("tin"),
   district: text("district"),
+  /** As written on the ID, "YYYY-MM-DD". Entered by the customer; Inzira staff compare it with the ID photo. */
+  dateOfBirth: text("date_of_birth"),
+  /** When a member of staff compared the details with the ID photo. This is our own check, not a government one. */
+  idCheckedAt: ts("id_checked_at"),
+  idCheckedBy: text("id_checked_by"),
 }, (t) => [index("profiles_account_idx").on(t.accountId)]);
 
 export const staff = pgTable("staff", {
@@ -91,6 +102,13 @@ export const staff = pgTable("staff", {
   team: text("team").notNull(),
   title: text("title").notNull(),
   active: boolean("active").notNull().default(true),
+  /** Authenticator-app secret, encrypted (lib/crypto.ts). Set when the person turns the second step on. */
+  totpSecret: text("totp_secret"),
+  totpEnabledAt: ts("totp_enabled_at"),
+  /** The last 30-second step accepted, so one code cannot be used twice. */
+  totpLastStep: integer("totp_last_step"),
+  /** SHA-256 hashes of the unused recovery codes. */
+  totpRecovery: jsonb("totp_recovery").$type<string[]>(),
 });
 
 /** One row per role and permission; `allowed` is what the roles matrix in the admin console edits. */
@@ -157,7 +175,7 @@ export const deliverables = pgTable("deliverables", {
   issuedAt: ts("issued_at").notNull(),
   issuedBy: text("issued_by").notNull(),
   fileId: text("file_id"),
-});
+}, (t) => [index("deliverables_ref_idx").on(t.ref)]);
 
 export const messages = pgTable("messages", {
   id: serial("id").primaryKey(),
@@ -175,7 +193,7 @@ export const notes = pgTable("notes", {
   at: ts("at").notNull().defaultNow(),
   by: text("by").notNull(),
   body: text("body").notNull(),
-});
+}, (t) => [index("notes_ref_idx").on(t.ref)]);
 
 export const events = pgTable("events", {
   id: serial("id").primaryKey(),
@@ -202,7 +220,13 @@ export const transactions = pgTable("transactions", {
   /** Phone the prompt was sent to, and the payment provider's own reference. */
   payer: text("payer"),
   providerRef: text("provider_ref"),
-}, (t) => [index("transactions_ref_idx").on(t.ref)]);
+}, (t) => [
+  index("transactions_ref_idx").on(t.ref),
+  // The Airtel callback finds a payment by the start of its provider reference.
+  index("transactions_provider_ref_idx").on(t.providerRef.op("text_pattern_ops")),
+  // One prompt waiting per request, enforced by the database, so two taps cannot send two prompts.
+  uniqueIndex("transactions_one_pending").on(t.ref).where(sql`${t.status} = 'pending'`),
+]);
 
 /** Uploaded files. The bytes live in file storage (lib/storage.ts); this row says who may read them. */
 export const files = pgTable("files", {
@@ -214,7 +238,7 @@ export const files = pgTable("files", {
   bytes: integer("bytes").notNull(),
   uploadedAt: ts("uploaded_at").notNull().defaultNow(),
   uploadedBy: text("uploaded_by").notNull(),
-});
+}, (t) => [index("files_ref_idx").on(t.ref)]);
 
 export const notifications = pgTable("notifications", {
   id: serial("id").primaryKey(),
@@ -248,7 +272,7 @@ export const audit = pgTable("audit", {
   entity: text("entity").notNull(),
   source: text("source").notNull(),
   fee: boolean("fee").notNull().default(false),
-});
+}, (t) => [index("audit_at_idx").on(t.at)]);
 
 // ---------------- console extensions ----------------
 export const clientTags = pgTable("client_tags", {
@@ -293,14 +317,23 @@ export const otpCodes = pgTable("otp_codes", {
   sentAt: ts("sent_at").notNull().defaultNow(),
 });
 
+/** Sign-in and confirmation codes sent by email: one live code per address, like otp_codes for phones. */
+export const emailCodes = pgTable("email_codes", {
+  email: text("email").primaryKey(),
+  codeHash: text("code_hash").notNull(),
+  expiresAt: ts("expires_at").notNull(),
+  attempts: integer("attempts").notNull().default(0),
+  sentAt: ts("sent_at").notNull().defaultNow(),
+});
+
 export const sessions = pgTable("sessions", {
   /** SHA-256 of the cookie token; the token itself is never stored. */
   id: text("id").primaryKey(),
-  kind: text("kind").$type<"customer" | "staff">().notNull(),
+  kind: text("kind").$type<"customer" | "staff" | "pending">().notNull(),
   subjectId: text("subject_id").notNull(),
   createdAt: ts("created_at").notNull().defaultNow(),
   expiresAt: ts("expires_at").notNull(),
-});
+}, (t) => [index("sessions_subject_idx").on(t.subjectId), index("sessions_expires_idx").on(t.expiresAt)]);
 
 /** Running numbers for request references and invoices. */
 export const counters = pgTable("counters", {
@@ -323,3 +356,20 @@ export const jobRuns = pgTable("job_runs", {
   result: jsonb("result").$type<Record<string, unknown>>().notNull(),
   ms: integer("ms").notNull(),
 });
+
+/** Email and SMS waiting to go out, or already sent (lib/outbox.ts). Written in the same transaction as the change it announces. */
+export const outbox = pgTable("outbox", {
+  id: serial("id").primaryKey(),
+  channel: text("channel").$type<"email" | "sms">().notNull(),
+  /** An email address or a nine-digit phone number. */
+  recipient: text("recipient").notNull(),
+  /** The message while it waits; emptied once sent or given up on. */
+  payload: jsonb("payload").$type<Record<string, unknown>>().notNull(),
+  ref: text("ref"),
+  status: text("status").$type<"pending" | "sent" | "failed">().notNull().default("pending"),
+  attempts: integer("attempts").notNull().default(0),
+  nextAttemptAt: ts("next_attempt_at").notNull().defaultNow(),
+  lastError: text("last_error"),
+  createdAt: ts("created_at").notNull().defaultNow(),
+  sentAt: ts("sent_at"),
+}, (t) => [index("outbox_due_idx").on(t.status, t.nextAttemptAt), index("outbox_recipient_idx").on(t.recipient)]);

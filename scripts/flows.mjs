@@ -13,6 +13,7 @@
 // The public site defaults to Kinyarwanda; these checks read the English copy, so every tab sets the
 // language cookie to English first. `npm run smoke` checks the Kinyarwanda default.
 import { spawn } from "node:child_process";
+import { createHmac } from "node:crypto";
 import { existsSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -86,13 +87,15 @@ async function page(width = 1280) {
     async close() { await fetch(`http://127.0.0.1:${port}/json/close/${t.id}`); ws.close(); },
   };
 }
-/** Signs in with a phone number, reading the demo code shown on screen. A customer's portal is in
+/** Signs in with an email (customers) or a phone number (staff), reading the demo code shown on screen. A customer's portal is in
  *  the language of their account (Kinyarwanda for the demo customers); the checks read English, so
  *  it is switched unless `language` says otherwise. */
-async function signIn(p, phone, { language = "en" } = {}) {
-  await p.go("/sign-in");
-  if ((await p.ev("location.pathname")) !== "/sign-in") { await signOut(p); await p.go("/sign-in"); }
-  await p.set("#si-phone", phone); await p.click("Send me a code"); await waitCode(p);
+async function signIn(p, who, { language = "en" } = {}) {
+  const byEmail = who.includes("@");
+  const url = byEmail ? "/sign-in" : "/sign-in?method=phone";
+  await p.go(url);
+  if ((await p.ev("location.pathname")) !== "/sign-in") { await signOut(p); await p.go(url); }
+  await p.set(byEmail ? "#si-email" : "#si-phone", who); await p.click("Send me a code"); await waitCode(p);
   const code = await p.ev(`document.querySelector("[data-demo-code]")?.dataset.demoCode ?? ""`);
   if (!code) throw new Error("no demo code shown (start the app with INZIRA_DEMO=1)");
   await p.set("#otp", code); await p.click("Sign in", "button"); await waitPath(p, (path) => path !== "/sign-in"); await sleep(500); await p.help();
@@ -167,11 +170,15 @@ const step = async (name, fn) => { seen.add(name); if (only?.length && !only.inc
 await step("track", async () => {
   const p = await page();
   await p.go("/track");
-  await p.set("#tr-ref", "inz-2026-04817"); await p.set("#tr-phone", "0788 123 456"); await p.click("Check progress"); await waitFor(p, "We need a clearer ID photo");
+  await p.set("#tr-ref", "inz-2026-04817"); await p.set("#tr-contact", "0788 123 456"); await p.click("Check progress"); await waitFor(p, "We need a clearer ID photo");
   check("track: finds a request by reference + phone", await p.has("E-title") && await p.has("We need a clearer ID photo"));
   check("track: shows no personal data", !(await p.has("Aline")) && !(await p.has("id_front")));
-  await p.set("#tr-phone", "788 000 111"); await p.click("Check progress"); await waitFor(p, "couldn’t find a request");
+  await p.set("#tr-contact", "788 000 111"); await p.click("Check progress"); await waitFor(p, "couldn’t find a request");
   check("track: wrong phone is refused with the same message as not found", await p.has("couldn’t find a request") && !(await p.has("E-title")));
+  await p.set("#tr-contact", "Aline.Uwase@Example.com"); await p.click("Check progress"); await waitFor(p, "We need a clearer ID photo");
+  check("track: also finds a request by reference + email, in any letter case", await p.has("E-title") && await p.has("We need a clearer ID photo"));
+  await p.set("#tr-contact", "someone.else@example.com"); await p.click("Check progress"); await waitFor(p, "couldn’t find a request");
+  check("track: a wrong email is refused with the same message", await p.has("couldn’t find a request") && !(await p.has("E-title")));
   await p.close();
 });
 
@@ -181,11 +188,20 @@ await step("private areas", async () => {
   check("private: the portal asks you to sign in", (await p.ev("location.pathname")) === "/sign-in");
   await p.go("/admin");
   check("private: the admin console asks you to sign in", (await p.ev("location.pathname")) === "/sign-in");
-  await p.set("#si-phone", "788 000 999"); await p.click("Send me a code"); await waitCode(p);
+  await p.go("/sign-in");
+  check("sign-in: customers see the email form first", await p.ev(`!!document.querySelector("#si-email") && !document.querySelector("#si-phone")`));
+  await p.set("#si-email", "not an email"); await p.click("Send me a code"); await sleep(300);
+  check("sign-in: a bad email is refused before anything is sent", await p.has("Enter a valid email address"));
+  await p.set("#si-email", "nobody@example.com"); await p.click("Send me a code"); await waitCode(p);
   await p.set("#otp", await p.ev(`document.querySelector("[data-demo-code]").dataset.demoCode`)); await p.click("Sign in", "button"); await sleep(1500);
-  check("sign-in: an unknown number is told to start a service", await p.has("We don’t have an account for this number"));
+  check("sign-in: an unknown email is told to start a service", await p.has("We don’t have an account for this email"));
   await p.set("#otp", "000000"); await p.click("Sign in", "button"); await sleep(1000);
   check("sign-in: a used or wrong code is refused", await p.has("expired") || await p.has("not right"));
+  await p.go("/sign-in?method=phone"); await p.set("#si-phone", "788 123 456"); await p.click("Send me a code"); await waitCode(p);
+  await p.set("#otp", await p.ev(`document.querySelector("[data-demo-code]").dataset.demoCode`)); await p.click("Sign in", "button"); await sleep(1500);
+  check("sign-in: a customer with an email cannot sign in by phone", await p.has("Customers sign in with their email address"));
+  await p.go("/portal/requests");
+  check("sign-in: staff pages open the phone form", await (async () => { await p.go("/console"); return p.ev(`!!document.querySelector("#si-phone")`); })());
   await p.close();
 });
 
@@ -194,8 +210,8 @@ await step("start", async () => {
   const p = await page();
   await p.go("/start/land-spouse-update");
   await p.click("Continue");
-  check("start: empty step 1 is blocked with plain errors", await p.has("Enter your full name") && await p.has("ID numbers have 16 digits") && await p.has("Enter a Rwandan mobile number"));
-  await p.set("#f-name", "Test Person"); await p.set("#f-nid", "1 1995 8 0045123 0 17"); await p.set("#f-phone", "788 555 010");
+  check("start: empty step 1 is blocked with plain errors", await p.has("Enter your full name") && await p.has("ID numbers have 16 digits") && await p.has("Enter the date of birth from the ID") && await p.has("Enter a valid email address") && !(await p.has("Enter a Rwandan mobile number")));
+  await p.set("#f-name", "Test Person"); await p.set("#f-nid", "1 1995 8 0045123 0 17"); await p.set("#f-dob", "1995-08-12"); await p.set("#f-email", "Test.Person@Example.com"); await p.set("#f-phone", "788 555 010");
   await p.click("Continue"); await sleep(300);
   check("start: step 2 offers the service's own choices", await p.has("Tell us about the request") && await p.has("Add a spouse after marriage"));
   await p.go("/start/land-spouse-update"); await sleep(400);
@@ -204,11 +220,11 @@ await step("start", async () => {
   await attach(p, "input[type=file]"); await sleep(300);
   check("start: a chosen file is listed", await p.has("id_photo.png"));
   await p.click("Continue"); await sleep(200);
-  check("start: review lists what was entered", await p.has("Check and send") && await p.has("Test Person") && await p.has("Add a spouse after marriage"));
+  check("start: review lists what was entered", await p.has("Check and send") && await p.has("Test Person") && await p.has("test.person@example.com") && await p.has("1995-08-12") && await p.has("Add a spouse after marriage"));
   await p.click("Send request"); await sleep(200);
   check("start: cannot send without the acknowledgement", await p.has("Please confirm you’ve read this"));
-  await p.ev(`document.querySelector('.check input[type=checkbox]').click()`); await p.click("Send request"); await sleep(1200);
-  check("start: texts a code to confirm the number", await p.has("Enter the code we sent you") && await p.has("+250 788 555 010"));
+  await p.ev(`document.querySelector('input[aria-describedby="ack-err"]').click()`); await p.click("Send request"); await sleep(1200);
+  check("start: emails a code to confirm the address", await p.has("Enter the code we sent you") && await p.has("test.person@example.com"));
   await p.set("#otp", "111111"); await p.click("Confirm and send request"); await sleep(1000);
   check("start: a wrong code is refused", await p.has("not right"));
   await p.set("#otp", await p.ev(`document.querySelector("[data-demo-code]").dataset.demoCode`)); await p.click("Confirm and send request"); await waitFor(p, "Request received");
@@ -228,7 +244,7 @@ await step("start", async () => {
 // ---------- Aline: pay, message, upload ----------
 await step("customer", async () => {
   const p = await page();
-  await signIn(p, "788123456", { language: null });
+  await signIn(p, "aline.uwase@example.com", { language: null });
   // Aline's account is in Kinyarwanda: the portal, the seeded hold and its title follow it.
   check("customer: lands on the portal in their language", (await p.ev("location.pathname")) === "/portal" && (await p.ev("document.documentElement.lang")) === "rw"
     && await p.has("Kora icyo usabwa nonaha") && await p.has("Dukeneye ifoto y'indangamuntu igaragara neza") && !(await p.has("We need a clearer ID photo")));
@@ -498,7 +514,7 @@ await step("staff scope", async () => {
 // ---------- Aline again: the delivered document ----------
 await step("delivered", async () => {
   const p = await page();
-  await signIn(p, "788123456");
+  await signIn(p, "aline.uwase@example.com");
   await p.go("/portal/requests/INZ-2026-04817");
   const link = await p.ev(`[...document.querySelectorAll('a[href^="/files/"]')].find((a) => a.closest("section")?.textContent.includes("E-title — Aline Uwase"))?.getAttribute("href") ?? ""`);
   check("delivered: the customer sees the final document", await p.has("E-title — Aline Uwase") && !!link);
@@ -511,14 +527,14 @@ await step("delivered", async () => {
 // ---------- account, data rights and system ----------
 await step("account", async () => {
   const p = await page();
-  await signIn(p, "788123456");
+  await signIn(p, "aline.uwase@example.com");
   await p.go("/portal/account"); await waitFor(p, "Your details");
   check("account: open requests block deleting the account", await p.has("Finish or cancel your") && (await p.ev(`[...document.querySelectorAll("button")].find((b) => b.textContent.trim() === "Delete account")?.disabled`)) === true);
   await p.close();
 });
 await step("privacy", async () => {
   const p = await page();
-  await signIn(p, "788555010");
+  await signIn(p, "test.person@example.com");
   await p.go("/portal/account"); await waitFor(p, "Your details");
   check("privacy: finished requests' documents are counted", await p.has("1 file from 1 request"));
   await p.set("#acct-name", "Test Person Renamed");
@@ -536,9 +552,48 @@ await step("privacy", async () => {
   await p.click("Delete account", "button"); await sleep(300);
   await p.set("#del-confirm", "DELETE"); await p.click("Delete my account", "button"); await waitPath(p, (path) => path === "/"); await waitFor(p, "Your account is deleted");
   check("privacy: a customer can delete their account", await p.has("Your account is deleted"));
-  await p.go("/sign-in"); await p.set("#si-phone", "788 555 010"); await p.click("Send me a code"); await waitCode(p);
+  await p.go("/sign-in"); await p.set("#si-email", "test.person@example.com"); await p.click("Send me a code"); await waitCode(p);
   await p.set("#otp", await p.ev(`document.querySelector("[data-demo-code]")?.dataset.demoCode ?? ""`)); await p.click("Sign in", "button"); await waitFor(p, "don’t have an account");
   check("privacy: a deleted account can no longer sign in", await p.has("don’t have an account"));
+  await p.close();
+});
+// ---------- registration is optional ----------
+await step("contact", async () => {
+  const p = await page();
+  await p.go("/start/irembo-training");
+  await p.set("#f-name", "Guest Person"); await p.set("#f-email", "guest.person@example.com");
+  await p.click("Continue"); await sleep(300);
+  await p.click("Online", "label"); await p.click("Continue"); await sleep(300);
+  check("contact: the review step offers a portal, ticked by default", await p.has("Create my portal") && (await p.ev(`document.querySelector('input[aria-describedby="portal-hint"]').checked`)) === true);
+  await p.click("Create my portal", "label");
+  await p.ev(`document.querySelector('input[aria-describedby="ack-err"]').click()`); await p.click("Send request"); await sleep(1200);
+  await p.set("#otp", await p.ev(`document.querySelector("[data-demo-code]").dataset.demoCode`)); await p.click("Confirm and send request"); await waitFor(p, "Request received");
+  const ref = await p.ev(`document.querySelector("[data-ref]")?.textContent ?? ""`);
+  check("contact: a request is sent without creating a portal", /^INZ-\d{4}-\d{5}$/.test(ref) && await p.has("Track this request") && !(await p.has("See my request")), ref);
+  await p.go("/portal");
+  check("contact: and nobody is signed in", (await p.ev("location.pathname")) === "/sign-in");
+  await p.go("/track"); await p.set("#tr-ref", ref); await p.set("#tr-contact", "guest.person@example.com"); await p.click("Check progress"); await waitFor(p, "Irembo training");
+  check("contact: the request can be followed with its reference and email", await p.has("Irembo training"));
+  await signIn(p, "guest.person@example.com");
+  await p.go("/portal/requests/" + ref);
+  check("contact: signing in later with that email opens a portal with the request", (await p.ev("location.pathname")).startsWith("/portal/requests/") && await p.has(ref));
+  await p.close();
+});
+await step("add email", async () => {
+  // A customer entered by staff has only a phone number: they may sign in with it until they add an email.
+  const p = await page();
+  await signIn(p, "788321654");
+  check("add email: a phone-only customer is asked to add an email", await p.has("Add your email to keep your portal"));
+  await p.go("/portal/account"); await waitFor(p, "Your details");
+  await p.click("Add your email", "button"); await sleep(200);
+  await p.set("#acct-email-new", "walkin.customer@example.com"); await p.click("Send me a code", "button"); await waitFor(p, "We sent a code to walkin.customer@example.com");
+  await p.set("#acct-email-code", "000000"); await p.click("Confirm email", "button"); await sleep(1000);
+  check("add email: a wrong code does not save the address", await p.has("not right") && !(await p.has("Your email is saved")));
+  await p.set("#acct-email-code", await p.ev(`document.querySelector("[data-demo-code]").dataset.demoCode`)); await p.click("Confirm email", "button"); await waitFor(p, "Your email is saved");
+  check("add email: the confirmed address is saved", await p.has("Your email is saved") && await p.has("walkin.customer@example.com"));
+  await signIn(p, "walkin.customer@example.com");
+  check("add email: and signs the customer in", (await p.ev("location.pathname")).startsWith("/portal") && !(await p.has("Add your email to keep your portal")));
+  await p.go("/sign-in?method=phone");
   await p.close();
 });
 await step("system", async () => {
@@ -555,6 +610,94 @@ await step("system", async () => {
   await p.click("Send me a test SMS", "button"); await waitFor(p, "Test SMS sent");
   check("system: a test SMS can be sent", await p.has("Test SMS sent"));
   await p.close();
+});
+
+// ---------- who may change roles; the authenticator step for staff ----------
+/** The 6-digit authenticator code for a base32 secret, `ahead` 30-second steps from now (RFC 6238, SHA-1). */
+function totp(secret, ahead = 0) {
+  const A = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
+  let bits = 0, value = 0; const key = [];
+  for (const ch of secret.replace(/\s/g, "")) { value = (value << 5) | A.indexOf(ch); bits += 5; if (bits >= 8) { key.push((value >>> (bits - 8)) & 255); bits -= 8; } }
+  const counter = Buffer.alloc(8); counter.writeBigUInt64BE(BigInt(Math.floor(Date.now() / 30000) + ahead));
+  const h = createHmac("sha1", Buffer.from(key)).update(counter).digest(); const o = h[h.length - 1] & 15;
+  return String((((h[o] & 0x7f) << 24) | (h[o + 1] << 16) | (h[o + 2] << 8) | h[o + 3]) % 1000000).padStart(6, "0");
+}
+/** Staff phone sign-in up to the code step; returns the page, signed in as far as the SMS code. */
+async function phoneCode(p, phone) {
+  await p.go("/sign-in?method=phone");
+  if ((await p.ev("location.pathname")) !== "/sign-in") { await signOut(p); await p.go("/sign-in?method=phone"); }
+  await p.set("#si-phone", phone); await p.click("Send me a code"); await waitCode(p);
+  const code = await p.ev(`document.querySelector("[data-demo-code]")?.dataset.demoCode ?? ""`);
+  await p.set("#otp", code); await p.click("Sign in", "button"); await sleep(1500); await p.help();
+}
+
+await step("roles", async () => {
+  const p = await page();
+  await signIn(p, "780000008");
+  await p.go("/admin/roles");
+  check("roles: the owner can edit the permissions table", (await p.ev(`document.querySelectorAll('.roles input[type=checkbox]:not(:disabled)').length`)) > 20);
+  await p.ev(`(async () => { const sel = document.querySelector('select[id^="r-"]'); return sel ? sel.id : "" })()`);
+  const id = await p.ev(`[...document.querySelectorAll("tr")].find((r) => r.textContent.includes("New Colleague"))?.querySelector("select")?.id ?? ""`);
+  if (!id) throw new Error("New Colleague is not listed (the admin step invites them)");
+  await p.set("#" + id, "Administrator"); await waitFor(p, "is now Administrator");
+  check("roles: the owner can appoint an Administrator", await p.has("New Colleague is now Administrator"));
+  await signOut(p);
+  await signIn(p, "788444555");
+  await p.go("/admin/roles");
+  check("roles: an Administrator sees the table but can't change it", await p.has("Only the owner can change this table") && (await p.ev(`document.querySelectorAll('.roles input[type=checkbox]:not(:disabled)').length`)) === 0);
+  check("roles: an Administrator can't appoint another Administrator", !(await p.ev(`[...document.querySelectorAll("#people select option")].some((o) => o.textContent === "Administrator")`)));
+  await p.close();
+});
+
+await step("authenticator", async () => {
+  const p = await page();
+  await signIn(p, "780000001");
+  await p.go("/console/security"); await waitFor(p, "Authenticator app");
+  await p.click("Set up authenticator app", "button"); await waitFor(p, "Add Inzira to your app");
+  const secret = await p.ev(`document.querySelector("[data-totp-secret]")?.dataset.totpSecret ?? ""`);
+  check("authenticator: setup shows a key to add to the app", /^[A-Z2-7]{32}$/.test(secret));
+  await p.set("#sec-code", "000000"); await p.click("Turn on", "button"); await waitFor(p, "not right");
+  check("authenticator: a wrong code does not turn it on", await p.has("not right") && !(await p.has("Save your recovery codes")));
+  await p.set("#sec-code", totp(secret)); await p.click("Turn on", "button"); await waitFor(p, "Save your recovery codes");
+  const recovery = await p.ev(`[...document.querySelectorAll("#rc-h ~ ul li")].map((li) => li.textContent)`);
+  check("authenticator: it turns on and shows eight recovery codes once", recovery.length === 8);
+  await p.click("I have saved them", "label"); await p.click("Done", "button"); await sleep(300);
+  check("authenticator: the page now says it is on", await p.has("Authenticator app is on"));
+  await signOut(p);
+
+  await phoneCode(p, "780000001");
+  check("authenticator: after the SMS code, a second step is asked for", await p.has("One more step") && (await p.ev("location.pathname")) === "/sign-in");
+  await p.set("#totp", "000000"); await p.click("Sign in", "button"); await waitFor(p, "not right");
+  check("authenticator: a wrong code does not sign in", await p.has("not right") && (await p.ev("location.pathname")) === "/sign-in");
+  // The code used while setting up is spent; the next 30-second step is accepted (the app allows a step either side).
+  await p.set("#totp", totp(secret, 1)); await p.click("Sign in", "button"); await waitPath(p, (path) => path.startsWith("/console"));
+  check("authenticator: the right code signs in", (await p.ev("location.pathname")).startsWith("/console"));
+  await signOut(p);
+
+  await phoneCode(p, "780000001");
+  await p.set("#totp", totp(secret, 1)); await p.click("Sign in", "button"); await waitFor(p, "not right");
+  check("authenticator: a code that was already used is refused", await p.has("not right") && (await p.ev("location.pathname")) === "/sign-in");
+  await p.click("Lost your phone?", "button"); await sleep(200);
+  await p.set("#totp", recovery[0]); await p.click("Sign in", "button"); await waitPath(p, (path) => path.startsWith("/console"));
+  check("authenticator: a recovery code signs in", (await p.ev("location.pathname")).startsWith("/console"));
+  await signOut(p);
+
+  await phoneCode(p, "780000001");
+  await p.click("Lost your phone?", "button"); await sleep(200);
+  await p.set("#totp", recovery[0]); await p.click("Sign in", "button"); await waitFor(p, "not right");
+  check("authenticator: a recovery code works only once", await p.has("not right") && (await p.ev("location.pathname")) === "/sign-in");
+  await p.close();
+
+  // The owner can take the step off for a colleague who lost their phone and their codes.
+  const o = await page();
+  await signIn(o, "780000008");
+  await o.go("/admin/roles"); await waitFor(o, "Authenticator");
+  check("authenticator: the owner sees who has it on", await o.ev(`[...document.querySelectorAll("tr")].some((r) => r.textContent.includes("Eric Niyonzima") && r.textContent.includes("Authenticator"))`));
+  await o.ev(`window.confirm = () => true`);
+  await o.ev(`(() => { const row = [...document.querySelectorAll("tr")].find((r) => r.textContent.includes("Eric Niyonzima")); [...row.querySelectorAll("button")].find((b) => b.textContent.startsWith("Reset authenticator")).click(); return true; })()`);
+  await waitFor(o, "authenticator step was removed");
+  check("authenticator: the owner can reset it", await o.has("authenticator step was removed"));
+  await o.close();
 });
 
 // ---------- mobile navigation ----------

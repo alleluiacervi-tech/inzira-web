@@ -1,8 +1,10 @@
 // Seed people for development and demos. Everyone here is fictional.
 import type { Account, Profile, Staff } from "../types";
 
+/** Sample addresses use example.com, which is reserved for documentation and can never belong to a real person. */
+const sampleEmail = (name: string) => `${name.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z ]/g, "").trim().replace(/\s+/g, ".")}@example.com`;
 const acc = (id: string, name: string, phone: string, since: string, languages = ["Kinyarwanda", "English"]): Account =>
-  ({ id, name, first: name.split(" ")[0], phone, whatsapp: true, languages, since: `${since}T09:00:00+02:00`, locale: "rw" });
+  ({ id, name, first: name.split(" ")[0], phone, email: sampleEmail(name), whatsapp: true, languages, since: `${since}T09:00:00+02:00`, locale: "rw" });
 
 export const ACCOUNTS: Account[] = [
   acc("acc-aline", "Aline Uwase", "+250 788 123 456", "2026-01-14"),

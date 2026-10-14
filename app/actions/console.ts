@@ -4,6 +4,7 @@ import { and, eq, inArray } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { WORKS_CASES, assignableStaff, canSeeCase, canSeeClient, seesAllCases } from "@/lib/access";
 import { getStaffUser, normalisePhone } from "@/lib/auth";
+import { open, seal } from "@/lib/crypto";
 import { maskNationalId, maskTin, rwf, shortName } from "@/lib/format";
 import { english, feeVars, msg, sms } from "@/lib/i18n/stored";
 import { audit, db, event, fail, notify, s, type Result } from "@/lib/mutate";
@@ -260,7 +261,7 @@ export async function recordManualPayment(input: {
 
 // ---------------- Privacy & Audited Reveals ----------------
 export async function revealNationalId(profileId: string): Promise<Result<{ nationalId: string }>> {
-  const a = await clientAction(profileId, "viewAssigned");
+  const a = await clientAction(profileId, "viewIdentity");
   if ("error" in a) return fail(a.error!);
   const { me, d, profile: prof } = a;
 
@@ -271,11 +272,11 @@ export async function revealNationalId(profileId: string): Promise<Result<{ nati
     entity: `Client ${prof.name} (${prof.id})`,
   });
 
-  return { ok: true, nationalId: prof.nationalId || prof.idMasked || "—" };
+  return { ok: true, nationalId: open(prof.nationalId) || prof.idMasked || "—" };
 }
 
 export async function revealTin(profileId: string): Promise<Result<{ tin: string }>> {
-  const a = await clientAction(profileId, "viewAssigned");
+  const a = await clientAction(profileId, "viewIdentity");
   if ("error" in a) return fail(a.error!);
   const { me, d, profile: prof } = a;
 
@@ -286,7 +287,22 @@ export async function revealTin(profileId: string): Promise<Result<{ tin: string
     entity: `Client ${prof.name} (${prof.id})`,
   });
 
-  return { ok: true, tin: prof.tin || prof.tinMasked || "—" };
+  return { ok: true, tin: open(prof.tin) || prof.tinMasked || "—" };
+}
+
+/** Records that a member of staff compared the details the customer typed (name, ID number, date of birth) with the ID photo.
+ *  It is Inzira's own check, not a confirmation from the national ID system. */
+export async function markIdChecked(profileId: string, checked = true): Promise<Result<{ at: string | null }>> {
+  const a = await clientAction(profileId, "reviewDocs");
+  if ("error" in a) return fail(a.error!);
+  const { me, d, profile } = a;
+  const at = checked ? now() : null;
+  await d.transaction(async (tx) => {
+    await tx.update(s.profiles).set({ idCheckedAt: at, idCheckedBy: checked ? me.id : null }).where(eq(s.profiles.id, profileId));
+    await audit(tx, { actor: me.name, role: me.role, action: checked ? "Marked ID as checked" : "Cleared ID check", entity: `Client ${profile.name} (${profile.id})` });
+  });
+  revalidatePath("/console", "layout");
+  return { ok: true, at };
 }
 
 // ---------------- Client Management ----------------
@@ -333,9 +349,9 @@ export async function createClient(input: {
       name: input.name.trim(),
       relation: input.kind === "person" ? "self" : null,
       district: input.district?.trim() || null,
-      nationalId,
+      nationalId: seal(nationalId),
       idMasked: nationalId && maskNationalId(nationalId),
-      tin,
+      tin: seal(tin),
       tinMasked: tin && maskTin(tin),
     }).returning();
 
