@@ -8,6 +8,8 @@ import { msg, sms } from "./i18n/stored";
 import { audit, event, notify } from "./mutate";
 import { PROMPT_TTL_MS, providerStatus, type PayStatus } from "./payments";
 
+const UNREACHABLE_TTL_MS = 60 * 60e3;
+
 export async function reconcilePayment(txId: number): Promise<PayStatus | null> {
   const d = await db();
   const [t] = await d.select().from(s.transactions).where(eq(s.transactions.id, txId));
@@ -16,14 +18,20 @@ export async function reconcilePayment(txId: number): Promise<PayStatus | null> 
 
   let status: PayStatus;
   let providerTxId: string | undefined;
+  let unreachable = false;
   try {
     ({ status, providerTxId } = await providerStatus(t.providerRef ?? ""));
   } catch (e) {
+    // The provider could not say (a timeout, or it has no record of the prompt). Wait, but not for ever: after the
+    // time limit below the prompt is closed so the customer can try again.
     console.error("[payments] status check failed", e);
-    return "pending";
+    status = "pending";
+    unreachable = true;
   }
-  // Nobody approved the prompt in time: close it so the customer can try again.
-  if (status === "pending" && Date.now() - Date.parse(iso(t.at)!) > PROMPT_TTL_MS) status = "failed";
+  // Nobody approved the prompt in time: close it so the customer can try again. When the provider could not be asked at
+  // all, wait longer: closing a prompt that was in fact paid would invite a second payment.
+  const age = Date.now() - Date.parse(iso(t.at)!);
+  if (status === "pending" && age > (unreachable ? UNREACHABLE_TTL_MS : PROMPT_TTL_MS)) status = "failed";
   if (status === "pending") return "pending";
 
   await d.transaction(async (tx) => {

@@ -2,13 +2,11 @@
 // customer notifications and the request timeline. Server only.
 import { eq, sql } from "drizzle-orm";
 import { headers } from "next/headers";
-import { after } from "next/server";
 import { db, schema as s, type Db } from "./db";
-import { sendEmail } from "./email";
 import { text } from "./i18n/messages";
 import { english, hasPart, smsText } from "./i18n/stored";
 import { SITE } from "./site";
-import { sendSms } from "./sms";
+import { enqueue, sendSoon } from "./outbox";
 import type { Msg } from "./types";
 
 type Tx = Parameters<Parameters<Db["transaction"]>[0]>[0];
@@ -44,16 +42,9 @@ export async function event(tx: Tx | Db, ref: string, what: Msg, by: string, bod
   });
 }
 
-/** Runs work after the response has gone and the database has committed: the customer never waits for a mail
- *  server, a rolled-back change never sends a message, and a serverless host does not stop it half way.
- *  Outside a request (a script) it simply runs. Failures are logged, never thrown. */
-function afterResponse(task: () => Promise<void>) {
-  const run = () => task().catch((e) => console.error("[notify]", e));
-  try { after(run); } catch { void run(); }
-}
-
 /** A notification in the customer's portal and, with `sms`, a message to them in their language: an email when
- *  they have one, otherwise an SMS to their phone. A delivery failure never blocks the action. */
+ *  they have one, otherwise an SMS to their phone. The message is queued in the caller's transaction (lib/outbox.ts),
+ *  so it goes out only if the change commits, and is retried if the first try fails. */
 export async function notify(tx: Tx | Db, ref: string, n: { icon: string; title: Msg; sms?: Msg }) {
   const [row] = await tx.select({ accountId: s.profiles.accountId, phone: s.accounts.phone, email: s.accounts.email, locale: s.accounts.locale })
     .from(s.requests).innerJoin(s.profiles, eq(s.profiles.id, s.requests.profileId)).innerJoin(s.accounts, eq(s.accounts.id, s.profiles.accountId))
@@ -65,9 +56,9 @@ export async function notify(tx: Tx | Db, ref: string, n: { icon: string; title:
   const { email, phone, locale } = row;
   if (email) {
     const link = SITE.url.startsWith("http") ? `\n\n${SITE.url}/portal/requests/${ref}` : "";
-    afterResponse(() => sendEmail({ to: email, subject: text(locale, "email.updateSubject", { ref }), text: `${body}${link}`, footer: text(locale, "email.updateFooter") }));
-  } else if (phone) {
-    afterResponse(() => sendSms(phone, `Inzira ${ref}: ${body}`));
+    sendSoon([await enqueue(tx, { channel: "email", to: email, ref, mail: { to: email, subject: text(locale, "email.updateSubject", { ref }), text: `${body}${link}`, footer: text(locale, "email.updateFooter") } })]);
+  } else if (phone && /^7\d{8}$/.test(phone)) {
+    sendSoon([await enqueue(tx, { channel: "sms", to: phone, ref, message: `Inzira ${ref}: ${body}` })]);
   }
 }
 

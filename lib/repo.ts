@@ -4,6 +4,7 @@ import { and, asc, desc, eq, gte, inArray, isNull, ne, or, sql, type SQL } from 
 import { WORKS_CASES, canSeeCase, canTriage, caseScope, seesAllCases } from "./access";
 import { getSession, requireCustomerId, requireStaff } from "./auth";
 import { db, iso, schema as s } from "./db";
+import { allowFor } from "./ratelimit";
 import { timingSafeEqual } from "node:crypto";
 import { fmtDay, isOnOrBeforeDay, kigaliMonthStart, monthShort, phoneDigits, prettyPhone, shortName } from "./format";
 import type { Locale } from "./i18n/locale";
@@ -221,8 +222,14 @@ export async function listMyReminders() {
 export async function trackRequest(ref: string, contact: string): Promise<TrackResult | null> {
   const { getLocale } = await import("./i18n/locale");
   const { localizeService, requestTitle } = await import("./i18n/present");
+  const key = ref.trim().toUpperCase().slice(0, 40);
+  // Guessing the contact for one reference is limited per reference, whoever asks, so a spread of addresses gains nothing.
+  if (!key || !(await allowFor("trackRef", key))) return null;
+  // A cheap lookup first: most wrong references end here without loading a whole request.
+  const [exists] = await (await db()).select({ ref: s.requests.ref }).from(s.requests).where(eq(s.requests.ref, key));
+  if (!exists) return null;
   const locale = await getLocale();
-  const [v] = await loadRequests(eq(s.requests.ref, ref.trim().toUpperCase()), locale);
+  const [v] = await loadRequests(eq(s.requests.ref, key), locale);
   if (!v) return null;
   // An email is compared as an email, anything else as a phone number. Both are checked in constant time.
   const given = contact.trim();
@@ -244,8 +251,11 @@ export const getStaffUser = async (next = "/console"): Promise<Staff> => plain(a
 export const getAdmin = async (): Promise<Staff> => plain(await requireStaff("/admin"));
 /** What the signed-in member of staff may do, for screens that enable or hide controls. */
 export const getMyPermissions = async (): Promise<Permission[]> => [...(await requireStaff()).permissions];
-export async function listStaff(): Promise<(Staff & { phone: string | null })[]> {
-  return (await db()).select().from(s.staff).orderBy(asc(s.staff.name));
+/** Staff for the admin people list. Authenticator secrets and recovery hashes never leave the server: only whether the step is on. */
+export async function listStaff(): Promise<(Staff & { phone: string | null; twoStep: boolean })[]> {
+  const rows = await (await db()).select({ id: s.staff.id, name: s.staff.name, role: s.staff.role, team: s.staff.team, title: s.staff.title, active: s.staff.active, phone: s.staff.phone, enabledAt: s.staff.totpEnabledAt })
+    .from(s.staff).orderBy(asc(s.staff.name));
+  return rows.map(({ enabledAt, ...rest }) => ({ ...rest, twoStep: !!enabledAt }));
 }
 /** Active staff a case can be assigned to: everyone whose role works cases, owners and admins
  *  included, so a one-person team can take its own requests. Without their phone numbers. */
@@ -253,7 +263,7 @@ export async function listAgents(): Promise<Staff[]> {
   const rows = await (await db()).select({ staff: s.staff }).from(s.staff)
     .innerJoin(s.rolePermissions, and(eq(s.rolePermissions.role, s.staff.role), eq(s.rolePermissions.permission, WORKS_CASES), eq(s.rolePermissions.allowed, true)))
     .where(eq(s.staff.active, true)).orderBy(asc(s.staff.name));
-  return rows.map(({ staff: { phone: _phone, ...rest } }) => rest);
+  return rows.map(({ staff: p }) => ({ id: p.id, name: p.name, role: p.role, team: p.team, title: p.title, active: p.active }));
 }
 
 /** New requests nobody has taken yet, for the triage inbox. */

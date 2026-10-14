@@ -47,7 +47,9 @@ npm run typecheck
 npm run check:i18n           # both languages have every key and placeholder; SMS texts stay GSM-7
 npm run build && npm start   # production build; add INZIRA_DEMO=1 to keep demo codes and payments
 npm run smoke                # with the app running: every page loads, is styled, private pages need sign-in
-npm run flows                # with the app running in demo mode on a fresh database: 107 end-to-end checks,
+npm run test:unit            # authenticator codes (RFC 6238 vectors), encryption, upload sniffing, money maths
+npm run check:backend        # in-memory database: encryption at rest, outbox retries, one payment prompt, one-use codes
+npm run flows                # with the app running in demo mode on a fresh database: 143 end-to-end checks,
                              # including what each role can see (needs Chrome and Node 22+)
 npm run check:providers      # with real keys set: tests SMS, MTN MoMo, Airtel Money and Blob storage end to end
 npm run check:email          # with SMTP settings set: can this machine reach the mail server, log in, and send one message?
@@ -70,6 +72,10 @@ Copy `.env.example` to `.env.local`. None are needed for development.
 | `DB_AUTO_MIGRATE=0` | Skip applying migrations on startup. By default the server applies `drizzle/` when it starts. |
 | `INZIRA_DEMO=1` | Demo/staging builds: allows the console SMS, the payment simulator, PGlite and local file storage in a production build. Never on the live site. |
 | `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `EMAIL_FROM` | Email through Nodemailer over SMTP: sign-in codes for customers and updates about their requests. Port 465 is implicit TLS (default), 587 is STARTTLS; `SMTP_SECURE=1/0` overrides. Use a dedicated `no-reply@` mailbox on your domain and set SPF, DKIM and DMARC. Optional: `EMAIL_REPLY_TO`, `EMAIL_DAILY_LIMIT` (default 400; the app stops short of the mailbox's own daily cap). |
+| `DATA_KEY` | Encrypts customers' national ID and TIN numbers in the database (AES-256-GCM). Required on the live site: `openssl rand -hex 32`. **Keep a copy outside the server; without it the numbers cannot be read.** To rotate: put the new key in `DATA_KEY`, the old in `DATA_KEY_PREVIOUS`, run `npm run db:rekey`, then remove the old one. |
+| `CLIENT_IP_HEADER` | Behind your own proxy (not Vercel): the header it sets with the caller's address (`x-real-ip`, `cf-connecting-ip`). Rate limits trust only this, never `X-Forwarded-For`. |
+| `REQUIRE_STAFF_TOTP` | `1` makes the authenticator-app second step compulsory for staff (they are sent to set it up at sign-in). Off by default; each person can turn it on under Sign-in security. |
+| `NEXT_PUBLIC_TURNSTILE_SITE_KEY`, `TURNSTILE_SECRET_KEY` | Optional bot check (Cloudflare Turnstile) on the forms that send a code. Off until both are set. |
 | `AUTH_SECRET` | Keys stored sign-in codes to this server. Set a long random value on the live site (`openssl rand -hex 32`). |
 | `CUSTOMER_PHONE_SIGNIN` | Set to `0` once customers have added their email, to end phone sign-in for customers. Staff keep it. |
 | `SMS_PROVIDER` | `africastalking` to send real SMS (`AT_USERNAME`, `AT_API_KEY`, optional `AT_SENDER_ID`). |

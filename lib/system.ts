@@ -3,7 +3,9 @@
 import { and, desc, eq, isNull, sql } from "drizzle-orm";
 import { db, iso, schema as s } from "./db";
 import { RETENTION_DAYS } from "./privacy";
+import { counts } from "./outbox";
 import { isSet, SITE } from "./site";
+import { turnstileEnabled } from "./turnstile";
 
 export type CheckState = "ready" | "test" | "missing";
 export type Check = { key: string; name: string; state: CheckState; detail: string; fix?: string };
@@ -34,6 +36,43 @@ function sms(): Check {
   }
   if (p === "console" || (!p && (!production() || demo()))) return { key: "sms", name, state: "test", detail: "Messages are printed to the server log; codes appear on screen. Nobody receives an SMS.", fix: "Set SMS_PROVIDER=africastalking with AT_USERNAME and AT_API_KEY." };
   return { key: "sms", name, state: "missing", detail: "No SMS provider. Nobody can sign in.", fix: "Set SMS_PROVIDER=africastalking with AT_USERNAME and AT_API_KEY." };
+}
+
+function email(): Check {
+  const name = "Email (customer sign-in and updates)";
+  if (has("SMTP_HOST", "SMTP_USER", "SMTP_PASS", "EMAIL_FROM")) return { key: "email", name, state: "ready", detail: `Sending as ${process.env.EMAIL_FROM} through ${process.env.SMTP_HOST}, at most ${Number(process.env.EMAIL_DAILY_LIMIT) || 400} a day. Run npm run check:email from the server to test it.` };
+  if (!production() || demo()) return { key: "email", name, state: "test", detail: "Messages are printed to the server log; codes appear on screen. Nobody receives an email.", fix: "Set SMTP_HOST, SMTP_USER, SMTP_PASS and EMAIL_FROM." };
+  return { key: "email", name, state: "missing", detail: "No mailbox. Customers can’t sign in or get updates by email.", fix: "Set SMTP_HOST, SMTP_USER, SMTP_PASS and EMAIL_FROM, with SPF, DKIM and DMARC on the domain." };
+}
+
+async function messages(): Promise<Check> {
+  const name = "Message queue";
+  const c = await counts();
+  if (c.failed > 0) return { key: "outbox", name, state: "missing", detail: `${c.failed} message${c.failed === 1 ? "" : "s"} could not be delivered after five tries.`, fix: "Check the mailbox or SMS provider above. Customers can still see the update in their portal." };
+  if (c.pending > 0) return { key: "outbox", name, state: "test", detail: `${c.pending} message${c.pending === 1 ? " is" : "s are"} waiting to be sent or retried. The scheduled job keeps trying.` };
+  return { key: "outbox", name, state: "ready", detail: "Nothing waiting. Failed messages are retried automatically." };
+}
+
+async function dataProtection(): Promise<Check[]> {
+  const live = production() && !demo();
+  const key: Check = process.env.DATA_KEY
+    ? { key: "datakey", name: "Encryption of ID and TIN numbers", state: "ready", detail: "Stored encrypted (AES-256-GCM) with a key that is not in the database." }
+    : { key: "datakey", name: "Encryption of ID and TIN numbers", state: live ? "missing" : "test", detail: live ? "DATA_KEY is not set. Customers’ ID numbers can’t be stored." : "A fixed development key is used.", fix: "Set DATA_KEY (openssl rand -hex 32) and keep a copy somewhere safe: without it the numbers can’t be read." };
+  const secret: Check = process.env.AUTH_SECRET
+    ? { key: "secret", name: "Sign-in secret", state: "ready", detail: "Sign-in codes are keyed to this server." }
+    : { key: "secret", name: "Sign-in secret", state: live ? "missing" : "test", detail: "AUTH_SECRET is not set; stored codes use a plain hash.", fix: "Set AUTH_SECRET (openssl rand -hex 32)." };
+  const ip: Check = process.env.VERCEL || process.env.CLIENT_IP_HEADER
+    ? { key: "ip", name: "Caller address for rate limits", state: "ready", detail: process.env.CLIENT_IP_HEADER ? `Read from the ${process.env.CLIENT_IP_HEADER} header.` : "Read from Vercel’s own header." }
+    : { key: "ip", name: "Caller address for rate limits", state: live ? "missing" : "test", detail: "No trusted address header, so every caller shares one limit.", fix: "Set CLIENT_IP_HEADER to the header your proxy sets (x-real-ip, cf-connecting-ip)." };
+  const people = await (await db()).select({ on: sql<number>`count(*) filter (where ${s.staff.totpEnabledAt} is not null)::int`, all: sql<number>`count(*)::int` }).from(s.staff).where(eq(s.staff.active, true));
+  const { on, all } = people[0] ?? { on: 0, all: 0 };
+  const mfa: Check = process.env.REQUIRE_STAFF_TOTP === "1"
+    ? { key: "mfa", name: "Staff authenticator step", state: "ready", detail: `Required for everyone. ${on} of ${all} active staff have set it up.` }
+    : { key: "mfa", name: "Staff authenticator step", state: on === all && all > 0 ? "ready" : "test", detail: `Optional. ${on} of ${all} active staff have set it up.`, fix: "Staff turn it on under Sign-in security. Set REQUIRE_STAFF_TOTP=1 to make it compulsory once everyone has." };
+  const bot: Check = turnstileEnabled()
+    ? { key: "bot", name: "Bot check on code forms", state: "ready", detail: "Cloudflare Turnstile protects the sign-in and request forms." }
+    : { key: "bot", name: "Bot check on code forms", state: "test", detail: "Off. Per-address and per-IP limits still apply, but a botnet could use up the daily email allowance.", fix: "Add a Cloudflare Turnstile widget and set NEXT_PUBLIC_TURNSTILE_SITE_KEY and TURNSTILE_SECRET_KEY." };
+  return [key, secret, ip, mfa, bot];
 }
 
 function payments(): Check[] {
@@ -106,7 +145,8 @@ export async function systemStatus() {
   const runs = await lastRuns();
   const groups: { title: string; checks: Check[] }[] = [
     { title: "Running the site", checks: [await database(), storage(), job(runs)] },
-    { title: "Talking to customers", checks: [sms(), ...payments()] },
+    { title: "Talking to customers", checks: [email(), sms(), await messages(), ...payments()] },
+    { title: "Protecting data", checks: await dataProtection() },
     { title: "Before launch", checks: [...site(), await catalogue()] },
   ];
   return { groups, runs };

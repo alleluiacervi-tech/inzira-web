@@ -266,7 +266,22 @@
     "emailPh": "wowe@example.com",
     "viaPhone": "Umukozi, cyangwa nta imeri ufite kuri konti? Injira ukoresheje nomero ya telefoni",
     "viaEmail": "Injira ukoresheje imeri",
-    "livePhone": "Koresha nomero ya telefoni iri kuri konti yawe. Turakoherereza kode kuri SMS. Nta jambo ry'ibanga rikenewe."
+    "livePhone": "Koresha nomero ya telefoni iri kuri konti yawe. Turakoherereza kode kuri SMS. Nta jambo ry'ibanga rikenewe.",
+    "totpTitle": "Intambwe imwe ya nyuma",
+    "totpIntro": "Fungura porogaramu yawe yo kwemeza (authenticator) wandike kode y’imibare 6 ya Inzira.",
+    "totpLabel": "Kode ya porogaramu",
+    "totpCta": "Injira",
+    "totpRecoveryLink": "Wataye telefoni? Koresha kode yo kugaruka",
+    "totpAppLink": "Subira ukoreshe porogaramu",
+    "totpRecoveryLabel": "Kode yo kugaruka",
+    "totpRecoveryHint": "Buri kode yo kugaruka ikoreshwa rimwe gusa.",
+    "totpChecking": "Turareba…",
+    "totpExpired": "Kwinjira byatinze cyane. Ongera utangire.",
+    "totpWrong": "Iyo kode si yo. Reba porogaramu yawe wongere ugerageze.",
+    "totpLocked": "Wanditse kode zitari zo kenshi. Tegereza iminota mike wongere winjire.",
+    "totpOff": "Iyi konti nta porogaramu yo kwemeza iriho.",
+    "totpDigits": "Andika kode y’imibare 6 iri muri porogaramu.",
+    "totpBack": "Tangira bundi bushya"
   },
   "code": {
     "title": "Shyiramo kode twakoherereje",
@@ -305,7 +320,8 @@
     "wrongEmail": "Iyo kode si yo. Reba imeri wongere ugerageze.",
     "email": "Ntitwabashije kohereza imeri. Ongera ugerageze nyuma y'umunota.",
     "noAccountEmail": "Nta konti dufite kuri iyi imeri. Tangira serivisi, konti yawe izafungurwa n'ubusabe bwa mbere.",
-    "useEmail": "Abakiriya binjirana imeri yabo. Koresha uburyo bwa imeri."
+    "useEmail": "Abakiriya binjirana imeri yabo. Koresha uburyo bwa imeri.",
+    "human": "Ntitwabashije kwemeza ko atari robo. Ongera ufungure urupapuro ugerageze."
   },
   "track": {
     "title": "Kurikirana ubusabe",

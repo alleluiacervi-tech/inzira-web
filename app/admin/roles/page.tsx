@@ -11,8 +11,8 @@ export default async function Page() {
     <>
       <PageHead title="Roles & people" sub="Who can see and change what · every change is logged" />
       <div className="content">
-        <RolesMatrix roles={roles} groups={groups} initial={matrix} />
-        <People staff={staff} roles={roles} meId={me.id} />
+        <RolesMatrix roles={roles} groups={groups} initial={matrix} canEdit={me.role === "Owner"} />
+        <People staff={staff} roles={roles} meId={me.id} isOwner={me.role === "Owner"} />
       </div>
     </>
   );

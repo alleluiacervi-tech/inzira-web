@@ -1,7 +1,7 @@
 // Sign-in with a phone number and a one-time SMS code, and the session that follows.
 // Codes and session tokens are stored only as SHA-256 hashes.
 import { createHash, createHmac, randomBytes, randomInt, timingSafeEqual } from "node:crypto";
-import { and, eq, gt, lt, sql } from "drizzle-orm";
+import { and, desc, eq, gt, inArray, lt, ne, sql } from "drizzle-orm";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { cache } from "react";
@@ -19,7 +19,9 @@ const COOKIE = "inzira_session";
 const CODE_TTL = 10 * 60e3;
 const RESEND_AFTER = 30e3;
 const MAX_ATTEMPTS = 5;
-const SESSION_DAYS = { customer: 30, staff: 1 } as const;
+/** A session ends after `idle` without use, and never lasts longer than `cap` from sign-in, however often it is used. */
+const SESSION = { customer: { idle: 7 * 864e5, cap: 30 * 864e5 }, staff: { idle: 8 * 36e5, cap: 864e5 } } as const;
+const MAX_SESSIONS = 10;
 
 const sha = (v: string) => createHash("sha256").update(v).digest("hex");
 /** Codes are six digits, so a plain hash could be reversed in moments if the table leaked. With AUTH_SECRET set they
@@ -140,10 +142,52 @@ export async function consumeEmailCode(emailInput: string, code: string): Promis
 
 // ---------------- sessions ----------------
 export async function startSession(kind: "customer" | "staff", subjectId: string) {
+  const d = await db();
+  const jar = await cookies();
+  // A new token for every sign-in, and the one this browser held before is dropped, so a token planted before sign-in is useless after.
+  const before = jar.get(COOKIE)?.value;
+  if (before) await d.delete(s.sessions).where(eq(s.sessions.id, sha(before)));
   const token = randomBytes(32).toString("base64url");
-  const expires = new Date(Date.now() + SESSION_DAYS[kind] * 864e5);
-  await (await db()).insert(s.sessions).values({ id: sha(token), kind, subjectId, expiresAt: expires.toISOString() });
-  (await cookies()).set(COOKIE, token, { httpOnly: true, secure: process.env.NODE_ENV === "production", sameSite: "lax", path: "/", expires });
+  const { idle, cap } = SESSION[kind];
+  await d.insert(s.sessions).values({ id: sha(token), kind, subjectId, expiresAt: new Date(Date.now() + idle).toISOString() });
+  // Keep the newest few sessions of this person; older devices are signed out.
+  const mine = await d.select({ id: s.sessions.id }).from(s.sessions).where(and(eq(s.sessions.kind, kind), eq(s.sessions.subjectId, subjectId))).orderBy(desc(s.sessions.createdAt));
+  if (mine.length > MAX_SESSIONS) await d.delete(s.sessions).where(inArray(s.sessions.id, mine.slice(MAX_SESSIONS).map((r) => r.id)));
+  jar.set(COOKIE, token, { httpOnly: true, secure: process.env.NODE_ENV === "production", sameSite: "lax", path: "/", expires: new Date(Date.now() + cap) });
+}
+
+// ---- second step for staff (authenticator app)
+const PENDING_COOKIE = "inzira_2fa";
+const PENDING_TTL = 5 * 60e3;
+
+/** After a staff member's SMS code is right but before the authenticator code: a five-minute marker, in its own cookie.
+ *  It opens nothing on its own: getSession never reads it. */
+export async function startPending(staffId: string) {
+  const d = await db();
+  const jar = await cookies();
+  const token = randomBytes(32).toString("base64url");
+  await d.insert(s.sessions).values({ id: sha(token), kind: "pending", subjectId: staffId, expiresAt: new Date(Date.now() + PENDING_TTL).toISOString() });
+  jar.set(PENDING_COOKIE, token, { httpOnly: true, secure: process.env.NODE_ENV === "production", sameSite: "strict", path: "/", maxAge: PENDING_TTL / 1000 });
+}
+/** The staff id waiting for their second step, if the marker is still valid. */
+export async function readPending(): Promise<string | null> {
+  const token = (await cookies()).get(PENDING_COOKIE)?.value;
+  if (!token) return null;
+  const [row] = await (await db()).select().from(s.sessions).where(and(eq(s.sessions.id, sha(token)), eq(s.sessions.kind, "pending"), gt(s.sessions.expiresAt, new Date().toISOString())));
+  return row?.subjectId ?? null;
+}
+export async function endPending() {
+  const jar = await cookies();
+  const token = jar.get(PENDING_COOKIE)?.value;
+  if (token) await (await db()).delete(s.sessions).where(eq(s.sessions.id, sha(token)));
+  jar.delete(PENDING_COOKIE);
+}
+
+/** Signs a person out on every device except the one making this request (after a change of email, say). */
+export async function endOtherSessions(kind: "customer" | "staff", subjectId: string) {
+  const token = (await cookies()).get(COOKIE)?.value;
+  const where = and(eq(s.sessions.kind, kind), eq(s.sessions.subjectId, subjectId));
+  await (await db()).delete(s.sessions).where(token ? and(where, ne(s.sessions.id, sha(token))) : where);
 }
 
 export async function endSession() {
@@ -153,12 +197,22 @@ export async function endSession() {
   jar.delete(COOKIE);
 }
 
-/** The signed-in person for this request, or null. Cached for the duration of one request. */
+/** The signed-in person for this request, or null. Cached for the duration of one request. Using a session pushes its
+ *  idle deadline forward (at most once per half window, so reading a page is not a write), never past the hard cap. */
 export const getSession = cache(async (): Promise<{ kind: "customer" | "staff"; subjectId: string } | null> => {
   const token = (await cookies()).get(COOKIE)?.value;
   if (!token) return null;
-  const [row] = await (await db()).select().from(s.sessions).where(and(eq(s.sessions.id, sha(token)), gt(s.sessions.expiresAt, new Date().toISOString())));
-  return row ? { kind: row.kind, subjectId: row.subjectId } : null;
+  const d = await db();
+  const [row] = await d.select().from(s.sessions).where(and(eq(s.sessions.id, sha(token)), gt(s.sessions.expiresAt, new Date().toISOString())));
+  if (!row || row.kind === "pending") return null;
+  const { idle, cap } = SESSION[row.kind];
+  const hardEnd = Date.parse(iso(row.createdAt)!) + cap;
+  if (Date.now() >= hardEnd) return null;
+  const expires = Date.parse(iso(row.expiresAt)!);
+  if (expires - Date.now() < idle / 2) {
+    await d.update(s.sessions).set({ expiresAt: new Date(Math.min(Date.now() + idle, hardEnd)).toISOString() }).where(eq(s.sessions.id, row.id)).catch(() => {});
+  }
+  return { kind: row.kind, subjectId: row.subjectId };
 });
 
 export async function requireCustomerId(next = "/portal"): Promise<string> {

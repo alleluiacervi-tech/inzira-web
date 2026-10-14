@@ -1,11 +1,43 @@
 "use client";
 import Link from "next/link";
 import { useState } from "react";
-import { requestCode, requestEmailCode, signIn, signInWithEmail } from "@/app/actions/auth";
+import { requestCode, requestEmailCode, signIn, signInSecondStep, signInWithEmail } from "@/app/actions/auth";
 import { trError } from "@/lib/i18n/errors";
 import { CodeEntry, isMobile } from "./PhoneCode";
+import { useHuman } from "./Human";
 import { useI18n } from "./I18n";
 import { Icon } from "./ui";
+
+/** Staff with an authenticator app: the 6-digit code from the app, or one of their recovery codes. */
+function SecondStep({ next, onRestart }: { next?: string; onRestart: () => void }) {
+  const { locale, t } = useI18n();
+  const [code, setCode] = useState("");
+  const [recovery, setRecovery] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  return (
+    <form className="stack g20" onSubmit={async (e) => {
+      e.preventDefault();
+      if (!recovery && code.length !== 6) { setError(t("signIn.totpDigits")); return; }
+      setBusy(true); setError("");
+      const r = await signInSecondStep(code, next).catch(() => ({ ok: false as const, error: t("code.wrong"), restart: undefined }));
+      // A successful sign-in redirects, so a result here is always a problem.
+      if (r && !r.ok) { setError(trError(locale, r.error)); setBusy(false); if (r.restart) setTimeout(onRestart, 2500); }
+    }}>
+      <div className="stack g8"><h1 className="d" style={{ fontSize: 30, lineHeight: 1.15 }}>{t("signIn.totpTitle")}</h1><p className="mut" style={{ fontSize: 15 }}>{t("signIn.totpIntro")}</p></div>
+      <div className="field">
+        <label htmlFor="totp">{t(recovery ? "signIn.totpRecoveryLabel" : "signIn.totpLabel")}</label>
+        <input id="totp" key={recovery ? "r" : "c"} className={`in code-in ${error ? "in-err" : ""}`} inputMode={recovery ? "text" : "numeric"} autoComplete="one-time-code" autoCapitalize="none" spellCheck={false} maxLength={recovery ? 12 : 6} value={code} autoFocus
+          onChange={(e) => { setCode(recovery ? e.target.value : e.target.value.replace(/\D/g, "").slice(0, 6)); setError(""); }} aria-describedby="totp-err" />
+        {error && <span className="err-text" id="totp-err" role="alert"><Icon name="alert" size={15} /> {error}</span>}
+        {recovery && <span className="hint">{t("signIn.totpRecoveryHint")}</span>}
+      </div>
+      <button className="btn btn-p btn-lg" type="submit" disabled={busy}>{busy ? <><span className="spin" /> {t("signIn.totpChecking")}</> : t("signIn.totpCta")}</button>
+      <button type="button" className="linkish" style={{ alignSelf: "flex-start", textAlign: "left" }} onClick={() => { setRecovery(!recovery); setCode(""); setError(""); }}>{t(recovery ? "signIn.totpAppLink" : "signIn.totpRecoveryLink")}</button>
+      <button type="button" className="linkish" style={{ alignSelf: "flex-start" }} onClick={onRestart}>{t("signIn.totpBack")}</button>
+    </form>
+  );
+}
 
 const isEmail = (v: string) => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v.trim());
 
@@ -17,6 +49,8 @@ export default function SignIn({ next, demo: demoModes = { email: false, phone: 
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [sent, setSent] = useState(false);
+  const [second, setSecond] = useState(false);
+  const human = useHuman();
   const [demoCode, setDemoCode] = useState<string>();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -29,21 +63,28 @@ export default function SignIn({ next, demo: demoModes = { email: false, phone: 
     : [["780000001", t("signIn.eric")], ["780000008", t("signIn.diane")]];
   const pick = (v: string) => { (byEmail ? setEmail : setPhone)(v); setError(""); };
 
+  if (second) return <SecondStep next={next} onRestart={() => { setSecond(false); setSent(false); setDemoCode(undefined); }} />;
   if (sent) {
     return byEmail
       ? <CodeEntry email={email.trim().toLowerCase()} demoCode={demoCode} cta={t("signIn.cta")} onBack={() => setSent(false)}
-          onResend={async () => { const r = await requestEmailCode(email); return r.ok ? { demoCode: r.demoCode } : { error: r.error }; }}
+          onResend={async () => { const r = await requestEmailCode(email, await human.get()); return r.ok ? { demoCode: r.demoCode } : { error: r.error }; }}
           onSubmit={async (code) => { const r = await signInWithEmail(email, code, next); return r && !r.ok ? r.error : null; }} />
       : <CodeEntry phone={phone} demoCode={demoCode} cta={t("signIn.cta")} onBack={() => setSent(false)}
-          onResend={async () => { const r = await requestCode(phone); return r.ok ? { demoCode: r.demoCode } : { error: r.error }; }}
-          onSubmit={async (code) => { const r = await signIn(phone, code, next); return r && !r.ok ? r.error : null; }} />;
+          onResend={async () => { const r = await requestCode(phone, await human.get()); return r.ok ? { demoCode: r.demoCode } : { error: r.error }; }}
+          onSubmit={async (code) => {
+            const r = await signIn(phone, code, next);
+            // Staff with an authenticator app have one more step before they are signed in.
+            if (r && r.ok) { setSecond(true); return null; }
+            return r && !r.ok ? r.error : null;
+          }} />;
   }
   return (
     <form className="stack g20" noValidate onSubmit={async (e) => {
       e.preventDefault();
       if (byEmail ? !isEmail(email) : !isMobile(phone)) { setError(t(byEmail ? "authErr.badEmail" : "authErr.badPhone")); return; }
       setBusy(true);
-      const r = await (byEmail ? requestEmailCode(email) : requestCode(phone)).catch(() => ({ ok: false as const, error: t("authErr.sendFail") }));
+      const token = await human.get();
+      const r = await (byEmail ? requestEmailCode(email, token) : requestCode(phone, token)).catch(() => ({ ok: false as const, error: t("authErr.sendFail") }));
       setBusy(false);
       if (!r.ok) { setError(trError(locale, r.error)); return; }
       setDemoCode(r.demoCode);

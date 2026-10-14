@@ -6,6 +6,8 @@
 //   npm run db:remove-samples [--yes]
 //                        live database: switch off the sample staff and list the sample customers that a
 //                        demo build may have added. Shows what it would do until you pass --yes.
+//   npm run db:rekey    after replacing DATA_KEY (keep the old one in DATA_KEY_PREVIOUS): re-encrypt every stored ID and TIN
+//                        number with the new key. Run it once, then remove DATA_KEY_PREVIOUS.
 //   npm run db:reset     local PGlite only: delete .data/pglite so it is rebuilt on next start
 import { rmSync } from "node:fs";
 import path from "node:path";
@@ -56,6 +58,10 @@ if (cmd === "migrate") {
     await d.delete(schema.sessions).where(and(eq(schema.sessions.kind, "staff"), eq(schema.sessions.subjectId, p.id)));
   }
   console.log(`Switched off ${people.length} sample staff and ended their sessions.`);
+} else if (cmd === "rekey") {
+  const { rekeyIdentity } = await import("../lib/db/protect.ts");
+  const n = await rekeyIdentity(await db());
+  console.log(`Re-encrypted the ID and TIN numbers of ${n} client${n === 1 ? "" : "s"} with the current DATA_KEY.`);
 } else if (cmd === "seed") {
   const d = await db();
   const existing = await d.select({ id: schema.categories.id }).from(schema.categories).limit(1);
@@ -63,7 +69,7 @@ if (cmd === "migrate") {
   await seed(d);
   console.log("Seeded.");
 } else {
-  console.error("Usage: tsx scripts/db.mts migrate | setup | seed | remove-samples | reset");
+  console.error("Usage: tsx scripts/db.mts migrate | setup | seed | remove-samples | rekey | reset");
   process.exit(1);
 }
 process.exit(0);

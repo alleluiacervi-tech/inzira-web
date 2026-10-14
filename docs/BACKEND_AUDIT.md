@@ -15,6 +15,41 @@ Findings below come from the code; each says where to look.
 
 Customers sign in with an email and a one-time code sent through Nodemailer (`lib/email.ts`). Registration is optional: a request can be sent and followed (reference plus email) without a portal, and signing in with the confirmed email later opens one. Staff keep SMS. New: `email_codes` table, `accounts.email` (unique, case-insensitive), `accounts.registered_at`, `profiles.date_of_birth`, `profiles.id_checked_*` (migration `0006`). Customer updates go by email when the account has one, else SMS, after the response is sent (this also closes M1 for new messages). Same code limits as phone: atomic attempts, single use, five per hour per address. `npm run check:email` tests the mailbox. Not done: bounce handling (SMTP gives none), a send queue with retries, an authenticator app for staff, and a bot check (for example Cloudflare Turnstile) on the code forms: without one, a botnet could use up the daily email cap and block sign-ins, even with the per-address and per-IP limits.
 
+## Status of the rest (2026-10-14)
+
+Everything in this audit is now fixed or decided, except the items under "Left on purpose". Checked by `npm run test:unit` (16), `npm run check:backend` (9), `npm run smoke` (40) and `npm run flows` (143), all passing, plus a production build.
+
+| Item | What was done |
+| --- | --- |
+| H2 ID and TIN in plain text | AES-256-GCM, key in `DATA_KEY` outside the database (`lib/crypto.ts`). Existing rows are encrypted at the next start; `npm run db:rekey` rotates the key. A tampered value does not open. Live site refuses to store a number without the key. |
+| H4 staff can escalate themselves | Only the Owner edits the roles table and appoints or changes Administrators; the screens show the table read-only to others. Owner-only reset of a colleague's authenticator step. Every use is in the audit log. |
+| M1 messages outside the transaction | Outbox table (`lib/outbox.ts`): the message is written in the same transaction as the change, sent after the response, retried by the daily job with pauses of 5 min, 30 min, 2 h, 12 h, then marked failed. A rolled-back change sends nothing; two workers cannot send the same message; the text is dropped once sent. System page shows waiting and failed counts. Staff invites, intake texts and the staff digest use it too. |
+| M2 payment prompts not idempotent | The database allows one pending prompt per request (partial unique index). The provider reference is made and saved before the provider is called; a timeout leaves the prompt waiting and the status check settles it. A definite refusal (4xx) fails it at once. When the provider cannot be asked, a prompt is closed only after an hour, not 15 minutes. |
+| M3 public payment callback | Limited per IP and per payment, body size capped, 429 so the provider retries. |
+| M4 guessable tracking | Ten tries per reference per 15 minutes from anywhere; a cheap existence check before loading a request. |
+| M5 upload checks | The file's first bytes decide its type (JPEG, PNG, WebP, HEIC, PDF); the browser's claim is ignored and the detected type is stored. A failed save removes the files it had already written. |
+| M6 scheduled job | Each task runs on its own and is recorded; one failing no longer skips the rest. Overdue payments, retention and the digest filter in SQL; payments for overdue requests come in one query. |
+| M7 sessions | Sliding expiry with a hard cap (customer 7 days idle, 30 days at most; staff 8 hours idle, 24 hours at most), a new token at every sign-in that drops the one the browser held, the ten newest sessions kept, index on `subject_id`, other devices signed out when the sign-in email changes. |
+| M8 rate-limit identity | The caller's address comes only from Vercel's own header or `CLIENT_IP_HEADER`. With neither on a live site, callers share one limit and a log line says so. |
+| M9 two sources of schema truth | Migrations run under a Postgres advisory lock, so servers starting together migrate one at a time. `align.ts` is kept as the fallback for databases without migration history and now mirrors `0007`. |
+| M10 indexes | Added in `0007`: `deliverables.ref`, `notes.ref`, `files.ref`, `audit.at`, `sessions.subject_id`, `sessions.expires_at`, `transactions.provider_ref` (prefix search), outbox due and recipient. |
+| Staff second factor | Authenticator app (RFC 6238) with eight one-use recovery codes, in `lib/totp.ts` and `lib/second-step.ts`. A code works once, even inside its 30-second window; six tries per 15 minutes. Optional per person; `REQUIRE_STAFF_TOTP=1` makes it compulsory. The owner can reset it. Secrets are stored encrypted and never sent to a screen. |
+| Bot check | Cloudflare Turnstile on the code forms, off until both keys are set. Fails closed when on and Cloudflare cannot be reached. |
+| Audit gaps | Staff sign-ins, wrong SMS codes for a staff number, wrong authenticator codes and recovery-code use are logged. |
+| `/api/health` | Answer reused for five seconds instead of a query per call. |
+| Money tests | `scripts/unit.mts` covers `amountDue` and `payStatus`, including pending, failed and refunded payments. |
+
+### Left on purpose
+
+- **Bounce handling.** SMTP gives none. Failed sends are retried and then shown on the System page; a bounced address is only noticed when a customer reports it.
+- **CSP `'unsafe-inline'` scripts.** Next.js inlines small scripts; moving to nonces makes every page dynamic. Nothing from other domains is allowed, except Turnstile when it is switched on.
+- **Refunds** still mark our fee refunded and return nothing automatically; the money moves in the provider's dashboard.
+- **Audit log actor names.** The log still stores display names. Changing it means a migration of old rows.
+- **Malware scanning** of uploaded documents. Staff open them in the browser's viewer; add a scanner if staff start downloading files to their computers.
+- **ESLint** has no config; `npm run lint` does nothing useful yet.
+- **Next 16** for the bundled `postcss` advisory (build-time only).
+- **Not tested against live services:** Hostinger or any real mailbox, Africa's Talking, MTN MoMo, Airtel Money, Vercel Blob, a real Postgres server. `npm run check:email` and `npm run check:providers` do that from the real host.
+
 ## What is solid
 
 - Authorization is checked on the server in every action: `caseScope`, `canSeeCase`, `canSeeClient` (`lib/access.ts`), and the same rules in the file route.

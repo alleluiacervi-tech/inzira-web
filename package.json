@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
+    "test:unit": "tsx scripts/unit.mts",
     "smoke": "node scripts/smoke.mjs",
     "flows": "node scripts/flows.mjs",
     "check:i18n": "node scripts/i18n-check.mjs",
@@ -16,7 +17,9 @@
     "db:seed": "tsx scripts/db.mts seed",
     "db:reset": "tsx scripts/db.mts reset",
     "db:remove-samples": "tsx scripts/db.mts remove-samples",
+    "db:rekey": "tsx scripts/db.mts rekey",
     "db:setup": "tsx scripts/db.mts setup",
+    "check:backend": "tsx scripts/backend-check.mts",
     "check:providers": "tsx scripts/check-providers.mts",
     "check:email": "tsx scripts/check-email.mts"
   },

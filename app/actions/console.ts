@@ -4,6 +4,7 @@ import { and, eq, inArray } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { WORKS_CASES, assignableStaff, canSeeCase, canSeeClient, seesAllCases } from "@/lib/access";
 import { getStaffUser, normalisePhone } from "@/lib/auth";
+import { open, seal } from "@/lib/crypto";
 import { maskNationalId, maskTin, rwf, shortName } from "@/lib/format";
 import { english, feeVars, msg, sms } from "@/lib/i18n/stored";
 import { audit, db, event, fail, notify, s, type Result } from "@/lib/mutate";
@@ -271,7 +272,7 @@ export async function revealNationalId(profileId: string): Promise<Result<{ nati
     entity: `Client ${prof.name} (${prof.id})`,
   });
 
-  return { ok: true, nationalId: prof.nationalId || prof.idMasked || "—" };
+  return { ok: true, nationalId: open(prof.nationalId) || prof.idMasked || "—" };
 }
 
 export async function revealTin(profileId: string): Promise<Result<{ tin: string }>> {
@@ -286,7 +287,7 @@ export async function revealTin(profileId: string): Promise<Result<{ tin: string
     entity: `Client ${prof.name} (${prof.id})`,
   });
 
-  return { ok: true, tin: prof.tin || prof.tinMasked || "—" };
+  return { ok: true, tin: open(prof.tin) || prof.tinMasked || "—" };
 }
 
 /** Records that a member of staff compared the details the customer typed (name, ID number, date of birth) with the ID photo.
@@ -348,9 +349,9 @@ export async function createClient(input: {
       name: input.name.trim(),
       relation: input.kind === "person" ? "self" : null,
       district: input.district?.trim() || null,
-      nationalId,
+      nationalId: seal(nationalId),
       idMasked: nationalId && maskNationalId(nationalId),
-      tin,
+      tin: seal(tin),
       tinMasked: tin && maskTin(tin),
     }).returning();
 

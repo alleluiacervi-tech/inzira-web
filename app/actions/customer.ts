@@ -2,7 +2,7 @@
 import { randomBytes } from "node:crypto";
 import { and, eq, ne, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
-import { consumeEmailCode, endSession, getSession, issueEmailCode, normaliseEmail, normalisePhone, requireCustomerId, startSession } from "@/lib/auth";
+import { consumeEmailCode, endOtherSessions, endSession, getSession, issueEmailCode, normaliseEmail, normalisePhone, requireCustomerId, startSession } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { deleteAccount, finishedWithDocuments, purgeDocuments } from "@/lib/privacy";
 import { iso } from "@/lib/db";
@@ -14,13 +14,17 @@ import { english, msg } from "@/lib/i18n/stored";
 import { maskNationalId, parseDob, prettyPhone, rwf } from "@/lib/format";
 import { audit, db, event, fail, invoiceFor, nextNumber, notify, refFor, s, type Result } from "@/lib/mutate";
 import { reconcilePayment } from "@/lib/billing";
-import { methodFor, providerFor } from "@/lib/payments";
+import { isUniqueViolation } from "@/lib/db/errors";
+import { PromptRefused, methodFor, newPrompt } from "@/lib/payments";
 import { SITE } from "@/lib/site";
 import { amountDue } from "@/lib/status";
 import { getService, listMyDocuments } from "@/lib/repo";
 import { TOO_MANY, allowIp } from "@/lib/ratelimit";
-import { ALLOWED, MAX_BYTES, humanSize, putFile } from "@/lib/storage";
+import { seal } from "@/lib/crypto";
+import { ALLOWED, MAX_BYTES, checkUpload, deleteFile, humanSize, putFile, sniffType } from "@/lib/storage";
 
+/** A file whose content is not what it claimed to be. */
+class BadFile extends Error {}
 const id = (prefix: string) => `${prefix}-${randomBytes(6).toString("hex")}`;
 const text = (fd: FormData, k: string) => String(fd.get(k) ?? "").trim();
 
@@ -36,7 +40,7 @@ const refuse = async (key: Refusal, vars?: Record<string, string | number>) => f
 
 async function checkFile(f: File): Promise<string | null> {
   if (f.size > MAX_BYTES) return tr(await customerLocale(), "custErr.fileBig", { name: f.name });
-  if (!ALLOWED.test(f.type)) return tr(await customerLocale(), "custErr.fileType", { name: f.name });
+  if (!ALLOWED.test(f.type) || !(await checkUpload(f))) return tr(await customerLocale(), "custErr.fileType", { name: f.name });
   return null;
 }
 
@@ -76,6 +80,8 @@ export async function submitRequest(fd: FormData): Promise<Result<{ ref: string;
     const [owner] = await d.select({ id: s.accounts.id, email: s.accounts.email }).from(s.accounts).where(eq(s.accounts.phone, phone));
     if (owner && owner.email?.toLowerCase() !== email) return refuse("phoneTaken");
   }
+  // Files are written inside the transaction; if it fails, the ones already stored are removed so none is left behind.
+  const stored: string[] = [];
   const result = await d.transaction(async (tx) => {
     let [account] = await tx.select().from(s.accounts).where(sql`lower(${s.accounts.email}) = ${email}`);
     if (!account) {
@@ -97,12 +103,12 @@ export async function submitRequest(fd: FormData): Promise<Result<{ ref: string;
     if (!profile) {
       [profile] = await tx.insert(s.profiles).values({
         id: id("p"), accountId: account.id, kind: forWho === "business" ? "business" : "person", name: forWho === "me" ? name : subject || name,
-        relation: forWho === "business" ? null : forWho === "me" ? "self" : "family", idMasked: maskNationalId(nid), nationalId: nid || null,
+        relation: forWho === "business" ? null : forWho === "me" ? "self" : "family", idMasked: maskNationalId(nid), nationalId: seal(nid),
         dateOfBirth: forWho === "business" ? null : dob,
       }).returning();
     } else if ((nid && !profile.nationalId) || (dob && !profile.dateOfBirth)) {
       await tx.update(s.profiles).set({
-        ...(nid && !profile.nationalId ? { nationalId: nid, idMasked: maskNationalId(nid) } : {}), ...(dob && !profile.dateOfBirth ? { dateOfBirth: dob } : {}),
+        ...(nid && !profile.nationalId ? { nationalId: seal(nid), idMasked: maskNationalId(nid) } : {}), ...(dob && !profile.dateOfBirth ? { dateOfBirth: dob } : {}),
       }).where(eq(s.profiles.id, profile.id));
     }
 
@@ -123,8 +129,12 @@ export async function submitRequest(fd: FormData): Promise<Result<{ ref: string;
     const uploads: { docId: string | null; file: File }[] = [...files.map((f, i) => (f ? { docId: docs[i].id, file: f } : null)).filter((x) => !!x), ...extra.map((f) => ({ docId: null, file: f }))];
     for (const u of uploads) {
       const fileId = id("f");
-      await putFile(`${ref}/${fileId}`, new Uint8Array(await u.file.arrayBuffer()), u.file.type);
-      await tx.insert(s.files).values({ id: fileId, ref, storageKey: `${ref}/${fileId}`, name: u.file.name, mime: u.file.type, bytes: u.file.size, uploadedBy: "customer" });
+      const bytes = new Uint8Array(await u.file.arrayBuffer());
+      const mime = sniffType(bytes);
+      if (!mime) throw new BadFile(u.file.name);
+      stored.push(`${ref}/${fileId}`);
+      await putFile(`${ref}/${fileId}`, bytes, mime);
+      await tx.insert(s.files).values({ id: fileId, ref, storageKey: `${ref}/${fileId}`, name: u.file.name, mime, bytes: u.file.size, uploadedBy: "customer" });
       const doc = docs.find((x) => x.id === u.docId);
       if (doc) Object.assign(doc, { status: "received", fileId, fileName: u.file.name, fileSize: humanSize(u.file.size), uploadedAt: now });
       else docs.push({ id: `${ref}-x${docs.length + 1}`, ref, position: docs.length, name: u.file.name, group: "Other", required: false, status: "received", ...{ fileId, fileName: u.file.name, fileSize: humanSize(u.file.size), uploadedAt: now } } as never);
@@ -138,7 +148,12 @@ export async function submitRequest(fd: FormData): Promise<Result<{ ref: string;
     await tx.insert(s.notifications).values({ accountId: account.id, icon: "check", title: english(received), key: received.key, vars: received.vars, href: `/portal/requests/${ref}` });
     await audit(tx, { actor: account.name, role: "Customer", action: "Opened request", entity: `${ref} · ${service.name}` });
     return { ref, accountId: account.id, locale: asLocale(account.locale) };
+  }).catch(async (e) => {
+    await Promise.all(stored.map((key) => deleteFile(key).catch(() => {})));
+    if (e instanceof BadFile) return null;
+    throw e;
   });
+  if (!result) return refuse("fileType", { name: "your file" });
 
   if (portal) {
     await startSession("customer", result.accountId);
@@ -181,14 +196,17 @@ export async function uploadDocument(fd: FormData): Promise<Result<{ docs: Libra
   const own = await ownRequest(doc.ref);
   if (!own) return refuse("document");
   const fileId = id("f");
-  await putFile(`${doc.ref}/${fileId}`, new Uint8Array(await file.arrayBuffer()), file.type);
-  await d.transaction(async (tx) => {
-    await tx.insert(s.files).values({ id: fileId, ref: doc.ref, storageKey: `${doc.ref}/${fileId}`, name: file.name, mime: file.type, bytes: file.size, uploadedBy: "customer" });
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  const mime = sniffType(bytes);
+  if (!mime) return fail(await checkFile(file) ?? tr(await customerLocale(), "custErr.fileType", { name: file.name }));
+  await putFile(`${doc.ref}/${fileId}`, bytes, mime);
+  try { await d.transaction(async (tx) => {
+    await tx.insert(s.files).values({ id: fileId, ref: doc.ref, storageKey: `${doc.ref}/${fileId}`, name: file.name, mime, bytes: file.size, uploadedBy: "customer" });
     await tx.update(s.requestDocuments).set({ status: "received", fileId, fileName: file.name, fileSize: humanSize(file.size), uploadedAt: new Date().toISOString(), note: null, reviewedAt: null, reviewedBy: null })
       .where(eq(s.requestDocuments.id, docId));
     await event(tx, doc.ref, msg("ev.docUploaded", { doc: doc.name }), "customer");
     await audit(tx, { actor: own.name, role: "Customer", action: "Uploaded document", entity: `${doc.ref} · ${doc.name}` });
-  });
+  }); } catch (e) { await deleteFile(`${doc.ref}/${fileId}`).catch(() => {}); throw e; }
   revalidatePath("/portal", "layout");
   return { ok: true, docs: await listMyDocuments() };
 }
@@ -211,16 +229,31 @@ export async function startPayment(ref: string, phoneInput: string): Promise<Res
   const official = Math.max(0, (r.official ?? 0) - paidOfficial);
   if (txs.some((t) => t.status === "pending")) return refuse("promptWaiting");
   const receipt = txs.length ? `${r.invoice}-${txs.length + 1}` : r.invoice;
-  // Record the attempt first, so a callback that arrives quickly always finds it.
-  const [tx] = await d.insert(s.transactions).values({ ref, receipt, method: methodFor(phone), official, ours: due - official, status: "pending", payer: phone, providerRef: "" }).returning({ id: s.transactions.id });
+  let prompt: ReturnType<typeof newPrompt>;
+  try { prompt = newPrompt(phone); } catch (e) { console.error("[payments]", e); return refuse("momoDown"); }
+  // Record the attempt first, with the provider's reference already known, so a callback that arrives quickly finds it
+  // and a call that times out after the provider accepted it can still be settled. The database allows one waiting prompt
+  // per request, so two taps at once cannot send two.
+  let tx: { id: number };
+  try {
+    [tx] = await d.insert(s.transactions).values({ ref, receipt, method: methodFor(phone), official, ours: due - official, status: "pending", payer: phone, providerRef: prompt.providerRef }).returning({ id: s.transactions.id });
+  } catch (e) {
+    if (isUniqueViolation(e)) return refuse("promptWaiting");
+    throw e;
+  }
   try {
     const callbackUrl = SITE.url.startsWith("http") ? `${SITE.url}/api/payments/callback?tx=${tx.id}` : undefined;
-    const { providerRef } = await providerFor(phone).requestToPay({ phone9: phone, amount: due, reference: receipt, callbackUrl });
-    await d.update(s.transactions).set({ providerRef }).where(eq(s.transactions.id, tx.id));
+    await prompt.provider.requestToPay({ id: prompt.id, phone9: phone, amount: due, reference: receipt, callbackUrl });
   } catch (e) {
     console.error("[payments]", e);
-    await d.update(s.transactions).set({ status: "failed" }).where(eq(s.transactions.id, tx.id));
-    return refuse("momoDown");
+    if (e instanceof PromptRefused) {
+      await d.update(s.transactions).set({ status: "failed" }).where(and(eq(s.transactions.id, tx.id), eq(s.transactions.status, "pending")));
+      return refuse("momoDown");
+    }
+    // Unknown whether the prompt went out: leave it waiting. The check on the customer's screen and the scheduled job
+    // ask the provider, and close it as failed after fifteen minutes if it never existed.
+    await d.update(s.requests).set({ quote: "approved" }).where(eq(s.requests.ref, ref));
+    return { ok: true, txId: tx.id, receipt };
   }
   await d.update(s.requests).set({ quote: "approved" }).where(eq(s.requests.ref, ref));
   return { ok: true, txId: tx.id, receipt };
@@ -317,6 +350,8 @@ export async function confirmEmailChange(emailInput: string, code: string): Prom
       await tx.update(s.accounts).set({ email: checked.email }).where(eq(s.accounts.id, accountId));
       await audit(tx, { actor: accountId, role: "Customer", action: "Changed sign-in email", entity: accountId });
     });
+    // Whoever else was signed in (a lost phone, a shared computer) is signed out when the sign-in address changes.
+    await endOtherSessions("customer", accountId);
   } catch {
     // Someone confirmed the same address a moment earlier: the unique index refuses a second account.
     return refuse("emailTaken");

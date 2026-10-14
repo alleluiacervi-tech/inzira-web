@@ -4,12 +4,13 @@
 //   on request once a request is finished, and automatically DOC_RETENTION_DAYS after it finished.
 // - Deliverables (certificates we hand over) stay until the customer deletes their account.
 // - Payments, invoices and official receipts are financial records and are kept, as the law requires.
-import { and, eq, inArray, isNotNull } from "drizzle-orm";
+import { and, eq, inArray, isNotNull, sql } from "drizzle-orm";
 import { db, schema as s, type Db } from "./db";
 import type { Locale } from "./i18n/locale";
 import { text } from "./i18n/messages";
 import { msg } from "./i18n/stored";
 import { event } from "./mutate";
+import { dropOutboxFor } from "./outbox";
 import { deleteFile } from "./storage";
 
 type Tx = Parameters<Parameters<Db["transaction"]>[0]>[0];
@@ -76,7 +77,10 @@ export async function finishedWithDocuments(accountId: string) {
 export async function retentionSweep() {
   const d = await db();
   const cutoff = Date.now() - RETENTION_DAYS * 864e5;
-  const rows = await d.select({ ref: s.requests.ref, stage: s.requests.stage, stageDates: s.requests.stageDates, closed: s.requests.closed }).from(s.requests);
+  // The database narrows it to requests that finished before the cutoff; finishedAt then confirms each one.
+  const finished = sql`coalesce(${s.requests.closed}->>'at', case when ${s.requests.stage} = 'completed' then ${s.requests.stageDates}->>'completed' end)`;
+  const rows = await d.select({ ref: s.requests.ref, stage: s.requests.stage, stageDates: s.requests.stageDates, closed: s.requests.closed }).from(s.requests)
+    .where(sql`${finished} is not null and (${finished})::timestamptz < ${new Date(cutoff).toISOString()}::timestamptz`);
   const due = rows.filter((r) => { const f = finishedAt(r); return f && Date.parse(f) < cutoff; }).map((r) => r.ref);
   return { deleted: await purgeDocuments(due, "retention") };
 }
@@ -93,6 +97,9 @@ export async function deleteAccount(accountId: string, locale: Locale = "en"): P
   const profileIds = profiles.map((p) => p.id);
   const refs = profileIds.length ? (await d.select({ ref: s.requests.ref }).from(s.requests).where(inArray(s.requests.profileId, profileIds))).map((r) => r.ref) : [];
   await purgeDocuments(refs, "account");
+  // Messages still waiting to be sent to them are dropped with the account.
+  const [contact] = await d.select({ email: s.accounts.email, phone: s.accounts.phone }).from(s.accounts).where(eq(s.accounts.id, accountId));
+  if (contact) await dropOutboxFor([contact.email ?? "", contact.phone ?? ""]);
 
   // Deliverables are the customer's to keep, so they go with the account.
   const delivered = refs.length ? await d.select({ id: s.files.id, key: s.files.storageKey }).from(s.deliverables).innerJoin(s.files, eq(s.files.id, s.deliverables.fileId)).where(inArray(s.deliverables.ref, refs)) : [];

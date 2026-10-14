@@ -266,7 +266,22 @@
     "emailPh": "you@example.com",
     "viaPhone": "Staff, or no email on your account yet? Sign in with a phone number",
     "viaEmail": "Sign in with your email instead",
-    "livePhone": "Use the phone number on your account. We’ll send a code by SMS. There’s no password."
+    "livePhone": "Use the phone number on your account. We’ll send a code by SMS. There’s no password.",
+    "totpTitle": "One more step",
+    "totpIntro": "Open your authenticator app and type the 6-digit code for Inzira.",
+    "totpLabel": "Authenticator code",
+    "totpCta": "Sign in",
+    "totpRecoveryLink": "Lost your phone? Use a recovery code",
+    "totpAppLink": "Use the authenticator app instead",
+    "totpRecoveryLabel": "Recovery code",
+    "totpRecoveryHint": "Each recovery code works once.",
+    "totpChecking": "Checking…",
+    "totpExpired": "That sign-in took too long. Start again.",
+    "totpWrong": "That code is not right. Check your authenticator app and try again.",
+    "totpLocked": "Too many wrong codes. Wait a few minutes and sign in again.",
+    "totpOff": "The authenticator step is not set up for this account.",
+    "totpDigits": "Enter the 6-digit code from the app.",
+    "totpBack": "Start again"
   },
   "code": {
     "title": "Enter the code we sent you",
@@ -305,7 +320,8 @@
     "wrongEmail": "That code is not right. Check the email and try again.",
     "email": "We couldn’t send the email. Please try again in a minute.",
     "noAccountEmail": "We don’t have an account for this email yet. Start a service and your portal is created with your first request.",
-    "useEmail": "Customers sign in with their email address. Use the email option."
+    "useEmail": "Customers sign in with their email address. Use the email option.",
+    "human": "We couldn’t confirm you are not a robot. Reload the page and try again."
   },
   "track": {
     "title": "Track a request",

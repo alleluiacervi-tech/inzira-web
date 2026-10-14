@@ -6,6 +6,7 @@ import { trError } from "@/lib/i18n/errors";
 import type { Service } from "@/lib/types";
 import { requestEmailCode } from "@/app/actions/auth";
 import { submitRequest } from "@/app/actions/customer";
+import { useHuman } from "./Human";
 import { useI18n } from "./I18n";
 import { CodeEntry, isMobile, prettyMobile } from "./PhoneCode";
 import { Alert, FeeLines, Icon } from "./ui";
@@ -36,6 +37,7 @@ export default function StartForm({ service: s }: { service: Service | null }) {
   const last = keys.length - 1;
   const docList = s ? s.documents : [{ name: t("start.extraDoc"), detail: t("start.extraDetail"), required: false }];
 
+  const human = useHuman();
   const [step, setStep] = useState(0);
   const [phase, setPhase] = useState<"form" | "verify" | "done">("form");
   const [f, setF] = useState(EMPTY);
@@ -91,7 +93,7 @@ export default function StartForm({ service: s }: { service: Service | null }) {
     if (step < last) { setStep(step + 1); window.scrollTo({ top: 0 }); return; }
     // Last step: email a code to confirm the address before anything is created.
     setSending(true); setSendError("");
-    const r = await requestEmailCode(f.email).catch(() => ({ ok: false as const, error: t("authErr.sendFail") }));
+    const r = await requestEmailCode(f.email, await human.get()).catch(() => ({ ok: false as const, error: t("authErr.sendFail") }));
     setSending(false);
     if (!r.ok) { setSendError(trError(locale, r.error)); return; }
     setDemoCode(r.demoCode);
@@ -149,7 +151,7 @@ export default function StartForm({ service: s }: { service: Service | null }) {
         <div className="stack g20" style={{ maxWidth: 460, margin: "0 auto" }}>
           <span className="eb" style={{ fontSize: 11 }}>{t("start.last")}</span>
           <CodeEntry email={f.email.trim().toLowerCase()} demoCode={demoCode} cta={t("start.confirm")} onBack={() => { setPhase("form"); setStep(0); }}
-            onResend={async () => { const r = await requestEmailCode(f.email); return r.ok ? { demoCode: r.demoCode } : { error: r.error }; }}
+            onResend={async () => { const r = await requestEmailCode(f.email, await human.get()); return r.ok ? { demoCode: r.demoCode } : { error: r.error }; }}
             onSubmit={send} />
           <p className="hint row g8" style={{ alignItems: "flex-start" }}><Icon name="lock" size={16} /><span>{t("start.emailUse")}</span></p>
         </div>

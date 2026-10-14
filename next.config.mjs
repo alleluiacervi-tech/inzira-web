@@ -8,14 +8,15 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 // domains is. Vercel preview deployments also load the Vercel toolbar.
 const dev = process.env.NODE_ENV !== "production";
 const preview = process.env.VERCEL_ENV === "preview";
+const turnstile = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY ? " https://challenges.cloudflare.com" : "";
 const csp = [
   "default-src 'self'",
-  `script-src 'self' 'unsafe-inline'${dev ? " 'unsafe-eval'" : ""}${preview ? " https://vercel.live" : ""}`,
+  `script-src 'self' 'unsafe-inline'${turnstile}${dev ? " 'unsafe-eval'" : ""}${preview ? " https://vercel.live" : ""}`,
   `style-src 'self' 'unsafe-inline'${preview ? " https://vercel.live" : ""}`,
   `img-src 'self' data: blob:${preview ? " https://vercel.live https://vercel.com" : ""}`,
   `font-src 'self'${preview ? " https://vercel.live https://assets.vercel.com" : ""}`,
   `connect-src 'self'${dev ? " ws:" : ""}${preview ? " https://vercel.live wss://ws-us3.pusher.com" : ""}`,
-  `frame-src ${preview ? "https://vercel.live" : "'none'"}`,
+  `frame-src ${preview || turnstile ? `${preview ? "https://vercel.live" : ""}${turnstile}`.trim() : "'none'"}`,
   "frame-ancestors 'none'",
   "object-src 'none'",
   "base-uri 'self'",

@@ -22,6 +22,25 @@ const useBlob = () => {
 export const MAX_BYTES = 10 * 1024 * 1024;
 export const ALLOWED = /^(image\/(jpeg|png|webp|heic|heif)|application\/pdf)$/;
 
+const ascii = (b: Uint8Array, from: number, to: number) => String.fromCharCode(...b.subarray(from, to));
+const HEIF_BRANDS = new Set(["heic", "heix", "hevc", "hevx", "heim", "heis", "mif1", "msf1"]);
+/** What a file really is, from its first bytes. The type a browser reports is chosen by the sender and proves nothing. */
+export function sniffType(b: Uint8Array): "image/jpeg" | "image/png" | "image/webp" | "image/heic" | "application/pdf" | null {
+  if (b.length < 12) return null;
+  if (b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff) return "image/jpeg";
+  if (b[0] === 0x89 && ascii(b, 1, 4) === "PNG" && b[4] === 0x0d && b[5] === 0x0a) return "image/png";
+  if (ascii(b, 0, 4) === "RIFF" && ascii(b, 8, 12) === "WEBP") return "image/webp";
+  if (ascii(b, 4, 8) === "ftyp" && HEIF_BRANDS.has(ascii(b, 8, 12))) return "image/heic";
+  // A PDF may begin with a few bytes of junk, but its header sits within the first kilobyte.
+  if (ascii(b, 0, Math.min(b.length, 1024)).includes("%PDF-")) return "application/pdf";
+  return null;
+}
+/** Checks a browser File against the size and type rules, by its content. Returns the content type to store, or null. */
+export async function checkUpload(f: File): Promise<string | null> {
+  if (f.size > MAX_BYTES || !ALLOWED.test(f.type)) return null;
+  return sniffType(new Uint8Array(await f.slice(0, 1100).arrayBuffer()));
+}
+
 export async function putFile(key: string, bytes: Uint8Array, contentType = "application/octet-stream") {
   const pathname = keyPath(key);
   if (!pathname) throw new Error("A storage key is required.");

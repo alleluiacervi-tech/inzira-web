@@ -17,11 +17,14 @@ import { migrate as migratePglite } from "drizzle-orm/pglite/migrator";
 import { Pool } from "pg";
 import * as schema from "./schema";
 import { alignSchema } from "./align";
+import { protectIdentity } from "./protect";
 import { ensureDemoSignIns, seed } from "./seed";
 
 export type Db = PgDatabase<PgQueryResultHKT, typeof schema>;
 export { schema };
 
+/** Any fixed number; every Inzira server asks for the same one. */
+const MIGRATION_LOCK = 727_274_001;
 const migrationsFolder = path.join(process.cwd(), "drizzle");
 const g = globalThis as unknown as { __inziraDb?: Promise<Db> };
 
@@ -39,8 +42,18 @@ async function open(): Promise<Db> {
   if (process.env.DATABASE_URL) {
     const pool = new Pool({ connectionString: process.env.DATABASE_URL, max: Number(process.env.DB_POOL_MAX ?? 5) });
     const d = drizzlePg(pool, { schema }) as unknown as Db;
-    await alignSchema(d, () => migratePg(d as never, { migrationsFolder }));
-    await ensureDemoSignIns(d);
+    // When several servers start together (a scale-out, a deploy), one at a time brings the schema up to date; the others
+    // wait on this lock, then find nothing left to do.
+    const lock = await pool.connect();
+    try {
+      await lock.query("select pg_advisory_lock($1)", [MIGRATION_LOCK]);
+      await alignSchema(d, () => migratePg(d as never, { migrationsFolder }));
+      await ensureDemoSignIns(d);
+      await protectIdentity(d);
+    } finally {
+      await lock.query("select pg_advisory_unlock($1)", [MIGRATION_LOCK]).catch(() => {});
+      lock.release();
+    }
     return d;
   }
   const dir = process.env.PGLITE_DIR ?? (process.env.VERCEL ? "memory://" : path.join(process.cwd(), ".data", "pglite"));
@@ -51,6 +64,7 @@ async function open(): Promise<Db> {
   const empty = (await d.select({ id: schema.categories.id }).from(schema.categories).limit(1)).length === 0;
   if (empty && process.env.DB_AUTO_SEED !== "0") await seed(d);
   await ensureDemoSignIns(d);
+  await protectIdentity(d);
   return d;
 }
 

@@ -4,10 +4,23 @@ import { headers } from "next/headers";
 import { db, schema as s } from "./db";
 import { isDemo } from "./sms";
 
-/** The caller's IP address as reported by the host's proxy. */
+let warned = false;
+/**
+ * The caller's IP address, taken only from a header the host sets itself, because X-Forwarded-For can be written by the caller.
+ * - On Vercel: x-vercel-forwarded-for, which Vercel overwrites.
+ * - Behind your own proxy: set CLIENT_IP_HEADER to the header it sets (for example x-real-ip or cf-connecting-ip).
+ * - Development and demos: the first X-Forwarded-For value, or "local".
+ * On a live site with none of these, every caller shares the "unknown" bucket and a log line says so: limits then
+ * hold for everyone together (safe, but one abuser can lock out the rest) instead of being skipped.
+ */
 export async function clientIp() {
   const h = await headers();
-  return (h.get("x-forwarded-for")?.split(",")[0] ?? h.get("x-real-ip") ?? "unknown").trim();
+  const named = process.env.CLIENT_IP_HEADER?.toLowerCase();
+  const value = named ? h.get(named) : process.env.VERCEL ? h.get("x-vercel-forwarded-for") ?? h.get("x-real-ip") : null;
+  if (value) return value.split(",")[0].trim();
+  if (process.env.NODE_ENV !== "production" || isDemo()) return h.get("x-forwarded-for")?.split(",")[0].trim() || h.get("x-real-ip") || "local";
+  if (!warned) { warned = true; console.error("[ratelimit] no trusted client IP header: set CLIENT_IP_HEADER (or deploy on Vercel). All callers share one limit."); }
+  return "unknown";
 }
 
 /** Counts one attempt for `key`. Returns false once more than `max` attempts fall in `windowMs`. */
@@ -33,6 +46,8 @@ export const LIMITS = {
   codeTo: { max: 5, windowMs: 60 * 60e3 },     // sign-in codes sent to one number or address
   signIn: { max: 20, windowMs: 15 * 60e3 },    // codes tried
   track: { max: 30, windowMs: 15 * 60e3 },     // tracking look-ups
+  trackRef: { max: 10, windowMs: 15 * 60e3 },  // tries at one reference, from anywhere
+  totp: { max: 6, windowMs: 15 * 60e3 },       // authenticator codes tried for one staff account
   request: { max: 10, windowMs: 60 * 60e3 },   // new requests sent
   payment: { max: 10, windowMs: 60 * 60e3 },   // payment prompts
 } as const;

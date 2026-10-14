@@ -13,6 +13,7 @@
 // The public site defaults to Kinyarwanda; these checks read the English copy, so every tab sets the
 // language cookie to English first. `npm run smoke` checks the Kinyarwanda default.
 import { spawn } from "node:child_process";
+import { createHmac } from "node:crypto";
 import { existsSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -609,6 +610,94 @@ await step("system", async () => {
   await p.click("Send me a test SMS", "button"); await waitFor(p, "Test SMS sent");
   check("system: a test SMS can be sent", await p.has("Test SMS sent"));
   await p.close();
+});
+
+// ---------- who may change roles; the authenticator step for staff ----------
+/** The 6-digit authenticator code for a base32 secret, `ahead` 30-second steps from now (RFC 6238, SHA-1). */
+function totp(secret, ahead = 0) {
+  const A = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
+  let bits = 0, value = 0; const key = [];
+  for (const ch of secret.replace(/\s/g, "")) { value = (value << 5) | A.indexOf(ch); bits += 5; if (bits >= 8) { key.push((value >>> (bits - 8)) & 255); bits -= 8; } }
+  const counter = Buffer.alloc(8); counter.writeBigUInt64BE(BigInt(Math.floor(Date.now() / 30000) + ahead));
+  const h = createHmac("sha1", Buffer.from(key)).update(counter).digest(); const o = h[h.length - 1] & 15;
+  return String((((h[o] & 0x7f) << 24) | (h[o + 1] << 16) | (h[o + 2] << 8) | h[o + 3]) % 1000000).padStart(6, "0");
+}
+/** Staff phone sign-in up to the code step; returns the page, signed in as far as the SMS code. */
+async function phoneCode(p, phone) {
+  await p.go("/sign-in?method=phone");
+  if ((await p.ev("location.pathname")) !== "/sign-in") { await signOut(p); await p.go("/sign-in?method=phone"); }
+  await p.set("#si-phone", phone); await p.click("Send me a code"); await waitCode(p);
+  const code = await p.ev(`document.querySelector("[data-demo-code]")?.dataset.demoCode ?? ""`);
+  await p.set("#otp", code); await p.click("Sign in", "button"); await sleep(1500); await p.help();
+}
+
+await step("roles", async () => {
+  const p = await page();
+  await signIn(p, "780000008");
+  await p.go("/admin/roles");
+  check("roles: the owner can edit the permissions table", (await p.ev(`document.querySelectorAll('.roles input[type=checkbox]:not(:disabled)').length`)) > 20);
+  await p.ev(`(async () => { const sel = document.querySelector('select[id^="r-"]'); return sel ? sel.id : "" })()`);
+  const id = await p.ev(`[...document.querySelectorAll("tr")].find((r) => r.textContent.includes("New Colleague"))?.querySelector("select")?.id ?? ""`);
+  if (!id) throw new Error("New Colleague is not listed (the admin step invites them)");
+  await p.set("#" + id, "Administrator"); await waitFor(p, "is now Administrator");
+  check("roles: the owner can appoint an Administrator", await p.has("New Colleague is now Administrator"));
+  await signOut(p);
+  await signIn(p, "788444555");
+  await p.go("/admin/roles");
+  check("roles: an Administrator sees the table but can't change it", await p.has("Only the owner can change this table") && (await p.ev(`document.querySelectorAll('.roles input[type=checkbox]:not(:disabled)').length`)) === 0);
+  check("roles: an Administrator can't appoint another Administrator", !(await p.ev(`[...document.querySelectorAll("#people select option")].some((o) => o.textContent === "Administrator")`)));
+  await p.close();
+});
+
+await step("authenticator", async () => {
+  const p = await page();
+  await signIn(p, "780000001");
+  await p.go("/console/security"); await waitFor(p, "Authenticator app");
+  await p.click("Set up authenticator app", "button"); await waitFor(p, "Add Inzira to your app");
+  const secret = await p.ev(`document.querySelector("[data-totp-secret]")?.dataset.totpSecret ?? ""`);
+  check("authenticator: setup shows a key to add to the app", /^[A-Z2-7]{32}$/.test(secret));
+  await p.set("#sec-code", "000000"); await p.click("Turn on", "button"); await waitFor(p, "not right");
+  check("authenticator: a wrong code does not turn it on", await p.has("not right") && !(await p.has("Save your recovery codes")));
+  await p.set("#sec-code", totp(secret)); await p.click("Turn on", "button"); await waitFor(p, "Save your recovery codes");
+  const recovery = await p.ev(`[...document.querySelectorAll("#rc-h ~ ul li")].map((li) => li.textContent)`);
+  check("authenticator: it turns on and shows eight recovery codes once", recovery.length === 8);
+  await p.click("I have saved them", "label"); await p.click("Done", "button"); await sleep(300);
+  check("authenticator: the page now says it is on", await p.has("Authenticator app is on"));
+  await signOut(p);
+
+  await phoneCode(p, "780000001");
+  check("authenticator: after the SMS code, a second step is asked for", await p.has("One more step") && (await p.ev("location.pathname")) === "/sign-in");
+  await p.set("#totp", "000000"); await p.click("Sign in", "button"); await waitFor(p, "not right");
+  check("authenticator: a wrong code does not sign in", await p.has("not right") && (await p.ev("location.pathname")) === "/sign-in");
+  // The code used while setting up is spent; the next 30-second step is accepted (the app allows a step either side).
+  await p.set("#totp", totp(secret, 1)); await p.click("Sign in", "button"); await waitPath(p, (path) => path.startsWith("/console"));
+  check("authenticator: the right code signs in", (await p.ev("location.pathname")).startsWith("/console"));
+  await signOut(p);
+
+  await phoneCode(p, "780000001");
+  await p.set("#totp", totp(secret, 1)); await p.click("Sign in", "button"); await waitFor(p, "not right");
+  check("authenticator: a code that was already used is refused", await p.has("not right") && (await p.ev("location.pathname")) === "/sign-in");
+  await p.click("Lost your phone?", "button"); await sleep(200);
+  await p.set("#totp", recovery[0]); await p.click("Sign in", "button"); await waitPath(p, (path) => path.startsWith("/console"));
+  check("authenticator: a recovery code signs in", (await p.ev("location.pathname")).startsWith("/console"));
+  await signOut(p);
+
+  await phoneCode(p, "780000001");
+  await p.click("Lost your phone?", "button"); await sleep(200);
+  await p.set("#totp", recovery[0]); await p.click("Sign in", "button"); await waitFor(p, "not right");
+  check("authenticator: a recovery code works only once", await p.has("not right") && (await p.ev("location.pathname")) === "/sign-in");
+  await p.close();
+
+  // The owner can take the step off for a colleague who lost their phone and their codes.
+  const o = await page();
+  await signIn(o, "780000008");
+  await o.go("/admin/roles"); await waitFor(o, "Authenticator");
+  check("authenticator: the owner sees who has it on", await o.ev(`[...document.querySelectorAll("tr")].some((r) => r.textContent.includes("Eric Niyonzima") && r.textContent.includes("Authenticator"))`));
+  await o.ev(`window.confirm = () => true`);
+  await o.ev(`(() => { const row = [...document.querySelectorAll("tr")].find((r) => r.textContent.includes("Eric Niyonzima")); [...row.querySelectorAll("button")].find((b) => b.textContent.startsWith("Reset authenticator")).click(); return true; })()`);
+  await waitFor(o, "authenticator step was removed");
+  check("authenticator: the owner can reset it", await o.has("authenticator step was removed"));
+  await o.close();
 });
 
 // ---------- mobile navigation ----------
