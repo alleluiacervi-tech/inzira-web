@@ -27,15 +27,24 @@ if (typeof WebSocket === "undefined") { console.error("This script needs Node 22
 const work = mkdtempSync(join(tmpdir(), "inzira-flows-"));
 const png = join(work, "id_photo.png");
 writeFileSync(png, Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==", "base64"));
-// Containers and CI runners usually can't give Chrome its sandbox; this browser only opens the local app.
-const sandbox = process.platform === "linux" ? ["--no-sandbox"] : [];
-const chrome = spawn(chromePath, ["--headless=new", "--disable-gpu", "--no-first-run", ...sandbox, `--remote-debugging-port=${port}`, `--user-data-dir=${join(work, "profile")}`, "about:blank"], { stdio: "ignore" });
+// Containers and CI runners usually can't give Chrome its sandbox or a large /dev/shm; this browser only opens the local app.
+const sandbox = process.platform === "linux" ? ["--no-sandbox", "--disable-dev-shm-usage"] : [];
+const stderr = [];
+const chrome = spawn(chromePath, ["--headless=new", "--disable-gpu", "--no-first-run", ...sandbox, `--remote-debugging-port=${port}`, `--user-data-dir=${join(work, "profile")}`, "about:blank"], { stdio: ["ignore", "ignore", "pipe"] });
+chrome.stderr.on("data", (buf) => { stderr.push(String(buf)); if (stderr.join("").length > 4000) stderr.shift(); });
+let chromeExit = null;
+chrome.on("exit", (code) => { chromeExit = code; });
 const stop = (code) => { chrome.kill(); try { rmSync(work, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 }); } catch { /* temp folder is cleaned by the OS */ } process.exit(code); };
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 for (let i = 0; ; i++) {
   try { if ((await fetch(`http://127.0.0.1:${port}/json/version`)).ok) break; } catch { /* not up yet */ }
-  if (i > 40) { console.error("Chrome did not start."); stop(2); }
+  // A cold GitHub runner can take more than 10 seconds to open the debug port. 30 seconds, then the reason.
+  if (chromeExit !== null || i > 120) {
+    const tail = stderr.join("").trim().split("\n").slice(-12).join("\n");
+    console.error(`Chrome did not start (${chromeExit === null ? "debug port never opened" : `exited ${chromeExit}`}).${tail ? "\n" + tail : ""}`);
+    stop(2);
+  }
   await sleep(250);
 }
 try { if (!(await fetch(base)).ok) throw new Error(); } catch { console.error(`Nothing is answering at ${base}. Start the app first.`); stop(2); }
