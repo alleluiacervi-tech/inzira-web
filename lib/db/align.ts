@@ -139,6 +139,8 @@ async function addLaterObjects(database: Db) {
     `UPDATE "requests" SET "id_policy" = 'none' WHERE "id_policy" IS NULL`,
     `ALTER TABLE "requests" ALTER COLUMN "id_policy" SET NOT NULL`,
     `CREATE INDEX IF NOT EXISTS "requests_id_review_idx" ON "requests" USING btree ("id_review")`,
+    `ALTER TABLE "staff" ADD COLUMN IF NOT EXISTS "email" text`,
+    `CREATE UNIQUE INDEX IF NOT EXISTS "staff_email_unique" ON "staff" (lower("email"))`,
   ];
   for (const statement of statements) await database.execute(sql.raw(statement));
 }

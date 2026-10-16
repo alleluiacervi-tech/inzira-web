@@ -64,6 +64,13 @@
       "when": 1792110000000,
       "tag": "0008_identity_review",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1792200000000,
+      "tag": "0009_staff_email",
+      "breakpoints": true
     }
   ]
 }

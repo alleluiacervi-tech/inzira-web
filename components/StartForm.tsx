@@ -20,7 +20,7 @@ function withStrong(sentence: string, parts: Record<string, ReactNode>) {
   });
 }
 
-type Key = "about" | "request" | "docs" | "review";
+type Key = "about" | "review";
 const EMPTY = { forWho: "me", name: "", subject: "", nid: "", dob: "", email: "", phone: "", purpose: "", notes: "" };
 const isEmail = (v: string) => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v.trim());
 /** A real date, as a date field gives it ("YYYY-MM-DD"), not in the future and not before 1900. */
@@ -31,12 +31,11 @@ const isDob = (v: string) => { const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(v); if
 export default function StartForm({ service: s }: { service: Service | null }) {
   const { locale, t } = useI18n();
   const draftKey = `inzira:start:${s?.slug ?? "describe"}`;
-  // A service that needs no documents (e.g. a training) skips that step.
-  const keys: Key[] = s && s.documents.length === 0 ? ["about", "request", "review"] : ["about", "request", "docs", "review"];
-  const names: Record<Key, string> = { about: t("start.about"), request: s ? t("start.request") : t("start.situation"), docs: t("start.docs"), review: t("start.review") };
+  // Two steps: who you are, then a short check. Documents and extra questions wait until an agent needs them.
+  const keys: Key[] = ["about", "review"];
+  const names: Record<Key, string> = { about: t("start.about"), review: t("start.review") };
   const who: [string, string][] = [["me", t("start.me")], ["family", t("start.family")], ["business", t("start.myBiz")]];
   const last = keys.length - 1;
-  const docList = s ? s.documents : [{ name: t("start.extraDoc"), detail: t("start.extraDetail"), required: false }];
 
   const human = useHuman();
   const [step, setStep] = useState(0);
@@ -50,8 +49,6 @@ export default function StartForm({ service: s }: { service: Service | null }) {
   const [ref, setRef] = useState("");
   const [ack, setAck] = useState(false);
   const [idConsent, setIdConsent] = useState(false);
-  // Making a portal is a choice: without it the customer is a contact, followed with the reference and email.
-  const [portal, setPortal] = useState(true);
   const [portalOpened, setPortalOpened] = useState(true);
   const [touched, setTouched] = useState(false);
   const [restored, setRestored] = useState(false);
@@ -94,8 +91,8 @@ export default function StartForm({ service: s }: { service: Service | null }) {
     if (storeId && !idConsent) errors.idConsent = t("start.errIdConsent");
     if (!isEmail(f.email)) errors.email = t("start.errEmail");
     if (f.phone.trim() && !isMobile(f.phone)) errors.phone = t("authErr.badPhone");
+    if (!s && f.notes.trim().length < 10) errors.notes = t("start.errNotes");
   }
-  if (key === "request" && !s && f.notes.trim().length < 10) errors.notes = t("start.errNotes");
   if (key === "review" && !ack) errors.ack = t("start.errAck");
   const valid = Object.keys(errors).length === 0;
 
@@ -119,7 +116,7 @@ export default function StartForm({ service: s }: { service: Service | null }) {
     for (const [k, v] of Object.entries(f)) fd.set(k, k === "nid" && ask === "hidden" ? "" : v);
     fd.set("idConsent", idConsent ? "1" : "0");
     fd.set("code", code);
-    fd.set("portal", portal ? "1" : "0");
+    fd.set("portal", "1");
     if (s) s.documents.forEach((d, i) => { if (files[d.name]) fd.set(`file-${i}`, files[d.name]); });
     else Object.values(files).forEach((file) => fd.append("file-extra", file));
     const r = await submitRequest(fd).catch(() => ({ ok: false as const, error: t("authErr.submitFail") }));
@@ -137,7 +134,7 @@ export default function StartForm({ service: s }: { service: Service | null }) {
   };
   const err = (k: string) => touched && errors[k] ? <span className="err-text" id={`${k}-err`}><Icon name="alert" size={15} /> {errors[k]}</span> : null;
   const bad = (k: string) => (touched && errors[k] ? "in-err" : "");
-  const missing = s ? s.documents.filter((d) => d.required && !files[d.name]).length : 0;
+  const fileName = Object.values(files)[0]?.name ?? "";
 
   if (phase === "done") {
     return (
@@ -254,20 +251,6 @@ export default function StartForm({ service: s }: { service: Service | null }) {
             <div className="field"><label htmlFor="f-phone">{t("start.phoneOpt")}</label>
               <div className="row g8"><span className="in in-prefix" aria-hidden="true">+250</span><input id="f-phone" className={`in ${bad("phone")}`} inputMode="tel" value={f.phone} onChange={(e) => set("phone", e.target.value)} placeholder="788 123 456" autoComplete="tel-national" aria-describedby="phone-err phone-hint" /></div>
               <span className="hint" id="phone-hint">{t("start.phoneOptHint")}</span>{err("phone")}</div>
-          </div>
-        )}
-
-        {key === "request" && (
-          <div className="stack g20">
-            <div className="stack g8"><h1 className="h-flow">{s ? t("start.aboutReq") : t("start.describe")}</h1><p className="mut" style={{ fontSize: 15 }}>{s ? t("start.aboutReqLead") : t("start.describeLead")}</p></div>
-            {s && (s.requirements.length > 0 || ask !== "hidden") && (
-              <div className="card stack g8" style={{ padding: 16 }}>
-                <strong style={{ fontSize: 15 }}>{t("start.needsTitle")}</strong>
-                {s.requirements.length > 0 && <ul className="stack g6" style={{ margin: 0, paddingLeft: 18, fontSize: 14.5, lineHeight: 1.45 }}>{s.requirements.map((item) => <li key={item}>{item}</li>)}</ul>}
-                {ask === "required" && <p className="hint">{t("start.nidHint")}</p>}
-                {ask === "optional" && <p className="hint">{s.idPolicy === "unsure" ? t("start.idReviewFlag") : t("start.nidOptionalLead")}</p>}
-              </div>
-            )}
             {s?.purposes && (
               <fieldset className="stack g10" style={{ border: 0, margin: 0, padding: 0 }}>
                 <legend className="label" style={{ marginBottom: 10 }}>{s.purposeLabel ?? t("start.purpose")}</legend>
@@ -277,32 +260,7 @@ export default function StartForm({ service: s }: { service: Service | null }) {
               </fieldset>
             )}
             <div className="field"><label htmlFor="f-notes">{s ? <>{t("start.notesOpt")} <span className="mut" style={{ fontWeight: 400 }}>{t("start.optional")}</span></> : t("start.situationLabel")}</label>
-              <textarea id="f-notes" className={`in ${bad("notes")}`} rows={s ? 3 : 6} value={f.notes} onChange={(e) => set("notes", e.target.value)} placeholder={s ? t("start.notesPh") : t("start.situationPh")} aria-describedby="notes-err" />{err("notes")}</div>
-          </div>
-        )}
-
-        {key === "docs" && (
-          <div className="stack g20">
-            <div className="stack g8"><h1 className="h-flow">{t("start.docsTitle")}</h1><p className="mut" style={{ fontSize: 15 }}>{t("start.docsLead")}</p></div>
-            {docList.map((d) => (
-              <div key={d.name} className="card stack g12" style={{ padding: 16 }}>
-                <div className="row between g12"><div className="stack" style={{ gap: 3 }}><strong>{d.name}</strong><span className="hint">{d.detail}</span></div>{files[d.name] ? <span className="b t-teal">{t("start.added")}</span> : d.required ? <span className="b t-neutral">{t("service.required")}</span> : <span className="tag">{s ? t("service.ifApplicable") : t("start.optionalTag")}</span>}</div>
-                {files[d.name] ? (
-                  <div className="row between g12" style={{ padding: "10px 12px", background: "var(--bone)", borderRadius: 6 }}><span className="row g8" style={{ fontSize: 14, minWidth: 0 }}><Icon name="file" size={17} /><span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{files[d.name].name}</span></span><button type="button" className="btn btn-g btn-sm" onClick={() => { const rest = { ...files }; delete rest[d.name]; setFiles(rest); }}>{t("start.remove")}</button></div>
-                ) : (
-                  <label className="btn btn-s" style={{ alignSelf: "flex-start" }}>
-                    <Icon name="upload" size={18} /> {t("start.choose")}
-                    <input type="file" accept="image/*,application/pdf" className="sr-only" onChange={(e) => {
-                      const file = e.target.files?.[0];
-                      if (!file) return;
-                      if (file.size > 10 * 1024 * 1024) { alert(t("start.tooBig")); return; }
-                      setFiles({ ...files, [d.name]: file });
-                    }} />
-                  </label>
-                )}
-              </div>
-            ))}
-            <p className="hint row g8"><Icon name="lock" size={16} /> {t("start.filesPrivate")}</p>
+              <textarea id="f-notes" className={`in ${bad("notes")}`} rows={s ? 2 : 5} value={f.notes} onChange={(e) => set("notes", e.target.value)} placeholder={s ? t("start.notesPh") : t("start.situationPh")} aria-describedby="notes-err" />{err("notes")}</div>
           </div>
         )}
 
@@ -325,10 +283,25 @@ export default function StartForm({ service: s }: { service: Service | null }) {
               </dl>
               <button type="button" className="btn btn-g btn-sm" style={{ marginTop: 12 }} onClick={() => { setStep(0); setTouched(false); }}><Icon name="edit" size={16} /> {t("start.edit")}</button>
             </div>
-            {missing > 0 && <Alert kind="warn" title={t("start.missingTitle")}>{t("start.missingBody")}</Alert>}
-            <div className="stack g6">
-              <label className="check"><input type="checkbox" checked={portal} onChange={(e) => setPortal(e.target.checked)} aria-describedby="portal-hint" /> {t("start.portalAsk")}</label>
-              <span className="hint" id="portal-hint" style={{ paddingLeft: 28 }}>{t("start.portalHint")}</span>
+            <div className="stack g10">
+              <p className="hint" style={{ margin: 0 }}>{t("start.docsLead")}</p>
+              {fileName ? (
+                <div className="row between g12" style={{ padding: "10px 12px", background: "var(--bone)", borderRadius: 6 }}>
+                  <span className="row g8" style={{ fontSize: 14, minWidth: 0 }}><Icon name="file" size={17} /><span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{fileName}</span></span>
+                  <button type="button" className="btn btn-g btn-sm" onClick={() => setFiles({})}>{t("start.remove")}</button>
+                </div>
+              ) : (
+                <label className="btn btn-s" style={{ alignSelf: "flex-start" }}>
+                  <Icon name="upload" size={18} /> {t("start.choose")}
+                  <input type="file" accept="image/*,application/pdf" className="sr-only" onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (!file) return;
+                    if (file.size > 10 * 1024 * 1024) { alert(t("start.tooBig")); return; }
+                    const slot = s?.documents[0]?.name ?? "extra";
+                    setFiles({ [slot]: file });
+                  }} />
+                </label>
+              )}
             </div>
             <label className="check"><input type="checkbox" checked={ack} onChange={(e) => setAck(e.target.checked)} aria-describedby="ack-err" /> {t("start.ack")}</label>
             {err("ack")}
@@ -338,7 +311,7 @@ export default function StartForm({ service: s }: { service: Service | null }) {
         {sendError && <Alert kind="err" title={t("start.codeFail")} live>{sendError}</Alert>}
         <div className="row g10" style={{ paddingTop: 8 }}>
           {step > 0 && <button type="button" className="btn btn-s btn-lg" onClick={() => { setStep(step - 1); setTouched(false); }}>{t("start.back")}</button>}
-          <button type="button" className="btn btn-p btn-lg grow" onClick={next} disabled={sending}>{sending ? <><span className="spin" /> {t("start.sendingCode")}</> : key === "review" ? t("start.send") : key === "docs" && !Object.keys(files).length ? t("start.skip") : t("start.continue")}</button>
+          <button type="button" className="btn btn-p btn-lg grow" onClick={next} disabled={sending}>{sending ? <><span className="spin" /> {t("start.sendingCode")}</> : key === "review" ? t("start.send") : t("start.continue")}</button>
         </div>
       </div>
 

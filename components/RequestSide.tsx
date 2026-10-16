@@ -1,16 +1,14 @@
 "use client";
-import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
-import { cancelRequest, checkPayment, sendMessage, startPayment } from "@/app/actions/customer";
+import Link from "next/link";
+import { useState } from "react";
+import { cancelRequest, sendMessage } from "@/app/actions/customer";
 import { billOfficial, fmtDay, fmtWhen, initials, rwf } from "@/lib/format";
 import { trError } from "@/lib/i18n/errors";
 import { feeCaption, methodName, phrase, unitLabel } from "@/lib/i18n/present";
 import { amountDue, paidSplit, payStatus } from "@/lib/status";
 import type { Billing, Message } from "@/lib/types";
 import { useI18n } from "./I18n";
-import { isMobile, prettyMobile } from "./PhoneCode";
 import { FeeLines, Icon, PayBadge } from "./ui";
-import { useDialog } from "./useDialog";
 
 export function Messages({ reqRef, initial, agent, now }: { reqRef: string; initial: Message[]; agent: string; now: string }) {
   const { locale, t } = useI18n();
@@ -53,11 +51,9 @@ export function Messages({ reqRef, initial, agent, now }: { reqRef: string; init
   );
 }
 
-/** What the customer owes and has paid, always as two lines. Paying is: review the amounts,
- *  approve them, get a prompt on the phone, then success or a clear failure. */
-export function PaymentPanel({ reqRef, billing: b, now, phone }: { reqRef: string; billing: Billing; now: string; phone: string }) {
+/** What the customer owes and has paid. The actual prompt happens on the payment screen. */
+export function PaymentPanel({ reqRef, billing: b, now }: { reqRef: string; billing: Billing; now: string; phone: string }) {
   const { locale, t } = useI18n();
-  const [open, setOpen] = useState(false);
   const ours = rwf(b.ours) + (b.oursUnit ? ` ${unitLabel(b.oursUnit, locale)}` : "");
   const total = b.officialMode || b.official === null
     ? `${rwf(b.ours)}${b.officialMode ? "" : ` + ${phrase(locale, "official fee")}`}`
@@ -90,105 +86,11 @@ export function PaymentPanel({ reqRef, billing: b, now, phone }: { reqRef: strin
       {b.quote === "estimate" && <p className="hint row g8" style={{ alignItems: "flex-start" }}><Icon name="info" size={16} /><span>{t("side.estimate")}</span></p>}
       {canPay && (
         <>
-          <button className="btn btn-p" type="button" onClick={() => setOpen(true)}>{b.quote === "confirmed" ? t("pay.review") : t("pay.pay")} {rwf(due)}</button>
+          <Link className="btn btn-p" href={`/portal/requests/${reqRef}/pay`}>{b.quote === "confirmed" ? t("pay.review") : t("pay.pay")} {rwf(due)}</Link>
           <span className="hint">{b.dueAt ? `${t("side.due", { date: fmtDay(b.dueAt, locale) })} ` : ""}{t("side.payHint")}</span>
         </>
       )}
-      {open && <PayDialog reqRef={reqRef} b={b} due={due} phone={phone} onClose={() => setOpen(false)} />}
     </section>
-  );
-}
-
-function PayDialog({ reqRef, b, due, phone, onClose }: { reqRef: string; b: Billing; due: number; phone: string; onClose: () => void }) {
-  const { locale, t } = useI18n();
-  const router = useRouter();
-  const [stage, setStage] = useState<"review" | "pending" | "paid" | "failed" | "slow">("review");
-  const [txId, setTxId] = useState<number | null>(null);
-  const [num, setNum] = useState(prettyMobile(phone));
-  const [agree, setAgree] = useState(b.quote === "approved");
-  const [error, setError] = useState("");
-  const [receipt, setReceipt] = useState("");
-  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const close = () => { if (timer.current) clearTimeout(timer.current); router.refresh(); onClose(); };
-  const dialog = useDialog<HTMLDivElement>(true, close);
-  useEffect(() => () => { if (timer.current) clearTimeout(timer.current); }, []);
-
-  const paid = paidSplit(b);
-  const official = Math.max(0, (b.official ?? 0) - paid.official);
-  const ours = Math.max(0, due - official);
-
-  const poll = (id: number, tries = 0) => {
-    const wait = tries < 20 ? 1500 : 4000;
-    timer.current = setTimeout(async () => {
-      const r = await checkPayment(id).catch(() => null);
-      if (r?.ok && r.status === "paid") { setStage("paid"); return; }
-      if (r?.ok && r.status === "failed") { setStage("failed"); return; }
-      // The server closes an unanswered prompt after fifteen minutes. Until then, keep asking it.
-      if (tries > 220) { setStage("slow"); return; }
-      poll(id, tries + 1);
-    }, wait);
-  };
-  const send = async () => {
-    if (!agree) { setError(t("pay.tick")); return; }
-    if (!isMobile(num)) { setError(t("pay.badNumber")); return; }
-    setError("");
-    setStage("pending");
-    const r = await startPayment(reqRef, num).catch(() => ({ ok: false as const, error: t("pay.reach") }));
-    if (!r.ok) { setError(trError(locale, r.error)); setStage("review"); return; }
-    setReceipt(r.receipt);
-    setTxId(r.txId);
-    poll(r.txId);
-  };
-  const title = { review: t("pay.approve"), pending: t("pay.checkPhone"), slow: t("pay.checkPhone"), paid: t("pay.received"), failed: t("pay.failed") }[stage];
-
-  return (
-    <div className="modal-bg" onClick={(e) => e.target === e.currentTarget && stage !== "pending" && close()}>
-      <div ref={dialog} className="modal" role="dialog" aria-modal="true" aria-labelledby="pay-t">
-        <div className="row between" style={{ alignItems: "flex-start" }}><h3 id="pay-t" className="d" style={{ fontSize: 20 }}>{title}</h3><button className="btn btn-g btn-sm btn-ico" type="button" aria-label={t("side.close")} onClick={close}><Icon name="x" size={18} /></button></div>
-        {stage === "review" && (
-          <>
-            <FeeLines officialLabel={feeCaption(locale, b.officialLabel)} official={b.officialMode ? phrase(locale, billOfficial(b)) : official === 0 ? (b.official === 0 ? t("pay.free") : t("pay.already")) : rwf(official)} ours={rwf(ours)} total={rwf(due)} totalLabel={t("pay.toPay")} />
-            <label className="check"><input type="checkbox" checked={agree} onChange={(e) => { setAgree(e.target.checked); setError(""); }} /> {t("side.agree")}</label>
-            <div className="field"><label htmlFor="mm">{t("side.number")}</label>
-              <div className="row g8"><span className="in in-prefix" aria-hidden="true">+250</span><input id="mm" className="in" value={num} onChange={(e) => { setNum(e.target.value); setError(""); }} inputMode="tel" /></div>
-              <span className="hint">{t("side.pin")}</span></div>
-            {error && <span className="err-text" role="alert"><Icon name="alert" size={15} /> {error}</span>}
-            <div className="row g10" style={{ justifyContent: "flex-end" }}>
-              <button className="btn btn-g" type="button" onClick={close}>{t("side.cancel")}</button>
-              <button className="btn btn-p" type="button" onClick={send}>{t("side.prompt")}</button>
-            </div>
-          </>
-        )}
-        {stage === "pending" && (
-          <div className="stack g14" role="status">
-            <p style={{ fontSize: 15, lineHeight: 1.55 }}>{t("side.sent", { amount: rwf(due), phone: `+250 ${prettyMobile(num)}` })}</p>
-            <div className="row g10 mut" style={{ fontSize: 14 }}><span className="spin spin-dark" /> {t("side.waiting")}</div>
-            <span className="hint">{t("side.keep")}</span>
-          </div>
-        )}
-        {stage === "paid" && (
-          <div className="stack g14" role="status">
-            <div className="row g12"><span className="ok-dot"><Icon name="check" size={22} /></span><p style={{ fontSize: 15, lineHeight: 1.55 }}>{t("side.got", { amount: rwf(due), receipt })}</p></div>
-            <button className="btn btn-d" type="button" onClick={close}>{t("side.done")}</button>
-          </div>
-        )}
-        {stage === "slow" && txId !== null && (
-          <div className="stack g14" role="status">
-            <p style={{ fontSize: 15, lineHeight: 1.55 }}>{t("side.stillOpen")}</p>
-            <div className="row g10" style={{ justifyContent: "flex-end" }}>
-              <button className="btn btn-g" type="button" onClick={close}>{t("side.close")}</button>
-              <button className="btn btn-p" type="button" onClick={() => { setStage("pending"); poll(txId); }}>{t("side.checkAgain")}</button>
-            </div>
-          </div>
-        )}
-        {stage === "failed" && (
-          <div className="stack g14" role="alert">
-            <p style={{ fontSize: 15, lineHeight: 1.55 }}>{t("side.declined")}</p>
-            <div className="row g10" style={{ justifyContent: "flex-end" }}><button className="btn btn-g" type="button" onClick={close}>{t("side.close")}</button><button className="btn btn-p" type="button" onClick={() => setStage("review")}>{t("side.again")}</button></div>
-          </div>
-        )}
-      </div>
-    </div>
   );
 }
 

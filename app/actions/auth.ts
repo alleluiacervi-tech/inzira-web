@@ -85,12 +85,21 @@ export async function signInSecondStep(input: string, next?: string) {
   return openConsole(person, next, checked.usedRecovery ? "recovery code" : "authenticator app");
 }
 
-/** Step 2 by email: check the code and sign in to the portal. */
+/** Step 2 by email: check the code and sign in. A staff work email opens the dashboard; everyone else opens the portal. */
 export async function signInWithEmail(email: string, code: string, next?: string) {
   if (!(await allowIp("signIn"))) return { ok: false as const, error: TOO_MANY };
   const checked = await consumeEmailCode(email, code);
   if (!checked.ok) return checked;
-  const [account] = await (await db()).select().from(s.accounts).where(sql`lower(${s.accounts.email}) = ${checked.email}`);
+  const d = await db();
+  const [person] = await d.select().from(s.staff).where(and(sql`lower(${s.staff.email}) = ${checked.email}`, eq(s.staff.active, true)));
+  if (person) {
+    if (person.totpEnabledAt) {
+      await startPending(person.id);
+      return { ok: true as const, step: "totp" as const };
+    }
+    return openConsole(person, next, "email code");
+  }
+  const [account] = await d.select().from(s.accounts).where(sql`lower(${s.accounts.email}) = ${checked.email}`);
   if (!account) return { ok: false as const, error: "We don’t have an account for this email yet. Start a service and your portal is created with your first request." };
   return openPortal(account, next);
 }
