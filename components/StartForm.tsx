@@ -3,6 +3,7 @@ import Link from "next/link";
 import { Fragment, useEffect, useState, type ReactNode } from "react";
 import { displayOfficial, displayOurs, displayTotal } from "@/lib/i18n/present";
 import { trError } from "@/lib/i18n/errors";
+import { idAsk, nationalIdDigits, nationalIdError } from "@/lib/identity";
 import type { Service } from "@/lib/types";
 import { requestEmailCode } from "@/app/actions/auth";
 import { submitRequest } from "@/app/actions/customer";
@@ -48,6 +49,7 @@ export default function StartForm({ service: s }: { service: Service | null }) {
   const [sendError, setSendError] = useState("");
   const [ref, setRef] = useState("");
   const [ack, setAck] = useState(false);
+  const [idConsent, setIdConsent] = useState(false);
   // Making a portal is a choice: without it the customer is a contact, followed with the reference and email.
   const [portal, setPortal] = useState(true);
   const [portalOpened, setPortalOpened] = useState(true);
@@ -60,25 +62,36 @@ export default function StartForm({ service: s }: { service: Service | null }) {
   useEffect(() => {
     try {
       const saved = JSON.parse(sessionStorage.getItem(draftKey) ?? "null");
-      if (saved) { setF({ ...EMPTY, ...saved.f }); setStep(Math.min(Number(saved.step) || 0, last)); }
+      if (saved) {
+        const savedForm = saved.f && typeof saved.f === "object" ? saved.f as Record<string, string> : {};
+        const { nid: _dropped, ...rest } = savedForm;
+        setF({ ...EMPTY, ...rest, nid: "" });
+        setStep(Math.min(Number(saved.step) || 0, last));
+      }
     } catch { /* storage unavailable: start empty */ }
     setRestored(true);
   }, [draftKey, last]);
   useEffect(() => {
     if (!restored || phase === "done") return;
-    try { sessionStorage.setItem(draftKey, JSON.stringify({ step, f })); } catch { /* ignore */ }
+    try {
+      const { nid: _nid, ...safe } = f;
+      sessionStorage.setItem(draftKey, JSON.stringify({ step, f: safe }));
+    } catch { /* ignore */ }
   }, [draftKey, restored, phase, step, f]);
 
   const key = keys[step];
-  const needId = !s?.noId && f.forWho !== "business";
-  const nidDigits = f.nid.replace(/\D/g, "");
+  const ask = idAsk(s, f.forWho);
+  const nidDigits = nationalIdDigits(f.nid);
+  const idErr = nationalIdError(nidDigits);
+  const storeId = ask === "required" || (ask === "optional" && nidDigits.length > 0);
   const errors: Record<string, string> = {};
   if (key === "about") {
     if (!f.name.trim()) errors.name = t("start.errName");
     if (f.forWho === "family" && !f.subject.trim()) errors.subject = t("start.errPerson");
     if (f.forWho === "business" && !f.subject.trim()) errors.subject = t("start.errBiz");
-    if (needId && nidDigits.length !== 16) errors.nid = t("start.errId", { n: nidDigits.length });
-    if (needId && !isDob(f.dob)) errors.dob = t("start.errDob");
+    if (storeId && idErr) errors.nid = t(idErr === "long" ? "start.errIdLong" : "start.errId", { n: nidDigits.length });
+    if (storeId && !isDob(f.dob)) errors.dob = t("start.errDob");
+    if (storeId && !idConsent) errors.idConsent = t("start.errIdConsent");
     if (!isEmail(f.email)) errors.email = t("start.errEmail");
     if (f.phone.trim() && !isMobile(f.phone)) errors.phone = t("authErr.badPhone");
   }
@@ -103,7 +116,8 @@ export default function StartForm({ service: s }: { service: Service | null }) {
   const send = async (code: string) => {
     const fd = new FormData();
     fd.set("slug", s?.slug ?? "");
-    for (const [k, v] of Object.entries(f)) fd.set(k, v);
+    for (const [k, v] of Object.entries(f)) fd.set(k, k === "nid" && ask === "hidden" ? "" : v);
+    fd.set("idConsent", idConsent ? "1" : "0");
     fd.set("code", code);
     fd.set("portal", portal ? "1" : "0");
     if (s) s.documents.forEach((d, i) => { if (files[d.name]) fd.set(`file-${i}`, files[d.name]); });
@@ -208,11 +222,31 @@ export default function StartForm({ service: s }: { service: Service | null }) {
               <div className="field"><label htmlFor="f-subject">{f.forWho === "family" ? t("start.theirName") : t("start.bizName")}</label><input id="f-subject" className={`in ${bad("subject")}`} value={f.subject} onChange={(e) => set("subject", e.target.value)} autoComplete={f.forWho === "business" ? "organization" : "off"} aria-describedby="subject-err" />
                 {f.forWho === "family" && <span className="hint">{t("start.consent")}</span>}{err("subject")}</div>
             )}
-            {needId && (
-              <div className="field"><label htmlFor="f-nid">{f.forWho === "family" ? t("start.theirId") : t("start.nid")}</label><input id="f-nid" className={`in ${bad("nid")}`} inputMode="numeric" value={f.nid} onChange={(e) => set("nid", e.target.value)} placeholder="1 1995 8 0045123 0 17" aria-describedby="nid-err nid-hint" /><span className="hint" id="nid-hint">{t("start.nidHint")}</span>{err("nid")}</div>
+            {ask !== "hidden" && (
+              <div className="card stack g10" style={{ padding: 16, background: "var(--bone)" }}>
+                <strong style={{ fontSize: 15 }}>{t("start.nidPrivacyTitle")}</strong>
+                <p className="hint" id="nid-privacy" style={{ fontSize: 14, lineHeight: 1.55 }}>{t("start.nidPrivacy")}</p>
+              </div>
             )}
-            {needId && (
+            {ask !== "hidden" && (
+              <div className="field">
+                <label htmlFor="f-nid">{f.forWho === "family" ? t("start.theirId") : t("start.nid")}{ask === "optional" ? <span className="mut" style={{ fontWeight: 400 }}> {t("start.optional")}</span> : null}</label>
+                <div className="row g8">
+                  <input id="f-nid" className={`in grow ${bad("nid")}`} inputMode="numeric" autoComplete="off" spellCheck={false} value={f.nid} onChange={(e) => set("nid", e.target.value)} placeholder="1 1995 8 0045123 0 17" aria-describedby="nid-err nid-hint" aria-invalid={touched && !!errors.nid} />
+                  <button type="button" className="btn btn-s" onClick={() => set("nid", "")} disabled={!f.nid}>{t("start.nidClear")}</button>
+                </div>
+                <span className="hint" id="nid-hint">{ask === "required" ? t("start.nidHint") : s?.idPolicy === "unsure" || !s ? t("start.nidUnsureLead") : t("start.nidOptionalLead")}</span>
+                {err("nid")}
+              </div>
+            )}
+            {storeId && (
               <div className="field"><label htmlFor="f-dob">{t("start.dob")}</label><input id="f-dob" type="date" className={`in ${bad("dob")}`} value={f.dob} min="1900-01-01" max={new Date().toISOString().slice(0, 10)} onChange={(e) => set("dob", e.target.value)} autoComplete={f.forWho === "me" ? "bday" : "off"} aria-describedby="dob-err dob-hint" /><span className="hint" id="dob-hint">{t("start.dobHint")}</span>{err("dob")}</div>
+            )}
+            {storeId && (
+              <div className="stack g6">
+                <label className="check"><input id="f-id-consent" type="checkbox" checked={idConsent} onChange={(e) => setIdConsent(e.target.checked)} aria-describedby="idConsent-err" /> {t("start.nidConsent")}</label>
+                {err("idConsent")}
+              </div>
             )}
             <div className="field"><label htmlFor="f-email">{t("start.email")}</label>
               <input id="f-email" type="email" className={`in ${bad("email")}`} inputMode="email" value={f.email} onChange={(e) => set("email", e.target.value)} placeholder={t("signIn.emailPh")} autoComplete="email" autoCapitalize="none" spellCheck={false} aria-describedby="email-err email-hint" />
@@ -226,6 +260,14 @@ export default function StartForm({ service: s }: { service: Service | null }) {
         {key === "request" && (
           <div className="stack g20">
             <div className="stack g8"><h1 className="h-flow">{s ? t("start.aboutReq") : t("start.describe")}</h1><p className="mut" style={{ fontSize: 15 }}>{s ? t("start.aboutReqLead") : t("start.describeLead")}</p></div>
+            {s && (s.requirements.length > 0 || ask !== "hidden") && (
+              <div className="card stack g8" style={{ padding: 16 }}>
+                <strong style={{ fontSize: 15 }}>{t("start.needsTitle")}</strong>
+                {s.requirements.length > 0 && <ul className="stack g6" style={{ margin: 0, paddingLeft: 18, fontSize: 14.5, lineHeight: 1.45 }}>{s.requirements.map((item) => <li key={item}>{item}</li>)}</ul>}
+                {ask === "required" && <p className="hint">{t("start.nidHint")}</p>}
+                {ask === "optional" && <p className="hint">{s.idPolicy === "unsure" ? t("start.idReviewFlag") : t("start.nidOptionalLead")}</p>}
+              </div>
+            )}
             {s?.purposes && (
               <fieldset className="stack g10" style={{ border: 0, margin: 0, padding: 0 }}>
                 <legend className="label" style={{ marginBottom: 10 }}>{s.purposeLabel ?? t("start.purpose")}</legend>
@@ -272,8 +314,9 @@ export default function StartForm({ service: s }: { service: Service | null }) {
                 <dt>{t("start.svc")}</dt><dd>{s ? s.name : t("start.unsureYet")}</dd>
                 <dt>{t("start.yourName")}</dt><dd>{f.name}</dd>
                 {f.forWho !== "me" && <><dt>{t("start.for")}</dt><dd>{f.subject}</dd></>}
-                {needId && <><dt>{t("start.id")}</dt><dd className="m" style={{ fontSize: 14, fontWeight: 500 }}>{f.nid}</dd></>}
-                {needId && <><dt>{t("start.dobRow")}</dt><dd>{f.dob}</dd></>}
+                {storeId && <><dt>{t("start.id")}</dt><dd className="m" style={{ fontSize: 14, fontWeight: 500 }}>{f.nid}</dd></>}
+                {storeId && <><dt /><dd className="hint" style={{ fontWeight: 400 }}>{t("start.idNotProof")}</dd></>}
+                {storeId && <><dt>{t("start.dobRow")}</dt><dd>{f.dob}</dd></>}
                 <dt>{t("start.emailRow")}</dt><dd style={{ overflowWrap: "anywhere" }}>{f.email.trim().toLowerCase()}</dd>
                 {f.phone.trim() && <><dt>{t("start.phoneRow")}</dt><dd>+250 {prettyMobile(f.phone)}</dd></>}
                 {f.purpose && <><dt>{s?.noId ? t("start.attending") : t("start.purposeRow")}</dt><dd>{f.purpose}</dd></>}

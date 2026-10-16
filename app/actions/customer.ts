@@ -10,8 +10,10 @@ import { asLocale, getLocale, rememberLocale, type Locale } from "@/lib/i18n/loc
 import { text as tr } from "@/lib/i18n/messages";
 import type en from "@/lib/i18n/en.json";
 import type { LibraryDoc } from "@/lib/types";
-import { english, msg } from "@/lib/i18n/stored";
+import { english, msg, sms } from "@/lib/i18n/stored";
 import { maskNationalId, parseDob, prettyPhone, rwf } from "@/lib/format";
+import { idAsk, idPolicyOf, mentionsNationalId, nationalIdDigits, nationalIdError } from "@/lib/identity";
+import { open, seal } from "@/lib/crypto";
 import { audit, db, event, fail, invoiceFor, nextNumber, notify, refFor, s, type Result } from "@/lib/mutate";
 import { reconcilePayment } from "@/lib/billing";
 import { isUniqueViolation } from "@/lib/db/errors";
@@ -20,7 +22,6 @@ import { SITE } from "@/lib/site";
 import { amountDue } from "@/lib/status";
 import { getService, listMyDocuments } from "@/lib/repo";
 import { TOO_MANY, allowIp } from "@/lib/ratelimit";
-import { seal } from "@/lib/crypto";
 import { ALLOWED, MAX_BYTES, checkUpload, deleteFile, humanSize, putFile, sniffType } from "@/lib/storage";
 
 /** A file whose content is not what it claimed to be. */
@@ -52,7 +53,7 @@ export async function submitRequest(fd: FormData): Promise<Result<{ ref: string;
   const phoneInput = text(fd, "phone");
   const phone = phoneInput ? normalisePhone(phoneInput) : null;
   const name = text(fd, "name"), subject = text(fd, "subject"), forWho = text(fd, "forWho") || "me";
-  const nid = text(fd, "nid").replace(/\D/g, "");
+  const digits = nationalIdDigits(text(fd, "nid"));
   const portal = fd.get("portal") !== "0";
   if (!email) return refuse("badEmail");
   if (phoneInput && !phone) return refuse("badPhone");
@@ -60,11 +61,21 @@ export async function submitRequest(fd: FormData): Promise<Result<{ ref: string;
   const slug = text(fd, "slug") || "other-online-service";
   const service = await getService(slug);
   if (!service || (!service.visible && slug !== "other-online-service")) return refuse("service");
-  // The details as written on the ID: the date of birth goes with the number, for a person's own or a family member's request.
-  const needsId = !service.noId && forWho !== "business";
-  const dob = text(fd, "dob") ? parseDob(text(fd, "dob")) : null;
-  if (text(fd, "dob") && !dob) return refuse("badDob");
-  if (needsId && !dob) return refuse("badDob");
+  // The ID rule is the service's. A business request never asks for a personal number. An uncertain rule stays optional.
+  const ask = idAsk(service, forWho);
+  const policy = idPolicyOf(service);
+  const idErr = nationalIdError(digits);
+  const consent = text(fd, "idConsent") === "1";
+  const dobRaw = text(fd, "dob");
+  const dob = dobRaw ? parseDob(dobRaw) : null;
+  if (dobRaw && !dob) return refuse("badDob");
+  const storeId = ask === "required" || (ask === "optional" && digits.length > 0);
+  if (storeId) {
+    if (idErr === "long") return refuse("idLong");
+    if (idErr) return refuse("idShort");
+    if (!consent) return refuse("idConsent");
+    if (!dob) return refuse("badDob");
+  }
   const files = service.documents.map((_, i) => fd.get(`file-${i}`)).map((f) => (f instanceof File && f.size ? f : null));
   const extra = fd.getAll("file-extra").filter((f): f is File => f instanceof File && f.size > 0);
   for (const f of [...files, ...extra]) { const bad = f && (await checkFile(f)); if (bad) return fail(bad); }
@@ -103,13 +114,21 @@ export async function submitRequest(fd: FormData): Promise<Result<{ ref: string;
     if (!profile) {
       [profile] = await tx.insert(s.profiles).values({
         id: id("p"), accountId: account.id, kind: forWho === "business" ? "business" : "person", name: forWho === "me" ? name : subject || name,
-        relation: forWho === "business" ? null : forWho === "me" ? "self" : "family", idMasked: maskNationalId(nid), nationalId: seal(nid),
+        relation: forWho === "business" ? null : forWho === "me" ? "self" : "family",
+        idMasked: storeId ? maskNationalId(digits) : null, nationalId: storeId ? seal(digits) : null,
         dateOfBirth: forWho === "business" ? null : dob,
       }).returning();
-    } else if ((nid && !profile.nationalId) || (dob && !profile.dateOfBirth)) {
-      await tx.update(s.profiles).set({
-        ...(nid && !profile.nationalId ? { nationalId: seal(nid), idMasked: maskNationalId(nid) } : {}), ...(dob && !profile.dateOfBirth ? { dateOfBirth: dob } : {}),
-      }).where(eq(s.profiles.id, profile.id));
+    } else if (storeId || (dob && !profile.dateOfBirth)) {
+      const current = storeId ? open(profile.nationalId) : null;
+      const replaceId = storeId && current !== digits;
+      if (replaceId || (dob && profile.dateOfBirth !== dob)) {
+        await tx.update(s.profiles).set({
+          ...(replaceId ? { nationalId: seal(digits), idMasked: maskNationalId(digits), idCheckedAt: null, idCheckedBy: null } : {}),
+          ...(dob && profile.dateOfBirth !== dob ? { dateOfBirth: dob } : {}),
+        }).where(eq(s.profiles.id, profile.id));
+        // The audit line names the profile, never the digits.
+        if (replaceId && current) await audit(tx, { actor: account.name, role: "Customer", action: "Updated national ID on profile", entity: profile.name });
+      }
     }
 
     const ref = refFor(await nextNumber(tx, "request"));
@@ -119,6 +138,8 @@ export async function submitRequest(fd: FormData): Promise<Result<{ ref: string;
       ref, serviceSlug: service.slug, profileId: profile.id, agentId: null, stage: "received", stageDates: { received: now }, channel: service.channel,
       summary: { title: english(summary, "title"), body: english(summary, "body"), msg: summary },
       next: english(summary, "next"), purpose: text(fd, "purpose") || null,
+      idPolicy: policy, idRequired: ask === "required", idReview: ask === "required" ? "pending" : null, idConsent: storeId && consent,
+      requirementsSnapshot: service.requirements,
       invoice, official: service.official.mode ? null : service.official.amount, officialMode: service.official.mode ?? null,
       officialLabel: service.official.mode === "none" ? "Official fee" : `${service.official.label ?? "Official fee"} · ${service.channel}`,
       ours: service.ours, oursStandard: service.ours, oursUnit: service.oursUnit ?? null, quote: "estimate",
@@ -180,6 +201,44 @@ export async function sendMessage(ref: string, body: string): Promise<Result> {
   if (!body.trim()) return refuse("message");
   await own.d.insert(s.messages).values({ ref, by: "customer", body: body.trim().slice(0, 4000) });
   revalidatePath(`/portal/requests/${ref}`);
+  return { ok: true };
+}
+
+/** Replaces the National ID on a request an agent sent back. The reference stays. The client cannot set the review outcome. */
+export async function correctSubmittedId(fd: FormData): Promise<Result> {
+  const ref = text(fd, "ref");
+  const own = await ownRequest(ref);
+  if (!own) return refuse("request");
+  if (!(await allowIp("request"))) return refuse("tooMany");
+  const [req] = await own.d.select().from(s.requests).where(eq(s.requests.ref, ref));
+  if (!req || req.closed) return refuse("finished");
+  if (!req.idRequired || req.idReview !== "correction") return refuse("idClosed");
+  const digits = nationalIdDigits(text(fd, "nid"));
+  const idErr = nationalIdError(digits);
+  if (idErr === "long") return refuse("idLong");
+  if (idErr) return refuse("idShort");
+  if (text(fd, "idConsent") !== "1") return refuse("idConsent");
+  const dobRaw = text(fd, "dob");
+  const dob = dobRaw ? parseDob(dobRaw) : null;
+  if (!dob) return refuse("badDob");
+  const note = text(fd, "note");
+  if (note && mentionsNationalId(note)) return refuse("idShort");
+  const [profile] = await own.d.select().from(s.profiles).where(eq(s.profiles.id, req.profileId));
+  if (!profile) return refuse("request");
+  await own.d.transaction(async (tx) => {
+    await tx.update(s.profiles).set({
+      nationalId: seal(digits), idMasked: maskNationalId(digits), idCheckedAt: null, idCheckedBy: null, dateOfBirth: dob,
+    }).where(eq(s.profiles.id, profile.id));
+    await tx.update(s.requests).set({
+      idReview: "pending", idReviewNote: null, idReviewAt: null, idReviewBy: null, idConsent: true,
+      hold: req.hold?.msg?.key === "hold.idCorrection" ? null : req.hold,
+    }).where(eq(s.requests.ref, ref));
+    await event(tx, ref, msg("ev.idUpdated"), "customer");
+    await notify(tx, ref, { icon: "check", title: msg("nt.idUpdated", { ref }), sms: sms("idUpdated", { ref }) });
+    await audit(tx, { actor: own.name, role: "Customer", action: "Corrected national ID", entity: ref });
+  });
+  revalidatePath(`/portal/requests/${ref}`);
+  revalidatePath("/console", "layout");
   return { ok: true };
 }
 

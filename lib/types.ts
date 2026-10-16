@@ -9,6 +9,13 @@ export type Tone = "neutral" | "info" | "ok" | "warn" | "err" | "act" | "teal" |
 /** `href` sends the category somewhere other than the filtered catalogue (e.g. "other" opens /start). */
 export type Category = { id: string; icon: string; name: string; short: string; desc: string; href?: string };
 export type Audience = "individual" | "business" | "organization";
+/** Whether a service asks for a National ID number. "unsure" means it is optional and an administrator should confirm the rule. */
+export type IdPolicy = "required" | "none" | "unsure";
+/**
+ * Manual review of an ID that was required for one request.
+ * "checked" means a member of staff compared the documents the client sent. It is not a government verification.
+ */
+export type IdReview = "pending" | "checked" | "correction" | "unable";
 export type OfficialMode = "direct" | "none";
 export type DocGroup = "Identification" | "Business documents" | "Tax documents" | "Land documents" | "Certificates" | "Other";
 export type ServiceDocument = { name: string; detail: string; required: boolean; group: DocGroup };
@@ -44,8 +51,10 @@ export type Service = {
   /** Choices offered when a customer starts a request, under `purposeLabel` (default "What is it for?"). */
   purposes?: string[];
   purposeLabel?: string;
-  /** True when we do not need the customer's national ID number to start (e.g. booking a training). */
+  /** True when we do not need the customer's national ID number to start (e.g. booking a training). Kept in step with `idPolicy === "none"`. */
   noId?: boolean;
+  /** Whether this service collects a National ID number. Unset on older catalogue rows: see idPolicyOf. */
+  idPolicy?: IdPolicy;
   /** The stages this kind of work goes through. Default: all five. Trainings skip the institution. */
   flow?: Stage[];
   /** Wording for a stage when the default does not fit this service. */
@@ -158,6 +167,20 @@ export type Request = {
   dependsOn?: string;
   /** The reason the customer picked when starting, e.g. "Add a spouse after marriage". */
   purpose?: string;
+  /** The service's ID rule at the moment this request was sent. Later catalogue edits do not change it. */
+  idPolicy?: IdPolicy;
+  /** True when this application required a National ID number. Review exists only then. */
+  idRequired?: boolean;
+  /** Manual review outcome. Empty when no ID was required, or when this request predates a review. */
+  idReview?: IdReview;
+  /** Staff note on the review. Never sent to the customer. */
+  idReviewNote?: string;
+  idReviewedAt?: string;
+  idReviewedBy?: string;
+  /** True when the client acknowledged the ID privacy notice before the number was stored. */
+  idConsent?: boolean;
+  /** Service requirements copied at submission, so a later edit does not rewrite what this client was told. */
+  requirementsSnapshot?: string[];
   /** What the customer reads at the top of the request when nothing is blocking it. With `msg`, the
    *  message also gives `next`. */
   summary: { title: string; body: string; msg?: Msg };
@@ -182,7 +205,7 @@ export type RequestView = Request & {
   labels: Partial<Record<Stage, string>>;
 };
 /** What the customer's own screens receive: the same request without internal fields. */
-export type CustomerRequest = Omit<RequestView, "notes" | "followUp">;
+export type CustomerRequest = Omit<RequestView, "notes" | "followUp" | "idReviewNote" | "idReviewedBy">;
 
 export type LibraryDoc = {
   key: string; ref: string; name: string; group: DocGroup;
@@ -195,6 +218,8 @@ export type AuditEntry = { at: string; actor: string; role: string; action: stri
 export type TrackResult = {
   ref: string; name: string; via: string; stage: Stage; stageDates: Request["stageDates"]; flow: Stage[]; labels: Partial<Record<Stage, string>>;
   hold?: Pick<Hold, "reason" | "title" | "since" | "returned">; closed?: Closed; next: string;
+  /** Set only when this request required a National ID. Absent otherwise, so tracking does not show an irrelevant status. */
+  idReview?: IdReview;
 };
 
 // ---------------- console extensions ----------------

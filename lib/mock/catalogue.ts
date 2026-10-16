@@ -121,7 +121,7 @@ export const SERVICES: Service[] = [
     documents: [id, doc("UPI of each property", "The number on your land title or e-title", true, "Land documents")],
     steps: procedure("RRA", "RRA"), notes: [],
     official: toConfirm("RRA"), ours: 5000,
-    time: "Usually 1–2 working days", docsShort: "National ID, UPI", audience: ["individual"], visible: true,
+    time: "Usually 1–2 working days", docsShort: "National ID, UPI", audience: ["individual"], idPolicy: "required", visible: true,
   },
   {
     slug: "vehicle-income-tax-declaration", name: "Motor vehicle income tax declaration",
@@ -202,7 +202,7 @@ export const SERVICES: Service[] = [
     documents: [doc("National ID of each owner", "Clear photo of both sides", true, "Identification"), doc("UPI or old land title", "The number or a photo of the title", true, "Land documents")],
     steps: procedure("Irembo", "Land administration"), notes: [],
     official: direct("Irembo fee", "You pay the Irembo bill for the land administration yourself, by MoMo or Airtel Money. We tell you the amount first."), ours: 2000,
-    time: "Usually a few working days", docsShort: "Owner IDs, UPI", popular: true, audience: ["individual", "business"], visible: true,
+    time: "Usually a few working days", docsShort: "Owner IDs, UPI", popular: true, audience: ["individual", "business"], idPolicy: "required", visible: true,
   },
   {
     slug: "land-spouse-update", name: "Add or remove a spouse in the land register",
@@ -214,7 +214,7 @@ export const SERVICES: Service[] = [
     purposes: ["Add a spouse after marriage", "Remove a spouse after divorce", "Remove a spouse after a death"],
     steps: procedure("Irembo", "Land administration"), notes: [{ kind: "info", title: "Both people may need to confirm", body: "The land office can ask both spouses to confirm the change. We tell you exactly who needs to do what before submitting." }],
     official: direct("Irembo fee", "You pay the Irembo bill for the land administration yourself. We tell you the amount first."), ours: 5000,
-    time: "Usually 1–2 weeks", docsShort: "IDs, marriage or other certificate, UPI", audience: ["individual"], visible: true,
+    time: "Usually 1–2 weeks", docsShort: "IDs, marriage or other certificate, UPI", audience: ["individual"], idPolicy: "required", visible: true,
   },
   {
     slug: "land-merging", name: "Land merging", aka: "Combine plots into one UPI",
@@ -225,7 +225,7 @@ export const SERVICES: Service[] = [
     documents: [doc("UPI of each plot", "Or a photo of each title", true, "Land documents"), doc("IDs of the owners", "Clear photos of both sides", true, "Identification"), doc("Survey plan", "Only if the land office asks for one", false, "Land documents"), doc("Application form", "The official form from the land portal. We prepare it from your details for you to check.", true, "Land documents")],
     steps: procedure("Irembo", "Land administration"), notes: [{ kind: "info", title: "Official fees depend on the plots", body: "We confirm the official fees, and whether a surveyor is needed, before you pay anything." }],
     official: toConfirm("the land administration"), ours: 5000,
-    time: "Usually 2–4 weeks", docsShort: "UPIs, owner IDs", audience: ["individual", "business"], visible: true,
+    time: "Usually 2–4 weeks", docsShort: "UPIs, owner IDs", audience: ["individual", "business"], idPolicy: "required", visible: true,
   },
 
   // ---------------- RURA ----------------

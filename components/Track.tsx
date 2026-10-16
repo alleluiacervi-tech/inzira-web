@@ -62,6 +62,12 @@ export default function Track() {
           ) : (
             <div className="stack g4"><span className="req-next" style={{ color: "var(--muted)" }}>{t("track.next")}</span><span style={{ fontSize: 15, lineHeight: 1.5 }}>{found.next}</span></div>
           )}
+          {found.idReview && (
+            <div className="stack g4">
+              <span className="req-next" style={{ color: "var(--muted)" }}>{t("track.idLabel")}</span>
+              <span style={{ fontSize: 15, lineHeight: 1.5 }}>{t(`track.id_${found.idReview}`)}</span>
+            </div>
+          )}
           <StageTimeline r={found} viewer="customer" />
           {!found.hold && <div className="row g10 wrapx"><Link className="btn btn-s" href="/sign-in">{t("track.details")}</Link></div>}
           <p className="hint row g8" style={{ alignItems: "flex-start" }}><Icon name="lock" size={16} /><span>{t("track.private")}</span></p>

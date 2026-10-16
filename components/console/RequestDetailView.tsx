@@ -15,12 +15,12 @@ import {
   setStage,
   uploadCaseFile,
 } from "@/app/actions/agent";
-import { markIdChecked, revealNationalId } from "@/app/actions/console";
+import { markIdChecked, revealNationalId, reviewIdentity } from "@/app/actions/console";
 import { Icon } from "@/components/ui";
 import { billOfficial, billOurs, fmtAgo, fmtMonth, fmtWhen, initials, rwf, shortName } from "@/lib/format";
 import type { Permission } from "@/lib/permissions";
 import { payStatus, stageLabel } from "@/lib/status";
-import type { Closed, RequestView, Staff, Stage } from "@/lib/types";
+import type { Closed, IdReview, RequestView, Staff, Stage } from "@/lib/types";
 import { RequestStatusBadge, PaymentStatusBadge, DocStatusBadge } from "./StatusBadge";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { Timeline } from "./Timeline";
@@ -61,6 +61,8 @@ export function RequestDetailView({
   const [toast, setToast] = useState("");
   const [shownId, setShownId] = useState<string | null>(null);
   const [idChecked, setIdChecked] = useState<string | null>(c.profile.idChecked ?? null);
+  const [idReview, setIdReview] = useState<IdReview | null>(c.idReview ?? null);
+  const [idNote, setIdNote] = useState("");
   const [error, setError] = useState("");
 
   // Modals & sub-state
@@ -377,7 +379,7 @@ export function RequestDetailView({
                   </div>
                 )}
                 {c.profile.dateOfBirth && <div className="row between"><span style={{ color: "var(--c-text-muted)" }}>Date of birth:</span><span className="tabular-nums">{c.profile.dateOfBirth}</span></div>}
-                {c.profile.idMasked && (
+                {c.profile.idMasked && !c.idRequired && (
                   <div className="row between g8">
                     <span style={{ color: "var(--c-text-muted)" }}>ID checked by Inzira:</span>
                     <span className="row g8">
@@ -398,6 +400,45 @@ export function RequestDetailView({
                 <a className="c-btn c-btn-secondary c-btn-sm grow" href={`https://wa.me/${phone}`} target="_blank" rel="noopener"><Icon name="msg" size={14} /> WhatsApp</a>
               </div>
             </div>
+
+            {c.idRequired && (
+              <div className="console-panel stack g12" id="id-review" style={{ padding: 18 }}>
+                <h3 className="console-section-title" style={{ margin: 0 }}>National ID review</h3>
+                <p style={{ margin: 0, fontSize: 13, color: "var(--c-text-muted)", lineHeight: 1.5 }}>
+                  Compare the number and documents the client sent. This is Inzira’s own check. It does not look up NIDA or Irembo, and opening this page does not verify anything.
+                </p>
+                <div className="row between g8" style={{ fontSize: 13 }}>
+                  <span style={{ color: "var(--c-text-muted)" }}>Status</span>
+                  <strong>{idReview === "checked" ? "Checked against documents" : idReview === "correction" ? "Requires correction" : idReview === "unable" ? "Unable to verify" : idReview === "pending" ? "Pending verification" : "No review recorded"}</strong>
+                </div>
+                {can("reviewDocs") && c.idReviewNote && <p style={{ margin: 0, fontSize: 13, lineHeight: 1.45 }}>{c.idReviewNote}</p>}
+                {(c.requirementsSnapshot ?? c.service.requirements).length > 0 && (
+                  <div className="stack g6">
+                    <span style={{ fontSize: 12, fontWeight: 700, color: "var(--c-text-muted)" }}>Requirements when this request was sent</span>
+                    <ul style={{ margin: 0, paddingLeft: 18, fontSize: 13, lineHeight: 1.45 }}>{(c.requirementsSnapshot ?? c.service.requirements).map((item) => <li key={item}>{item}</li>)}</ul>
+                  </div>
+                )}
+                {can("reviewDocs") && !c.closed && (
+                  <div className="stack g8">
+                    <label className="console-label" htmlFor="id-review-note">Review note</label>
+                    <textarea id="id-review-note" className="console-input" rows={3} value={idNote} onChange={(e) => setIdNote(e.target.value)} placeholder="What you compared, and what is missing. Do not type the ID number." />
+                    <div className="row g8 wrapx">
+                      {([
+                        ["checked", "Checked against documents"],
+                        ["correction", "Requires correction"],
+                        ["unable", "Unable to verify"],
+                      ] as const).map(([outcome, label]) => (
+                        <button key={outcome} type="button" className="c-btn c-btn-secondary c-btn-sm" disabled={busy} onClick={() => start(async () => {
+                          const res = await reviewIdentity(c.ref, outcome, idNote);
+                          if (res.ok) { setIdReview(outcome); setToast(outcome === "checked" ? "Recorded: checked against the documents sent" : outcome === "correction" ? "The client was asked to correct the ID details" : "Recorded: unable to verify from the documents sent"); }
+                          else setError(res.error);
+                        })}>{label}</button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
 
             <div className="console-panel stack g12" style={{ padding: 18 }}>
               <h3 className="console-section-title" style={{ margin: 0 }}>Service guide &amp; authority</h3>

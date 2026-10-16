@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { DocBadge, DocCard, Icon, RequestBadge, StageTimeline, TimelineV } from "@/components/ui";
 import { CancelRequest, Messages, PaymentPanel } from "@/components/RequestSide";
+import IdCorrection from "@/components/IdCorrection";
 import { fmtDate, fmtDay, fmtWhen, initials, shortName } from "@/lib/format";
 import { text } from "@/lib/i18n/messages";
 import { channelName, displayDocName, requestChannel, requestTitle, teamName } from "@/lib/i18n/present";
@@ -62,6 +63,16 @@ export default async function RequestPage({ params }: { params: Promise<{ ref: s
                 {action && <Link className="btn btn-p" href={action.href} style={{ alignSelf: "flex-start", marginTop: 6 }}><Icon name={action.icon} size={18} /> {action.label}</Link>}
               </div>
             </div>
+            {r.idRequired && (
+              <section className="card stack g12" style={{ padding: 18 }} aria-labelledby="id-h">
+                <h2 id="id-h" className="d" style={{ fontSize: 18, margin: 0 }}>{t("request.idHeading")}</h2>
+                <p style={{ margin: 0, fontSize: 15, lineHeight: 1.5 }}>
+                  <strong>{t(`request.id_${r.idReview ?? "none"}`)}</strong>
+                </p>
+                <p className="hint" style={{ fontSize: 14.5, lineHeight: 1.55 }}>{t(`request.id_${r.idReview ?? "none"}Body`)}</p>
+                {r.idReview === "correction" && !r.closed && <IdCorrection reqRef={r.ref} />}
+              </section>
+            )}
             <section className="card" aria-labelledby="docs-h">
               <div className="card-head"><h2 id="docs-h" className="d" style={{ fontSize: 18 }}>{t("request.docs")}</h2>{!r.closed && <Link className="btn btn-s btn-sm" href="/portal/documents"><Icon name="upload" size={16} /> {t("request.upload")}</Link>}</div>
               <div className="stack g18" style={{ padding: "16px 20px" }}>

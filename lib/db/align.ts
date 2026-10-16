@@ -106,6 +106,39 @@ async function addLaterObjects(database: Db) {
     `CREATE INDEX IF NOT EXISTS "transactions_provider_ref_idx" ON "transactions" USING btree ("provider_ref" text_pattern_ops)`,
     `UPDATE "transactions" t SET "status" = 'failed' WHERE t."status" = 'pending' AND EXISTS (SELECT 1 FROM "transactions" n WHERE n."ref" = t."ref" AND n."status" = 'pending' AND n."id" > t."id")`,
     `CREATE UNIQUE INDEX IF NOT EXISTS "transactions_one_pending" ON "transactions" USING btree ("ref") WHERE "status" = 'pending'`,
+    `ALTER TABLE "services" ADD COLUMN IF NOT EXISTS "id_policy" text`,
+    `UPDATE "services" SET "id_policy" = CASE "slug"
+      WHEN 'e-title' THEN 'required'
+      WHEN 'land-spouse-update' THEN 'required'
+      WHEN 'land-merging' THEN 'required'
+      WHEN 'property-tax-tin' THEN 'required'
+      WHEN 'irembo-training' THEN 'none'
+      WHEN 'ebm-training' THEN 'none'
+      ELSE CASE WHEN "no_id" THEN 'none' ELSE 'unsure' END
+    END
+    WHERE "id_policy" IS NULL`,
+    `ALTER TABLE "services" ALTER COLUMN "id_policy" SET DEFAULT 'unsure'`,
+    `UPDATE "services" SET "id_policy" = 'unsure' WHERE "id_policy" IS NULL`,
+    `ALTER TABLE "services" ALTER COLUMN "id_policy" SET NOT NULL`,
+    `ALTER TABLE "requests" ADD COLUMN IF NOT EXISTS "id_policy" text`,
+    `ALTER TABLE "requests" ADD COLUMN IF NOT EXISTS "id_required" boolean DEFAULT false NOT NULL`,
+    `ALTER TABLE "requests" ADD COLUMN IF NOT EXISTS "id_review" text`,
+    `ALTER TABLE "requests" ADD COLUMN IF NOT EXISTS "id_review_note" text`,
+    `ALTER TABLE "requests" ADD COLUMN IF NOT EXISTS "id_review_at" timestamp with time zone`,
+    `ALTER TABLE "requests" ADD COLUMN IF NOT EXISTS "id_review_by" text`,
+    `ALTER TABLE "requests" ADD COLUMN IF NOT EXISTS "id_consent" boolean DEFAULT false NOT NULL`,
+    `ALTER TABLE "requests" ADD COLUMN IF NOT EXISTS "requirements_snapshot" jsonb`,
+    `UPDATE "requests" AS r
+    SET "id_required" = (NOT s."no_id" AND p."kind" = 'person'),
+        "id_policy" = CASE WHEN s."no_id" THEN 'none' ELSE 'required' END,
+        "id_review" = CASE WHEN NOT s."no_id" AND p."kind" = 'person' AND r."closed" IS NULL AND r."stage" <> 'completed' THEN 'pending' ELSE NULL END,
+        "requirements_snapshot" = s."requirements"
+    FROM "services" AS s, "profiles" AS p
+    WHERE r."service_slug" = s."slug" AND r."profile_id" = p."id" AND r."id_policy" IS NULL`,
+    `ALTER TABLE "requests" ALTER COLUMN "id_policy" SET DEFAULT 'none'`,
+    `UPDATE "requests" SET "id_policy" = 'none' WHERE "id_policy" IS NULL`,
+    `ALTER TABLE "requests" ALTER COLUMN "id_policy" SET NOT NULL`,
+    `CREATE INDEX IF NOT EXISTS "requests_id_review_idx" ON "requests" USING btree ("id_review")`,
   ];
   for (const statement of statements) await database.execute(sql.raw(statement));
 }

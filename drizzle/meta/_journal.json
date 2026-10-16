@@ -57,6 +57,13 @@
       "when": 1792014501516,
       "tag": "0007_backend_hardening",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1792110000000,
+      "tag": "0008_identity_review",
+      "breakpoints": true
     }
   ]
 }
