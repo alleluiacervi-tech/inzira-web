@@ -27,15 +27,24 @@ if (typeof WebSocket === "undefined") { console.error("This script needs Node 22
 const work = mkdtempSync(join(tmpdir(), "inzira-flows-"));
 const png = join(work, "id_photo.png");
 writeFileSync(png, Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==", "base64"));
-// Containers and CI runners usually can't give Chrome its sandbox; this browser only opens the local app.
-const sandbox = process.platform === "linux" ? ["--no-sandbox"] : [];
-const chrome = spawn(chromePath, ["--headless=new", "--disable-gpu", "--no-first-run", ...sandbox, `--remote-debugging-port=${port}`, `--user-data-dir=${join(work, "profile")}`, "about:blank"], { stdio: "ignore" });
+// Containers and CI runners usually can't give Chrome its sandbox or a large /dev/shm; this browser only opens the local app.
+const sandbox = process.platform === "linux" ? ["--no-sandbox", "--disable-dev-shm-usage"] : [];
+const stderr = [];
+const chrome = spawn(chromePath, ["--headless=new", "--disable-gpu", "--no-first-run", ...sandbox, `--remote-debugging-port=${port}`, `--user-data-dir=${join(work, "profile")}`, "about:blank"], { stdio: ["ignore", "ignore", "pipe"] });
+chrome.stderr.on("data", (buf) => { stderr.push(String(buf)); if (stderr.join("").length > 4000) stderr.shift(); });
+let chromeExit = null;
+chrome.on("exit", (code) => { chromeExit = code; });
 const stop = (code) => { chrome.kill(); try { rmSync(work, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 }); } catch { /* temp folder is cleaned by the OS */ } process.exit(code); };
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 for (let i = 0; ; i++) {
   try { if ((await fetch(`http://127.0.0.1:${port}/json/version`)).ok) break; } catch { /* not up yet */ }
-  if (i > 40) { console.error("Chrome did not start."); stop(2); }
+  // A cold GitHub runner can take more than 10 seconds to open the debug port. 30 seconds, then the reason.
+  if (chromeExit !== null || i > 120) {
+    const tail = stderr.join("").trim().split("\n").slice(-12).join("\n");
+    console.error(`Chrome did not start (${chromeExit === null ? "debug port never opened" : `exited ${chromeExit}`}).${tail ? "\n" + tail : ""}`);
+    stop(2);
+  }
   await sleep(250);
 }
 try { if (!(await fetch(base)).ok) throw new Error(); } catch { console.error(`Nothing is answering at ${base}. Start the app first.`); stop(2); }
@@ -128,12 +137,12 @@ async function waitCode(p) {
   for (let i = 0; i < 40 && !(await p.ev(`!!document.querySelector("[data-demo-code]")`)); i++) await sleep(250);
 }
 /** Waits until the address matches, up to 10 seconds. */
-async function waitPath(p, ok) {
-  for (let i = 0; i < 40 && !ok(await p.ev("location.pathname")); i++) await sleep(250);
+async function waitPath(p, ok, tries = 40) {
+  for (let i = 0; i < tries && !ok(await p.ev("location.pathname")); i++) await sleep(250);
 }
-/** Waits until the page shows `text` (after a save and refresh), up to 10 seconds. */
-async function waitFor(p, text) {
-  for (let i = 0; i < 40 && !(await p.has(text)); i++) await sleep(250);
+/** Waits until the page shows `text` (after a save and refresh), up to 10 seconds, or longer when `tries` says so. */
+async function waitFor(p, text, tries = 40) {
+  for (let i = 0; i < tries && !(await p.has(text)); i++) await sleep(250);
 }
 /** Clicks the button starting with `label` inside the smallest panel that mentions `text` (one row of a list). */
 async function clickIn(p, text, label) {
@@ -330,8 +339,17 @@ await step("customer", async () => {
   check("customer: the choice is saved on their account", (await p.ev(`document.querySelector('input[name=locale][value=en]')?.checked`)) === true);
   await p.go("/portal/requests/INZ-2026-04761");
   check("pay: unpaid request offers review and pay", await p.has("Awaiting payment") && await p.has("Review and pay RWF 20,000"));
-  await p.click("Review and pay"); await waitPath(p, (path) => path.endsWith("/pay"));
-  check("pay: the payment screen shows the amount on its own page", (await p.ev("location.pathname")).endsWith("/pay") && await p.has("Approve and pay") && await p.has("20,000") && await p.has("Nothing is taken until you approve it"));
+  await p.click("Review and pay");
+  // The first visit to the payment page is a fresh server render. Give it longer than a click, then open the link itself if the transition has not landed.
+  await waitPath(p, (path) => path.endsWith("/pay"), 80);
+  if (!(await p.ev("location.pathname")).endsWith("/pay")) {
+    const href = await p.ev(`[...document.querySelectorAll("a")].map((a) => a.getAttribute("href")).find((h) => h && h.endsWith("/pay")) ?? ""`);
+    if (!href) throw new Error("no payment link");
+    await p.go(href);
+  }
+  await waitFor(p, "Approve and pay", 40);
+  check("pay: the payment screen shows the amount on its own page", (await p.ev("location.pathname")).endsWith("/pay") && await p.has("Approve and pay") && await p.has("20,000") && await p.has("Nothing is taken until you approve it"),
+    `${await p.ev("location.pathname")} ${(await p.ev("document.body.innerText")).replace(/\s+/g, " ").slice(0, 220)}`);
   await p.click("Send payment prompt"); await sleep(200);
   check("pay: cannot pay without approving the amounts", await p.has("Tick the box to approve"));
   await p.ev(`document.querySelector("#pay-agree").click()`);
@@ -653,8 +671,16 @@ await step("contact", async () => {
   const ref = await p.ev(`document.querySelector("[data-ref]")?.textContent ?? ""`);
   check("contact: sending opens a portal for the same reference", /^INZ-\d{4}-\d{5}$/.test(ref) && await p.has("See my request"), ref);
   await p.click("See my request");
-  await waitPath(p, (path) => path === "/portal/requests/" + ref);
-  check("contact: the customer is signed in on that request", (await p.ev("location.pathname")) === "/portal/requests/" + ref && await p.has(ref));
+  // The address changes first, then the portal shell, and only then the request itself. Wait until the reference is on that page.
+  let landed = false;
+  for (let i = 0; i < 80; i++) {
+    const path = await p.ev("location.pathname");
+    const text = await p.ev("document.body.innerText");
+    if (path === "/portal/requests/" + ref && text.includes(ref) && text.includes("My requests")) { landed = true; break; }
+    await sleep(250);
+  }
+  check("contact: the customer is signed in on that request", landed,
+    `${await p.ev("location.pathname")} ${(await p.ev("document.body.innerText")).replace(/\s+/g, " ").slice(0, 280)}`);
   await signOut(p);
   await p.go("/track"); await p.set("#tr-ref", ref); await p.set("#tr-contact", "guest.person@example.com"); await p.click("Check progress"); await waitFor(p, "Irembo training");
   check("contact: the request can be followed with its reference and email", await p.has("Irembo training"));
@@ -753,7 +779,7 @@ await step("authenticator", async () => {
   check("authenticator: after the SMS code, a second step is asked for", await p.has("One more step") && (await p.ev("location.pathname")) === "/sign-in");
   await p.set("#totp", "000000"); await p.click("Sign in", "button"); await waitFor(p, "not right");
   check("authenticator: a wrong code does not sign in", await p.has("not right") && (await p.ev("location.pathname")) === "/sign-in");
-  // The code used while setting up is spent; the next 30-second step is accepted (the app allows a step either side).
+  // The code used while setting up is spent; one step ahead is accepted (the app allows a step either side).
   // Keep these exact digits for the reuse check. Calling totp() again can land in the next window and mint a new code.
   const spent = totp(secret, 1);
   await p.set("#totp", spent); await p.click("Sign in", "button"); await waitPath(p, (path) => path.startsWith("/console"));
