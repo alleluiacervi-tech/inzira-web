@@ -6,6 +6,7 @@ import { trError } from "@/lib/i18n/errors";
 import { CodeEntry, isMobile } from "./PhoneCode";
 import { useHuman } from "./Human";
 import { useI18n } from "./I18n";
+import { unlessRedirect } from "./keep-redirect";
 import { Icon } from "./ui";
 
 /** Staff with an authenticator app: the 6-digit code from the app, or one of their recovery codes. */
@@ -20,7 +21,7 @@ function SecondStep({ next, onRestart }: { next?: string; onRestart: () => void 
       e.preventDefault();
       if (!recovery && code.length !== 6) { setError(t("signIn.totpDigits")); return; }
       setBusy(true); setError("");
-      const r = await signInSecondStep(code, next).catch(() => ({ ok: false as const, error: t("code.wrong"), restart: undefined }));
+      const r = await signInSecondStep(code, next).catch(unlessRedirect({ ok: false as const, error: t("code.wrong"), restart: undefined }));
       // A successful sign-in redirects, so a result here is always a problem.
       if (r && !r.ok) { setError(trError(locale, r.error)); setBusy(false); if (r.restart) setTimeout(onRestart, 2500); }
     }}>

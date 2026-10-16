@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { base32, codeAt, fromBase32, matchStep, newRecoveryCodes, normaliseRecovery, hashRecovery, otpauthUrl } from "../lib/totp.ts";
 import { open, seal, isSealed } from "../lib/crypto.ts";
 import { sniffType } from "../lib/storage.ts";
+import { safeReturnPath } from "../lib/return-path.ts";
 import { amountDue, payStatus } from "../lib/status.ts";
 import { emailCodeOnScreen, isReservedTestEmail } from "../lib/email.ts";
 import { idAsk, idPolicyOf, mentionsNationalId, nationalIdDigits, nationalIdError } from "../lib/identity.ts";
@@ -33,6 +34,17 @@ test("recovery codes: normalised, hashed, distinct", () => {
   assert.equal(normaliseRecovery(" AB CDE-fghjk "), "abcde-fghjk");
 });
 test("otpauth link carries the secret and issuer", () => assert.match(otpauthUrl("ABCD", "Eric K"), /^otpauth:\/\/totp\/Inzira%3AEric%20K\?secret=ABCD&issuer=Inzira/));
+test("return path keeps a console, portal, or admin page and drops the rest", () => {
+  assert.equal(safeReturnPath("/console/requests/INZ-2026-04790"), "/console/requests/INZ-2026-04790");
+  assert.equal(safeReturnPath("/portal/requests/INZ-2026-04761?x=1"), "/portal/requests/INZ-2026-04761?x=1");
+  assert.equal(safeReturnPath("/admin/system"), "/admin/system");
+  assert.equal(safeReturnPath("/console"), "/console");
+  assert.equal(safeReturnPath("//evil.example/console"), null);
+  assert.equal(safeReturnPath("/console.evil.example"), null);
+  assert.equal(safeReturnPath("https://evil.example/console"), null);
+  assert.equal(safeReturnPath("/services"), null);
+  assert.equal(safeReturnPath(null), null);
+});
 
 // ---- encryption of ID and TIN numbers
 test("crypto: seal and open", () => {

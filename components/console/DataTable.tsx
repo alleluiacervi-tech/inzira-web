@@ -31,6 +31,8 @@ export function DataTable<T extends { id?: string; ref?: string }>({
   savedViews = [],
   onSelectSavedView,
   onSaveCurrentView,
+  onDeleteSavedView,
+  canDeleteSavedView,
   searchPlaceholder = "Search...",
   searchFn,
   onRowClick,
@@ -48,6 +50,9 @@ export function DataTable<T extends { id?: string; ref?: string }>({
   savedViews?: SavedView[];
   onSelectSavedView?: (view: SavedView) => void;
   onSaveCurrentView?: (name: string, filters: Record<string, string>, visibleColumns: string[]) => Promise<void> | void;
+  onDeleteSavedView?: (id: string) => Promise<void> | void;
+  /** Shared views (no owner) are deleted only when this returns true. */
+  canDeleteSavedView?: (view: SavedView) => boolean;
   searchPlaceholder?: string;
   searchFn?: (row: T, query: string) => boolean;
   onRowClick?: (row: T) => void;
@@ -72,6 +77,7 @@ export function DataTable<T extends { id?: string; ref?: string }>({
   const [colChooserOpen, setColChooserOpen] = useState(false);
   const [saveViewOpen, setSaveViewOpen] = useState(false);
   const [newViewName, setNewViewName] = useState("");
+  const [pickedView, setPickedView] = useState("");
 
   const [visibleCols, setVisibleCols] = useState<Set<string>>(
     new Set(columns.filter((c) => c.defaultVisible !== false).map((c) => c.id))
@@ -201,7 +207,9 @@ export function DataTable<T extends { id?: string; ref?: string }>({
             <select
               className="console-select"
               style={{ fontSize: 13, height: 34 }}
+              key={savedViews.map((sv) => sv.id).join("|")}
               onChange={(e) => {
+                setPickedView(e.target.value);
                 const sv = savedViews.find((v) => v.id === e.target.value);
                 if (sv) {
                   if (sv.filters) setActiveFilters(sv.filters as Record<string, string>);
@@ -216,6 +224,20 @@ export function DataTable<T extends { id?: string; ref?: string }>({
                 <option key={sv.id} value={sv.id}>{sv.name}</option>
               ))}
             </select>
+          )}
+          {onDeleteSavedView && savedViews.some((sv) => sv.id === pickedView && (canDeleteSavedView ? canDeleteSavedView(sv) : !!sv.staffId)) && (
+            <button
+              type="button"
+              className="c-btn c-btn-ghost c-btn-sm"
+              onClick={async () => {
+                const view = savedViews.find((sv) => sv.id === pickedView);
+                if (!view || !window.confirm(`Delete the saved view “${view.name}”?`)) return;
+                await onDeleteSavedView(view.id);
+                setPickedView("");
+              }}
+            >
+              Delete view
+            </button>
           )}
 
           <div

@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { trError } from "@/lib/i18n/errors";
+import { unlessRedirect } from "./keep-redirect";
 import { useI18n } from "./I18n";
 import { Icon } from "./ui";
 
@@ -37,7 +38,7 @@ export function CodeEntry({ phone, email, demoCode, cta = "Confirm", onSubmit, o
       if (code.length !== 6) { setError(t("code.digits")); return; }
       setBusy(true);
       setError("");
-      const problem = await onSubmit(code).catch(() => t("code.wrong"));
+      const problem = await onSubmit(code).catch(unlessRedirect(t("code.wrong")));
       if (problem) { setError(trError(locale, problem)); setBusy(false); }
     }}>
       <div className="stack g8">
