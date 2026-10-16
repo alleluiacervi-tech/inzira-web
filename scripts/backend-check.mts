@@ -106,6 +106,81 @@ await check("payments: the database allows one waiting prompt per request", asyn
   await d.delete(s.transactions).where(sql`${s.transactions.receipt} in ('T-1','T-3')`);
 });
 
+await check("payments: IntouchPay is paid only after status says so, and a repeated callback does not pay twice", async () => {
+  const { createServer } = await import("node:http");
+  const { createHash } = await import("node:crypto");
+  let code = "1000";
+  const seen: string[] = [];
+  const server = createServer((req, res) => {
+    const chunks: Buffer[] = [];
+    req.on("data", (c) => chunks.push(c));
+    req.on("end", () => {
+      seen.push(Buffer.concat(chunks).toString("utf8"));
+      res.setHeader("content-type", "application/json");
+      res.end(JSON.stringify({ success: true, responsecode: code, status: code === "01" ? "Successfull" : "Pending", referenceno: "312333883" }));
+    });
+  });
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", () => resolve()));
+  const address = server.address();
+  if (!address || typeof address === "string") throw new Error("no port");
+  const prev = ["PAYMENT_PROVIDER", "INTOUCHPAY_USERNAME", "INTOUCHPAY_ACCOUNT_NO", "INTOUCHPAY_PARTNER_PASSWORD", "INTOUCHPAY_BASE_URL", "INTOUCHPAY_CALLBACK_USER", "INTOUCHPAY_CALLBACK_PASSWORD"].map((k) => [k, process.env[k]] as const);
+  process.env.PAYMENT_PROVIDER = "live";
+  process.env.INTOUCHPAY_USERNAME = "bob";
+  process.env.INTOUCHPAY_ACCOUNT_NO = "250160000011";
+  process.env.INTOUCHPAY_PARTNER_PASSWORD = "secret-partner";
+  process.env.INTOUCHPAY_BASE_URL = `http://127.0.0.1:${address.port}/api`;
+  delete process.env.INTOUCHPAY_CALLBACK_USER;
+  delete process.env.INTOUCHPAY_CALLBACK_PASSWORD;
+  try {
+    const { handlePaymentCallback } = await import("../lib/payment-callback.ts");
+    const [r] = await d.select({ ref: s.requests.ref }).from(s.requests).limit(1);
+    const before = await d.select({ id: s.events.id }).from(s.events).where(eq(s.events.ref, r.ref));
+    const [row] = await d.insert(s.transactions).values({ ref: r.ref, receipt: "T-INTOUCH", method: "MTN MoMo", official: 0, ours: 100, status: "pending", payer: "788123456", providerRef: "intouch:reqabc" }).returning({ id: s.transactions.id });
+    const payload = { jsonpayload: { requesttransactionid: "reqabc", transactionid: "1425", responsecode: "01", status: "Successfull", statusdesc: "Successfully Processed Transaction", referenceno: "312333883" } };
+    const waiting = await handlePaymentCallback({ txId: row.id, body: payload, authorization: null });
+    assert.equal(waiting.status, 200);
+    const [still] = await d.select().from(s.transactions).where(eq(s.transactions.id, row.id));
+    assert.equal(still.status, "pending", "a callback that says successful does not mark the payment paid");
+    assert.equal(still.providerRef, "intouch:reqabc:1425");
+    const mismatch = await handlePaymentCallback({ txId: row.id, body: { jsonpayload: { requesttransactionid: "other", transactionid: "9999", responsecode: "01", status: "Successfull" } }, authorization: null });
+    assert.equal(mismatch.status, 200);
+    const [untouched] = await d.select().from(s.transactions).where(eq(s.transactions.id, row.id));
+    assert.equal(untouched.providerRef, "intouch:reqabc:1425");
+    process.env.INTOUCHPAY_CALLBACK_USER = "callback-user";
+    process.env.INTOUCHPAY_CALLBACK_PASSWORD = "callback-secret";
+    const denied = await handlePaymentCallback({ txId: row.id, body: payload, authorization: null });
+    assert.equal(denied.status, 401);
+    const [locked] = await d.select().from(s.transactions).where(eq(s.transactions.id, row.id));
+    assert.equal(locked.status, "pending");
+    code = "01";
+    const header = `Basic ${Buffer.from("callback-user:callback-secret").toString("base64")}`;
+    const paid = await handlePaymentCallback({ txId: row.id, body: payload, authorization: header });
+    assert.equal(paid.status, 200);
+    const again = await handlePaymentCallback({ txId: row.id, body: payload, authorization: header });
+    assert.equal(again.status, 200);
+    const [done] = await d.select().from(s.transactions).where(eq(s.transactions.id, row.id));
+    assert.equal(done.status, "paid");
+    assert.match(done.providerRef ?? "", /^intouch:reqabc:1425\|312333883$/);
+    const after = await d.select({ id: s.events.id }).from(s.events).where(eq(s.events.ref, r.ref));
+    assert.equal(after.length, before.length + 1, "a repeated callback records the payment once");
+    const statusCall = JSON.parse(seen.at(-1) ?? "{}") as { password?: string; transactionid?: string; timestamp?: string };
+    assert.equal(statusCall.transactionid, "1425");
+    assert.notEqual(statusCall.password, "secret-partner");
+    assert.equal(statusCall.password, createHash("sha256").update(`bob250160000011secret-partner${statusCall.timestamp}`, "utf8").digest("hex"));
+    code = "1002";
+    const [failRow] = await d.insert(s.transactions).values({ ref: r.ref, receipt: "T-INTOUCH-FAIL", method: "Airtel Money", official: 0, ours: 50, status: "pending", payer: "728123456", providerRef: "intouch:reqfail:77" }).returning({ id: s.transactions.id });
+    const lied = await handlePaymentCallback({ txId: failRow.id, body: { jsonpayload: { requesttransactionid: "reqfail", transactionid: "77", responsecode: "01", status: "Successfull" } }, authorization: header });
+    assert.equal(lied.status, 200);
+    const [failed] = await d.select().from(s.transactions).where(eq(s.transactions.id, failRow.id));
+    assert.equal(failed.status, "failed", "a callback that says paid is still failed when the status call says so");
+    await d.delete(s.transactions).where(eq(s.transactions.id, failRow.id));
+    await d.delete(s.transactions).where(eq(s.transactions.id, row.id));
+  } finally {
+    server.close();
+    for (const [k, v] of prev) { if (v === undefined) delete process.env[k]; else process.env[k] = v; }
+  }
+});
+
 await check("authenticator: a code works once; recovery codes work once", async () => {
   const secret = newSecret();
   const rec = "abcde-fghjk";

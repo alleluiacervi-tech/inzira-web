@@ -106,7 +106,13 @@ if (!failures.length) {
   const cron = await fetch(base + "/api/cron");
   if (cron.status !== 401) fail("/api/cron", `must refuse callers without the secret, got ${cron.status}`); else console.log("  ok   /api/cron (needs the secret)");
   const cb = await fetch(base + "/api/payments/callback", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" });
-  if (cb.status !== 200) fail("/api/payments/callback", `expected 200, got ${cb.status}`); else console.log("  ok   /api/payments/callback (accepts and re-checks)");
+  const cbBody = await cb.json().catch(() => null);
+  if (cb.status !== 200 || cbBody?.success !== true || cbBody?.message !== "success") fail("/api/payments/callback", `expected the IntouchPay acknowledgement, got ${cb.status} ${JSON.stringify(cbBody)}`);
+  else console.log("  ok   /api/payments/callback (accepts and re-checks)");
+  const forged = await fetch(base + "/api/payments/callback", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ jsonpayload: { requesttransactionid: "no-such-prompt", transactionid: "999", responsecode: "01", status: "Successfull" } }) });
+  const forgedBody = await forged.json().catch(() => null);
+  if (forged.status !== 200 || forgedBody?.success !== true) fail("/api/payments/callback forged", `an unknown callback must not be treated as an error the provider should retry, got ${forged.status}`);
+  else console.log("  ok   /api/payments/callback (unknown prompt is acknowledged, not paid)");
   const headers = (await fetch(base + "/")).headers;
   if (headers.get("x-frame-options") !== "DENY" || headers.get("x-content-type-options") !== "nosniff") fail("/", "security headers missing"); else console.log("  ok   security headers");
   const file = await fetch(base + "/files/anything");

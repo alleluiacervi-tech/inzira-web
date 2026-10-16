@@ -242,8 +242,13 @@ export async function startPayment(ref: string, phoneInput: string): Promise<Res
     throw e;
   }
   try {
-    const callbackUrl = SITE.url.startsWith("http") ? `${SITE.url}/api/payments/callback?tx=${tx.id}` : undefined;
-    await prompt.provider.requestToPay({ id: prompt.id, phone9: phone, amount: due, reference: receipt, callbackUrl });
+    const origin = SITE.url.startsWith("https://") || (process.env.NODE_ENV !== "production" && SITE.url.startsWith("http://")) ? SITE.url.replace(/\/$/, "") : "";
+    const callbackUrl = origin ? `${origin}/api/payments/callback?tx=${tx.id}` : undefined;
+    const sent = await prompt.provider.requestToPay({ id: prompt.id, phone9: phone, amount: due, reference: receipt, callbackUrl });
+    if (sent.providerTxId) {
+      const next = `${prompt.providerRef}:${sent.providerTxId}`;
+      await d.update(s.transactions).set({ providerRef: next }).where(and(eq(s.transactions.id, tx.id), eq(s.transactions.status, "pending"), eq(s.transactions.providerRef, prompt.providerRef)));
+    }
   } catch (e) {
     console.error("[payments]", e);
     if (e instanceof PromptRefused) {

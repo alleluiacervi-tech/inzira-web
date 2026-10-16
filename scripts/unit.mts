@@ -104,4 +104,138 @@ test("payStatus: quote, unpaid, overdue, part, pending, paid, refunded", () => {
   assert.equal(payStatus({ ...base, transactions: [tx("refunded", 5000, 15000)] } as never, now), "refunded");
 });
 
+// ---- IntouchPay: password, status codes, callback identity, and a local stand-in of the published API
+const { createHash } = await import("node:crypto");
+const { createServer } = await import("node:http");
+const intouch = await import("../lib/intouchpay.ts");
+
+const asyncTest = async (name: string, fn: () => Promise<void>) => {
+  try { await fn(); passed++; } catch (e) { console.error(`FAIL ${name}\n`, e); process.exitCode = 1; }
+};
+
+await asyncTest("intouch password is sha256 of username, account, partner password and timestamp", async () => {
+  const stamp = "20161231115242";
+  const want = createHash("sha256").update("bob250160000011pass123456789" + stamp, "utf8").digest("hex");
+  assert.equal(intouch.intouchPassword("bob", "250160000011", "pass123456789", stamp), want);
+  assert.equal(intouch.intouchTimestamp(new Date("2016-12-31T11:52:42Z")), stamp);
+});
+
+await asyncTest("intouch status codes follow the guide, and a denied success is not paid", async () => {
+  assert.equal(intouch.paymentOutcome({ success: true, responsecode: "1000", status: "Pending" }), "pending");
+  assert.equal(intouch.paymentOutcome({ success: true, responsecode: "01", status: "Successfull" }), "paid");
+  assert.equal(intouch.paymentOutcome({ success: false, responsecode: "01", status: "Successfull" }), "pending");
+  assert.equal(intouch.paymentOutcome({ success: false, responsecode: "1002" }), "failed");
+  assert.equal(intouch.paymentOutcome({ success: false, responsecode: "2400" }), "pending");
+  assert.equal(intouch.paymentOutcome({ success: false, responsecode: "3100" }), "missing");
+  assert.equal(intouch.paymentOutcome({ success: true, status: "Something new" }), "pending");
+});
+
+await asyncTest("intouch callback is only an identifier, and a second transaction id is ignored", async () => {
+  assert.equal(intouch.readIntouchCallback({ status: "Successfull", responsecode: "01" }), null);
+  const read = intouch.readIntouchCallback({ jsonpayload: { requesttransactionid: "4522233", transactionid: "6004994884", responsecode: "01", status: "Successfull" } });
+  assert.deepEqual(read, { requestId: "4522233", transactionId: "6004994884", responsecode: "01" });
+  assert.equal(intouch.withIntouchTransactionId("intouch:4522233", "6004994884", "4522233"), "intouch:4522233:6004994884");
+  assert.equal(intouch.withIntouchTransactionId("intouch:4522233:6004994884", "111", "4522233"), null);
+  assert.equal(intouch.withIntouchTransactionId("intouch:4522233", "6004994884", "999"), null);
+  assert.equal(intouch.withIntouchTransactionId("mtn:abc", "6004994884", "abc"), null);
+});
+
+await asyncTest("intouch callback basic auth matches only the configured pair", async () => {
+  const prevUser = process.env.INTOUCHPAY_CALLBACK_USER;
+  const prevPass = process.env.INTOUCHPAY_CALLBACK_PASSWORD;
+  delete process.env.INTOUCHPAY_CALLBACK_USER;
+  delete process.env.INTOUCHPAY_CALLBACK_PASSWORD;
+  assert.equal(intouch.callbackAuthorized(null), true);
+  process.env.INTOUCHPAY_CALLBACK_USER = "callback-user";
+  process.env.INTOUCHPAY_CALLBACK_PASSWORD = "callback-secret";
+  const header = `Basic ${Buffer.from("callback-user:callback-secret").toString("base64")}`;
+  assert.equal(intouch.callbackAuthorized(header), true);
+  assert.equal(intouch.callbackAuthorized(`Basic ${Buffer.from("callback-user:nope").toString("base64")}`), false);
+  assert.equal(intouch.callbackAuthorized(null), false);
+  if (prevUser === undefined) delete process.env.INTOUCHPAY_CALLBACK_USER; else process.env.INTOUCHPAY_CALLBACK_USER = prevUser;
+  if (prevPass === undefined) delete process.env.INTOUCHPAY_CALLBACK_PASSWORD; else process.env.INTOUCHPAY_CALLBACK_PASSWORD = prevPass;
+});
+
+await asyncTest("intouch client speaks the published request and status calls", async () => {
+  const seen: { url: string; type: string; body: string }[] = [];
+  let statusCode = "1000";
+  const server = createServer((req, res) => {
+    const chunks: Buffer[] = [];
+    req.on("data", (c) => chunks.push(c));
+    req.on("end", () => {
+      const body = Buffer.concat(chunks).toString("utf8");
+      seen.push({ url: req.url ?? "", type: req.headers["content-type"] ?? "", body });
+      res.setHeader("content-type", "application/json");
+      if ((req.url ?? "").includes("requestpayment")) {
+        const form = new URLSearchParams(body);
+        if (form.get("requesttransactionid") === "dup0000000000001") {
+          res.end(JSON.stringify({ success: false, responsecode: "2400", requesttransactionid: "dup0000000000001" }));
+          return;
+        }
+        if (form.get("password") === "wrong") {
+          res.end(JSON.stringify({ success: false, responsecode: "0005" }));
+          return;
+        }
+        res.end(JSON.stringify({ status: "Pending", requesttransactionid: form.get("requesttransactionid"), success: true, responsecode: "1000", transactionid: 1425, message: "Transaction Pending" }));
+        return;
+      }
+      res.end(JSON.stringify({ success: true, responsecode: statusCode, status: statusCode === "01" ? "Successfull" : "Pending", message: "Pending" }));
+    });
+  });
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", () => resolve()));
+  const address = server.address();
+  if (!address || typeof address === "string") throw new Error("no port");
+  const prev = {
+    provider: process.env.PAYMENT_PROVIDER,
+    user: process.env.INTOUCHPAY_USERNAME,
+    account: process.env.INTOUCHPAY_ACCOUNT_NO,
+    pass: process.env.INTOUCHPAY_PARTNER_PASSWORD,
+    base: process.env.INTOUCHPAY_BASE_URL,
+    node: process.env.NODE_ENV,
+  };
+  process.env.INTOUCHPAY_USERNAME = "bob";
+  process.env.INTOUCHPAY_ACCOUNT_NO = "250160000011";
+  process.env.INTOUCHPAY_PARTNER_PASSWORD = "pass123456789";
+  process.env.INTOUCHPAY_BASE_URL = `http://127.0.0.1:${address.port}/api`;
+  try {
+    const sent = await intouch.requestIntouchPayment({ requestId: "4522233", phone9: "788123456", amount: 1000, callbackUrl: "https://example.test/api/payments/callback?tx=4" });
+    assert.equal(sent.transactionId, "1425");
+    assert.equal(sent.code, "1000");
+    const form = new URLSearchParams(seen[0].body);
+    assert.equal(seen[0].type, "application/x-www-form-urlencoded");
+    assert.equal(form.get("mobilephone"), "250788123456");
+    assert.equal(form.get("accountno"), "250160000011");
+    assert.equal(form.get("amount"), "1000");
+    assert.equal(form.get("callbackurl"), "https://example.test/api/payments/callback?tx=4");
+    assert.equal(form.get("partnerpassword"), null);
+    assert.ok(!seen[0].body.includes("pass123456789"));
+    const stamp = form.get("timestamp") ?? "";
+    assert.equal(form.get("password"), intouch.intouchPassword("bob", "250160000011", "pass123456789", stamp));
+    const pending = await intouch.intouchPaymentStatus("4522233", "1425");
+    assert.equal(pending.status, "pending");
+    assert.match(seen[1].type, /application\/json/);
+    const statusBody = JSON.parse(seen[1].body) as { requesttransactionid: string; transactionid: string };
+    assert.equal(statusBody.requesttransactionid, "4522233");
+    assert.equal(statusBody.transactionid, "1425");
+    assert.ok(!seen[1].body.includes("pass123456789"));
+    statusCode = "01";
+    assert.equal((await intouch.intouchPaymentStatus("4522233", "1425")).status, "paid");
+    const duplicate = await intouch.requestIntouchPayment({ requestId: "dup0000000000001", phone9: "788123456", amount: 1000 });
+    assert.equal(duplicate.code, "2400");
+    assert.equal(duplicate.transactionId, undefined);
+    await assert.rejects(() => intouch.requestIntouchPayment({ requestId: "bad", phone9: "788123456", amount: 0 }), /positive number/);
+    process.env.NODE_ENV = "production";
+    await assert.rejects(() => intouch.requestIntouchPayment({ requestId: "https", phone9: "788123456", amount: 100 }), /HTTPS/);
+  } finally {
+    server.close();
+    const restore = (key: string, value: string | undefined) => { if (value === undefined) delete process.env[key]; else process.env[key] = value; };
+    restore("PAYMENT_PROVIDER", prev.provider);
+    restore("INTOUCHPAY_USERNAME", prev.user);
+    restore("INTOUCHPAY_ACCOUNT_NO", prev.account);
+    restore("INTOUCHPAY_PARTNER_PASSWORD", prev.pass);
+    restore("INTOUCHPAY_BASE_URL", prev.base);
+    restore("NODE_ENV", prev.node);
+  }
+});
+
 console.log(process.exitCode ? "unit tests FAILED" : `unit tests ok (${passed})`);

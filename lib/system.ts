@@ -77,7 +77,19 @@ async function dataProtection(): Promise<Check[]> {
 
 function payments(): Check[] {
   const mode = process.env.PAYMENT_PROVIDER;
-  if (mode === "live") {
+  if (mode === "live" || mode === "intouchpay") {
+    const ready = has("INTOUCHPAY_USERNAME", "INTOUCHPAY_ACCOUNT_NO", "INTOUCHPAY_PARTNER_PASSWORD");
+    const base = process.env.INTOUCHPAY_BASE_URL ?? "https://www.intouchpay.co.rw/api";
+    const https = base.startsWith("https://");
+    const callback = process.env.NEXT_PUBLIC_SITE_URL?.startsWith("https://")
+      ? `${process.env.NEXT_PUBLIC_SITE_URL.replace(/\/$/, "")}/api/payments/callback`
+      : "";
+    const auth = has("INTOUCHPAY_CALLBACK_USER", "INTOUCHPAY_CALLBACK_PASSWORD");
+    if (!ready) return [{ key: "pay", name: "IntouchPay", state: "missing", detail: "Credentials not set. Customers can’t pay.", fix: "Set INTOUCHPAY_USERNAME, INTOUCHPAY_ACCOUNT_NO and INTOUCHPAY_PARTNER_PASSWORD from the IntouchPay partner account." }];
+    const detail = `Collects MTN and Airtel through IntouchPay (${base}).${callback ? ` Callback ${callback}.` : " Set NEXT_PUBLIC_SITE_URL to the https site address so prompts include a callback."}${auth ? " Callback basic auth is required." : " Callback basic auth is not set; payment state still comes from GetTransactionStatus."}`;
+    return [{ key: "pay", name: "IntouchPay", state: https ? "ready" : "missing", detail, fix: https ? undefined : "INTOUCHPAY_BASE_URL must be https." }];
+  }
+  if (mode === "direct") {
     const sandbox = (process.env.MTN_MOMO_ENVIRONMENT ?? "sandbox") === "sandbox";
     const mtn: Check = has("MTN_MOMO_SUBSCRIPTION_KEY", "MTN_MOMO_API_USER", "MTN_MOMO_API_KEY")
       ? { key: "mtn", name: "MTN MoMo", state: sandbox ? "test" : "ready", detail: sandbox ? "MTN sandbox: test money only." : `Live environment “${process.env.MTN_MOMO_ENVIRONMENT}”.`, fix: sandbox ? "Set MTN_MOMO_ENVIRONMENT and MTN_MOMO_BASE_URL to the live values MTN gives you." : undefined }
@@ -89,9 +101,9 @@ function payments(): Check[] {
     return [mtn, airtel];
   }
   if (mode === "simulator" || (!mode && (!production() || demo()))) {
-    return [{ key: "pay", name: "Mobile money", state: "test", detail: "Simulator: payments are approved after two seconds and no money moves.", fix: "Set PAYMENT_PROVIDER=live with the MTN MoMo and Airtel Money keys, after testing in their sandboxes." }];
+    return [{ key: "pay", name: "Mobile money", state: "test", detail: "Simulator: payments are approved after two seconds and no money moves.", fix: "Set PAYMENT_PROVIDER=live with the IntouchPay username, account number and partner password." }];
   }
-  return [{ key: "pay", name: "Mobile money", state: "missing", detail: "No payment provider. Customers can’t pay.", fix: "Set PAYMENT_PROVIDER=live with the MTN MoMo and Airtel Money keys." }];
+  return [{ key: "pay", name: "Mobile money", state: "missing", detail: "No payment provider. Customers can’t pay.", fix: "Set PAYMENT_PROVIDER=live with the IntouchPay username, account number and partner password." }];
 }
 
 function storage(): Check {
