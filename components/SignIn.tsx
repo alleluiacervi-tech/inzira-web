@@ -59,16 +59,24 @@ export default function SignIn({ next, demo: demoModes = { email: false, phone: 
   const demo = byEmail ? demoModes.email : demoModes.phone;
 
   const demos: [string, string][] = byEmail
-    ? [["aline.uwase@example.com", t("signIn.aline")]]
+    ? [["aline.uwase@example.com", t("signIn.aline")], ["admin@inzira.test", t("signIn.admin")]]
     : [["780000001", t("signIn.eric")], ["780000008", t("signIn.diane")]];
-  const pick = (v: string) => { (byEmail ? setEmail : setPhone)(v); setError(""); };
+  const pick = (v: string) => {
+    if (v.includes("@")) { setMode("email"); setEmail(v); }
+    else { setMode("phone"); setPhone(v); }
+    setError("");
+  };
 
   if (second) return <SecondStep next={next} onRestart={() => { setSecond(false); setSent(false); setDemoCode(undefined); }} />;
   if (sent) {
     return byEmail
       ? <CodeEntry email={email.trim().toLowerCase()} demoCode={demoCode} cta={t("signIn.cta")} onBack={() => setSent(false)}
           onResend={async () => { const r = await requestEmailCode(email, await human.get()); return r.ok ? { demoCode: r.demoCode } : { error: r.error }; }}
-          onSubmit={async (code) => { const r = await signInWithEmail(email, code, next); return r && !r.ok ? r.error : null; }} />
+          onSubmit={async (code) => {
+            const r = await signInWithEmail(email, code, next);
+            if (r && r.ok) { setSecond(true); return null; }
+            return r && !r.ok ? r.error : null;
+          }} />
       : <CodeEntry phone={phone} demoCode={demoCode} cta={t("signIn.cta")} onBack={() => setSent(false)}
           onResend={async () => { const r = await requestCode(phone, await human.get()); return r.ok ? { demoCode: r.demoCode } : { error: r.error }; }}
           onSubmit={async (code) => {

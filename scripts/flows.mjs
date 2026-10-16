@@ -202,6 +202,14 @@ await step("private areas", async () => {
   check("sign-in: a customer with an email cannot sign in by phone", await p.has("Customers sign in with their email address"));
   await p.go("/portal/requests");
   check("sign-in: staff pages open the phone form", await (async () => { await p.go("/console"); return p.ev(`!!document.querySelector("#si-phone")`); })());
+  await p.go("/sign-in");
+  await p.click("Admin dashboard");
+  check("sign-in: the admin demo email is filled in", (await p.ev(`document.querySelector("#si-email")?.value`)) === "admin@inzira.test");
+  await p.click("Send me a code"); await waitCode(p);
+  await p.set("#otp", await p.ev(`document.querySelector("[data-demo-code]").dataset.demoCode`));
+  await p.click("Sign in", "button");
+  await waitPath(p, (path) => path.startsWith("/console"));
+  check("sign-in: the admin email opens the dashboard", (await p.ev("location.pathname")).startsWith("/console"));
   await p.close();
 });
 
@@ -223,19 +231,17 @@ await step("start", async () => {
   await p.click("Continue"); await sleep(200);
   check("start: the ID consent is required before the number is accepted", await p.has("Please confirm you understand"));
   await p.ev(`document.querySelector("#f-id-consent").click()`);
+  await p.click("Add a spouse after marriage", "label"); await p.set("#f-notes", "We married in August.");
   await p.click("Continue"); await sleep(300);
-  check("start: step 2 offers the service's own choices", await p.has("Tell us about the request") && await p.has("Add a spouse after marriage"));
   check("start: the saved draft has no ID number", !(await p.ev(`(sessionStorage.getItem("inzira:start:land-spouse-update") || "").includes("0045123")`)));
   await p.go("/start/land-spouse-update"); await sleep(400);
-  check("start: a refresh keeps the draft and the step", await p.has("Tell us about the request"));
+  check("start: a refresh keeps the draft and the step", await p.has("Check and send"));
   await p.click("Back"); await sleep(200);
   await p.set("#f-nid", "1 1995 8 0045123 0 17"); await p.set("#f-dob", "1995-08-12");
   await p.ev(`document.querySelector("#f-id-consent").click()`);
   await p.click("Continue"); await sleep(300);
-  await p.click("Add a spouse after marriage", "label"); await p.set("#f-notes", "We married in August."); await p.click("Continue"); await sleep(300);
   await attach(p, "input[type=file]"); await sleep(300);
   check("start: a chosen file is listed", await p.has("id_photo.png"));
-  await p.click("Continue"); await sleep(200);
   check("start: review lists what was entered", await p.has("Check and send") && await p.has("Test Person") && await p.has("test.person@example.com") && await p.has("1995-08-12") && await p.has("Add a spouse after marriage"));
   await p.click("Send request"); await sleep(200);
   check("start: cannot send without the acknowledgement", await p.has("Please confirm you’ve read this"));
@@ -254,12 +260,12 @@ await step("start", async () => {
   await p.click("Cancel this request", "summary"); await sleep(300); await p.click("Cancel request", "button"); await waitFor(p, "Cancelled by you");
   check("cancel: a customer can cancel before paying", await p.has("Cancelled by you") && !(await p.has("Cancel this request")));
   await p.go("/start/irembo-training");
-  check("training: no national ID is asked for", (await p.ev(`document.querySelector("#f-nid") === null && !!document.querySelector('[aria-label^="Step 1 of 3"]')`)));
+  check("training: no national ID is asked for", (await p.ev(`document.querySelector("#f-nid") === null && !!document.querySelector('[aria-label^="Step 1 of 2"]')`)));
   await p.go("/start/ebm-installation");
   check("ebm: an unconfirmed ID rule is not mandatory", await p.has("not confirmed") && (await p.ev(`!!document.querySelector("#f-nid")`)) === true);
   await p.set("#f-name", "Ebm Person"); await p.set("#f-email", "ebm.person@example.com");
   await p.click("Continue"); await sleep(300);
-  check("ebm: a service that does not require an ID continues without one", await p.has("Tell us about the request") && !(await p.has("ID numbers have 16 digits")));
+  check("ebm: a service that does not require an ID continues without one", await p.has("Check and send") && !(await p.has("ID numbers have 16 digits")));
   await p.close();
 });
 
@@ -321,12 +327,11 @@ await step("customer", async () => {
   check("customer: the choice is saved on their account", (await p.ev(`document.querySelector('input[name=locale][value=en]')?.checked`)) === true);
   await p.go("/portal/requests/INZ-2026-04761");
   check("pay: unpaid request offers review and pay", await p.has("Awaiting payment") && await p.has("Review and pay RWF 20,000"));
-  await p.click("Review and pay"); await sleep(300);
-  await p.key("Escape"); await sleep(300);
-  check("pay: Escape closes the dialog and gives focus back", !(await p.has("Approve and pay")) && (await p.ev("document.activeElement?.tagName + ':' + (document.activeElement?.textContent ?? '')")).startsWith("BUTTON:Review and pay"));
-  await p.click("Review and pay"); await sleep(300); await p.click("Send payment prompt"); await sleep(200);
+  await p.click("Review and pay"); await waitPath(p, (path) => path.endsWith("/pay"));
+  check("pay: the payment screen shows the amount on its own page", (await p.ev("location.pathname")).endsWith("/pay") && await p.has("Approve and pay") && await p.has("20,000") && await p.has("Nothing is taken until you approve it"));
+  await p.click("Send payment prompt"); await sleep(200);
   check("pay: cannot pay without approving the amounts", await p.has("Tick the box to approve"));
-  await p.ev(`document.querySelector('.modal .check input').click()`);
+  await p.ev(`document.querySelector("#pay-agree").click()`);
   await p.set("#mm", "788 120 000"); await p.click("Send payment prompt"); await sleep(600);
   check("pay: shows a waiting state", await p.has("Check your phone"));
   await sleep(4500);

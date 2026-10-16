@@ -100,6 +100,8 @@ export const staff = pgTable("staff", {
   id: text("id").primaryKey(),
   name: text("name").notNull(),
   phone: text("phone").unique(),
+  /** Work email. In the demo, the owner signs in to the dashboard with admin@inzira.test. */
+  email: text("email"),
   role: text("role").$type<StaffRole>().notNull(),
   team: text("team").notNull(),
   title: text("title").notNull(),
@@ -111,7 +113,7 @@ export const staff = pgTable("staff", {
   totpLastStep: integer("totp_last_step"),
   /** SHA-256 hashes of the unused recovery codes. */
   totpRecovery: jsonb("totp_recovery").$type<string[]>(),
-});
+}, (t) => [uniqueIndex("staff_email_unique").on(sql`lower(${t.email})`)]);
 
 /** One row per role and permission; `allowed` is what the roles matrix in the admin console edits. */
 export const rolePermissions = pgTable("role_permissions", {

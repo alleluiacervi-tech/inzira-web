@@ -1,6 +1,6 @@
 // Fills an empty database with the catalogue and the sample customers, staff and requests from
 // lib/mock. Used automatically for the development database, or with `npm run db:seed`.
-import { inArray } from "drizzle-orm";
+import { and, eq, inArray, sql } from "drizzle-orm";
 import { idPolicyOf } from "../identity";
 import { CATEGORIES, SERVICES } from "../mock/catalogue";
 import { ACCOUNTS, PROFILES, STAFF } from "../mock/people";
@@ -69,7 +69,7 @@ export async function seed(db: Db) {
     await catalogue(tx);
     await tx.insert(s.accounts).values(ACCOUNTS.map((a) => ({ ...a, phone: digits(a.phone), registeredAt: a.since })));
     await tx.insert(s.profiles).values(PROFILES);
-    await tx.insert(s.staff).values(STAFF.map((p) => ({ ...p, phone: STAFF_PHONES[p.id] ?? null })));
+    await tx.insert(s.staff).values(STAFF.map((p) => ({ ...p, phone: STAFF_PHONES[p.id] ?? null, email: p.id === "s-diane" ? "admin@inzira.test" : null })));
 
     for (const r of REQUESTS) {
       const b = r.billing;
@@ -179,8 +179,9 @@ export async function ensureDemoSignIns(database: Db) {
   const present = new Set((await database.select({ id: s.accounts.id }).from(s.accounts).where(inArray(s.accounts.id, ACCOUNTS.map((a) => a.id)))).map((a) => a.id));
   const profiles = PROFILES.filter((p) => present.has(p.accountId));
   if (profiles.length) await database.insert(s.profiles).values(profiles).onConflictDoNothing();
-  const staff = STAFF.filter((p) => STAFF_PHONES[p.id] && !takenStaff.has(STAFF_PHONES[p.id])).map((p) => ({ ...p, phone: STAFF_PHONES[p.id] }));
+  const staff = STAFF.filter((p) => STAFF_PHONES[p.id] && !takenStaff.has(STAFF_PHONES[p.id])).map((p) => ({ ...p, phone: STAFF_PHONES[p.id], email: p.id === "s-diane" ? "admin@inzira.test" : null }));
   if (staff.length) await database.insert(s.staff).values(staff).onConflictDoNothing();
+  if (isDemo()) await database.update(s.staff).set({ email: "admin@inzira.test" }).where(and(eq(s.staff.id, "s-diane"), sql`email is null`));
   if (!perm.length) {
     await database.insert(s.rolePermissions).values(
       (Object.keys(DEFAULT_MATRIX) as Permission[]).flatMap((permission) => ROLES.map((r, i) => ({ role: r.name, permission, allowed: DEFAULT_MATRIX[permission][i] === "1" }))),

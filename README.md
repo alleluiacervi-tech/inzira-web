@@ -33,6 +33,7 @@ a live site without a real provider refuses to send a code instead.
 | Jean Paul Hakizimana, supervisor | 780 000 006 | Staff console · My day (all cases, triage, can change fees) |
 | Solange Ishimwe, finance | 780 000 007 | Staff console · Overview (payments, refunds) |
 | Diane Mukamana, owner | 780 000 008 | Staff console · Overview (everything) |
+| Diane Mukamana, owner (email) | admin@inzira.test | Same dashboard, from the email sign-in form |
 
 Staff sign in with their phone number: open `/sign-in?method=phone` (links to `/console` and `/admin` open it
 automatically). Customers sign in with their email; a customer who only has a phone number (entered by staff, or
