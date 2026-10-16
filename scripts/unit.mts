@@ -4,6 +4,7 @@ import { base32, codeAt, fromBase32, matchStep, newRecoveryCodes, normaliseRecov
 import { open, seal, isSealed } from "../lib/crypto.ts";
 import { sniffType } from "../lib/storage.ts";
 import { amountDue, payStatus } from "../lib/status.ts";
+import { idAsk, idPolicyOf, mentionsNationalId, nationalIdDigits, nationalIdError } from "../lib/identity.ts";
 
 let passed = 0;
 const test = (name: string, fn: () => void) => { try { fn(); passed++; } catch (e) { console.error(`FAIL ${name}\n`, e); process.exitCode = 1; } };
@@ -236,6 +237,30 @@ await asyncTest("intouch client speaks the published request and status calls", 
     restore("INTOUCHPAY_BASE_URL", prev.base);
     restore("NODE_ENV", prev.node);
   }
+});
+
+test("national ID: exactly 16 digits, and a formatted paste counts", () => {
+  assert.equal(nationalIdDigits("1 1995 8 0045123 0 17"), "1199580045123017");
+  assert.equal(nationalIdError("1199580045123017"), null);
+  assert.equal(nationalIdError(""), "empty");
+  assert.equal(nationalIdError("12345"), "short");
+  assert.equal(nationalIdError("12345678901234567890"), "long");
+  assert.equal(nationalIdError(nationalIdDigits("1199580045123017abc")), null);
+});
+test("national ID: a valid format is not a verification status", () => {
+  assert.equal(nationalIdError("1199580045123017"), null);
+  assert.equal(mentionsNationalId("the number is 1 1995 8 0045123 0 17"), true);
+  assert.equal(mentionsNationalId("reference INZ-2026-04790"), false);
+});
+test("ID policy: required, hidden, or optional — uncertain stays optional", () => {
+  assert.equal(idPolicyOf({ idPolicy: "required" }), "required");
+  assert.equal(idPolicyOf({ noId: true }), "none");
+  assert.equal(idPolicyOf({}), "unsure");
+  assert.equal(idAsk({ idPolicy: "required" }, "me"), "required");
+  assert.equal(idAsk({ idPolicy: "required" }, "business"), "hidden");
+  assert.equal(idAsk({ idPolicy: "none" }, "me"), "hidden");
+  assert.equal(idAsk({ idPolicy: "unsure" }, "family"), "optional");
+  assert.equal(idAsk(null, "me"), "optional");
 });
 
 console.log(process.exitCode ? "unit tests FAILED" : `unit tests ok (${passed})`);

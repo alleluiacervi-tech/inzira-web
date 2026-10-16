@@ -340,7 +340,12 @@
     "next": "Intambwe ikurikira",
     "details": "Injira urebe amakuru arambuye",
     "private": "Inyandiko, ubutumwa n'ubwishyu biboneka gusa iyo umaze kwinjira muri konti.",
-    "contact": "Imeri cyangwa nomero ya telefoni"
+    "contact": "Imeri cyangwa nomero ya telefoni",
+    "idLabel": "Isuzuma ry'indangamuntu",
+    "id_pending": "Irategereje isuzuma. Nomero ntabwo isuzumwe.",
+    "id_checked": "Yasuzumwe ku nyandiko wohereje. Ibi ntabwo ari isuzuma rya leta.",
+    "id_correction": "Hari amakuru akenewe. Injira ukosore nomero y'indangamuntu.",
+    "id_unable": "Ntibishoboka gukomeza n'amakuru y'indangamuntu yoherejwe."
   },
   "start": {
     "about": "Imyirondoro yawe",
@@ -384,7 +389,18 @@
     "consent": "Wemeje ko yaguhaye uburenganzira bwo kumusabira iyi serivisi.",
     "theirId": "Nomero y'indangamuntu ye",
     "nid": "Nomero y'indangamuntu",
-    "nidHint": "Imibare 16, iri ku ruhande rw'imbere rw'indangamuntu.",
+    "nidHint": "Andika imibare 16 y'indangamuntu nk'uko iyi serivisi ibisaba.",
+    "nidClear": "Siba",
+    "nidOptionalLead": "Iyi serivisi ntisaba nomero y'indangamuntu. Ushobora kuyireka ubusa.",
+    "nidUnsureLead": "Ntiturabimenya neza niba iyi serivisi isaba nomero y'indangamuntu, bityo si ngombwa. Niba utizeye, uyireke ubusa.",
+    "nidPrivacyTitle": "Impamvu dusaba iyi nomero",
+    "nidPrivacy": "Tuyikusanya gusa kubera ko ubu busabe bubukeneye, kandi gusa mu gutegura ubwo busabe. Ibibwa mu buryo bw'ibanga. Abakozi bemerewe gukora ku busabe bwawe ni bo bonyine babasha kuyibona. Ntituyikoresha mu kwamamaza, kandi Inzira ntishakisha muri NIDA, Irembo, cyangwa irindi rejisitiri. Tuyibika ubusabe bukiri gukorwa no mu gihe itegeko risaba, hanyuma ikasibwa hamwe na konti yawe. Ushobora gusaba ko ikosorwa, cyangwa usiba konti yawe, muri konti yawe. Imibare 16 ntabwo igaragaza ko indangamuntu ihari cyangwa ko ari iyawe.",
+    "nidConsent": "Nemeye ko iyi nomero ikusanywa gusa kuri ubu busabe, ko Inzira itayishakisha mu rejisitiri rya leta, kandi ko imibare 16 itavuze ko yasuzumwe.",
+    "errIdConsent": "Emeza ko wumvise uko nomero y'indangamuntu ikoreshwa.",
+    "errIdLong": "Andika imibare 16 gusa. Wongeyemo imibare {n}.",
+    "idNotProof": "Imibare 16 ntabwo igaragaza ko iyi ndangamuntu ihari cyangwa ko ari iyawe. Ntabwo yasuzumwe.",
+    "needsTitle": "Iki iyi serivisi ikeneye",
+    "idReviewFlag": "Ntiturabimenya neza niba iyi serivisi isaba indangamuntu. Ushobora gukomeza utayitanze.",
     "phone": "Telefoni yawe, izajya yakiriraho amakuru",
     "phoneHint": "Aha ni ho twohereza amakuru mashya kuri SMS na WhatsApp, na kode yo kwemeza ko iyi nomero ari iyawe.",
     "aboutReq": "Sobanura ubusabe bwawe",
@@ -589,7 +605,20 @@
     "waAbout": "Twandikire kuri WhatsApp ku {ref}",
     "waHello": "Muraho, ndabandanya ku dosiye {ref}.",
     "activity": "Ibikorwa",
-    "decisions": "Ibyemezo bikorwa n'urwego rwa leta. Inzira itegura dosiye, iyohereza kandi ikurikirana ubusabe mu izina ryawe."
+    "decisions": "Ibyemezo bikorwa n'urwego rwa leta. Inzira itegura dosiye, iyohereza kandi ikurikirana ubusabe mu izina ryawe.",
+    "idHeading": "Isuzuma ry'indangamuntu",
+    "id_pending": "Irategereje isuzuma",
+    "id_pendingBody": "Dufite nomero wanditse. Umukozi aracyakeneye gusuzuma inyandiko wohereje. Kohereza ubusabe ntabwo bisuzuma, kandi Inzira ntishakisha mu rejisitiri rya leta.",
+    "id_checked": "Yasuzumwe ku nyandiko wohereje",
+    "id_checkedBody": "Umukozi wa Inzira yagereranyije ibyo wohereje. Ibi ntabwo ari isuzuma rya NIDA cyangwa Irembo, kandi ntabwo ari isuzuma ryemewe n'ubuyobozi.",
+    "id_correction": "Ikeneye gukosorwa",
+    "id_correctionBody": "Ohereza nomero yakosowe hepfo. Nomero y'ubusabe ntizahinduka. Nomero ya mbere ntabwo yasuzumwe.",
+    "id_unable": "Ntibishoboka kuyisuzuma",
+    "id_unableBody": "Inyandiko dufite ntizihagije kugenzura aya makuru. Ibi ntabwo ari icyemezo cya leta.",
+    "id_none": "Nta suzuma ryanditswe",
+    "id_noneBody": "Nta mukozi wanditse isuzuma rya iyi nomero. Gufungura ubusabe ntabwo birisuzuma.",
+    "idSave": "Ohereza ivugurura",
+    "idSent": "Twakiriye ivugurura. Nomero y'ubusabe ntizahindutse, kandi nomero irategereje isuzuma. Ntabwo isuzumwe."
   },
   "teams": {
     "Tax & EBM": "Imisoro na EBM",
@@ -853,6 +882,18 @@
       "infoRequested": {
         "title": "Hasabwe andi makuru"
       },
+      "idChecked": {
+        "title": "Amakuru y'indangamuntu yasuzumwe ku nyandiko wohereje"
+      },
+      "idCorrection": {
+        "title": "Amakuru y'indangamuntu akeneye gukosorwa"
+      },
+      "idUnable": {
+        "title": "Amakuru y'indangamuntu ntabwo yashoboye kwemezwa ku nyandiko zoherejwe"
+      },
+      "idUpdated": {
+        "title": "Amakuru y'indangamuntu yavuguruwe"
+      },
       "holdCleared": {
         "title": "Ubusabe bwongeye gukorwa"
       },
@@ -962,7 +1003,11 @@
       "paymentReceived": "Ubwishyu bwakiriwe — {total}",
       "paymentReceivedSplit": "Ubwishyu bwakiriwe — {total} ({official} y'urwego + {ours} ya Inzira)",
       "overdue": "Ubwishyu bwa {amount} kuri {ref} bwarengeje igihe",
-      "refund": "Hasubijwe {amount} kuri {ref}"
+      "refund": "Hasubijwe {amount} kuri {ref}",
+      "idChecked": "Amakuru wohereje kuri {ref} yasuzumwe n'umukozi wa Inzira. Ibi ntabwo ari isuzuma rya leta.",
+      "idCorrection": "{ref} rukeneye gukosorwa ku makuru y'indangamuntu. Injira uyavugurure.",
+      "idUnable": "Ntitwashoboye kwemeza amakuru y'indangamuntu kuri {ref} ku nyandiko zoherejwe.",
+      "idUpdated": "Twakiriye amakuru yavuguruwe kuri {ref}. Arategereje isuzuma."
     },
     "sum": {
       "received": {
@@ -1009,6 +1054,9 @@
       "question": {
         "title": "Umukozi wawe hari icyo agukeneyeho"
       },
+      "idCorrection": {
+        "title": "Kosora amakuru y'indangamuntu"
+      },
       "overdue": {
         "title": "Ubwishyu bwa {amount} bwarengeje igihe",
         "detail": "Ibindi byose biriteguye. Turakomeza tukimara kubona ubwishyu."
@@ -1048,7 +1096,11 @@
     "paymentRecorded": "twakiriye ubwishyu bwawe bwa {total} kuri {ref}. Inyemezabwishyu: {receipt}.",
     "paymentReceived": "twakiriye {total}. Inyemezabwishyu {receipt}.",
     "overdue": "ubwishyu bwa {amount} bwarengeje igihe. Wishyure muri konti yawe maze duhite dukomeza.",
-    "refund": "twagusubije {amount} kuri nomero wishyuriyeho."
+    "refund": "twagusubije {amount} kuri nomero wishyuriyeho.",
+    "idChecked": "umukozi yasuzumye amakuru wohereje kuri {ref}. Ibi ntabwo ari isuzuma rya leta.",
+    "idCorrection": "{ref} rukeneye gukosorwa ku makuru y'indangamuntu. Injira uyavugurure. Ntituwohereza nomero ubwayo.",
+    "idUnable": "ntitwashoboye kwemeza amakuru y'indangamuntu kuri {ref} ku nyandiko zoherejwe.",
+    "idUpdated": "twakiriye amakuru yavuguruwe kuri {ref}."
   },
   "custErr": {
     "badPhone": "Shyiramo nomero ya telefoni yo mu Rwanda.",
@@ -1077,6 +1129,10 @@
     "badEmail": "Andika imeri nyayo.",
     "badDob": "Andika itariki y'amavuko nk'uko iri ku ndangamuntu.",
     "phoneTaken": "Iyo nomero ya telefoni isanzwe ikoreshwa na konti indi. Koresha indi nomero, cyangwa uyisige ubusa.",
+    "idShort": "Nomero y'indangamuntu igizwe n'imibare 16.",
+    "idLong": "Andika imibare 16 gusa.",
+    "idConsent": "Emeza ko wumvise uko nomero y'indangamuntu ikoreshwa.",
+    "idClosed": "Ubu busabe ntibwuguruye ngo nomero y'indangamuntu ikosorwe.",
     "emailTaken": "Iyo imeri isanzwe ikoreshwa na konti indi."
   },
   "fileRoute": {

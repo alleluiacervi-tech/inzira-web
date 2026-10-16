@@ -12,6 +12,7 @@ import { english, feeVars, msg, sms, smsText } from "@/lib/i18n/stored";
 import { STAGE_LABEL } from "@/lib/status";
 import { SITE } from "@/lib/site";
 import { enqueue, sendSoon } from "@/lib/outbox";
+import { idAsk, idPolicyOf } from "@/lib/identity";
 import { getService } from "@/lib/repo";
 import { ALLOWED, MAX_BYTES, checkUpload, deleteFile, humanSize, putFile, sniffType } from "@/lib/storage";
 import { STAGES, type Closed, type Hold, type Stage } from "@/lib/types";
@@ -233,10 +234,12 @@ export async function createIntake(input: { slug: string; name: string; phone: s
     const ref = refFor(await nextNumber(tx, "request"));
     const at = now();
     const summary = msg("sum.receivedIntake", { agent: me.name.split(" ")[0] });
+    const ask = idAsk(service, input.kind === "person" ? "me" : "business");
     await tx.insert(s.requests).values({
       ref, serviceSlug: service.slug, profileId: profile.id, agentId: me.id, stage: "received", stageDates: { received: at }, channel: service.channel,
       summary: { title: english(summary, "title"), body: english(summary, "body"), msg: summary },
       next: english(summary, "next"), invoice: invoiceFor(await nextNumber(tx, "invoice")),
+      idPolicy: idPolicyOf(service), idRequired: ask === "required", idReview: ask === "required" ? "pending" : null, requirementsSnapshot: service.requirements,
       official: service.official.mode ? null : service.official.amount, officialMode: service.official.mode ?? null,
       officialLabel: service.official.mode === "none" ? "Official fee" : `${service.official.label ?? "Official fee"} · ${service.channel}`,
       ours: service.ours, oursStandard: service.ours, oursUnit: service.oursUnit ?? null, quote: "estimate", officialReceipt: service.official.mode ? "na" : "awaiting",

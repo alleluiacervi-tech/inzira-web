@@ -6,6 +6,7 @@ import { WORKS_CASES, assignableStaff, canSeeCase, canSeeClient, seesAllCases } 
 import { getStaffUser, normalisePhone } from "@/lib/auth";
 import { open, seal } from "@/lib/crypto";
 import { maskNationalId, maskTin, rwf, shortName } from "@/lib/format";
+import { mentionsNationalId } from "@/lib/identity";
 import { english, feeVars, msg, sms } from "@/lib/i18n/stored";
 import { audit, db, event, fail, notify, s, type Result } from "@/lib/mutate";
 import { PERMISSIONS, type Permission } from "@/lib/permissions";
@@ -303,6 +304,49 @@ export async function markIdChecked(profileId: string, checked = true): Promise<
   });
   revalidatePath("/console", "layout");
   return { ok: true, at };
+}
+
+/**
+ * Records a manual ID review on one request. "checked" means staff compared the documents the client sent.
+ * It is not a lookup in NIDA or Irembo, and opening the record does not count.
+ */
+export async function reviewIdentity(ref: string, outcome: string, note: string): Promise<Result> {
+  const a = await caseAction(ref, "reviewDocs");
+  if ("error" in a) return fail(a.error!);
+  const { me, d, req } = a;
+  if (!req.idRequired) return fail("This request did not require a National ID, so there is nothing to review.");
+  if (req.closed) return fail("This request is closed.");
+  if (outcome !== "checked" && outcome !== "correction" && outcome !== "unable") return fail("Choose a review outcome.");
+  const textNote = note.trim().slice(0, 500);
+  if ((outcome === "correction" || outcome === "unable") && textNote.length < 3) return fail("Write what is missing or why the documents are not enough. Do not include the ID number.");
+  if (textNote && mentionsNationalId(textNote)) return fail("Remove the ID number from the note. It is already stored, and it must not be copied into messages.");
+  const at = now();
+  const correctionHold = msg("hold.idCorrection");
+  await d.transaction(async (tx) => {
+    const clearCorrection = req.hold?.msg?.key === "hold.idCorrection";
+    await tx.update(s.requests).set({
+      idReview: outcome, idReviewNote: textNote || null, idReviewAt: at, idReviewBy: me.id,
+      ...(outcome === "correction" ? { hold: { reason: "information", title: english(correctionHold, "title"), detail: textNote, since: at, msg: correctionHold } }
+        : clearCorrection ? { hold: null } : {}),
+    }).where(eq(s.requests.ref, ref));
+    if (outcome === "checked") {
+      await tx.update(s.profiles).set({ idCheckedAt: at, idCheckedBy: me.id }).where(eq(s.profiles.id, req.profileId));
+      await event(tx, ref, msg("ev.idChecked"), me.id);
+      await notify(tx, ref, { icon: "check", title: msg("nt.idChecked", { ref }), sms: sms("idChecked", { ref }) });
+    } else if (outcome === "correction") {
+      await tx.update(s.profiles).set({ idCheckedAt: null, idCheckedBy: null }).where(eq(s.profiles.id, req.profileId));
+      await event(tx, ref, msg("ev.idCorrection"), me.id, textNote);
+      await notify(tx, ref, { icon: "alert", title: msg("nt.idCorrection", { ref }), sms: sms("idCorrection", { ref }) });
+    } else {
+      await tx.update(s.profiles).set({ idCheckedAt: null, idCheckedBy: null }).where(eq(s.profiles.id, req.profileId));
+      await event(tx, ref, msg("ev.idUnable"), me.id);
+      await notify(tx, ref, { icon: "alert", title: msg("nt.idUnable", { ref }), sms: sms("idUnable", { ref }) });
+    }
+    await audit(tx, { actor: me.name, role: me.role, action: "Recorded ID review", entity: `${ref} · ${outcome}` });
+  });
+  revalidatePath("/console", "layout");
+  revalidatePath(`/portal/requests/${ref}`);
+  return { ok: true };
 }
 
 // ---------------- Client Management ----------------

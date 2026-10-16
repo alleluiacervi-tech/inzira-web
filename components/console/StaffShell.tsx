@@ -14,6 +14,7 @@ export default function StaffShell({
   permissions = [],
   inboxCount = 0,
   openCasesCount = 0,
+  identityCount = 0,
   unreadNotifications = 0,
   dateRange,
   onDateRangeChange,
@@ -23,6 +24,7 @@ export default function StaffShell({
   permissions?: Permission[];
   inboxCount?: number;
   openCasesCount?: number;
+  identityCount?: number;
   unreadNotifications?: number;
   dateRange?: number;
   onDateRangeChange?: (days: number) => void;
@@ -41,6 +43,7 @@ export default function StaffShell({
           permissions={permissions}
           inboxCount={inboxCount}
           openCasesCount={openCasesCount}
+          identityCount={identityCount}
           mobileOpen={mobileOpen}
           onCloseMobile={() => setMobileOpen(false)}
         />

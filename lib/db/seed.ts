@@ -1,6 +1,7 @@
 // Fills an empty database with the catalogue and the sample customers, staff and requests from
 // lib/mock. Used automatically for the development database, or with `npm run db:seed`.
 import { inArray } from "drizzle-orm";
+import { idPolicyOf } from "../identity";
 import { CATEGORIES, SERVICES } from "../mock/catalogue";
 import { ACCOUNTS, PROFILES, STAFF } from "../mock/people";
 import { AUDIT, NOTIFICATIONS, REQUESTS } from "../mock/requests";
@@ -44,7 +45,7 @@ async function catalogue(tx: Tx) {
       who: v.who, requirements: v.requirements, documents: v.documents, steps: v.steps, notes: v.notes,
       officialAmount: v.official.amount, officialMode: v.official.mode, officialLabel: v.official.label, officialNote: v.official.note, officialVerifiedAt: v.official.verifiedAt,
       ours: v.ours, oursUnit: v.oursUnit, time: v.time, docsShort: v.docsShort, popular: !!v.popular, audience: v.audience,
-      purposes: v.purposes, purposeLabel: v.purposeLabel, noId: !!v.noId, flow: v.flow, stageLabels: v.stageLabels, visible: v.visible, position: i,
+      purposes: v.purposes, purposeLabel: v.purposeLabel, noId: idPolicyOf(v) === "none", idPolicy: idPolicyOf(v), flow: v.flow, stageLabels: v.stageLabels, visible: v.visible, position: i,
     })));
     await tx.insert(s.rolePermissions).values(
       (Object.keys(DEFAULT_MATRIX) as Permission[]).flatMap((perm) => ROLES.map((r, i) => ({ role: r.name, permission: perm, allowed: DEFAULT_MATRIX[perm][i] === "1" }))),
@@ -72,10 +73,17 @@ export async function seed(db: Db) {
 
     for (const r of REQUESTS) {
       const b = r.billing;
+      const service = SERVICES.find((v) => v.slug === r.serviceSlug);
+      const profile = PROFILES.find((p) => p.id === r.profileId);
+      const policy = idPolicyOf(service);
+      // Open person-requests keep a pending review. Finished ones are not marked checked: nobody reviewed them here.
+      const idRequired = policy === "required" && profile?.kind === "person";
       await tx.insert(s.requests).values({
         ref: r.ref, serviceSlug: r.serviceSlug, title: r.title, profileId: r.profileId, agentId: r.agentId, openedAt: r.openedAt,
         stage: r.stage, stageDates: r.stageDates, hold: r.hold, closed: r.closed, channel: r.channel, officialRef: r.officialRef, dependsOn: r.dependsOn,
         summary: r.summary, next: r.next, followUp: r.followUp,
+        idPolicy: policy, idRequired, idReview: idRequired && r.stage !== "completed" && !r.closed ? "pending" : null,
+        requirementsSnapshot: service?.requirements ?? [],
         invoice: b.invoice, official: b.official, officialMode: b.officialMode, officialLabel: b.officialLabel, ours: b.ours, oursStandard: b.oursStandard,
         oursUnit: b.oursUnit, oursNote: b.oursNote, quote: b.quote, dueAt: b.dueAt, officialReceipt: b.officialReceipt,
       });

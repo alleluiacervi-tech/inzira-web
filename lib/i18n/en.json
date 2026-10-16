@@ -340,7 +340,12 @@
     "next": "Next step",
     "details": "Sign in for details",
     "private": "Documents, messages and payments are only shown after you sign in.",
-    "contact": "Email or phone number"
+    "contact": "Email or phone number",
+    "idLabel": "National ID review",
+    "id_pending": "Pending verification. The number has not been checked.",
+    "id_checked": "Checked against the documents you sent. This is not a government ID check.",
+    "id_correction": "Additional information required. Sign in to correct the National ID details.",
+    "id_unable": "Unable to proceed with the ID details from the documents sent."
   },
   "start": {
     "about": "About you",
@@ -382,9 +387,20 @@
     "theirName": "Their full name (as on their ID)",
     "bizName": "Business name",
     "consent": "You confirm you have their consent to request this for them.",
-    "theirId": "Their national ID number",
-    "nid": "National ID number",
-    "nidHint": "16 digits, on the front of the ID.",
+    "theirId": "Their National ID Number",
+    "nid": "National ID Number",
+    "nidHint": "Please enter your 16-digit National ID number as required for this service.",
+    "nidClear": "Clear",
+    "nidOptionalLead": "This service does not require a National ID number. Leave it blank unless you choose to give it.",
+    "nidUnsureLead": "We have not confirmed that this service needs a National ID number, so it is optional. Leave it blank if you are not sure.",
+    "nidPrivacyTitle": "Why we ask for this number",
+    "nidPrivacy": "We collect it only because this request needs it, and only to prepare that request. It is stored encrypted. Only staff allowed to work on your request can see it. We do not use it for marketing, and Inzira does not look up NIDA, Irembo, or any other register. We keep it while the request is open and for as long as the law requires, then delete it with your account. You can ask us to correct it, or delete your account, from your portal. A 16-digit number is not proof that the ID exists or is yours.",
+    "nidConsent": "I understand this number is collected only for this request, that Inzira does not look it up in a government register, and that 16 digits do not mean it has been verified.",
+    "errIdConsent": "Please confirm you understand how this National ID number will be used.",
+    "errIdLong": "Enter exactly 16 digits. You entered {n}.",
+    "idNotProof": "A 16-digit number is not proof that this ID exists or belongs to you. It has not been verified.",
+    "needsTitle": "What this service needs",
+    "idReviewFlag": "The National ID requirement for this service is not confirmed. You can continue without one.",
     "phone": "Your phone, for updates",
     "phoneHint": "We send SMS and WhatsApp updates here, and a code to confirm it’s yours.",
     "aboutReq": "Tell us about the request",
@@ -589,7 +605,20 @@
     "waAbout": "WhatsApp us about {ref}",
     "waHello": "Hello, this is about {ref}.",
     "activity": "Activity",
-    "decisions": "Decisions are made by the institution. Inzira prepares, submits and follows up on your behalf."
+    "decisions": "Decisions are made by the institution. Inzira prepares, submits and follows up on your behalf.",
+    "idHeading": "National ID review",
+    "id_pending": "Pending verification",
+    "id_pendingBody": "We have the number you entered. A member of staff still has to review the documents you sent. Sending the form does not verify it, and Inzira does not look up a government register.",
+    "id_checked": "Checked against your documents",
+    "id_checkedBody": "A member of Inzira staff compared what you sent. This is not a check against NIDA or Irembo, and it is not an official identity verification.",
+    "id_correction": "Requires correction",
+    "id_correctionBody": "Please send the corrected number below. Your reference stays the same. We have not verified the previous number.",
+    "id_unable": "Unable to verify",
+    "id_unableBody": "The documents we have are not enough to confirm these details. This is not a government decision.",
+    "id_none": "No review recorded",
+    "id_noneBody": "No member of staff has recorded a review of this number. Opening the request does not verify it.",
+    "idSave": "Send the correction",
+    "idSent": "We received the update. Your reference is unchanged, and the number is waiting for review. It is not verified yet."
   },
   "teams": {
     "Tax & EBM": "Tax & EBM",
@@ -853,6 +882,18 @@
       "infoRequested": {
         "title": "Information requested"
       },
+      "idChecked": {
+        "title": "ID details checked against the documents you sent"
+      },
+      "idCorrection": {
+        "title": "National ID details need a correction"
+      },
+      "idUnable": {
+        "title": "ID details could not be confirmed from the documents sent"
+      },
+      "idUpdated": {
+        "title": "National ID details updated"
+      },
       "holdCleared": {
         "title": "Hold cleared"
       },
@@ -962,7 +1003,11 @@
       "paymentReceived": "Payment received — {total}",
       "paymentReceivedSplit": "Payment received — {total} ({official} official + {ours} ours)",
       "overdue": "Payment of {amount} is overdue for {ref}",
-      "refund": "Refund of {amount} issued for {ref}"
+      "refund": "Refund of {amount} issued for {ref}",
+      "idChecked": "The details you sent for {ref} were checked by Inzira staff. This is not a government ID check.",
+      "idCorrection": "{ref} needs a correction to the ID details. Sign in to update them.",
+      "idUnable": "We could not confirm the ID details on {ref} from the documents sent.",
+      "idUpdated": "We received the updated details for {ref}. They are waiting for review."
     },
     "sum": {
       "received": {
@@ -1009,6 +1054,9 @@
       "question": {
         "title": "Your agent needs something from you"
       },
+      "idCorrection": {
+        "title": "Please correct the National ID details"
+      },
       "overdue": {
         "title": "Payment of {amount} is overdue",
         "detail": "Everything else is ready. We carry on as soon as it is paid."
@@ -1048,7 +1096,11 @@
     "paymentRecorded": "we received your payment of {total} for {ref}. Official receipt: {receipt}.",
     "paymentReceived": "we received {total}. Receipt {receipt}.",
     "overdue": "payment of {amount} is overdue. Pay in your portal and we carry on straight away.",
-    "refund": "we refunded {amount} to the number you paid from."
+    "refund": "we refunded {amount} to the number you paid from.",
+    "idChecked": "staff checked the details you sent for {ref}. This is not a government ID check.",
+    "idCorrection": "{ref} needs a correction to the ID details. Sign in to update them. We never text the number itself.",
+    "idUnable": "we could not confirm the ID details on {ref} from the documents sent.",
+    "idUpdated": "we received the updated details for {ref}."
   },
   "custErr": {
     "badPhone": "Enter a Rwandan mobile number.",
@@ -1077,6 +1129,10 @@
     "badEmail": "Enter a valid email address.",
     "badDob": "Enter the date of birth exactly as it appears on the ID.",
     "phoneTaken": "That phone number already belongs to another account. Use a different number, or leave it blank.",
+    "idShort": "ID numbers have 16 digits.",
+    "idLong": "Enter exactly 16 digits.",
+    "idConsent": "Please confirm you understand how this National ID number will be used.",
+    "idClosed": "This request is not open for an ID correction.",
     "emailTaken": "That email address is already used by another account."
   },
   "fileRoute": {

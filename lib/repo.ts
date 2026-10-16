@@ -14,7 +14,8 @@ import { documentNote, hasPart, legacyText, say, type Part } from "./i18n/stored
 import { PERMISSION_GROUPS, PERMISSIONS, ROLES, type Permission } from "./permissions";
 import { attentionCounts, caseTargetHours, isLate, median, sourceOf, stageClock, wasReturned, workQueue } from "./dashboard";
 import { amountDue, isOpen, payStatus, STAGE_LABEL } from "./status";
-import { STAGES, type Account, type AuditEntry, type Category, type ClientDetail, type ClientSummary, type CustomerRequest, type Hold, type LibraryDoc, type Message, type Msg, type MsgVars, type Note, type Notification, type Profile, type Request, type RequestEvent, type RequestView, type SavedView, type Service, type Staff, type Stage, type StageTarget, type TrackResult } from "./types";
+import { isIdPolicy, isIdReview } from "./identity";
+import { STAGES, type Account, type AuditEntry, type Category, type ClientDetail, type ClientSummary, type CustomerRequest, type Hold, type IdReview, type LibraryDoc, type Message, type Msg, type MsgVars, type Note, type Notification, type Profile, type Request, type RequestEvent, type RequestView, type SavedView, type Service, type Staff, type Stage, type StageTarget, type TrackResult } from "./types";
 
 export const getNow = async () => new Date().toISOString();
 const DAY = 864e5;
@@ -26,7 +27,7 @@ export const toService = (r: ServiceRow): Service => ({
   who: r.who, requirements: r.requirements, documents: r.documents, steps: r.steps, notes: r.notes,
   official: { amount: r.officialAmount, mode: r.officialMode ?? undefined, label: r.officialLabel ?? undefined, note: r.officialNote, verifiedAt: iso(r.officialVerifiedAt) },
   ours: r.ours, oursUnit: r.oursUnit ?? undefined, time: r.time, docsShort: r.docsShort, popular: r.popular, audience: r.audience,
-  purposes: r.purposes ?? undefined, purposeLabel: r.purposeLabel ?? undefined, noId: r.noId, flow: r.flow ?? undefined, stageLabels: r.stageLabels ?? undefined, visible: r.visible,
+  purposes: r.purposes ?? undefined, purposeLabel: r.purposeLabel ?? undefined, noId: r.idPolicy === "none" || r.noId, idPolicy: isIdPolicy(r.idPolicy) ? r.idPolicy : undefined, flow: r.flow ?? undefined, stageLabels: r.stageLabels ?? undefined, visible: r.visible,
 });
 
 export async function listCategories(): Promise<Category[]> {
@@ -112,6 +113,9 @@ async function loadRequests(where?: SQL, locale: Locale = "en"): Promise<Request
       hold: r.hold ? localHold(locale, r.hold) : undefined,
       closed: r.closed ? { ...r.closed, reason: told(locale, r.closed.msg, undefined, r.closed.reason) } : undefined,
       officialRef: r.officialRef ?? undefined, dependsOn: r.dependsOn ?? undefined, purpose: r.purpose ?? undefined,
+      idPolicy: isIdPolicy(r.idPolicy) ? r.idPolicy : undefined, idRequired: r.idRequired, idReview: isIdReview(r.idReview) ? r.idReview : undefined,
+      idReviewNote: r.idReviewNote ?? undefined, idReviewedAt: iso(r.idReviewAt), idReviewedBy: r.idReviewBy ?? undefined, idConsent: r.idConsent,
+      requirementsSnapshot: r.requirementsSnapshot ?? undefined,
       summary: { ...r.summary, title: told(locale, sm, "title", r.summary.title), body: sm && hasPart(sm, "body") ? told(locale, sm, "body", r.summary.body) : legacyText(locale, r.summary.body) },
       next: sm && hasPart(sm, "next") ? told(locale, sm, "next", r.next) : legacyText(locale, r.next),
       followUp: r.followUp ?? undefined,
@@ -145,7 +149,7 @@ async function loadRequests(where?: SQL, locale: Locale = "en"): Promise<Request
 
 /** Drops everything a customer must never receive. */
 function forCustomer(r: RequestView): CustomerRequest {
-  const { notes: _notes, followUp: _followUp, ...rest } = r;
+  const { notes: _notes, followUp: _followUp, idReviewNote: _note, idReviewedBy: _by, ...rest } = r;
   return rest;
 }
 const byUpdated = (a: RequestView, b: RequestView) => Date.parse(b.updatedAt) - Date.parse(a.updatedAt);
@@ -241,6 +245,7 @@ export async function trackRequest(ref: string, contact: string): Promise<TrackR
   return {
     ref: v.ref, name: requestTitle(v.name, v.service, locale), via: local.via, stage: v.stage, stageDates: v.stageDates, flow: v.flow, labels: v.labels, closed: v.closed, next: v.next,
     hold: v.hold && { reason: v.hold.reason, title: v.hold.title, since: v.hold.since, returned: v.hold.returned },
+    idReview: v.idRequired ? v.idReview : undefined,
   };
 }
 
@@ -270,15 +275,31 @@ export async function listAgents(): Promise<Staff[]> {
 const untaken = and(isNull(s.requests.agentId), eq(s.requests.stage, "received"), isNull(s.requests.closed));
 
 /** Badges in the staff navigation: new requests waiting for an agent, and my open cases. */
-export async function getNavCounts(): Promise<{ inbox: number; mine: number }> {
+export async function getNavCounts(): Promise<{ inbox: number; mine: number; identity: number }> {
   const me = await requireStaff();
   const d = await db();
   const count = { n: sql<number>`count(*)::int` };
-  const [[inbox], [mine]] = await Promise.all([
+  const pendingReview = and(eq(s.requests.idRequired, true), eq(s.requests.idReview, "pending"), isNull(s.requests.closed), ne(s.requests.stage, "completed"), caseScope(me));
+  const [[inbox], [mine], [identity]] = await Promise.all([
     canTriage(me) ? d.select(count).from(s.requests).where(untaken) : Promise.resolve([{ n: 0 }]),
     d.select(count).from(s.requests).where(and(eq(s.requests.agentId, me.id), isNull(s.requests.closed), ne(s.requests.stage, "completed"))),
+    me.permissions.has("reviewDocs") ? d.select(count).from(s.requests).where(pendingReview) : Promise.resolve([{ n: 0 }]),
   ]);
-  return { inbox: inbox.n, mine: mine.n };
+  return { inbox: inbox.n, mine: mine.n, identity: identity.n };
+}
+
+/** ID reviews this person may see. The number itself stays masked; revealing it is a separate audited action. */
+export async function listIdentityReviews(): Promise<{
+  ref: string; name: string; serviceSlug: string; serviceName: string; openedAt: string; stage: Stage;
+  idReview: IdReview | null; idMasked?: string; profileName: string; agentName: string | null; closed: boolean;
+}[]> {
+  const me = await requireStaff("/console/identity");
+  if (!me.permissions.has("reviewDocs")) return [];
+  const rows = await loadRequests(and(eq(s.requests.idRequired, true), caseScope(me)));
+  return rows.sort(byUpdated).map((r) => ({
+    ref: r.ref, name: r.name, serviceSlug: r.serviceSlug, serviceName: r.service.name, openedAt: r.openedAt, stage: r.stage,
+    idReview: r.idReview ?? null, idMasked: r.profile.idMasked, profileName: r.profile.name, agentName: r.agent?.name ?? null, closed: !!r.closed,
+  }));
 }
 
 export async function listInbox(): Promise<RequestView[]> {

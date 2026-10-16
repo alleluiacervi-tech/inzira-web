@@ -138,7 +138,10 @@ lib/
   db/seed.ts         catalogue + sample data (development), catalogue + owner (production setup)
   repo.ts            every read. Customers only ever receive their own requests, without internal notes
   access.ts          which cases and clients each member of staff may see; every staff read and write uses it.
-                     Full national IDs and TINs never reach a screen: staff reveal them through an audited action
+                     Full national IDs and TINs never reach a screen: staff reveal them through an audited action.
+                     ID review (console/identity) is Inzira comparing documents the client sent. It is not a NIDA or Irembo lookup.
+                     A service's id_policy is required, none, or unsure. unsure stays optional until an administrator confirms it.
+                     Each request stores the rule from the moment it was sent.
   auth.ts            phone + SMS code sign-in, sessions (hashed, httpOnly cookie), staff permissions
   permissions.ts     the permission list and the starting roles matrix
   sms.ts             SMS providers (console, Africa's Talking)

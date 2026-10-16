@@ -12,6 +12,7 @@ import { enqueue, sendSoon } from "@/lib/outbox";
 import { sendSms } from "@/lib/sms";
 import { runAndRecord } from "@/lib/jobs";
 import { allow } from "@/lib/ratelimit";
+import { idPolicyOf } from "@/lib/identity";
 import type { Service, StaffRole } from "@/lib/types";
 
 /** The usual steps, for a new service that has none yet. */
@@ -41,12 +42,13 @@ export async function saveService(v: Service, isNew = false): Promise<Result> {
   if (!v.channel.trim() || !v.authority.trim()) return fail("Fill in the responsible authority and the official channel.");
   if (!/^[a-z0-9-]+$/.test(v.slug)) return fail("The service address can only use lowercase letters, numbers and dashes.");
   if (v.ours < 0 || (v.official.amount !== null && v.official.amount < 0)) return fail("Amounts can’t be negative.");
+  const policy = idPolicyOf(v);
   const row = {
     slug: v.slug, name: v.name.trim(), aka: v.aka ?? null, category: v.category, authority: v.authority, channel: v.channel, via: v.via || `Via ${v.channel}`, summary: v.summary,
     who: v.who, requirements: v.requirements.filter((x) => x.trim()), documents: v.documents.filter((x) => x.name.trim()), steps: v.steps.length ? v.steps : defaultSteps(v.channel || "the official channel", v.authority || "The institution"), notes: v.notes,
     officialAmount: v.official.mode ? (v.official.mode === "none" ? 0 : null) : v.official.amount, officialMode: v.official.mode ?? null, officialLabel: v.official.label ?? null,
     officialNote: v.official.note, officialVerifiedAt: v.official.verifiedAt ?? null, ours: v.ours, oursUnit: v.oursUnit ?? null, time: v.time, docsShort: v.docsShort,
-    popular: !!v.popular, audience: v.audience, purposes: v.purposes ?? null, purposeLabel: v.purposeLabel ?? null, noId: !!v.noId, flow: v.flow ?? null, stageLabels: v.stageLabels ?? null,
+    popular: !!v.popular, audience: v.audience, purposes: v.purposes ?? null, purposeLabel: v.purposeLabel ?? null, noId: policy === "none", idPolicy: policy, flow: v.flow ?? null, stageLabels: v.stageLabels ?? null,
     visible: v.visible, updatedAt: new Date().toISOString(),
   };
   try { await d.transaction(async (tx) => {
@@ -59,6 +61,7 @@ export async function saveService(v: Service, isNew = false): Promise<Result> {
       if (before.ours !== row.ours || before.oursUnit !== row.oursUnit) await audit(tx, { actor: me.name, role: me.role, action: "Changed assistance fee", entity: `${row.name} · ${rwf(before.ours)}${before.oursUnit ? ` ${before.oursUnit}` : ""} → ${rwf(row.ours)}${row.oursUnit ? ` ${row.oursUnit}` : ""}`, fee: true });
       if (before.officialAmount !== row.officialAmount || before.officialMode !== row.officialMode) await audit(tx, { actor: me.name, role: me.role, action: "Changed official fee", entity: `${row.name}`, fee: true });
       if (before.officialVerifiedAt !== row.officialVerifiedAt && row.officialVerifiedAt) await audit(tx, { actor: me.name, role: me.role, action: "Checked official fee", entity: row.name });
+      if (before.idPolicy !== row.idPolicy) await audit(tx, { actor: me.name, role: me.role, action: "Changed ID requirement", entity: `${row.name} · ${before.idPolicy} → ${row.idPolicy}` });
       await audit(tx, { actor: me.name, role: me.role, action: "Edited service", entity: row.name });
     }
   }); } catch (e) {

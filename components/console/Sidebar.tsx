@@ -26,6 +26,7 @@ export function Sidebar({
   permissions = [],
   inboxCount = 0,
   openCasesCount = 0,
+  identityCount = 0,
   mobileOpen = false,
   onCloseMobile,
 }: {
@@ -33,6 +34,7 @@ export function Sidebar({
   permissions: Permission[];
   inboxCount?: number;
   openCasesCount?: number;
+  identityCount?: number;
   mobileOpen?: boolean;
   onCloseMobile?: () => void;
 }) {
@@ -53,6 +55,7 @@ export function Sidebar({
       group: "Work",
       items: [
         { label: "Requests", href: "/console/requests", icon: "list", matchPrefix: "/console/requests" },
+        { label: "ID review", href: "/console/identity", icon: "shield", permission: "reviewDocs", matchPrefix: "/console/identity", badge: identityCount },
         { label: "Clients", href: "/console/clients", icon: "users", matchPrefix: "/console/clients" },
         { label: "New intake", href: "/console/intake", icon: "plus", permission: "updateStatus" },
       ],

@@ -19,7 +19,7 @@ const needsCheck = (s: Service) => s.official.mode !== "none" && !s.official.ver
 const slugify = (v: string) => v.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 const blank = (category: string): Service => ({
   slug: "", name: "", category, authority: "", channel: "", via: "", summary: "", who: [], requirements: [], documents: [], steps: [], notes: [],
-  official: { amount: null, note: "" }, ours: 0, time: "", docsShort: "", audience: ["individual"], visible: false,
+  official: { amount: null, note: "" }, ours: 0, time: "", docsShort: "", audience: ["individual"], idPolicy: "unsure", visible: false,
 });
 
 export default function ServiceAdmin({ services: rows, categories, demand }: { services: Service[]; categories: Category[]; demand: Record<string, number> }) {
@@ -55,7 +55,7 @@ export default function ServiceAdmin({ services: rows, categories, demand }: { s
               <td><span className="stack" style={{ gap: 2 }}><strong>{r.name || "Untitled service"}</strong><span className="mut" style={{ fontSize: 12.5 }}>{r.via}</span></span></td><td><span className="tag">{short(r.category)}</span></td>
               <td><span className="stack" style={{ gap: 4, alignItems: "flex-start" }}><span style={{ fontWeight: 600 }}>{officialLabel(r)}</span>{needsCheck(r) && <Badge tone="warn" label="Not checked" />}</span></td>
               <td className="fee-ours" style={{ fontWeight: 700 }}>{oursLabel(r)}</td><td className="mut">{r.documents.length || "—"}</td>
-              <td><Badge tone={r.visible ? "ok" : "neutral"} label={r.visible ? "Active" : "Draft"} /></td><td style={{ textAlign: "right" }}>{demand[r.slug] ?? 0}</td>
+              <td><span className="row g6 wrapx"><Badge tone={r.visible ? "ok" : "neutral"} label={r.visible ? "Active" : "Draft"} />{(r.idPolicy ?? "unsure") === "unsure" && <Badge tone="warn" label="ID not confirmed" />}</span></td><td style={{ textAlign: "right" }}>{demand[r.slug] ?? 0}</td>
               <td><button type="button" className="btn btn-g btn-sm btn-ico" aria-label={`Edit ${r.name}`} onClick={() => { setSaved(""); setEdit({ ...r }); }}><Icon name="edit" size={17} /></button></td>
             </tr>
           ))}</tbody>
@@ -109,6 +109,19 @@ export default function ServiceAdmin({ services: rows, categories, demand }: { s
                   </div>
                 ))}
                 <button type="button" className="btn btn-s btn-sm" style={{ alignSelf: "flex-start" }} onClick={() => setEdit({ ...edit, documents: [...edit.documents, { name: "", detail: "", required: true, group: "Other" }] })}><Icon name="plus" size={16} /> Add document</button>
+              </fieldset>
+              <fieldset className="stack g12" style={{ border: "1px solid var(--line)", borderRadius: 8, padding: 16, margin: 0 }}>
+                <legend style={{ fontSize: 13, fontWeight: 700, padding: "0 6px" }}>National ID number</legend>
+                <div className="field"><label htmlFor="id-policy">When the client starts a request</label>
+                  <select id="id-policy" className="in" value={edit.idPolicy ?? "unsure"} onChange={(e) => setEdit({ ...edit, idPolicy: e.target.value as Service["idPolicy"], noId: e.target.value === "none" })}>
+                    <option value="required">Required for a person</option>
+                    <option value="none">Do not collect it</option>
+                    <option value="unsure">Not confirmed — leave it optional</option>
+                  </select>
+                  <span className="hint">A later change does not alter requests already sent. 16 digits are a format check only. Inzira does not look up NIDA or Irembo.</span>
+                </div>
+                {(edit.idPolicy ?? "unsure") === "unsure" && <Badge tone="warn" label="Needs a decision before it is treated as required" />}
+                {edit.slug && <a className="btn btn-s btn-sm" style={{ alignSelf: "flex-start" }} href={`/start/${edit.slug}`} target="_blank" rel="noopener">Preview the application form</a>}
               </fieldset>
               <div className="field"><label htmlFor="e7">Typical processing</label><input id="e7" className="in" value={edit.time} onChange={(e) => setEdit({ ...edit, time: e.target.value })} /></div>
               <fieldset className="stack g12" style={{ border: "1px solid var(--line)", borderRadius: 8, padding: 16, margin: 0 }}>

@@ -3,7 +3,7 @@
 import { sql } from "drizzle-orm";
 import { boolean, index, integer, jsonb, pgTable, primaryKey, serial, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
 import type { Locale } from "../i18n/locale";
-import type { Closed, DocGroup, DocStatus, Hold, MsgVars, OfficialMode, Request, Service, Stage, StaffRole } from "../types";
+import type { Closed, DocGroup, DocStatus, Hold, IdPolicy, IdReview, MsgVars, OfficialMode, Request, Service, Stage, StaffRole } from "../types";
 
 const ts = (name: string) => timestamp(name, { withTimezone: true, mode: "string" });
 
@@ -46,6 +46,8 @@ export const services = pgTable("services", {
   purposes: jsonb("purposes").$type<string[]>(),
   purposeLabel: text("purpose_label"),
   noId: boolean("no_id").notNull().default(false),
+  /** required: ask for a National ID. none: do not ask. unsure: optional, and an administrator should confirm the rule. */
+  idPolicy: text("id_policy").$type<IdPolicy>().notNull().default("unsure"),
   flow: jsonb("flow").$type<Stage[]>(),
   stageLabels: jsonb("stage_labels").$type<Partial<Record<Stage, string>>>(),
   visible: boolean("visible").notNull().default(true),
@@ -136,6 +138,17 @@ export const requests = pgTable("requests", {
   summary: jsonb("summary").$type<Request["summary"]>().notNull(),
   next: text("next").notNull(),
   purpose: text("purpose"),
+  /** Copied from the service when the request was sent. */
+  idPolicy: text("id_policy").$type<IdPolicy>().notNull().default("none"),
+  /** True only when this application made a National ID number mandatory. */
+  idRequired: boolean("id_required").notNull().default(false),
+  idReview: text("id_review").$type<IdReview>(),
+  /** Internal. The customer-facing correction is the hold, which does not contain the number. */
+  idReviewNote: text("id_review_note"),
+  idReviewAt: ts("id_review_at"),
+  idReviewBy: text("id_review_by"),
+  idConsent: boolean("id_consent").notNull().default(false),
+  requirementsSnapshot: jsonb("requirements_snapshot").$type<string[]>(),
   followUp: jsonb("follow_up").$type<{ at: string; what: string }>(),
   // billing — always two lines: official (institution) and ours (Inzira)
   invoice: text("invoice").notNull().unique(),
@@ -149,7 +162,11 @@ export const requests = pgTable("requests", {
   quote: text("quote").$type<"estimate" | "confirmed" | "approved">().notNull(),
   dueAt: ts("due_at"),
   officialReceipt: text("official_receipt").$type<"attached" | "awaiting" | "na">().notNull(),
-}, (t) => [index("requests_profile_idx").on(t.profileId), index("requests_agent_idx").on(t.agentId)]);
+}, (t) => [
+  index("requests_profile_idx").on(t.profileId),
+  index("requests_agent_idx").on(t.agentId),
+  index("requests_id_review_idx").on(t.idReview),
+]);
 
 export const requestDocuments = pgTable("request_documents", {
   id: text("id").primaryKey(),

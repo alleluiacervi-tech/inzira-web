@@ -21,6 +21,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
       permissions={perms}
       inboxCount={counts.inbox}
       openCasesCount={counts.mine}
+      identityCount={counts.identity}
     >
       {allowed ? children : <NoAccess what="the admin console" />}
     </StaffShell></ForceEnglish>
