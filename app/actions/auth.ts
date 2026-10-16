@@ -6,8 +6,10 @@ import { checkSecondStep } from "@/lib/second-step";
 import { audit } from "@/lib/mutate";
 import { db, schema as s } from "@/lib/db";
 import { getLocale, rememberLocale } from "@/lib/i18n/locale";
+import { hasAdminAccess, type Permission } from "@/lib/permissions";
 import { TOO_MANY, allowIp, clientIp } from "@/lib/ratelimit";
 import { verifyHuman } from "@/lib/turnstile";
+import type { StaffRole } from "@/lib/types";
 
 const NOT_HUMAN = "We couldn’t confirm you are not a robot. Reload the page and try again.";
 
@@ -57,13 +59,22 @@ export async function signIn(phone: string, code: string, next?: string) {
   return openPortal(account, next);
 }
 
+/** Where this role starts work. Same rule as the /console page, so sign-in does not stop on an empty shell. */
+async function staffHome(role: StaffRole): Promise<"/console/overview" | "/console/my-day"> {
+  if (role === "Owner" || role === "Administrator" || role === "Finance") return "/console/overview";
+  const rows = await (await db()).select({ permission: s.rolePermissions.permission }).from(s.rolePermissions)
+    .where(and(eq(s.rolePermissions.role, role), eq(s.rolePermissions.allowed, true)));
+  return hasAdminAccess(role, rows.map((r) => r.permission as Permission)) ? "/console/overview" : "/console/my-day";
+}
+
 /** Starts a staff session. When the owner requires the authenticator step and this person has not set it up, they go to set it up first. */
 async function openConsole(person: typeof s.staff.$inferSelect, next?: string, via = "SMS code"): Promise<never> {
   await startSession("staff", person.id);
   await audit(await db(), { actor: person.name, role: person.role, action: "Signed in", entity: `Staff · ${via}` }).catch(() => {});
   if (process.env.REQUIRE_STAFF_TOTP === "1" && !person.totpEnabledAt) redirect("/console/security?setup=1");
-  // /console sends each role to its own home: the overview or My day.
-  redirect(next?.startsWith("/console") || next?.startsWith("/admin") ? next : "/console");
+  // A deep link is kept. A bare /console, or no link, opens that role's home.
+  const asked = next?.startsWith("/console") || next?.startsWith("/admin") ? next : "";
+  redirect(asked && asked !== "/console" ? asked : await staffHome(person.role));
 }
 
 /** Step 3 for staff with an authenticator app: the 6-digit code from the app, or a recovery code. */

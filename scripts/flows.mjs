@@ -670,12 +670,14 @@ await step("authenticator", async () => {
   await p.set("#totp", "000000"); await p.click("Sign in", "button"); await waitFor(p, "not right");
   check("authenticator: a wrong code does not sign in", await p.has("not right") && (await p.ev("location.pathname")) === "/sign-in");
   // The code used while setting up is spent; the next 30-second step is accepted (the app allows a step either side).
-  await p.set("#totp", totp(secret, 1)); await p.click("Sign in", "button"); await waitPath(p, (path) => path.startsWith("/console"));
+  // Keep these exact digits for the reuse check. Calling totp() again can land in the next window and mint a new code.
+  const spent = totp(secret, 1);
+  await p.set("#totp", spent); await p.click("Sign in", "button"); await waitPath(p, (path) => path.startsWith("/console"));
   check("authenticator: the right code signs in", (await p.ev("location.pathname")).startsWith("/console"));
   await signOut(p);
 
   await phoneCode(p, "780000001");
-  await p.set("#totp", totp(secret, 1)); await p.click("Sign in", "button"); await waitFor(p, "not right");
+  await p.set("#totp", spent); await p.click("Sign in", "button"); await waitFor(p, "not right");
   check("authenticator: a code that was already used is refused", await p.has("not right") && (await p.ev("location.pathname")) === "/sign-in");
   await p.click("Lost your phone?", "button"); await sleep(200);
   await p.set("#totp", recovery[0]); await p.click("Sign in", "button"); await waitPath(p, (path) => path.startsWith("/console"));

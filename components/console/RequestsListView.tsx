@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { useMemo, useState, useTransition } from "react";
-import { bulkAssignRequests, bulkMessageRequests, saveSavedView } from "@/app/actions/console";
+import { bulkAssignRequests, bulkMessageRequests, deleteSavedView, saveSavedView } from "@/app/actions/console";
 import { Icon } from "@/components/ui";
 import { fmtAgo, fmtDay, fmtWhen, initials, rwf, shortName } from "@/lib/format";
 import { CASE_FILTERS } from "@/lib/dashboard";
@@ -23,6 +23,8 @@ export function RequestsListView({
   savedViews = [],
   initialFilters,
   now,
+  viewerId,
+  canManageViews = false,
 }: {
   requests: RequestView[];
   agents: Staff[];
@@ -32,6 +34,9 @@ export function RequestsListView({
   /** Filters named in the page URL, e.g. ?payment=overdue from a dashboard link. */
   initialFilters?: Record<string, string>;
   now: string;
+  viewerId: string;
+  /** Shared views have no owner. Only someone who can manage staff may delete those. */
+  canManageViews?: boolean;
 }) {
   const [viewMode, setViewMode] = useState<"table" | "board">("table");
   const [selectedReq, setSelectedReq] = useState<RequestView | null>(null);
@@ -419,6 +424,11 @@ export function RequestsListView({
             if (res.ok) {
               setToast(`Saved view “${name}”`);
             }
+          }}
+          canDeleteSavedView={(view) => (view.staffId ? view.staffId === viewerId : canManageViews)}
+          onDeleteSavedView={async (id) => {
+            const res = await deleteSavedView(id);
+            setToast(res.ok ? "Saved view deleted" : res.error ?? "Could not delete that view");
           }}
         />
       ) : (

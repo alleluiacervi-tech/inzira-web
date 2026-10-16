@@ -1,5 +1,7 @@
 import {
+  getMyPermissions,
   getNow,
+  getStaffUser,
   listAgents,
   listCases,
   listCategories,
@@ -16,7 +18,9 @@ const URL_FILTERS = ["stage", "agent", "payment", "channel", "waitingDays", "sta
 export default async function RequestsPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const params = await searchParams;
   const initialFilters = Object.fromEntries(URL_FILTERS.flatMap((k) => (typeof params[k] === "string" ? [[k, params[k] as string]] : [])));
-  const [requests, agents, categoriesList, stageTargets, savedViews, now] = await Promise.all([
+  const [me, perms, requests, agents, categoriesList, stageTargets, savedViews, now] = await Promise.all([
+    getStaffUser("/console/requests"),
+    getMyPermissions(),
     listCases(),
     listAgents(),
     listCategories(),
@@ -36,6 +40,8 @@ export default async function RequestsPage({ searchParams }: { searchParams: Pro
       savedViews={savedViews}
       initialFilters={initialFilters}
       now={now}
+      viewerId={me.id}
+      canManageViews={me.role === "Owner" || perms.includes("manageStaff")}
     />
   );
 }
