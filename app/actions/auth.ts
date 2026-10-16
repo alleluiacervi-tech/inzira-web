@@ -2,6 +2,7 @@
 import { and, eq, sql } from "drizzle-orm";
 import { redirect } from "next/navigation";
 import { normalisePhone, consumeCode, consumeEmailCode, endPending, endSession, issueCode, issueEmailCode, readPending, startPending, startSession } from "@/lib/auth";
+import { safeReturnPath } from "@/lib/return-path";
 import { checkSecondStep } from "@/lib/second-step";
 import { audit } from "@/lib/mutate";
 import { db, schema as s } from "@/lib/db";
@@ -72,9 +73,10 @@ async function openConsole(person: typeof s.staff.$inferSelect, next?: string, v
   await startSession("staff", person.id);
   await audit(await db(), { actor: person.name, role: person.role, action: "Signed in", entity: `Staff · ${via}` }).catch(() => {});
   if (process.env.REQUIRE_STAFF_TOTP === "1" && !person.totpEnabledAt) redirect("/console/security?setup=1");
-  // A deep link is kept. A bare /console, or no link, opens that role's home.
-  const asked = next?.startsWith("/console") || next?.startsWith("/admin") ? next : "";
-  redirect(asked && asked !== "/console" ? asked : await staffHome(person.role));
+  // A deep link is kept. A bare /console or /admin, or no link, opens that role's home.
+  const asked = safeReturnPath(next);
+  const home = !asked || asked === "/console" || asked === "/admin" || (!asked.startsWith("/console") && !asked.startsWith("/admin"));
+  redirect(home ? await staffHome(person.role) : asked);
 }
 
 /** Step 3 for staff with an authenticator app: the 6-digit code from the app, or a recovery code. */
@@ -113,7 +115,8 @@ async function openPortal(account: typeof s.accounts.$inferSelect, next?: string
   await startSession("customer", account.id);
   // The public site follows the language of their portal from here on.
   await rememberLocale(account.locale === "en" ? "en" : "rw");
-  redirect(next?.startsWith("/portal") ? next : "/portal");
+  const asked = safeReturnPath(next);
+  redirect(asked?.startsWith("/portal") ? asked : "/portal");
 }
 
 export async function signOut() {

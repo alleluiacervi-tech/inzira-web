@@ -93,7 +93,10 @@ async function page(width = 1280) {
 async function signIn(p, who, { language = "en" } = {}) {
   const byEmail = who.includes("@");
   const url = byEmail ? "/sign-in" : "/sign-in?method=phone";
-  await p.go(url);
+  // A signed-out visit already put the page they wanted in ?next=. Keep it.
+  const search = await p.ev("location.search").catch(() => "");
+  const path = await p.ev("location.pathname").catch(() => "");
+  if (!(path === "/sign-in" && String(search).includes("next="))) await p.go(url);
   if ((await p.ev("location.pathname")) !== "/sign-in") { await signOut(p); await p.go(url); }
   await p.set(byEmail ? "#si-email" : "#si-phone", who); await p.click("Send me a code"); await waitCode(p);
   const code = await p.ev(`document.querySelector("[data-demo-code]")?.dataset.demoCode ?? ""`);
@@ -282,6 +285,11 @@ await step("customer", async () => {
   const link = await p.ev(`[...document.querySelectorAll('a[href^="/files/"]')].map((a) => a.getAttribute("href"))[0] ?? ""`);
   const status = link ? await p.ev(`fetch(${JSON.stringify(link)}).then((r) => r.status)`) : 0;
   check("documents: the owner can open their file", status === 200, `${link} ${status}`);
+  await signOut(p);
+  await p.go("/portal/account");
+  check("deep link: the portal page is kept on the sign-in page", (await p.ev("location.pathname")) === "/sign-in" && (await p.ev("decodeURIComponent(location.search)")).includes("/portal/account"));
+  await signIn(p, "aline.uwase@example.com", { language: null });
+  check("deep link: signing in returns the customer to that page", (await p.ev("location.pathname")) === "/portal/account");
   await p.close();
 });
 
@@ -291,6 +299,11 @@ await step("agent", async () => {
   await signIn(p, "780000001");
   check("agent: agents land on My day in the console", (await p.ev("location.pathname")) === "/console/my-day" && await p.has("Good"));
   check("agent: My Day shows agent work queues", await p.has("Follow-ups due") && await p.has("Past or near target") && await p.has("My open cases ("));
+  await signOut(p);
+  await p.go("/console/requests/INZ-2026-04790");
+  check("deep link: the case is kept on the sign-in page", (await p.ev("location.pathname")) === "/sign-in" && (await p.ev("decodeURIComponent(location.search)")).includes("/console/requests/INZ-2026-04790"));
+  await signIn(p, "780000001");
+  check("deep link: signing in returns the agent to that case", (await p.ev("location.pathname")) === "/console/requests/INZ-2026-04790");
   await p.go("/console/requests/INZ-2026-04817");
   check("agent: another agent's case is hidden", await p.has("We couldn’t find that"));
   await p.go("/console/requests/INZ-2026-04790");
