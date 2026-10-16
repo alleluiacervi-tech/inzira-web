@@ -5,10 +5,9 @@
 //
 // - Database: answers, and every migration in ./drizzle is applied.
 // - SMS: sends one message to TEST_PHONE (SMS_PROVIDER=africastalking).
-// - Mobile money: with PAYMENT_PROVIDER=live, sends a prompt of CHECK_AMOUNT (default 100) to
-//   TEST_PHONE for MTN and, if set, TEST_AIRTEL_PHONE for Airtel, then waits up to 2 minutes for the
-//   result. In the MTN sandbox no phone rings and the prompt succeeds on its own; on a live account
-//   the phone owner must approve it, and the money is real.
+// - Mobile money: with PAYMENT_PROVIDER=live (IntouchPay), sends a prompt of CHECK_AMOUNT (default 100)
+//   to TEST_PHONE and, if set, TEST_AIRTEL_PHONE, then waits up to 2 minutes. The phone owner must
+//   approve it, and on a production account the money is real. PAYMENT_PROVIDER=direct uses MTN and Airtel.
 // - Storage: writes, reads back and deletes a small file (private Vercel Blob).
 //
 // Nothing is checked unless its keys are set; skipped checks say why. Exits 1 if any check failed.
@@ -60,12 +59,17 @@ else {
 
 // ---------------- mobile money ----------------
 async function checkPayment(name: string, to: string) {
-  const { methodFor, providerFor, providerStatus } = await import("../lib/payments.ts");
-  const expected = name === "Airtel Money" ? "Airtel Money" : "MTN MoMo";
-  if (methodFor(to) !== expected) { record(name, "skip", `+250${to} is not an ${expected} number.`); return; }
+  const { methodFor, newPrompt, providerStatus } = await import("../lib/payments.ts");
+  const direct = process.env.PAYMENT_PROVIDER === "direct";
+  if (direct) {
+    const expected = name === "Airtel Money" ? "Airtel Money" : "MTN MoMo";
+    if (methodFor(to) !== expected) { record(name, "skip", `+250${to} is not an ${expected} number.`); return; }
+  }
   const amount = Number(process.env.CHECK_AMOUNT) || 100;
   try {
-    const { providerRef } = await providerFor(to).requestToPay({ phone9: to, amount, reference: `CHECK-${Date.now()}` });
+    const prompt = newPrompt(to);
+    const sent = await prompt.provider.requestToPay({ id: prompt.id, phone9: to, amount, reference: `CHECK-${Date.now()}` });
+    const providerRef = sent.providerTxId ? `${prompt.providerRef}:${sent.providerTxId}` : prompt.providerRef;
     console.log(`        ${name}: prompt sent (${providerRef}), waiting for the result…`);
     for (let i = 0; i < 24; i++) {
       await new Promise((r) => setTimeout(r, 5000));
@@ -78,13 +82,14 @@ async function checkPayment(name: string, to: string) {
     record(name, "fail", errorText(e));
   }
 }
-if (process.env.PAYMENT_PROVIDER !== "live") record("Mobile money", "skip", "PAYMENT_PROVIDER is not live.");
+const live = process.env.PAYMENT_PROVIDER === "live" || process.env.PAYMENT_PROVIDER === "intouchpay" || process.env.PAYMENT_PROVIDER === "direct";
+if (!live) record("Mobile money", "skip", "PAYMENT_PROVIDER is not live, intouchpay or direct.");
 else {
-  if (!/^7\d{8}$/.test(phone)) record("MTN MoMo", "skip", "Set TEST_PHONE to an MTN number.");
-  else await checkPayment("MTN MoMo", phone);
+  if (!/^7\d{8}$/.test(phone)) record("Mobile money", "skip", "Set TEST_PHONE to a Rwandan mobile number.");
+  else await checkPayment(process.env.PAYMENT_PROVIDER === "direct" ? "MTN MoMo" : "IntouchPay", phone);
   const airtelPhone = nine(process.env.TEST_AIRTEL_PHONE);
-  if (!/^7\d{8}$/.test(airtelPhone)) record("Airtel Money", "skip", "Set TEST_AIRTEL_PHONE to an Airtel number (072/073).");
-  else await checkPayment("Airtel Money", airtelPhone);
+  if (!/^7\d{8}$/.test(airtelPhone)) record("Second number", "skip", "Set TEST_AIRTEL_PHONE to check a second wallet (072/073 for Airtel).");
+  else await checkPayment(process.env.PAYMENT_PROVIDER === "direct" ? "Airtel Money" : "IntouchPay (second number)", airtelPhone);
 }
 
 // ---------------- storage ----------------

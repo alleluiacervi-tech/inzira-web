@@ -102,7 +102,8 @@ export function PaymentPanel({ reqRef, billing: b, now, phone }: { reqRef: strin
 function PayDialog({ reqRef, b, due, phone, onClose }: { reqRef: string; b: Billing; due: number; phone: string; onClose: () => void }) {
   const { locale, t } = useI18n();
   const router = useRouter();
-  const [stage, setStage] = useState<"review" | "pending" | "paid" | "failed">("review");
+  const [stage, setStage] = useState<"review" | "pending" | "paid" | "failed" | "slow">("review");
+  const [txId, setTxId] = useState<number | null>(null);
   const [num, setNum] = useState(prettyMobile(phone));
   const [agree, setAgree] = useState(b.quote === "approved");
   const [error, setError] = useState("");
@@ -116,14 +117,16 @@ function PayDialog({ reqRef, b, due, phone, onClose }: { reqRef: string; b: Bill
   const official = Math.max(0, (b.official ?? 0) - paid.official);
   const ours = Math.max(0, due - official);
 
-  const poll = (txId: number, tries = 0) => {
+  const poll = (id: number, tries = 0) => {
+    const wait = tries < 20 ? 1500 : 4000;
     timer.current = setTimeout(async () => {
-      const r = await checkPayment(txId).catch(() => null);
+      const r = await checkPayment(id).catch(() => null);
       if (r?.ok && r.status === "paid") { setStage("paid"); return; }
       if (r?.ok && r.status === "failed") { setStage("failed"); return; }
-      if (tries > 60) { setStage("failed"); return; }
-      poll(txId, tries + 1);
-    }, 1500);
+      // The server closes an unanswered prompt after fifteen minutes. Until then, keep asking it.
+      if (tries > 220) { setStage("slow"); return; }
+      poll(id, tries + 1);
+    }, wait);
   };
   const send = async () => {
     if (!agree) { setError(t("pay.tick")); return; }
@@ -133,9 +136,10 @@ function PayDialog({ reqRef, b, due, phone, onClose }: { reqRef: string; b: Bill
     const r = await startPayment(reqRef, num).catch(() => ({ ok: false as const, error: t("pay.reach") }));
     if (!r.ok) { setError(trError(locale, r.error)); setStage("review"); return; }
     setReceipt(r.receipt);
+    setTxId(r.txId);
     poll(r.txId);
   };
-  const title = { review: t("pay.approve"), pending: t("pay.checkPhone"), paid: t("pay.received"), failed: t("pay.failed") }[stage];
+  const title = { review: t("pay.approve"), pending: t("pay.checkPhone"), slow: t("pay.checkPhone"), paid: t("pay.received"), failed: t("pay.failed") }[stage];
 
   return (
     <div className="modal-bg" onClick={(e) => e.target === e.currentTarget && stage !== "pending" && close()}>
@@ -166,6 +170,15 @@ function PayDialog({ reqRef, b, due, phone, onClose }: { reqRef: string; b: Bill
           <div className="stack g14" role="status">
             <div className="row g12"><span className="ok-dot"><Icon name="check" size={22} /></span><p style={{ fontSize: 15, lineHeight: 1.55 }}>{t("side.got", { amount: rwf(due), receipt })}</p></div>
             <button className="btn btn-d" type="button" onClick={close}>{t("side.done")}</button>
+          </div>
+        )}
+        {stage === "slow" && txId !== null && (
+          <div className="stack g14" role="status">
+            <p style={{ fontSize: 15, lineHeight: 1.55 }}>{t("side.stillOpen")}</p>
+            <div className="row g10" style={{ justifyContent: "flex-end" }}>
+              <button className="btn btn-g" type="button" onClick={close}>{t("side.close")}</button>
+              <button className="btn btn-p" type="button" onClick={() => { setStage("pending"); poll(txId); }}>{t("side.checkAgain")}</button>
+            </div>
           </div>
         )}
         {stage === "failed" && (

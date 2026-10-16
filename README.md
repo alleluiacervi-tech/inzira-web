@@ -79,9 +79,11 @@ Copy `.env.example` to `.env.local`. None are needed for development.
 | `AUTH_SECRET` | Keys stored sign-in codes to this server. Set a long random value on the live site (`openssl rand -hex 32`). |
 | `CUSTOMER_PHONE_SIGNIN` | Set to `0` once customers have added their email, to end phone sign-in for customers. Staff keep it. |
 | `SMS_PROVIDER` | `africastalking` to send real SMS (`AT_USERNAME`, `AT_API_KEY`, optional `AT_SENDER_ID`). |
-| `PAYMENT_PROVIDER` | `live` for real mobile money (MTN numbers → MTN MoMo, 072/073 → Airtel Money), or `simulator` for demos. |
-| `MTN_MOMO_*` | `MTN_MOMO_SUBSCRIPTION_KEY`, `MTN_MOMO_API_USER`, `MTN_MOMO_API_KEY`, `MTN_MOMO_ENVIRONMENT` (`sandbox` or the live name MTN gives you, e.g. `mtnrwanda`), `MTN_MOMO_BASE_URL` (live base URL from MTN), `MTN_MOMO_CURRENCY` (default `RWF`; the sandbox uses `EUR`). |
-| `AIRTEL_*` | `AIRTEL_CLIENT_ID`, `AIRTEL_CLIENT_SECRET`, `AIRTEL_BASE_URL` (`https://openapiuat.airtel.africa` for testing, `https://openapi.airtel.africa` live). |
+| `PAYMENT_PROVIDER` | `live` for IntouchPay (MTN and Airtel through one API), `simulator` for demos, or `direct` for the older MTN MoMo and Airtel Money APIs. |
+| `INTOUCHPAY_USERNAME`, `INTOUCHPAY_ACCOUNT_NO`, `INTOUCHPAY_PARTNER_PASSWORD` | Partner credentials from IntouchPay. The partner password is only used to build the SHA-256 request password and is never sent or shown. |
+| `INTOUCHPAY_BASE_URL` | Defaults to `https://www.intouchpay.co.rw/api`. Must be HTTPS outside local development. The published guide uses this host for both test and production credentials. |
+| `INTOUCHPAY_CALLBACK_USER`, `INTOUCHPAY_CALLBACK_PASSWORD` | Optional. When both are set, `POST /api/payments/callback` requires HTTP Basic with those values (API guide section 2.7). |
+| `MTN_MOMO_*`, `AIRTEL_*` | Used only when `PAYMENT_PROVIDER=direct`. |
 | `CRON_SECRET` | Protects `/api/cron`. Vercel sends it automatically to scheduled jobs. |
 | `NEXT_PUBLIC_SITE_URL` | The public address, used in SMS links. |
 | `BLOB_READ_WRITE_TOKEN` | Vercel Blob read/write token for local or non-Vercel deployments. On Vercel, connect a private Blob store to use OIDC instead. |
@@ -97,9 +99,12 @@ Copy `.env.example` to `.env.local`. None are needed for development.
 3. Schema in `drizzle/` is applied when the server starts. Set `DB_AUTO_MIGRATE=0` only if a release step runs `npm run db:migrate` first.
 4. Load the catalogue and the first owner, without sample data:
    `OWNER_NAME="…" OWNER_PHONE="07…" npm run db:setup`.
-5. Set `SMS_PROVIDER` and its keys, `NEXT_PUBLIC_SITE_URL`, `CRON_SECRET`, and — once you have
-   credentials — `PAYMENT_PROVIDER=live` with the MTN and Airtel keys. Point the Airtel callback URL in
-   their portal at `https://<your site>/api/payments/callback`; MTN receives it with each prompt.
+5. Set `SMS_PROVIDER` and its keys, `NEXT_PUBLIC_SITE_URL` (https in production), `CRON_SECRET`, and —
+   once IntouchPay has issued credentials — `PAYMENT_PROVIDER=live` with `INTOUCHPAY_USERNAME`,
+   `INTOUCHPAY_ACCOUNT_NO` and `INTOUCHPAY_PARTNER_PASSWORD`. Register
+   `https://<your site>/api/payments/callback` as the transaction-status URL. Each prompt also sends
+   that address as `callbackurl`. If IntouchPay will call it with HTTP Basic, set
+   `INTOUCHPAY_CALLBACK_USER` and `INTOUCHPAY_CALLBACK_PASSWORD` to the same values.
 6. Run `TEST_PHONE=07… npm run check:providers` against the staging environment: it sends a real SMS,
    a mobile money prompt per provider and a storage round trip through the site's own code.
 7. The owner signs in and opens **Admin › System**: every item should read Live. It sends a test SMS
@@ -137,7 +142,9 @@ lib/
   auth.ts            phone + SMS code sign-in, sessions (hashed, httpOnly cookie), staff permissions
   permissions.ts     the permission list and the starting roles matrix
   sms.ts             SMS providers (console, Africa's Talking)
-  payments.ts        mobile money providers (MTN MoMo, Airtel Money, simulator)
+  payments.ts        mobile money providers (IntouchPay, direct MTN/Airtel, simulator)
+  intouchpay.ts      IntouchPay request, status and callback field handling
+  payment-callback.ts  callback identification; settlement stays in billing.ts
   billing.ts         settles a payment — the one place that decides paid or failed
   jobs.ts            the scheduled tasks and the staff daily summary
   privacy.ts         document retention, "delete my documents" and account deletion
@@ -172,11 +179,17 @@ by every server action.
 
 ## Before launch
 
-- **Mobile money.** MTN MoMo and Airtel Money are written from their published APIs but have not been
-  run against either provider. Get sandbox credentials, set `PAYMENT_PROVIDER=live` on a staging
-  build, and pay a few requests end to end before taking real money. Without a provider, production
-  refuses payments. Refunds are recorded in the admin console; the money itself is sent back from the
-  provider's dashboard.
+- **Mobile money.** Live prompts go through IntouchPay (`RequestPayment` and `GetTransactionStatus` in
+  the HTTP API guide: <https://intouchpay.co.rw/static/files/http_intouchpay_api.pdf>). IntouchPay
+  issues test credentials first; the guide uses the same base URL for test and production, and you
+  replace the credentials when the production account is ready. A prompt is recorded before the call.
+  The callback only names the prompt. Paid or failed is written after `GetTransactionStatus` says so,
+  and a second callback does not record the payment again. This integration has been tested against a
+  local stand-in of that API, not against an IntouchPay account: run `npm run check:providers` on
+  staging with real credentials and approve a prompt on a phone before taking real money. Without a
+  provider, production refuses payments. Refunds are recorded in the admin console; sending the money
+  back is done from the IntouchPay portal (the deposit API is not used). `PAYMENT_PROVIDER=direct`
+  still calls MTN MoMo and Airtel Money for an account that already has those keys.
 - **Email.** Buy a mailbox on the business domain, put its SMTP settings in the environment and run
   `npm run check:email` from where the app runs (a VPS or cloud host can block outbound mail ports; the check says which).
   Send a real message to Gmail and Outlook and look for `spf=pass` and `dkim=pass` in its headers, or codes will land in spam.

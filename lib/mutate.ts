@@ -19,9 +19,11 @@ export async function nextNumber(tx: Tx | Db, name: "request" | "invoice") {
 export const refFor = (n: number) => `INZ-${new Date().getFullYear()}-${String(n).padStart(5, "0")}`;
 export const invoiceFor = (n: number) => `INZ-R-${n}`;
 
-/** "Web · Chrome/Android" — where an action came from, for the audit log. */
+/** "Web · Chrome/Android" — where an action came from, for the audit log.
+ *  A provider callback or the scheduled job may settle a payment with no page request; the audit line still has to be written. */
 export async function source() {
-  const ua = (await headers()).get("user-agent") ?? "";
+  let ua = "";
+  try { ua = (await headers()).get("user-agent") ?? ""; } catch { return "System"; }
   const browser = /Edg\//.test(ua) ? "Edge" : /Chrome\//.test(ua) ? "Chrome" : /Safari\//.test(ua) ? "Safari" : /Firefox\//.test(ua) ? "Firefox" : "Browser";
   const os = /Android/.test(ua) ? "Android" : /iPhone|iPad/.test(ua) ? "iOS" : /Windows/.test(ua) ? "Windows" : /Mac OS/.test(ua) ? "macOS" : /Linux/.test(ua) ? "Linux" : "";
   return `Web · ${browser}${os ? `/${os}` : ""}`;

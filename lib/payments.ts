@@ -1,21 +1,22 @@
 // Mobile money collection. PAYMENT_PROVIDER chooses how prompts are sent:
-// - "live": real money. MTN numbers go to the MTN MoMo Collection API, Airtel numbers (072/073)
-//   to the Airtel Money Collections API. Written from the providers' published API documentation;
-//   run it against each provider's sandbox before taking real payments.
+// - "live" or "intouchpay": IntouchPay Rwanda (one API for MTN and Airtel). See lib/intouchpay.ts.
+// - "direct": the MTN MoMo and Airtel Money APIs, kept for an account that already has those keys.
+//   Airtel numbers are 072/073; every other Rwandan mobile is treated as MTN.
 // - "simulator" (default outside production, or with INZIRA_DEMO=1): no money moves. The prompt is
 //   "approved" two seconds after it is sent; a number ending in 0000 is "declined".
-// The provider is remembered in each transaction's providerRef ("mtn:…", "airtel:…", "sim:…"), so
-// status checks always go back to the provider that sent the prompt.
-import { randomUUID } from "node:crypto";
+// The provider is remembered in each transaction's providerRef ("intouch:…", "mtn:…", "airtel:…", "sim:…"),
+// so status checks always go back to the provider that sent the prompt.
+import { randomBytes, randomUUID } from "node:crypto";
+import { IntouchRejected, intouchPaymentStatus, requestIntouchPayment } from "./intouchpay";
 import { isDemo } from "./sms";
 
 export type PayStatus = "pending" | "paid" | "failed";
 type Method = "MTN MoMo" | "Airtel Money";
 type Provider = {
-  key: "sim" | "mtn" | "airtel";
+  key: "sim" | "mtn" | "airtel" | "intouch";
   /** Our own id for the prompt, made before the call and saved with the payment first (see newPrompt). */
   newId(phone9: string): string;
-  requestToPay(input: { id: string; phone9: string; amount: number; reference: string; callbackUrl?: string }): Promise<void>;
+  requestToPay(input: { id: string; phone9: string; amount: number; reference: string; callbackUrl?: string }): Promise<{ providerTxId?: string }>;
   status(id: string): Promise<{ status: PayStatus; providerTxId?: string }>;
 };
 
@@ -26,7 +27,7 @@ export const methodFor = (phone9: string): Method => (/^7[23]/.test(phone9) ? "A
 const simulator: Provider = {
   key: "sim",
   newId: (phone9) => `${Date.now()}:${phone9}`,
-  async requestToPay() {},
+  async requestToPay() { return {}; },
   async status(id) {
     const [at, phone] = id.split(":");
     if (Date.now() - Number(at) < 2000) return { status: "pending" };
@@ -87,6 +88,7 @@ const mtn: Provider = {
     });
     // 409 means this id was already accepted (a retry of the same call): the prompt exists.
     if (res.status !== 202 && res.status !== 409) refusedIf4xx(res.status, "MTN requesttopay", await res.text());
+    return {};
   },
   async status(id) {
     const token = await mtnToken();
@@ -121,6 +123,7 @@ const airtel: Provider = {
       body: JSON.stringify({ reference, subscriber: { country: "RW", currency: "RWF", msisdn: phone9 }, transaction: { amount, country: "RW", currency: "RWF", id } }),
     });
     if (!res.ok) refusedIf4xx(res.status, "Airtel payment", await res.text());
+    return {};
   },
   async status(id) {
     const res = await fetch(`${airtelBase()}/standard/v1/payments/${id}`, { headers: airtelHeaders(await airtelToken()) });
@@ -131,17 +134,44 @@ const airtel: Provider = {
   },
 };
 
+// ---------------- IntouchPay (live collections) ----------------
+const intouch: Provider = {
+  key: "intouch",
+  newId: () => randomBytes(8).toString("hex"),
+  async requestToPay({ id, phone9, amount, callbackUrl }) {
+    try {
+      const sent = await requestIntouchPayment({ requestId: id, phone9, amount, callbackUrl });
+      return { providerTxId: sent.transactionId };
+    } catch (e) {
+      if (e instanceof IntouchRejected) throw new PromptRefused(e.message);
+      throw e;
+    }
+  },
+  async status(id) {
+    const [requestId, transactionId] = id.split(":");
+    try {
+      const result = await intouchPaymentStatus(requestId, transactionId);
+      return { status: result.status, providerTxId: result.reference };
+    } catch (e) {
+      if (e instanceof IntouchRejected) throw new PromptRefused(e.message);
+      throw e;
+    }
+  },
+};
+
 // ---------------- choosing ----------------
 const mode = () => process.env.PAYMENT_PROVIDER ?? (isDemo() ? "simulator" : "");
 
 /** The provider that will send a prompt to this number. Throws if payments are not configured. */
 export function providerFor(phone9: string): Provider {
-  if (mode() === "simulator") {
+  const selected = mode();
+  if (selected === "simulator") {
     if (!isDemo()) throw new Error("The payment simulator only runs in development or with INZIRA_DEMO=1.");
     return simulator;
   }
-  if (mode() === "live") return methodFor(phone9) === "Airtel Money" ? airtel : mtn;
-  throw new Error("Payments are not configured. Set PAYMENT_PROVIDER (see README).");
+  if (selected === "live" || selected === "intouchpay") return intouch;
+  if (selected === "direct") return methodFor(phone9) === "Airtel Money" ? airtel : mtn;
+  throw new Error("Payments are not configured. Set PAYMENT_PROVIDER=live for IntouchPay, or simulator for demos.");
 }
 
 /** Picks the provider for this number and makes the prompt's id and reference up front, so they can be saved before the
@@ -159,6 +189,7 @@ export async function providerStatus(providerRef: string): Promise<{ status: Pay
   if (key === "sim") return simulator.status(id);
   if (key === "mtn") return mtn.status(id);
   if (key === "airtel") return airtel.status(id);
+  if (key === "intouch") return intouch.status(id.split("|")[0] ?? id);
   return { status: "failed" };
 }
 
