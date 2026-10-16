@@ -1,6 +1,7 @@
 "use client";
 import { useState, useTransition } from "react";
 import { confirmEmailChange, deleteMyAccount, deleteMyDocuments, requestEmailChange, signOutEverywhere, updateAccount } from "@/app/actions/customer";
+import { unlessRedirect } from "./keep-redirect";
 import { trError } from "@/lib/i18n/errors";
 import { useI18n } from "./I18n";
 import { Alert, Icon } from "./ui";
@@ -138,7 +139,7 @@ function DeleteDialog({ onClose }: { onClose: () => void }) {
     e.preventDefault();
     setBusy(true); setError("");
     // On success the action signs out and redirects, so only a failure returns here.
-    const r = await deleteMyAccount(value).catch(() => ({ ok: false as const, error: t("account.accountFail") }));
+    const r = await deleteMyAccount(value).catch(unlessRedirect({ ok: false as const, error: t("account.accountFail") }));
     setBusy(false);
     if (r && !r.ok) setError(trError(locale, r.error));
   };

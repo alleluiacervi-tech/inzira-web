@@ -2,12 +2,15 @@
 import { and, eq, sql } from "drizzle-orm";
 import { redirect } from "next/navigation";
 import { normalisePhone, consumeCode, consumeEmailCode, endPending, endSession, issueCode, issueEmailCode, readPending, startPending, startSession } from "@/lib/auth";
+import { safeReturnPath } from "@/lib/return-path";
 import { checkSecondStep } from "@/lib/second-step";
 import { audit } from "@/lib/mutate";
 import { db, schema as s } from "@/lib/db";
 import { getLocale, rememberLocale } from "@/lib/i18n/locale";
+import { hasAdminAccess, type Permission } from "@/lib/permissions";
 import { TOO_MANY, allowIp, clientIp } from "@/lib/ratelimit";
 import { verifyHuman } from "@/lib/turnstile";
+import type { StaffRole } from "@/lib/types";
 
 const NOT_HUMAN = "We couldn’t confirm you are not a robot. Reload the page and try again.";
 
@@ -57,13 +60,23 @@ export async function signIn(phone: string, code: string, next?: string) {
   return openPortal(account, next);
 }
 
+/** Where this role starts work. Same rule as the /console page, so sign-in does not stop on an empty shell. */
+async function staffHome(role: StaffRole): Promise<"/console/overview" | "/console/my-day"> {
+  if (role === "Owner" || role === "Administrator" || role === "Finance") return "/console/overview";
+  const rows = await (await db()).select({ permission: s.rolePermissions.permission }).from(s.rolePermissions)
+    .where(and(eq(s.rolePermissions.role, role), eq(s.rolePermissions.allowed, true)));
+  return hasAdminAccess(role, rows.map((r) => r.permission as Permission)) ? "/console/overview" : "/console/my-day";
+}
+
 /** Starts a staff session. When the owner requires the authenticator step and this person has not set it up, they go to set it up first. */
 async function openConsole(person: typeof s.staff.$inferSelect, next?: string, via = "SMS code"): Promise<never> {
   await startSession("staff", person.id);
   await audit(await db(), { actor: person.name, role: person.role, action: "Signed in", entity: `Staff · ${via}` }).catch(() => {});
   if (process.env.REQUIRE_STAFF_TOTP === "1" && !person.totpEnabledAt) redirect("/console/security?setup=1");
-  // /console sends each role to its own home: the overview or My day.
-  redirect(next?.startsWith("/console") || next?.startsWith("/admin") ? next : "/console");
+  // A deep link is kept. A bare /console or /admin, or no link, opens that role's home.
+  const asked = safeReturnPath(next);
+  const home = !asked || asked === "/console" || asked === "/admin" || (!asked.startsWith("/console") && !asked.startsWith("/admin"));
+  redirect(home ? await staffHome(person.role) : asked);
 }
 
 /** Step 3 for staff with an authenticator app: the 6-digit code from the app, or a recovery code. */
@@ -111,7 +124,8 @@ async function openPortal(account: typeof s.accounts.$inferSelect, next?: string
   await startSession("customer", account.id);
   // The public site follows the language of their portal from here on.
   await rememberLocale(account.locale === "en" ? "en" : "rw");
-  redirect(next?.startsWith("/portal") ? next : "/portal");
+  const asked = safeReturnPath(next);
+  redirect(asked?.startsWith("/portal") ? asked : "/portal");
 }
 
 export async function signOut() {

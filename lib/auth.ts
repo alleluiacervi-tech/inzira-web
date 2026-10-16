@@ -2,7 +2,7 @@
 // Codes and session tokens are stored only as SHA-256 hashes.
 import { createHash, createHmac, randomBytes, randomInt, timingSafeEqual } from "node:crypto";
 import { and, desc, eq, gt, inArray, lt, ne, sql } from "drizzle-orm";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { cache } from "react";
 import { db, iso, schema as s } from "./db";
@@ -13,6 +13,7 @@ import { canDeliverEmailCodes, sendEmail, showsEmailCodeOnScreen } from "./email
 import { text } from "./i18n/messages";
 import { allowFor } from "./ratelimit";
 import { canDeliverCodes, sendSms, showsCodeOnScreen } from "./sms";
+import { safeReturnPath } from "./return-path";
 import type { Staff } from "./types";
 
 const COOKIE = "inzira_session";
@@ -215,9 +216,18 @@ export const getSession = cache(async (): Promise<{ kind: "customer" | "staff"; 
   return { kind: row.kind, subjectId: row.subjectId };
 });
 
+/** The page this request is for, when it is a place we can send someone back to. */
+async function askedPath(): Promise<string | null> {
+  try {
+    return safeReturnPath((await headers()).get("x-inzira-path"));
+  } catch {
+    return null;
+  }
+}
+
 export async function requireCustomerId(next = "/portal"): Promise<string> {
   const session = await getSession();
-  if (session?.kind !== "customer") redirect(`/sign-in?next=${encodeURIComponent(next)}`);
+  if (session?.kind !== "customer") redirect(`/sign-in?next=${encodeURIComponent((await askedPath()) ?? safeReturnPath(next) ?? "/portal")}`);
   return session.subjectId;
 }
 
@@ -236,7 +246,7 @@ export const getStaffUser = cache(async (): Promise<(Staff & { permissions: Set<
 
 export async function requireStaff(next = "/console") {
   const me = await getStaffUser();
-  if (!me) redirect(`/sign-in?next=${encodeURIComponent(next)}`);
+  if (!me) redirect(`/sign-in?next=${encodeURIComponent((await askedPath()) ?? safeReturnPath(next) ?? "/console")}`);
   return me;
 }
 export const can = (me: { permissions: Set<Permission> } | null, p: Permission) => !!me?.permissions.has(p);
