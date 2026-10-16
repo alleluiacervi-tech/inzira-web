@@ -633,21 +633,21 @@ await step("contact", async () => {
   const p = await page();
   await p.go("/start/irembo-training");
   await p.set("#f-name", "Guest Person"); await p.set("#f-email", "guest.person@example.com");
-  await p.click("Continue"); await sleep(300);
   await p.click("Online", "label"); await p.click("Continue"); await sleep(300);
-  check("contact: the review step offers a portal, ticked by default", await p.has("Create my portal") && (await p.ev(`document.querySelector('input[aria-describedby="portal-hint"]').checked`)) === true);
-  await p.click("Create my portal", "label");
+  check("contact: sending does not ask whether to create a portal", !(await p.has("Create my portal")) && await p.has("Check and send") && await p.has("Online"));
   await p.ev(`document.querySelector('input[aria-describedby="ack-err"]').click()`); await p.click("Send request"); await sleep(1200);
   await p.set("#otp", await p.ev(`document.querySelector("[data-demo-code]").dataset.demoCode`)); await p.click("Confirm and send request"); await waitFor(p, "Request received");
   const ref = await p.ev(`document.querySelector("[data-ref]")?.textContent ?? ""`);
-  check("contact: a request is sent without creating a portal", /^INZ-\d{4}-\d{5}$/.test(ref) && await p.has("Track this request") && !(await p.has("See my request")), ref);
-  await p.go("/portal");
-  check("contact: and nobody is signed in", (await p.ev("location.pathname")) === "/sign-in");
+  check("contact: sending opens a portal for the same reference", /^INZ-\d{4}-\d{5}$/.test(ref) && await p.has("See my request"), ref);
+  await p.click("See my request");
+  await waitPath(p, (path) => path === "/portal/requests/" + ref);
+  check("contact: the customer is signed in on that request", (await p.ev("location.pathname")) === "/portal/requests/" + ref && await p.has(ref));
+  await signOut(p);
   await p.go("/track"); await p.set("#tr-ref", ref); await p.set("#tr-contact", "guest.person@example.com"); await p.click("Check progress"); await waitFor(p, "Irembo training");
   check("contact: the request can be followed with its reference and email", await p.has("Irembo training"));
   await signIn(p, "guest.person@example.com");
   await p.go("/portal/requests/" + ref);
-  check("contact: signing in later with that email opens a portal with the request", (await p.ev("location.pathname")).startsWith("/portal/requests/") && await p.has(ref));
+  check("contact: signing in again opens the same request", (await p.ev("location.pathname")).startsWith("/portal/requests/") && await p.has(ref));
   await p.close();
 });
 await step("add email", async () => {
