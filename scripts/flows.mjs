@@ -269,11 +269,18 @@ await step("identity", async () => {
   await p.go("/console/identity"); await waitFor(p, "National ID review");
   const queue = await p.ev(`document.querySelector("main")?.innerText ?? ""`);
   check("identity: pending reviews are listed with a masked ID", queue.includes("Pending verification") && queue.includes("••••") && !queue.includes("0034129") && !queue.includes("0045123"));
-  await p.go("/console/requests/INZ-2026-04779"); await waitFor(p, "National ID review");
-  check("identity: opening a request does not verify it", await p.has("Pending verification") && await p.has("does not look up"));
+  await p.go("/console/requests/INZ-2026-04779");
+  await waitPath(p, (path) => path === "/console/requests/INZ-2026-04779");
+  // The queue page already says "National ID review", and this screen is slow to compile, so wait for the note field itself.
+  let noteReady = false;
+  for (let i = 0; i < 80 && !noteReady; i++) { noteReady = await p.ev(`!!document.querySelector("#id-review-note")`).catch(() => false); if (!noteReady) await sleep(250); }
+  await p.help();
+  check("identity: opening a request does not verify it", noteReady && await p.has("Pending verification") && await p.has("opening this page does not verify"));
   await p.set("#id-review-note", "The marriage certificate name does not match the ID photo.");
-  await p.click("Requires correction"); await sleep(800);
-  check("identity: an authorised reviewer can record a correction", await p.has("The client was asked to correct the ID details") || await p.has("Requires correction"));
+  await p.click("Requires correction");
+  let reviewed = false;
+  for (let i = 0; i < 20 && !reviewed; i++) { reviewed = await p.has("The client was asked to correct the ID details"); if (!reviewed) await sleep(300); }
+  check("identity: an authorised reviewer can record a correction", reviewed);
   await signOut(p);
   await signIn(p, "780000007");
   await p.go("/console/identity"); await sleep(800);
@@ -287,9 +294,16 @@ await step("identity", async () => {
   check("identity: the client sees the correction on the same reference", await p.has("Requires correction") && await p.has("INZ-2026-04779") && !(await p.has("0034129")));
   await p.set("#id-correct-nid", "1 1990 7 0034129 0 63"); await p.set("#id-correct-dob", "1990-07-04");
   await p.ev(`document.querySelector("#id-correct-consent").click()`);
-  await p.click("Send the correction"); await sleep(1200);
-  const corrected = await p.ev(`document.querySelector("main")?.innerText ?? ""`);
-  check("identity: the correction keeps the same reference and does not verify the ID", corrected.includes("INZ-2026-04779") && (corrected.includes("waiting for review") || corrected.includes("Pending verification")) && !corrected.includes("officially verified") && !corrected.includes("0034129"));
+  await p.set("#id-correct-nid", "1 1990 7 0034129 0 63"); await p.set("#id-correct-dob", "1990-07-04");
+  await p.click("Send the correction");
+  let corrected = "";
+  for (let i = 0; i < 25; i++) {
+    // The portal frame is a div.main, not a <main> landmark, so the confirmation lives on the body.
+    corrected = await p.ev(`document.body?.innerText ?? ""`);
+    if (corrected.includes("waiting for review") || (corrected.includes("Pending verification") && !corrected.includes("Send the correction"))) break;
+    await sleep(400);
+  }
+  check("identity: the correction keeps the same reference and does not verify the ID", corrected.includes("INZ-2026-04779") && (corrected.includes("waiting for review") || corrected.includes("Pending verification")) && !corrected.includes("officially verified") && !corrected.includes("0034129"), corrected.replace(/\s+/g, " ").slice(0, 360));
   await p.close();
 });
 
@@ -755,6 +769,10 @@ await step("authenticator", async () => {
 // ---------- mobile navigation ----------
 await step("mobile", async () => {
   const p = await page(390);
+  await p.go("/start/land-spouse-update");
+  check("mobile: a service that needs an ID shows the field", await p.has("National ID Number") && await p.has("Please enter your 16-digit National ID number") && (await p.ev(`!!document.querySelector("#f-nid")`)) === true);
+  await p.go("/start/irembo-training");
+  check("mobile: a service that does not need an ID hides the field", (await p.ev(`document.querySelector("#f-nid") === null`)) === true);
   await p.go("/");
   await p.click("Open menu"); await sleep(300);
   check("menu: opens as a dialog", (await p.ev(`!!document.querySelector('.mobmenu[role=dialog]')`)) && (await p.ev(`document.body.style.overflow`)) === "hidden");

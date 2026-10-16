@@ -1,4 +1,5 @@
 "use client";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { correctSubmittedId } from "@/app/actions/customer";
 import { nationalIdDigits, nationalIdError } from "@/lib/identity";
@@ -8,6 +9,7 @@ import { Icon } from "./ui";
 /** Lets the client replace an ID an agent sent back. The reference does not change, and the review outcome is not theirs to set. */
 export default function IdCorrection({ reqRef }: { reqRef: string }) {
   const { t } = useI18n();
+  const router = useRouter();
   const [nid, setNid] = useState("");
   const [dob, setDob] = useState("");
   const [consent, setConsent] = useState(false);
@@ -27,6 +29,7 @@ export default function IdCorrection({ reqRef }: { reqRef: string }) {
     if (!res.ok) { setError(res.error); return; }
     setDone(true);
     setNid("");
+    router.refresh();
   };
 
   if (done) return <p className="hint" role="status">{t("request.idSent")}</p>;
