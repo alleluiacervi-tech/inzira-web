@@ -4,7 +4,9 @@ import { base32, codeAt, fromBase32, matchStep, newRecoveryCodes, normaliseRecov
 import { open, seal, isSealed } from "../lib/crypto.ts";
 import { sniffType } from "../lib/storage.ts";
 import { amountDue, payStatus } from "../lib/status.ts";
+import { emailCodeOnScreen, isReservedTestEmail } from "../lib/email.ts";
 import { idAsk, idPolicyOf, mentionsNationalId, nationalIdDigits, nationalIdError } from "../lib/identity.ts";
+import { providerFor } from "../lib/payments.ts";
 
 let passed = 0;
 const test = (name: string, fn: () => void) => { try { fn(); passed++; } catch (e) { console.error(`FAIL ${name}\n`, e); process.exitCode = 1; } };
@@ -261,6 +263,40 @@ test("ID policy: required, hidden, or optional — uncertain stays optional", ()
   assert.equal(idAsk({ idPolicy: "none" }, "me"), "hidden");
   assert.equal(idAsk({ idPolicy: "unsure" }, "family"), "optional");
   assert.equal(idAsk(null, "me"), "optional");
+});
+
+test("sample sign-in: only reserved addresses show a code when the live site has no mailbox", () => {
+  const prev = { node: process.env.NODE_ENV, demo: process.env.INZIRA_DEMO, host: process.env.SMTP_HOST, user: process.env.SMTP_USER, pass: process.env.SMTP_PASS, from: process.env.EMAIL_FROM };
+  const restore = () => {
+    const set = (k: string, v: string | undefined) => { if (v === undefined) delete process.env[k]; else process.env[k] = v; };
+    set("NODE_ENV", prev.node); set("INZIRA_DEMO", prev.demo); set("SMTP_HOST", prev.host); set("SMTP_USER", prev.user); set("SMTP_PASS", prev.pass); set("EMAIL_FROM", prev.from);
+  };
+  try {
+    process.env.NODE_ENV = "production";
+    delete process.env.INZIRA_DEMO;
+    delete process.env.SMTP_HOST; delete process.env.SMTP_USER; delete process.env.SMTP_PASS; delete process.env.EMAIL_FROM;
+    assert.equal(isReservedTestEmail("admin@inzira.test"), true);
+    assert.equal(isReservedTestEmail("aline.uwase@example.com"), true);
+    assert.equal(isReservedTestEmail("person@gmail.com"), false);
+    assert.equal(emailCodeOnScreen("admin@inzira.test"), true);
+    assert.equal(emailCodeOnScreen("person@gmail.com"), false);
+    process.env.SMTP_HOST = "smtp.example"; process.env.SMTP_USER = "u"; process.env.SMTP_PASS = "p"; process.env.EMAIL_FROM = "Inzira <no-reply@inzira.rw>";
+    assert.equal(emailCodeOnScreen("admin@inzira.test"), false, "a real mailbox sends the code instead of showing it");
+  } finally { restore(); }
+});
+test("sample payment: the simulator is only for a reserved account when no provider is set", () => {
+  const prev = { node: process.env.NODE_ENV, demo: process.env.INZIRA_DEMO, provider: process.env.PAYMENT_PROVIDER };
+  const restore = () => {
+    const set = (k: string, v: string | undefined) => { if (v === undefined) delete process.env[k]; else process.env[k] = v; };
+    set("NODE_ENV", prev.node); set("INZIRA_DEMO", prev.demo); set("PAYMENT_PROVIDER", prev.provider);
+  };
+  try {
+    process.env.NODE_ENV = "production";
+    delete process.env.INZIRA_DEMO;
+    delete process.env.PAYMENT_PROVIDER;
+    assert.equal(providerFor("788123456", true).key, "sim");
+    assert.throws(() => providerFor("788123456", false), /not configured/);
+  } finally { restore(); }
 });
 
 console.log(process.exitCode ? "unit tests FAILED" : `unit tests ok (${passed})`);

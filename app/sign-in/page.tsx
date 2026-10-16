@@ -5,7 +5,7 @@ import SignIn from "@/components/SignIn";
 import { getSession } from "@/lib/auth";
 import { getLocale } from "@/lib/i18n/locale";
 import { text } from "@/lib/i18n/messages";
-import { showsEmailCodeOnScreen } from "@/lib/email";
+import { sendsRealEmail } from "@/lib/email";
 import { showsCodeOnScreen } from "@/lib/sms";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -19,7 +19,7 @@ export default async function SignInPage({ searchParams }: { searchParams: Promi
     <>
       <PublicNav />
       <main id="main" className="wrap auth-main">
-        <div className="auth-card"><SignIn next={next?.startsWith("/") ? next : undefined} demo={{ email: showsEmailCodeOnScreen(), phone: showsCodeOnScreen() }} method={method === "phone" || next?.startsWith("/console") || next?.startsWith("/admin") ? "phone" : "email"} /></div>
+        <div className="auth-card"><SignIn next={next?.startsWith("/") ? next : undefined} demo={{ email: !sendsRealEmail(), phone: showsCodeOnScreen() }} method={method === "phone" || next?.startsWith("/console") || next?.startsWith("/admin") ? "phone" : "email"} /></div>
       </main>
     </>
   );

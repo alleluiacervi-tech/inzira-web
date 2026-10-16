@@ -7,6 +7,7 @@ import { ACCOUNTS, PROFILES, STAFF } from "../mock/people";
 import { AUDIT, NOTIFICATIONS, REQUESTS } from "../mock/requests";
 import { REMINDERS } from "../mock/admin";
 import { DEFAULT_MATRIX, ROLES, type Permission } from "../permissions";
+import { sendsRealEmail } from "../email";
 import { isDemo, sendsRealSms } from "../sms";
 import { putFile } from "../storage";
 import type { Db } from "./index";
@@ -158,6 +159,19 @@ export async function seed(db: Db) {
     await tx.insert(s.reminders).values(REMINDERS.map((m) => ({ accountId: m.accountId, title: m.title, body: m.body, cta: m.cta, href: m.href })));
     await tx.insert(s.audit).values([...AUDIT].reverse());
   });
+}
+
+const SAMPLE_ADMIN_EMAIL = "admin@inzira.test";
+const SAMPLE_CUSTOMER_EMAIL = "aline.uwase@example.com";
+
+/** Fills the two documented sample addresses when they are still blank.
+ *  Runs on the live site as well as in demo: the addresses are reserved (.test and example.com),
+ *  an existing address is never replaced, and nothing is inserted. Real customers are left alone.
+ *  Skipped once a real mailbox is configured, so those rows can use a real work address instead. */
+export async function linkSampleSignIns(database: Db) {
+  if (sendsRealEmail()) return;
+  await database.update(s.staff).set({ email: SAMPLE_ADMIN_EMAIL }).where(and(eq(s.staff.id, "s-diane"), sql`email is null`));
+  await database.update(s.accounts).set({ email: SAMPLE_CUSTOMER_EMAIL }).where(and(eq(s.accounts.id, "acc-aline"), eq(s.accounts.phone, "788123456"), sql`email is null`));
 }
 
 /** Makes the documented sample numbers able to sign in while SMS is not connected.

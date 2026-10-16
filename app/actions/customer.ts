@@ -17,6 +17,7 @@ import { open, seal } from "@/lib/crypto";
 import { audit, db, event, fail, invoiceFor, nextNumber, notify, refFor, s, type Result } from "@/lib/mutate";
 import { reconcilePayment } from "@/lib/billing";
 import { isUniqueViolation } from "@/lib/db/errors";
+import { isReservedTestEmail } from "@/lib/email";
 import { PromptRefused, methodFor, newPrompt } from "@/lib/payments";
 import { SITE } from "@/lib/site";
 import { amountDue } from "@/lib/status";
@@ -189,10 +190,10 @@ export async function submitRequest(fd: FormData): Promise<Result<{ ref: string;
 async function ownRequest(ref: string) {
   const accountId = await requireCustomerId();
   const d = await db();
-  const [row] = await d.select({ ref: s.requests.ref, accountId: s.profiles.accountId, name: s.accounts.name })
+  const [row] = await d.select({ ref: s.requests.ref, accountId: s.profiles.accountId, name: s.accounts.name, email: s.accounts.email })
     .from(s.requests).innerJoin(s.profiles, eq(s.profiles.id, s.requests.profileId)).innerJoin(s.accounts, eq(s.accounts.id, s.profiles.accountId))
     .where(eq(s.requests.ref, ref));
-  return row && row.accountId === accountId ? { d, name: row.name } : null;
+  return row && row.accountId === accountId ? { d, name: row.name, email: row.email } : null;
 }
 
 export async function sendMessage(ref: string, body: string): Promise<Result> {
@@ -289,7 +290,7 @@ export async function startPayment(ref: string, phoneInput: string): Promise<Res
   if (txs.some((t) => t.status === "pending")) return refuse("promptWaiting");
   const receipt = txs.length ? `${r.invoice}-${txs.length + 1}` : r.invoice;
   let prompt: ReturnType<typeof newPrompt>;
-  try { prompt = newPrompt(phone); } catch (e) { console.error("[payments]", e); return refuse("momoDown"); }
+  try { prompt = newPrompt(phone, isReservedTestEmail(own.email ?? "")); } catch (e) { console.error("[payments]", e); return refuse("momoDown"); }
   // Record the attempt first, with the provider's reference already known, so a callback that arrives quickly finds it
   // and a call that times out after the provider accepted it can still be settled. The database allows one waiting prompt
   // per request, so two taps at once cannot send two.
