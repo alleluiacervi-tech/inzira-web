@@ -27,6 +27,7 @@ export function Sidebar({
   inboxCount = 0,
   openCasesCount = 0,
   identityCount = 0,
+  taxCount = 0,
   mobileOpen = false,
   onCloseMobile,
 }: {
@@ -35,6 +36,7 @@ export function Sidebar({
   inboxCount?: number;
   openCasesCount?: number;
   identityCount?: number;
+  taxCount?: number;
   mobileOpen?: boolean;
   onCloseMobile?: () => void;
 }) {
@@ -70,6 +72,7 @@ export function Sidebar({
       group: "Money",
       items: [
         { label: "Payments", href: "/admin/payments", icon: "card", show: admin && (can("refund") || can("viewAll")), matchPrefix: "/admin/payments" },
+        { label: "Tax diary", href: "/console/taxes", icon: "calendar", matchPrefix: "/console/taxes", badge: taxCount || undefined },
       ],
     },
     {

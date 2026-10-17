@@ -111,6 +111,8 @@ export async function deleteAccount(accountId: string, locale: Locale = "en"): P
     }
     if (profileIds.length) {
       await tx.update(s.profiles).set({ name: "Deleted customer", idMasked: null, nationalId: null, tinMasked: null, tin: null, district: null }).where(inArray(s.profiles.id, profileIds));
+      await tx.delete(s.taxPeriods).where(inArray(s.taxPeriods.profileId, profileIds));
+      await tx.delete(s.taxWatches).where(inArray(s.taxWatches.profileId, profileIds));
       await tx.delete(s.clientTags).where(inArray(s.clientTags.profileId, profileIds));
       await tx.delete(s.clientNotes).where(inArray(s.clientNotes.profileId, profileIds));
     }

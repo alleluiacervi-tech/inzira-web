@@ -2,6 +2,7 @@
 // lib/mock. Used automatically for the development database, or with `npm run db:seed`.
 import { and, eq, inArray, sql } from "drizzle-orm";
 import { idPolicyOf } from "../identity";
+import { horizon, kigaliToday, periodsBetween, type PayRoute, type TaxKind } from "../tax-calendar";
 import { CATEGORIES, SERVICES } from "../mock/catalogue";
 import { ACCOUNTS, PROFILES, STAFF } from "../mock/people";
 import { AUDIT, NOTIFICATIONS, REQUESTS } from "../mock/requests";
@@ -155,10 +156,36 @@ export async function seed(db: Db) {
       { profileId: "p-kff", by: "s-grace", body: "Requested consolidated monthly tax invoices." },
     ]);
 
+    await seedTaxDiary(tx);
     await tx.insert(s.notifications).values(NOTIFICATIONS.map((n) => ({ accountId: "acc-aline", icon: n.icon, title: n.title, at: n.at, unread: !!n.unread, href: n.href })));
     await tx.insert(s.reminders).values(REMINDERS.map((m) => ({ accountId: m.accountId, title: m.title, body: m.body, cta: m.cta, href: m.href })));
     await tx.insert(s.audit).values([...AUDIT].reverse());
   });
+}
+
+const DEMO_WATCHES: { id: string; profileId: string; kind: TaxKind; payRoute: PayRoute; note: string }[] = [
+  { id: "tw-umucyo-paye", profileId: "p-umucyo", kind: "paye-monthly", payRoute: "through_us", note: "Aline sends the PAYE money to Inzira. We pay RRA before the working day." },
+  { id: "tw-kff-vat", profileId: "p-kff", kind: "vat-monthly", payRoute: "themselves", note: "They pay RRA themselves. The diary stays open until their receipt reference is saved." },
+  { id: "tw-inema-tl", profileId: "p-inema", kind: "trading-quarterly", payRoute: "through_us", note: "Collect the trading-licence money before the working day." },
+  { id: "tw-hope-prop", profileId: "p-hope", kind: "property", payRoute: "themselves", note: "Property tax. They pay RRA. We remind them and record the receipt." },
+];
+
+/** Sample taxpayers, so the diary is not empty in development. References are fictional. */
+async function seedTaxDiary(tx: Tx) {
+  const today = kigaliToday();
+  await tx.insert(s.taxWatches).values(DEMO_WATCHES.map((w) => ({ ...w, createdBy: "Inzira" })));
+  const { from, until } = horizon(today);
+  const periods = DEMO_WATCHES.flatMap((w) => periodsBetween(w.kind, from, until).map((p) => ({
+    id: `${w.id}:${p.periodKey}`, watchId: w.id, profileId: w.profileId, kind: w.kind, periodKey: p.periodKey,
+    periodLabel: p.periodLabel, legalDue: p.legalDue, workBy: p.workBy, recordsBy: p.recordsBy, payRoute: w.payRoute,
+  })));
+  if (periods.length) await tx.insert(s.taxPeriods).values(periods);
+  const paye = periods.filter((p) => p.watchId === "tw-umucyo-paye" && p.workBy < today).sort((a, b) => b.workBy.localeCompare(a.workBy));
+  if (paye[0]) await tx.update(s.taxPeriods).set({ moneyReceipt: "INZ-R-22140", moneyAmount: 186000, moneyAt: new Date().toISOString() }).where(eq(s.taxPeriods.id, paye[0].id));
+  if (paye[1]) await tx.update(s.taxPeriods).set({
+    declarationRef: "DEC-88421", paymentRef: "PAY-190334", amountDue: 174000, paidAt: new Date().toISOString(), paidBy: "Solange Ishimwe",
+    moneyReceipt: "INZ-R-21802", moneyAmount: 174000, moneyAt: new Date().toISOString(),
+  }).where(eq(s.taxPeriods.id, paye[1].id));
 }
 
 const SAMPLE_ADMIN_EMAIL = "admin@inzira.test";

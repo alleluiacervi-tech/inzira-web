@@ -134,6 +134,10 @@ export function ClientDetailView({
           </div>
 
           <div className="row g8 wrapx">
+            <Link className="c-btn c-btn-secondary c-btn-sm" href={`/console/taxes?client=${client.id}`}>
+              <Icon name="calendar" size={14} />
+              <span>Tax diary</span>
+            </Link>
             <a className="c-btn c-btn-secondary c-btn-sm" href={`tel:+${phone}`}>
               <Icon name="phone" size={14} />
               <span>Call</span>

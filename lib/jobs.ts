@@ -9,6 +9,8 @@ import { rwf } from "./format";
 import { english, msg, sms } from "./i18n/stored";
 import { event, notify } from "./mutate";
 import { amountDue } from "./status";
+import { countTaxAttention } from "./tax-diary";
+import { kigaliToday } from "./tax-calendar";
 
 /** Requests whose fees were sent, are past due and unpaid go on hold, with one SMS reminder. */
 export async function holdOverduePayments() {
@@ -52,7 +54,7 @@ export async function cleanUp() {
 }
 
 /** Kigali's calendar date (UTC+2, no daylight saving), e.g. "2026-10-02". */
-const kigaliDate = (t = Date.now()) => new Date(t + 2 * 3600e3).toISOString().slice(0, 10);
+const kigaliDate = (t = Date.now()) => kigaliToday(t);
 
 /**
  * One SMS a day to each member of staff with something waiting: their follow-ups due today or earlier,
@@ -68,17 +70,20 @@ export async function staffDigest() {
   const endOfToday = Date.parse(`${today}T23:59:59+02:00`);
   const threeDaysAgo = Date.now() - 3 * 864e5;
   const unassigned = open.filter((r) => !r.agentId).length;
+  const taxesDue = await countTaxAttention(today).catch(() => 0);
   let sent = 0;
   const queued: number[] = [];
   for (const p of people) {
     const mine = open.filter((r) => r.agentId === p.id);
     const followUps = mine.filter((r) => r.followUp && Date.parse(r.followUp.at) <= endOfToday).length;
     const waiting = mine.filter((r) => r.hold && Date.parse(r.hold.since) < threeDaysAgo).length;
-    const lead = p.role === "Owner" || p.role === "Administrator" || p.role === "Supervisor";
+    const lead = p.role === "Owner" || p.role === "Administrator" || p.role === "Supervisor" || p.role === "Finance";
+    const taxes = lead ? taxesDue : 0;
     const parts = [
       followUps && `${followUps} follow-up${followUps === 1 ? "" : "s"} due`,
       waiting && `${waiting} case${waiting === 1 ? "" : "s"} waiting on the customer for over 3 days`,
       lead && unassigned && `${unassigned} new request${unassigned === 1 ? "" : "s"} with no agent`,
+      taxes && `${taxes} tax deadline${taxes === 1 ? "" : "s"} to clear`,
     ].filter(Boolean);
     if (!parts.length) continue;
     // The guard key is per person and day, so a second run the same day sends nothing.
@@ -98,6 +103,7 @@ export async function runAll() {
     overdue: holdOverduePayments,
     retention: retentionSweep,
     messages: deliverDue,
+    taxes: () => countTaxAttention().then((attention) => ({ attention })),
     digest: staffDigest,
     cleanUp,
   };
