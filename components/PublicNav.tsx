@@ -15,6 +15,8 @@ const CATEGORIES = [
   { id: "ebm", icon: "c-ebm" },
   { id: "land", icon: "c-land" },
   { id: "rura", icon: "c-car" },
+  { id: "police", icon: "c-id" },
+  { id: "papers", icon: "c-comp" },
   { id: "irembo", icon: "c-learn" },
 ] as const;
 

@@ -7,6 +7,8 @@ export const OFFICES = [
   { code: "RRA", name: "Rwanda Revenue Authority", area: "Taxes and EBM", cats: ["tax", "ebm"], does: "Trading licence, TIN, monthly and yearly declarations, EBM installation and training", href: "/services?category=tax" },
   { code: "NLA", name: "National Land Authority", area: "Land, filed on Irembo", cats: ["land"], does: "E-titles, adding or removing a spouse in the land register, merging plots", href: "/services?category=land" },
   { code: "RURA", name: "Rwanda Utilities Regulatory Authority", area: "Transport", cats: ["rura"], does: "Authorisations for passenger and goods vehicles, and their suspension", href: "/services?category=rura" },
+  { code: "RNP", name: "Rwanda National Police", area: "Filed on Irembo", cats: ["police"], does: "Driving licences, traffic fines, test booking, vehicle inspection and a criminal record certificate", href: "/services?category=police" },
+  { code: "CIV", name: "Civil registration and identity", area: "Filed on Irembo", cats: ["papers"], does: "Birth, marriage and other certificates, a passport and a replacement ID card", href: "/services?category=papers" },
   { code: "Irembo", name: "Irembo", area: "Government services portal", cats: ["irembo"], does: "We file through it for you, or train you and your staff to use it yourselves", href: "/services?category=irembo" },
 ] as const;
 

@@ -40,6 +40,8 @@
       "ebm": "EBM",
       "land": "Ubutaka",
       "rura": "Gutwara abantu n'ibintu",
+      "police": "Polisi",
+      "papers": "Ibyangombwa",
       "irembo": "Amahugurwa ya Irembo"
     },
     "servicesMenu": "Menu ya serivisi",
@@ -54,6 +56,8 @@
     "tax": "Imisoro na EBM (RRA)",
     "land": "Ubutaka (NLA)",
     "rura": "Gutwara abantu n'ibintu (RURA)",
+    "police": "Serivisi za polisi",
+    "papers": "Ibyangombwa n'indangamuntu",
     "irembo": "Amahugurwa kuri Irembo",
     "all": "Serivisi zose",
     "fees": "Serivisi n'amafaranga",
