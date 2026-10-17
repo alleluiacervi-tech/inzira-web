@@ -275,7 +275,7 @@ export async function listAgents(): Promise<Staff[]> {
 const untaken = and(isNull(s.requests.agentId), eq(s.requests.stage, "received"), isNull(s.requests.closed));
 
 /** Badges in the staff navigation: new requests waiting for an agent, and my open cases. */
-export async function getNavCounts(): Promise<{ inbox: number; mine: number; identity: number }> {
+export async function getNavCounts(): Promise<{ inbox: number; mine: number; identity: number; tax: number }> {
   const me = await requireStaff();
   const d = await db();
   const count = { n: sql<number>`count(*)::int` };
@@ -285,7 +285,9 @@ export async function getNavCounts(): Promise<{ inbox: number; mine: number; ide
     d.select(count).from(s.requests).where(and(eq(s.requests.agentId, me.id), isNull(s.requests.closed), ne(s.requests.stage, "completed"))),
     me.permissions.has("reviewDocs") ? d.select(count).from(s.requests).where(pendingReview) : Promise.resolve([{ n: 0 }]),
   ]);
-  return { inbox: inbox.n, mine: mine.n, identity: identity.n };
+  const { countTaxAttention } = await import("./tax-diary");
+  const tax = seesAllCases(me) ? await countTaxAttention().catch(() => 0) : 0;
+  return { inbox: inbox.n, mine: mine.n, identity: identity.n, tax };
 }
 
 /** ID reviews this person may see. The number itself stays masked; revealing it is a separate audited action. */

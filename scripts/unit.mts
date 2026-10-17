@@ -7,6 +7,7 @@ import { safeReturnPath } from "../lib/return-path.ts";
 import { amountDue, payStatus } from "../lib/status.ts";
 import { emailCodeOnScreen, isReservedTestEmail } from "../lib/email.ts";
 import { idAsk, idPolicyOf, mentionsNationalId, nationalIdDigits, nationalIdError } from "../lib/identity.ts";
+import { cleanTaxRef, periodsBetween, taxPhase, weekdayOnOrBefore } from "../lib/tax-calendar.ts";
 import { providerFor } from "../lib/payments.ts";
 
 let passed = 0;
@@ -309,6 +310,33 @@ test("sample payment: the simulator is only for a reserved account when no provi
     assert.equal(providerFor("788123456", true).key, "sim");
     assert.throws(() => providerFor("788123456", false), /not configured/);
   } finally { restore(); }
+});
+
+test("tax dates: the 15th, and a weekend is pulled back to Friday", () => {
+  const vat = periodsBetween("vat-monthly", "2026-10-01", "2026-11-30");
+  const october = vat.find((p) => p.periodKey === "2026-10");
+  assert.equal(october?.legalDue, "2026-11-15");
+  assert.equal(october?.workBy, "2026-11-13");
+  assert.equal(weekdayOnOrBefore("2026-11-15"), "2026-11-13");
+  const licence = periodsBetween("trading-quarterly", "2026-10-01", "2026-10-31");
+  assert.equal(licence[0]?.legalDue, "2026-10-31");
+  assert.equal(licence[0]?.workBy, "2026-10-30");
+  assert.equal(periodsBetween("property", "2026-01-01", "2026-12-31").at(-1)?.legalDue, "2026-12-31");
+  assert.equal(periodsBetween("rental", "2027-01-01", "2027-01-31")[0]?.periodLabel, "2026 rental income");
+  assert.equal(periodsBetween("income-annual", "2027-03-01", "2027-03-31")[0]?.legalDue, "2027-03-31");
+  const paye = periodsBetween("paye-quarterly", "2026-06-01", "2026-06-30");
+  assert.equal(paye[0]?.legalDue, "2026-06-15");
+  assert.equal(paye[0]?.periodLabel, "March–May 2026");
+});
+test("tax state: RRA is paid only when the reference is saved", () => {
+  const base = { workBy: "2026-11-13", recordsBy: "2026-11-06", payRoute: "through_us" as const };
+  assert.equal(taxPhase({ ...base, paymentRef: "PAY-190334", moneyReceipt: "INZ-R-22140" }, "2026-11-01"), "paid");
+  assert.equal(taxPhase({ ...base, moneyReceipt: "INZ-R-22140" }, "2026-11-01"), "money_in");
+  assert.equal(taxPhase({ ...base, moneyReceipt: "INZ-R-22140" }, "2026-11-14"), "late");
+  assert.equal(taxPhase({ ...base, payRoute: "themselves" }, "2026-11-10"), "awaiting_receipt");
+  assert.equal(taxPhase({ ...base, payRoute: "themselves", paymentRef: "PAY-1" }, "2026-11-20"), "paid");
+  assert.equal(cleanTaxRef("1 1995 8 0045123 0 17"), null);
+  assert.equal(cleanTaxRef("PAY-190334"), "PAY-190334");
 });
 
 console.log(process.exitCode ? "unit tests FAILED" : `unit tests ok (${passed})`);

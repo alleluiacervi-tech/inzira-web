@@ -376,6 +376,43 @@ export const jobRuns = pgTable("job_runs", {
   ms: integer("ms").notNull(),
 });
 
+/** A tax we watch for one client. The dates are generated; this row says which tax and who pays RRA. */
+export const taxWatches = pgTable("tax_watches", {
+  id: text("id").primaryKey(),
+  profileId: text("profile_id").notNull().references(() => profiles.id),
+  kind: text("kind").notNull(),
+  /** through_us: the client sends Inzira the tax money. themselves: they pay RRA, and we cannot see it. */
+  payRoute: text("pay_route").notNull(),
+  active: boolean("active").notNull().default(true),
+  note: text("note"),
+  createdAt: ts("created_at").notNull().defaultNow(),
+  createdBy: text("created_by").notNull(),
+}, (t) => [index("tax_watches_profile_idx").on(t.profileId)]);
+
+/** One deadline. Paid only when payment_ref (the RRA reference) is set. money_* is the client’s transfer to Inzira. */
+export const taxPeriods = pgTable("tax_periods", {
+  id: text("id").primaryKey(),
+  watchId: text("watch_id").notNull().references(() => taxWatches.id),
+  profileId: text("profile_id").notNull().references(() => profiles.id),
+  kind: text("kind").notNull(),
+  periodKey: text("period_key").notNull(),
+  periodLabel: text("period_label").notNull(),
+  legalDue: text("legal_due").notNull(),
+  workBy: text("work_by").notNull(),
+  recordsBy: text("records_by").notNull(),
+  payRoute: text("pay_route").notNull(),
+  declarationRef: text("declaration_ref"),
+  paymentRef: text("payment_ref"),
+  amountDue: integer("amount_due"),
+  declaredAt: ts("declared_at"),
+  paidAt: ts("paid_at"),
+  paidBy: text("paid_by"),
+  moneyAt: ts("money_at"),
+  moneyReceipt: text("money_receipt"),
+  moneyAmount: integer("money_amount"),
+  requestRef: text("request_ref"),
+}, (t) => [uniqueIndex("tax_periods_watch_period").on(t.watchId, t.periodKey), index("tax_periods_work_by_idx").on(t.workBy)]);
+
 /** Email and SMS waiting to go out, or already sent (lib/outbox.ts). Written in the same transaction as the change it announces. */
 export const outbox = pgTable("outbox", {
   id: serial("id").primaryKey(),

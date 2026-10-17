@@ -15,6 +15,7 @@ export default function StaffShell({
   inboxCount = 0,
   openCasesCount = 0,
   identityCount = 0,
+  taxCount = 0,
   unreadNotifications = 0,
   dateRange,
   onDateRangeChange,
@@ -25,6 +26,7 @@ export default function StaffShell({
   inboxCount?: number;
   openCasesCount?: number;
   identityCount?: number;
+  taxCount?: number;
   unreadNotifications?: number;
   dateRange?: number;
   onDateRangeChange?: (days: number) => void;
@@ -44,6 +46,7 @@ export default function StaffShell({
           inboxCount={inboxCount}
           openCasesCount={openCasesCount}
           identityCount={identityCount}
+          taxCount={taxCount}
           mobileOpen={mobileOpen}
           onCloseMobile={() => setMobileOpen(false)}
         />

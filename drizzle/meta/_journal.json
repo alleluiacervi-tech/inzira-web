@@ -71,6 +71,13 @@
       "when": 1792200000000,
       "tag": "0009_staff_email",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1792300000000,
+      "tag": "0010_tax_diary",
+      "breakpoints": true
     }
   ]
 }

@@ -66,7 +66,7 @@ function CaseLine({ c, badge = true }: { c: RequestView; badge?: boolean }) {
   );
 }
 
-export function MyDayView({ staff, data, now }: { staff: Staff; data: MyDayData; now: string }) {
+export function MyDayView({ staff, data, now, taxes = [] }: { staff: Staff; data: MyDayData; now: string; taxes?: { id: string; title: string; when: string; detail: string }[] }) {
   const [preview, setPreview] = useState<RequestView | null>(null);
   const overdue = data.slaCases.filter((x) => x.breached).length;
   const sla = [...data.slaCases].sort((a, b) => (b.hoursElapsed - b.targetHours) - (a.hoursElapsed - a.targetHours));
@@ -100,6 +100,22 @@ export function MyDayView({ staff, data, now }: { staff: Staff; data: MyDayData;
         <StatCard title="Follow-ups due" value={data.todayFollowUps.length} icon="clock" href="#follow-ups" subtext={missed ? `${missed} missed on an earlier day` : "Calls and reminders for today"} tone={missed ? "red" : undefined} />
         <StatCard title="Documents to review" value={data.pendingDocs.length} icon="file-text" href="#documents" subtext="Uploaded by clients" />
       </div>
+
+      {taxes.length > 0 && (
+        <Section id="taxes" icon="calendar" tone="amber" title="Taxes before the date" caption="Pay RRA, or collect the receipt, before the working day"
+          count={taxes.length} empty={{ title: "No tax is due", body: "" }}>
+          {taxes.map((t) => (
+            <li key={t.id} className="c-list-row">
+              <div className="stack g6 grow">
+                <strong className="c-list-name">{t.title}</strong>
+                <span className="c-caption">{t.when}</span>
+                <span>{t.detail}</span>
+              </div>
+              <Link href="/console/taxes" className="c-btn c-btn-secondary c-btn-sm">Open diary</Link>
+            </li>
+          ))}
+        </Section>
+      )}
 
       <div className="c-grid-2">
         <Section id="sla" icon="alert" tone="red" title="Past or near target time" caption="Cases that have stayed too long in their current stage"

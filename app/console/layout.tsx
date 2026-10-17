@@ -18,6 +18,7 @@ export default async function ConsoleLayout({ children }: { children: React.Reac
       inboxCount={counts.inbox}
       openCasesCount={counts.mine}
       identityCount={counts.identity}
+      taxCount={counts.tax}
     >
       {children}
     </StaffShell></ForceEnglish>
