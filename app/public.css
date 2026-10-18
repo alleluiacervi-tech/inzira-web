@@ -1,9 +1,9 @@
 /* Public site: header, footer, home, service pages. Tokens come from globals.css. */
 
-/* Imigongo, the geometric wall art of Rwanda, reduced to one repeating band: used twice on the whole site
-   (under the home hero and above the footer), never as wallpaper. */
-.imigongo { height: 20px; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='20' viewBox='0 0 32 20'%3E%3Cpath d='M0 18 8 2l8 16 8-16 8 16' fill='none' stroke='%23142850' stroke-width='3' stroke-linejoin='miter'/%3E%3Cpath d='M16 3.5l3.5 3.5L16 10.5 12.5 7z' fill='%23C9962E'/%3E%3Cpath d='M0 3.5 3.5 7 0 10.5M32 3.5 28.5 7 32 10.5' fill='%23C9962E'/%3E%3C/svg%3E"); background-repeat: repeat-x; background-position: center bottom; background-size: 32px 20px; }
-.imigongo-flip { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='20' viewBox='0 0 32 20'%3E%3Cpath d='M0 18 8 2l8 16 8-16 8 16' fill='none' stroke='%23dde4f0' stroke-width='3' stroke-linejoin='miter'/%3E%3Cpath d='M16 3.5l3.5 3.5L16 10.5 12.5 7z' fill='%23C9962E'/%3E%3Cpath d='M0 3.5 3.5 7 0 10.5M32 3.5 28.5 7 32 10.5' fill='%23C9962E'/%3E%3C/svg%3E"); background-color: var(--paper); }
+/* One quiet break under the hero: a hairline and the gold stop from the mark. */
+.pause { display: flex; align-items: center; gap: 18px; height: 28px; margin: 4px 0 8px; }
+.pause::before, .pause::after { content: ""; height: 1px; flex: 1; background: var(--line); }
+.pause > span { width: 6px; height: 6px; border-radius: 50%; background: var(--signal); flex-shrink: 0; }
 
 .skip { position: absolute; left: 12px; top: -64px; z-index: 100; padding: 12px 18px; border-radius: var(--r-ctl); background: var(--brand); color: #fff; font-weight: 700; text-decoration: none; transition: top .15s; }
 .skip:focus { top: 12px; color: #fff; }
@@ -161,14 +161,21 @@
 .cat-meta > svg { margin-left: auto; color: var(--brand); transition: transform .15s; }
 .cat:hover .cat-meta > svg { transform: translateX(3px); }
 .cat-alt { background: var(--sand-2); border-style: dashed; border-color: var(--line-3); }
+.browse-groups { display: flex; flex-direction: column; gap: 36px; }
+.browse-group { display: flex; flex-direction: column; gap: 12px; }
+.browse-group h3 { font-size: var(--fs-md); font-weight: 750; letter-spacing: -0.015em; color: var(--ink); }
 @media (min-width: 961px) {
-  /* The seventh card ("not listed") closes the grid as a full-width row instead of sitting alone. */
-  .cats > li:last-child:nth-child(3n + 1) { grid-column: 1 / -1; }
-  .cats > li:last-child:nth-child(3n + 1) .cat { flex-direction: row; align-items: center; gap: 20px; padding: 20px 24px; }
-  .cats > li:last-child:nth-child(3n + 1) .cat-ico { margin: 0; }
-  .cats > li:last-child:nth-child(3n + 1) .cat-meta { margin: 0; padding: 0; border: 0; min-width: 220px; }
-  .cats > li:last-child:nth-child(3n + 1) .cat-name { white-space: nowrap; }
+  /* "Not listed" closes its group as a full-width row. */
+  .cats > li.cat-wide { grid-column: 1 / -1; }
+  .cats > li.cat-wide .cat { flex-direction: row; align-items: center; gap: 20px; padding: 20px 24px; }
+  .cats > li.cat-wide .cat-ico { margin: 0; }
+  .cats > li.cat-wide .cat-meta { margin: 0; padding: 0; border: 0; min-width: 220px; }
+  .cats > li.cat-wide .cat-name { white-space: nowrap; }
 }
+.legal { background: var(--paper); }
+.legal-in { max-width: 760px; display: flex; flex-direction: column; gap: 28px; padding-top: clamp(36px, 5vw, 64px); padding-bottom: clamp(56px, 7vw, 96px); }
+.legal-in p { font-size: var(--fs-base); line-height: 1.6; color: var(--ink-2); max-width: 68ch; }
+.legal-in h1, .legal-in h2 { color: var(--ink); }
 /* On a phone the categories become a compact list so the page is not eight screens long. */
 @media (max-width: 600px) {
   .cat { display: grid; grid-template-columns: 48px minmax(0, 1fr); grid-template-areas: "ico name" "ico meta"; column-gap: 14px; row-gap: 2px; padding: 14px 16px; min-height: 72px; align-content: center; }

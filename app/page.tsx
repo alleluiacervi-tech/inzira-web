@@ -6,7 +6,7 @@ import { listCategories, listServices } from "@/lib/repo";
 import { OFFICES } from "@/lib/institutions";
 import { FilingRail } from "@/components/FilingRail";
 import { rwf } from "@/lib/format";
-import { SITE } from "@/lib/site";
+import { isSet, SITE } from "@/lib/site";
 import { ContactList } from "@/components/Contact";
 import { PriceList } from "@/components/PriceList";
 import { getLocale } from "@/lib/i18n/locale";
@@ -77,6 +77,14 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ a
     const list = services.filter((s) => s.category === c.id);
     return { c, count: list.length, from: list.length ? Math.min(...list.map((s) => s.ours)) : null };
   }).filter((b) => b.c.href || b.count > 0);
+  const browseById = new Map(browse.map((b) => [b.c.id, b]));
+  const groups = [
+    ["home.groupBusiness", ["rdb"]],
+    ["home.groupTax", ["tax", "ebm"]],
+    ["home.groupLand", ["land", "rura"]],
+    ["home.groupPapers", ["police", "papers"]],
+    ["home.groupAlso", ["irembo", "other"]],
+  ] as const;
 
   return (
     <>
@@ -126,7 +134,9 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ a
               }))}
             />
           </div>
-          <div className="imigongo" aria-hidden="true" />
+          <div className="wrap">
+            <div className="pause" aria-hidden="true"><span></span></div>
+          </div>
         </section>
 
         <section id="services" className="sec" aria-labelledby="browse-h">
@@ -138,21 +148,32 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ a
               </div>
               <Link className="btn btn-s" href="/services">{t("home.viewAll")}<Icon name="arrow" size={16} /></Link>
             </div>
-            <ul className="cats">
-              {browse.map(({ c, count, from }) => (
-                <li key={c.id}>
-                  <Link className={`cat${c.href ? " cat-alt" : ""}`} href={c.href ?? `/services?category=${c.id}`}>
-                    <span className="cat-ico"><Icon name={c.icon} size={26} /></span>
-                    <span className="cat-name">{c.name}</span>
-                    <span className="cat-desc">{c.desc}</span>
-                    <span className="cat-meta">
-                      {c.href ? <span>{t("home.notListed")}</span> : <><span>{count === 1 ? t("home.oneService") : t("home.nServices", { n: count })}</span>{from !== null && <strong className="fig">{t("home.from", { amount: rwf(from) })}</strong>}</>}
-                      <Icon name="arrow" size={18} />
-                    </span>
-                  </Link>
-                </li>
-              ))}
-            </ul>
+            <div className="browse-groups">
+              {groups.map(([label, ids]) => {
+                const items = ids.flatMap((id) => { const item = browseById.get(id); return item ? [item] : []; });
+                if (!items.length) return null;
+                return (
+                  <div key={label} className="browse-group">
+                    <h3>{t(label)}</h3>
+                    <ul className="cats">
+                      {items.map(({ c, count, from }) => (
+                        <li key={c.id} className={c.href ? "cat-wide" : undefined}>
+                          <Link className={`cat${c.href ? " cat-alt" : ""}`} href={c.href ?? `/services?category=${c.id}`}>
+                            <span className="cat-ico"><Icon name={c.icon} size={26} /></span>
+                            <span className="cat-name">{c.name}</span>
+                            <span className="cat-desc">{c.desc}</span>
+                            <span className="cat-meta">
+                              {c.href ? <span>{t("home.notListed")}</span> : <><span>{count === 1 ? t("home.oneService") : t("home.nServices", { n: count })}</span>{from !== null && <strong className="fig">{t("home.from", { amount: rwf(from) })}</strong>}</>}
+                              <Icon name="arrow" size={18} />
+                            </span>
+                          </Link>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                );
+              })}
+            </div>
           </div>
         </section>
 
@@ -228,6 +249,7 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ a
             </div>
             <div className="contact-card">
               <ContactList />
+              <p className="contact-hours"><Icon name="pin" size={16} />{isSet(SITE.address) ? `${SITE.address}, ${SITE.city}` : t("footer.visit", { city: SITE.city })}</p>
               <p className="contact-hours"><Icon name="clock" size={16} />{t("home.hours", { hours: t("hours"), time: t("responseTime") })}</p>
             </div>
           </div>
