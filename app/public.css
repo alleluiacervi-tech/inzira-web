@@ -55,7 +55,7 @@
 .ft-contact svg { color: var(--on-dark-muted); }
 
 /* ============ shared public pieces ============ */
-/* Institution names as text labels (never logos): only where a page says where a request is filed. */
+/* Office codes on a service stay as text. Marks appear only on the home rail, to name the destination. */
 .plate { display: inline-flex; align-items: center; justify-content: center; height: 28px; padding: 0 9px; border-radius: var(--r-sm); background: var(--brand-tint); color: var(--brand); font-weight: 700; font-size: 13px; letter-spacing: .01em; flex-shrink: 0; }
 .plate-word { letter-spacing: 0; }
 .plate-sm { height: 26px; font-size: 12.5px; }
@@ -121,13 +121,30 @@
 .case-ref strong { font-size: var(--fs-base); font-weight: 650; letter-spacing: .01em; }
 .case-filed { display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 11px; border-radius: 999px; background: var(--hill-tint); color: var(--hill-deep); font-size: 13px; font-weight: 700; }
 
-/* Where requests are filed: plain words, never logos, so it cannot read as a row of partners. */
-.filed { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 24px; padding: 18px 0 28px; border-top: 1px solid var(--line); }
-.filed-label { font-size: var(--fs-sm); color: var(--muted); }
-.filed-list { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px 20px; }
-.filed-list abbr { text-decoration: none; font-size: var(--fs-sm); font-weight: 700; letter-spacing: .02em; color: var(--ink-2); cursor: help; }
-.filed-note { margin-left: auto; font-size: var(--fs-sm); color: var(--muted); max-width: 40ch; }
-@media (max-width: 1060px) { .filed-note { margin-left: 0; max-width: none; flex-basis: 100%; } }
+/* Where a request is sent. One slow rail of the offices' own marks, framed by a sentence
+   that says Inzira does not represent them. Not a partner wall. */
+.filed { display: flex; flex-direction: column; gap: 8px; padding: 18px 0 26px; border-top: 1px solid var(--line); }
+.filed-head { display: flex; align-items: center; justify-content: space-between; gap: 12px 20px; }
+.filed-label { margin: 0; font-size: var(--fs-base); font-weight: 650; color: var(--ink); line-height: 1.35; }
+.filed-note { margin: 0; max-width: 68ch; font-size: var(--fs-sm); line-height: 1.45; color: var(--muted); }
+.filed-pause { min-height: var(--touch); padding: 0 14px; border: 1px solid var(--line); border-radius: var(--r-ctl); background: var(--paper); color: var(--ink-2); font: inherit; font-size: var(--fs-sm); font-weight: 650; cursor: pointer; }
+.filed-pause:hover { border-color: var(--brand); color: var(--brand); }
+.filed-viewport { overflow: hidden; margin: 0 -4px; mask-image: linear-gradient(90deg, transparent, #000 28px, #000 calc(100% - 28px), transparent); }
+.filed-track { list-style: none; display: flex; align-items: center; width: max-content; margin: 0; padding: 2px 0; animation: filed-roll 32s linear infinite; }
+.filed.is-paused .filed-track, .filed-viewport:hover .filed-track, .filed-viewport:focus-within .filed-track { animation-play-state: paused; }
+.filed-track > li { display: flex; padding: 0 2px; }
+.filed-track a { display: inline-flex; align-items: center; gap: 10px; min-height: 56px; padding: 6px 16px; border-radius: var(--r-ctl); color: var(--ink); text-decoration: none; }
+.filed-track a:hover { background: var(--sand-2); }
+.filed-track img { display: block; height: 32px; width: auto; }
+.filed-code { font-size: var(--fs-sm); font-weight: 750; letter-spacing: .01em; color: var(--ink-2); }
+.filed-word { font-size: var(--fs-sm); font-weight: 750; letter-spacing: -0.01em; color: var(--ink); }
+@keyframes filed-roll { to { transform: translateX(-50%); } }
+@media (prefers-reduced-motion: reduce) {
+  .filed-pause { display: none; }
+  .filed-viewport { overflow: visible; mask-image: none; }
+  .filed-track { animation: none; flex-wrap: wrap; width: auto; }
+  .filed-track > li[data-clone] { display: none; }
+}
 
 /* ============ home: browse by category ============ */
 .cats { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
