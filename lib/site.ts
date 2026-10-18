@@ -3,6 +3,7 @@ export const SITE = {
   name: "Inzira",
   legalName: "Inzira Ltd",
   city: "Kigali",
+  /** A street, once there is one. Until then the public site says meetings are by appointment in the city. */
   address: "[Office address]",
   phone: "+250 788 274 354",
   /** Digits only, with country code (e.g. 2507XXXXXXXX). Empty until the real number exists. */

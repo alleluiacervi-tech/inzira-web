@@ -9,20 +9,19 @@ export default async function Footer() {
   const t = (path: string, vars?: Record<string, string | number>) => text(locale, path, vars);
   const cols: [string, [string, string][]][] = [
     [t("footer.services"), [[t("footer.rdb"), "/services?category=rdb"], [t("footer.tax"), "/services?category=tax"], [t("footer.land"), "/services?category=land"], [t("footer.rura"), "/services?category=rura"], [t("footer.police"), "/services?category=police"], [t("footer.papers"), "/services?category=papers"], [t("footer.irembo"), "/services?category=irembo"], [t("footer.all"), "/services"]]],
-    [t("footer.company"), [[t("footer.fees"), "/#prices"], [t("footer.how"), "/#how"], [t("footer.questions"), "/#faq"], [t("footer.contact"), "/#talk"]]],
+    [t("footer.company"), [[t("footer.fees"), "/#prices"], [t("footer.how"), "/#how"], [t("footer.questions"), "/#help"], [t("footer.contact"), "/#talk"], [t("footer.privacy"), "/privacy"], [t("footer.terms"), "/terms"]]],
     [t("footer.request"), [[t("footer.start"), "/services"], [t("footer.track"), "/track"], [t("footer.signIn"), "/sign-in"], [t("footer.describe"), "/start"]]],
   ];
   const contact = [
     SITE.whatsapp && { icon: "whatsapp", text: t("footer.whatsapp", { phone: SITE.phone }), href: whatsappUrl(), external: true },
     isSet(SITE.phone) && { icon: "call", text: t("footer.call", { phone: SITE.phone }), href: telUrl() },
     isSet(SITE.email) && { icon: "mail", text: SITE.email, href: mailUrl() },
-    { icon: "pin", text: isSet(SITE.address) ? `${SITE.address}, ${SITE.city}` : t("footer.city", { city: SITE.city }) },
+    { icon: "pin", text: isSet(SITE.address) ? `${SITE.address}, ${SITE.city}` : t("footer.visit", { city: SITE.city }) },
     { icon: "clock", text: t("hours") },
   ].filter(Boolean) as { icon: string; text: string; href?: string; external?: boolean }[];
 
   return (
     <>
-    <div className="imigongo imigongo-flip" aria-hidden="true" />
     <footer className="footer" id="contact">
       <div className="wrap footer-in">
       <div className="footer-grid">
