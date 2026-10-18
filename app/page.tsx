@@ -4,6 +4,7 @@ import Footer from "@/components/Footer";
 import { Alert, Icon } from "@/components/ui";
 import { listCategories, listServices } from "@/lib/repo";
 import { OFFICES } from "@/lib/institutions";
+import { FilingRail } from "@/components/FilingRail";
 import { rwf } from "@/lib/format";
 import { SITE } from "@/lib/site";
 import { ContactList } from "@/components/Contact";
@@ -111,13 +112,19 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ a
             <CaseFile t={t} />
           </div>
           <div className="wrap">
-            <div className="filed">
-              <span className="filed-label">{t("home.filedWith")}</span>
-              <ul className="filed-list">
-                {OFFICES.map((o) => <li key={o.code}><abbr title={officeText(o.code, locale)?.name ?? o.name}>{o.code}</abbr></li>)}
-              </ul>
-              <span className="filed-note">{t("home.filedNote")}</span>
-            </div>
+            <FilingRail
+              label={t("home.filedWith")}
+              note={t("home.filedNote")}
+              pause={t("home.filedPause")}
+              play={t("home.filedPlay")}
+              offices={OFFICES.map((o) => ({
+                code: o.code,
+                name: officeText(o.code, locale)?.name ?? o.name,
+                href: o.href,
+                mark: o.mark,
+                label: o.code === "CIV" ? t("home.filedCivil") : o.code === "RNP" ? "RNP" : null,
+              }))}
+            />
           </div>
           <div className="imigongo" aria-hidden="true" />
         </section>

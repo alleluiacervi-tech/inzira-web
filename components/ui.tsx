@@ -48,7 +48,7 @@ export function Logo({ dark = false, href = "/", label = "Inzira home" }: { dark
 }
 
 // ---------------- status badges ----------------
-/** An institution's name as a plain text label (never its logo). */
+/** An office code as text beside a service. The home rail is the only place a mark is shown. */
 export function Plate({ code, size }: { code: string; size?: "sm" }) {
   return <span className={`plate ${code.length > 4 ? "plate-word" : ""} ${size === "sm" ? "plate-sm" : ""}`} aria-hidden="true">{code}</span>;
 }
