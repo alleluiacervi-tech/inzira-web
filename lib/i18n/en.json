@@ -40,6 +40,8 @@
       "ebm": "EBM",
       "land": "Land",
       "rura": "Transport",
+      "police": "Police",
+      "papers": "Certificates",
       "irembo": "Irembo training"
     },
     "servicesMenu": "Services menu",
@@ -54,6 +56,8 @@
     "tax": "Taxes and EBM (RRA)",
     "land": "Land (NLA)",
     "rura": "Transport (RURA)",
+    "police": "Police services",
+    "papers": "Certificates and ID",
     "irembo": "Irembo training",
     "all": "All services",
     "fees": "Services and fees",

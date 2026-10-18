@@ -38,17 +38,34 @@ function mockBlob(name: string): { mime: string; bytes: Uint8Array } {
   return { mime: "application/pdf", bytes: PDF };
 }
 
+const serviceRow = (v: (typeof SERVICES)[number], position: number) => ({
+  slug: v.slug, name: v.name, aka: v.aka, category: v.category, authority: v.authority, channel: v.channel, via: v.via, summary: v.summary,
+  who: v.who, requirements: v.requirements, documents: v.documents, steps: v.steps, notes: v.notes,
+  officialAmount: v.official.amount, officialMode: v.official.mode, officialLabel: v.official.label, officialNote: v.official.note, officialVerifiedAt: v.official.verifiedAt,
+  ours: v.ours, oursUnit: v.oursUnit, time: v.time, docsShort: v.docsShort, popular: !!v.popular, audience: v.audience,
+  purposes: v.purposes, purposeLabel: v.purposeLabel, noId: idPolicyOf(v) === "none", idPolicy: idPolicyOf(v), flow: v.flow, stageLabels: v.stageLabels, visible: v.visible, position,
+});
+
+/** Adds catalogue rows a database does not have yet. Existing services keep the fees and wording already saved. */
+export async function ensureCatalogue(database: Db) {
+  const [cats, rows] = await Promise.all([
+    database.select({ id: s.categories.id }).from(s.categories),
+    database.select({ slug: s.services.slug }).from(s.services),
+  ]);
+  const haveCats = new Set(cats.map((c) => c.id));
+  const missingCats = CATEGORIES.map((c, i) => ({ ...c, position: i })).filter((c) => !haveCats.has(c.id));
+  if (missingCats.length) await database.insert(s.categories).values(missingCats).onConflictDoNothing();
+  await Promise.all(CATEGORIES.map((c, i) => database.update(s.categories).set({ position: i }).where(eq(s.categories.id, c.id))));
+  const have = new Set(rows.map((r) => r.slug));
+  const missing = SERVICES.map((v, i) => serviceRow(v, i)).filter((v) => !have.has(v.slug));
+  if (missing.length) await database.insert(s.services).values(missing).onConflictDoNothing();
+}
+
 /** What every database needs: categories, the service catalogue with our prices, the default
  *  permissions and the running numbers. No customers. */
 async function catalogue(tx: Tx) {
     await tx.insert(s.categories).values(CATEGORIES.map((c, i) => ({ ...c, position: i })));
-    await tx.insert(s.services).values(SERVICES.map((v, i) => ({
-      slug: v.slug, name: v.name, aka: v.aka, category: v.category, authority: v.authority, channel: v.channel, via: v.via, summary: v.summary,
-      who: v.who, requirements: v.requirements, documents: v.documents, steps: v.steps, notes: v.notes,
-      officialAmount: v.official.amount, officialMode: v.official.mode, officialLabel: v.official.label, officialNote: v.official.note, officialVerifiedAt: v.official.verifiedAt,
-      ours: v.ours, oursUnit: v.oursUnit, time: v.time, docsShort: v.docsShort, popular: !!v.popular, audience: v.audience,
-      purposes: v.purposes, purposeLabel: v.purposeLabel, noId: idPolicyOf(v) === "none", idPolicy: idPolicyOf(v), flow: v.flow, stageLabels: v.stageLabels, visible: v.visible, position: i,
-    })));
+    await tx.insert(s.services).values(SERVICES.map((v, i) => serviceRow(v, i)));
     await tx.insert(s.rolePermissions).values(
       (Object.keys(DEFAULT_MATRIX) as Permission[]).flatMap((perm) => ROLES.map((r, i) => ({ role: r.name, permission: perm, allowed: DEFAULT_MATRIX[perm][i] === "1" }))),
     );

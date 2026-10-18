@@ -18,7 +18,7 @@ import { Pool } from "pg";
 import * as schema from "./schema";
 import { alignSchema } from "./align";
 import { protectIdentity } from "./protect";
-import { ensureDemoSignIns, linkSampleSignIns, seed } from "./seed";
+import { ensureCatalogue, ensureDemoSignIns, linkSampleSignIns, seed } from "./seed";
 
 export type Db = PgDatabase<PgQueryResultHKT, typeof schema>;
 export { schema };
@@ -48,6 +48,7 @@ async function open(): Promise<Db> {
     try {
       await lock.query("select pg_advisory_lock($1)", [MIGRATION_LOCK]);
       await alignSchema(d, () => migratePg(d as never, { migrationsFolder }));
+      await ensureCatalogue(d);
       await ensureDemoSignIns(d);
       await linkSampleSignIns(d);
       await protectIdentity(d);
@@ -64,6 +65,7 @@ async function open(): Promise<Db> {
   await alignSchema(d, () => migratePglite(d as never, { migrationsFolder }));
   const empty = (await d.select({ id: schema.categories.id }).from(schema.categories).limit(1)).length === 0;
   if (empty && process.env.DB_AUTO_SEED !== "0") await seed(d);
+  await ensureCatalogue(d);
   await ensureDemoSignIns(d);
   await linkSampleSignIns(d);
   await protectIdentity(d);
