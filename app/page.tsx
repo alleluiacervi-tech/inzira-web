@@ -78,13 +78,10 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ a
     return { c, count: list.length, from: list.length ? Math.min(...list.map((s) => s.ours)) : null };
   }).filter((b) => b.c.href || b.count > 0);
   const browseById = new Map(browse.map((b) => [b.c.id, b]));
-  const groups = [
-    ["home.groupBusiness", ["rdb"]],
-    ["home.groupTax", ["tax", "ebm"]],
-    ["home.groupLand", ["land", "rura"]],
-    ["home.groupPapers", ["police", "papers"]],
-    ["home.groupAlso", ["irembo", "other"]],
-  ] as const;
+  // The six places a request is filed. EBM, Irembo training and an unlisted service sit on the line under them.
+  const six = ["rdb", "tax", "land", "rura", "police", "papers"] as const;
+  const desks = six.flatMap((id) => { const item = browseById.get(id); return item ? [item] : []; });
+  const more = ["ebm", "irembo", "other"].flatMap((id) => { const item = browseById.get(id); return item ? [item] : []; });
 
   return (
     <>
@@ -148,32 +145,34 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ a
               </div>
               <Link className="btn btn-s" href="/services">{t("home.viewAll")}<Icon name="arrow" size={16} /></Link>
             </div>
-            <div className="browse-groups">
-              {groups.map(([label, ids]) => {
-                const items = ids.flatMap((id) => { const item = browseById.get(id); return item ? [item] : []; });
-                if (!items.length) return null;
+            <ul className="desk">
+              {desks.map(({ c, count, from }) => {
+                const mark = OFFICES.find((o) => (o.cats as readonly string[]).includes(c.id))?.mark ?? null;
                 return (
-                  <div key={label} className="browse-group">
-                    <h3>{t(label)}</h3>
-                    <ul className="cats">
-                      {items.map(({ c, count, from }) => (
-                        <li key={c.id} className={c.href ? "cat-wide" : undefined}>
-                          <Link className={`cat${c.href ? " cat-alt" : ""}`} href={c.href ?? `/services?category=${c.id}`}>
-                            <span className="cat-ico"><Icon name={c.icon} size={26} /></span>
-                            <span className="cat-name">{c.name}</span>
-                            <span className="cat-desc">{c.desc}</span>
-                            <span className="cat-meta">
-                              {c.href ? <span>{t("home.notListed")}</span> : <><span>{count === 1 ? t("home.oneService") : t("home.nServices", { n: count })}</span>{from !== null && <strong className="fig">{t("home.from", { amount: rwf(from) })}</strong>}</>}
-                              <Icon name="arrow" size={18} />
-                            </span>
-                          </Link>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
+                  <li key={c.id}>
+                    <Link href={c.href ?? `/services?category=${c.id}`}>
+                      <span className="desk-markslot">
+                        {mark ? <img className="desk-mark" src={mark} alt="" /> : <span className="desk-word">{t("home.filedCivil")}</span>}
+                      </span>
+                      <span className="desk-name">{t(`nav.cat.${c.id}`)}</span>
+                      <span className="desk-desc">{c.desc}</span>
+                      <span className="desk-foot">
+                        <span>{count === 1 ? t("home.oneService") : t("home.nServices", { n: count })}</span>
+                        {from !== null && <strong className="fig">{t("home.from", { amount: rwf(from) })}</strong>}
+                      </span>
+                    </Link>
+                  </li>
                 );
               })}
-            </div>
+            </ul>
+            {more.length > 0 && (
+              <p className="desk-more">
+                <span>{t("home.groupAlso")}</span>
+                {more.map(({ c }) => (
+                  <Link key={c.id} href={c.href ?? `/services?category=${c.id}`}>{c.href ? t("home.notListed") : t(`nav.cat.${c.id}`)}</Link>
+                ))}
+              </p>
+            )}
           </div>
         </section>
 
