@@ -23,7 +23,7 @@ terminal **and shown on screen**, and a mobile money prompt is "approved" after 
 number ending in `0000` is "declined"). Codes are shown on screen only in development and demo builds:
 a live site without a real provider refuses to send a code instead.
 
-**Sample sign-ins** (development, and on a live site that has no mailbox yet):
+**Sample sign-ins** (development and `INZIRA_DEMO=1` builds only):
 
 | Who | Number | Lands in |
 | --- | --- | --- |
@@ -35,7 +35,7 @@ a live site without a real provider refuses to send a code instead.
 | Diane Mukamana, owner | 780 000 008 | Staff console · Overview (everything) |
 | Diane Mukamana, owner (email) | admin@inzira.test | Same dashboard, from the email sign-in form |
 
-On a live site with no mailbox, only reserved addresses (`example.com` and `.test`, which cannot belong to a real person) show a code on the screen. Any other address is refused until `SMTP_HOST` is set. A sample customer can try the payment screen; with no payment provider that prompt is simulated and no money moves. A real customer still cannot pay until `PAYMENT_PROVIDER=live`.
+A live site never shows a code on screen, sample addresses included: anyone could type `admin@inzira.test`, and that account opens the whole staff console. Email sign-in waits for `SMTP_HOST`, and any session a sample account still has open is ended when the server starts.
 
 Staff sign in with their phone number: open `/sign-in?method=phone` (links to `/console` and `/admin` open it
 automatically). Customers sign in with their email; a customer who only has a phone number (entered by staff, or

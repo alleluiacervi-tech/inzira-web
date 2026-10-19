@@ -232,6 +232,34 @@ await check("payments: IntouchPay is paid only after status says so, and a repea
   }
 });
 
+await check("live site: the sample admin gets no code, and sample sessions are closed", async () => {
+  const { issueEmailCode } = await import("../lib/auth.ts");
+  const { linkSampleSignIns } = await import("../lib/db/seed.ts");
+  const [diane] = await d.select({ email: s.staff.email }).from(s.staff).where(eq(s.staff.id, "s-diane"));
+  assert.equal(diane.email, "admin@inzira.test", "the demo links the sample address");
+  const until = new Date(Date.now() + 3600e3).toISOString();
+  await d.insert(s.sessions).values([
+    { id: "sess-sample-staff", kind: "staff", subjectId: "s-diane", expiresAt: until },
+    { id: "sess-sample-customer", kind: "customer", subjectId: "acc-aline", expiresAt: until },
+    { id: "sess-real-staff", kind: "staff", subjectId: "s-eric", expiresAt: until },
+  ]);
+  const keep = ["NODE_ENV", "INZIRA_DEMO", "SMTP_HOST"].map((k) => [k, process.env[k]] as const);
+  (process.env as Record<string, string | undefined>).NODE_ENV = "production";
+  delete process.env.INZIRA_DEMO;
+  delete process.env.SMTP_HOST;
+  try {
+    const r = await issueEmailCode("admin@inzira.test", "en");
+    assert.equal(r.ok, false, "no code for the sample admin on a live site");
+    assert.ok(!("demoCode" in r && r.demoCode), "and nothing printed");
+    await linkSampleSignIns(d);
+    const left = (await d.select({ id: s.sessions.id }).from(s.sessions).where(sql`${s.sessions.id} like 'sess-%'`)).map((x) => x.id).sort();
+    assert.deepEqual(left, ["sess-real-staff"], "sample sessions are ended, a real one is kept");
+  } finally {
+    for (const [k, v] of keep) { if (v === undefined) delete process.env[k]; else (process.env as Record<string, string | undefined>)[k] = v; }
+    await d.delete(s.sessions).where(sql`${s.sessions.id} like 'sess-%'`);
+  }
+});
+
 await check("authenticator: a code works once; recovery codes work once", async () => {
   const secret = newSecret();
   const rec = "abcde-fghjk";

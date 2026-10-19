@@ -16,16 +16,14 @@ export const sendsRealEmail = () => !!process.env.SMTP_HOST && !!process.env.SMT
 /** Codes may be shown on screen only in development and demo builds, and only without a real mailbox. */
 export const showsEmailCodeOnScreen = () => isDemo() && !sendsRealEmail();
 /**
- * example.com and .test are reserved (RFC 2606). They can never be a real person's mailbox.
- * On a live site with no mailbox configured, only these addresses may see a code on screen,
- * so the documented samples can be tried. Any other address is refused until SMTP is set.
+ * example.com and .test are reserved (RFC 2606). They can never be a real person's mailbox, so they mark the
+ * documented sample accounts. A live site never shows their codes on screen: anyone could type the address,
+ * and the sample owner opens the whole staff console.
  */
 export const isReservedTestEmail = (email: string) => {
   const host = email.trim().toLowerCase().split("@")[1] ?? "";
   return host === "example.com" || host === "inzira.test" || host.endsWith(".test");
 };
-/** Where a sign-in code for this address goes when the person asks for one. */
-export const emailCodeOnScreen = (email: string) => !sendsRealEmail() && (isDemo() || isReservedTestEmail(email));
 /** An email code can reach the person: by email, or on screen in a demo. */
 export const canDeliverEmailCodes = () => sendsRealEmail() || showsEmailCodeOnScreen();
 
