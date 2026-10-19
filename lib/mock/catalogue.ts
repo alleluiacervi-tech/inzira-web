@@ -12,7 +12,7 @@ export const CATEGORIES: Category[] = [
   { id: "ebm", icon: "c-ebm", name: "EBM", short: "EBM", desc: "Get an Electronic Billing Machine installed and learn to use it." },
   { id: "land", icon: "c-land", name: "Land services", short: "Land", desc: "E-titles, spouse changes in the land register and merging plots." },
   { id: "rura", icon: "c-car", name: "RURA / Transport", short: "RURA", desc: "Authorisations for vehicles that carry passengers or goods." },
-  { id: "police", icon: "c-id", name: "Police services", short: "Police", desc: "Driving licences, traffic fines, test booking and vehicle inspection. We apply on Irembo and send you the document." },
+  { id: "police", icon: "c-id", name: "Police services", short: "Police", desc: "A criminal record certificate, driving licences, traffic fines and vehicle inspection." },
   { id: "papers", icon: "c-comp", name: "Certificates", short: "Papers", desc: "Birth, marriage and other certificates, a passport and a replacement ID card. We file them and send the document when it is issued." },
   { id: "irembo", icon: "c-learn", name: "Irembo training", short: "Irembo", desc: "Learn to use Irembo yourself — online or at our office." },
   { id: "other", icon: "c-other", name: "Other online services", short: "Other", desc: "Need something else done online? We agree the process and our fee with you first.", href: "/start" },
@@ -279,6 +279,15 @@ export const SERVICES: Service[] = [
   // ---------------- Police, filed on Irembo ----------------
   // The names follow the police list people meet on Irembo. Inzira files the application and returns the document.
   filed({
+    slug: "criminal-record", office: "Rwanda National Police", name: "Criminal record certificate", aka: "Certificate of good conduct",
+    summary: "Request a criminal record certificate for a job, a visa or a tender. We file it and send you the certificate when the police issue it.",
+    who: [{ title: "Job applicants", body: "An employer asked for it." }, { title: "Visa and travel", body: "An embassy asked for it." }, { title: "Tenders", body: "A bid needs a recent certificate." }],
+    requirements: ["Your national ID", "What you need the certificate for"],
+    documents: [id, doc("Passport photo", "A recent photo of your face", true, "Identification")],
+    ours: 3000, time: "Usually a few working days", docsShort: "National ID, photo", popular: true,
+    purposeLabel: "What is it for?", purposes: ["A job", "A visa", "A tender", "Something else"],
+  }),
+  filed({
     slug: "driving-licence-copy", office: "Rwanda National Police", name: "Copy of a driving licence", aka: "Duplicate of a lost or damaged licence",
     summary: "Ask the police for another copy of a driving licence. We fill in the Irembo application with your details and send you the copy when it is ready.",
     who: [{ title: "Lost or stolen licences", body: "You need a copy to keep driving." }, { title: "Damaged cards", body: "The photo or the text can no longer be read." }, { title: "A licence left somewhere", body: "You cannot get the original back." }],
@@ -351,15 +360,6 @@ export const SERVICES: Service[] = [
     requirements: ["The plate number", "The yellow card", "The owner’s national ID"],
     documents: [id, doc("Yellow card", "Vehicle registration certificate", true, "Other"), doc("Insurance certificate", "If it is still valid", false, "Other")],
     ours: 5000, time: "The day you take the vehicle in, then a few days for the certificate", docsShort: "ID, yellow card, plate number",
-  }),
-  filed({
-    slug: "criminal-record", office: "Rwanda National Police", name: "Criminal record certificate", aka: "Certificate of good conduct",
-    summary: "Request a criminal record certificate for a job, a visa or a tender. We file it and send you the certificate when the police issue it.",
-    who: [{ title: "Job applicants", body: "An employer asked for it." }, { title: "Visa and travel", body: "An embassy asked for it." }, { title: "Tenders", body: "A bid needs a recent certificate." }],
-    requirements: ["Your national ID", "What you need the certificate for"],
-    documents: [id, doc("Passport photo", "A recent photo of your face", true, "Identification")],
-    ours: 3000, time: "Usually a few working days", docsShort: "National ID, photo", popular: true,
-    purposeLabel: "What is it for?", purposes: ["A job", "A visa", "A tender", "Something else"],
   }),
 
   // ---------------- Certificates and identity papers, filed on Irembo ----------------

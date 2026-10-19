@@ -55,10 +55,12 @@ export async function ensureCatalogue(database: Db) {
   const haveCats = new Set(cats.map((c) => c.id));
   const missingCats = CATEGORIES.map((c, i) => ({ ...c, position: i })).filter((c) => !haveCats.has(c.id));
   if (missingCats.length) await database.insert(s.categories).values(missingCats).onConflictDoNothing();
-  await Promise.all(CATEGORIES.map((c, i) => database.update(s.categories).set({ position: i }).where(eq(s.categories.id, c.id))));
+  await Promise.all(CATEGORIES.map((c, i) => database.update(s.categories).set({ position: i, desc: c.desc }).where(eq(s.categories.id, c.id))));
   const have = new Set(rows.map((r) => r.slug));
   const missing = SERVICES.map((v, i) => serviceRow(v, i)).filter((v) => !have.has(v.slug));
   if (missing.length) await database.insert(s.services).values(missing).onConflictDoNothing();
+  // Order follows the catalogue. Fees and wording already saved on a service stay as they are.
+  await Promise.all(SERVICES.map((v, i) => database.update(s.services).set({ position: i }).where(eq(s.services.slug, v.slug))));
 }
 
 /** What every database needs: categories, the service catalogue with our prices, the default
