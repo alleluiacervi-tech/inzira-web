@@ -6,7 +6,9 @@ import { getAdminOverview, getMyPermissions, getNow, listCases } from "@/lib/rep
 export const metadata = { title: "Payments" };
 export default async function Page() {
   const perms = await getMyPermissions();
-  if (!perms.includes("refund") && !perms.includes("viewAll")) return <><PageHead title="Payments" /><NoAccess what="the payments ledger" /></>;
+  // The summary and the ledger both read every case, so this page needs "View all cases". Refund alone would open it
+  // and then fail where the totals are built.
+  if (!perms.includes("viewAll")) return <><PageHead title="Payments" /><NoAccess what="the payments ledger" /></>;
   const [o, cases, now] = await Promise.all([getAdminOverview(), listCases(), getNow()]);
   const rows = [...cases].sort((a, b) => b.billing.invoice.localeCompare(a.billing.invoice));
   return (
