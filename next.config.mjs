@@ -27,6 +27,10 @@ const csp = [
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+  // Shown in the staff console footer: the commit that was built, when Vercel gives one.
+  env: {
+    NEXT_PUBLIC_BUILD: [process.env.VERCEL_GIT_COMMIT_SHA?.slice(0, 7), new Date().toISOString().slice(0, 10)].filter(Boolean).join(" · "),
+  },
   outputFileTracingRoot: __dirname,
   // The database drivers run as plain Node modules, not bundled.
   serverExternalPackages: ["@electric-sql/pglite", "pg"],

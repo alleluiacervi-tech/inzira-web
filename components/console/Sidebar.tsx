@@ -175,7 +175,7 @@ export function Sidebar({
           }}
         >
           <span>Kigali, Rwanda</span>
-          <span style={{ fontWeight: 600 }}>v1.0 Staff</span>
+          <span style={{ fontWeight: 600 }} title="The build this site is running">{process.env.NEXT_PUBLIC_BUILD}</span>
         </div>
       </aside>
     </>
