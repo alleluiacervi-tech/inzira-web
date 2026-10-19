@@ -5,6 +5,9 @@ import { Icon } from "@/components/ui";
 import { text } from "@/lib/i18n/messages";
 import { getMyRequest, getPortalLocale } from "@/lib/repo";
 
+// startPayment runs under this page and waits on IntouchPay for up to 50 seconds (lib/intouchpay.ts).
+export const maxDuration = 60;
+
 export async function generateMetadata({ params }: { params: Promise<{ ref: string }> }) {
   const r = await getMyRequest((await params).ref);
   const locale = await getPortalLocale();

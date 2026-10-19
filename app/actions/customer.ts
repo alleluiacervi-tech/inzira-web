@@ -281,7 +281,13 @@ export async function startPayment(ref: string, phoneInput: string): Promise<Res
   const [r] = await d.select().from(s.requests).where(eq(s.requests.ref, ref));
   if (r.quote === "estimate") return refuse("notConfirmed");
   if (!(await allowIp("payment"))) return refuse("tooMany");
-  const txs = await d.select().from(s.transactions).where(eq(s.transactions.ref, ref));
+  let txs = await d.select().from(s.transactions).where(eq(s.transactions.ref, ref));
+  // A prompt left open (a closed tab, a missed callback) would block the customer until the daily job. Ask the provider
+  // first: it may have been paid, or it may be old enough to close, and only a prompt still within its time stays.
+  if (txs.some((t) => t.status === "pending")) {
+    for (const t of txs) if (t.status === "pending") await reconcilePayment(t.id);
+    txs = await d.select().from(s.transactions).where(eq(s.transactions.ref, ref));
+  }
   const billing = { ...r, official: r.official, officialMode: r.officialMode ?? undefined, transactions: txs.map((t) => ({ ...t, at: iso(t.at)! })) } as never;
   const due = amountDue(billing);
   if (due <= 0) return refuse("nothingDue");

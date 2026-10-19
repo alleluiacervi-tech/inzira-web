@@ -40,7 +40,7 @@ export async function handlePaymentCallback(input: { txId: number | null; body: 
         await d.update(s.transactions).set({ providerRef: next }).where(and(eq(s.transactions.id, t.id), eq(s.transactions.status, "pending")));
       }
     }
-    if (t) await reconcilePayment(t.id);
+    if (t) await reconcilePayment(t.id, { late: true });
   }
   return json(200, { message: "success", success: true, request_id: callback?.requestId ?? (txId ? String(txId) : ""), received: true });
 }

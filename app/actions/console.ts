@@ -4,6 +4,7 @@ import { and, eq, inArray } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { WORKS_CASES, assignableStaff, canSeeCase, canSeeClient, seesAllCases } from "@/lib/access";
 import { getStaffUser, normalisePhone } from "@/lib/auth";
+import { reconcilePayment } from "@/lib/billing";
 import { open, seal } from "@/lib/crypto";
 import { maskNationalId, maskTin, rwf, shortName } from "@/lib/format";
 import { mentionsNationalId } from "@/lib/identity";
@@ -220,7 +221,11 @@ export async function recordManualPayment(input: {
   if (input.official < 0 || input.ours < 0) return fail("Amounts cannot be negative.");
   if (input.official === 0 && input.ours === 0) return fail("Total payment amount must be greater than 0.");
 
-  const txs = await d.select().from(s.transactions).where(eq(s.transactions.ref, ref));
+  let txs = await d.select().from(s.transactions).where(eq(s.transactions.ref, ref));
+  if (txs.some((t) => t.status === "pending")) {
+    for (const t of txs) if (t.status === "pending") await reconcilePayment(t.id);
+    txs = await d.select().from(s.transactions).where(eq(s.transactions.ref, ref));
+  }
   if (txs.some((t) => t.status === "pending")) return fail("A mobile money prompt is still open on this request. Wait for it to finish before recording a payment by hand.");
   const paid = txs.filter((t) => t.status === "paid");
   const officialDue = Math.max(0, (req.official ?? 0) - paid.reduce((n, t) => n + t.official, 0));

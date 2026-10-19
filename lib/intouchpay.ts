@@ -167,6 +167,10 @@ async function readBody(res: Response): Promise<Record<string, unknown>> {
   }
 }
 
+/** The guide allows IntouchPay 60 seconds to answer. The pay page's maxDuration (60) must outlast this, so a slow answer
+ *  leaves time to save what happened. An answer we gave up on is settled by the callback or the status check. */
+const REQUEST_TIMEOUT_MS = 50_000;
+
 /** Section 2. RequestPayment. Does not retry: a timeout may still have been accepted, and a second call would be a new attempt. */
 export async function requestIntouchPayment(input: { requestId: string; phone9: string; amount: number; callbackUrl?: string }): Promise<{ transactionId?: string; code: string }> {
   if (!Number.isInteger(input.amount) || input.amount <= 0) throw new IntouchRejected("2100", "IntouchPay amount must be a positive number of francs.");
@@ -186,7 +190,7 @@ export async function requestIntouchPayment(input: { requestId: string; phone9: 
   const url = `${baseUrl()}/requestpayment/`;
   let res: Response;
   try {
-    res = await post(url, { headers: { "Content-Type": "application/x-www-form-urlencoded" }, body: form.toString() }, 60_000);
+    res = await post(url, { headers: { "Content-Type": "application/x-www-form-urlencoded" }, body: form.toString() }, REQUEST_TIMEOUT_MS);
   } catch (e) {
     console.error("[payments] IntouchPay requestpayment unreachable");
     throw e;
