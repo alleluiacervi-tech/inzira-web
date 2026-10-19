@@ -12,9 +12,11 @@ const UNREACHABLE_TTL_MS = 60 * 60e3;
 /** A prompt we closed as failed can still be approved on the phone later. A callback re-checks it for this long. */
 const LATE_APPROVAL_WINDOW_MS = 7 * 24 * 60 * 60e3;
 
-/** Settles one prompt. With `late`, a prompt already closed as failed is asked about again, because the customer can
+/** Settles one prompt. With `declined`, set only for an authenticated provider callback that names this prompt and says it
+ *  failed: a prompt the provider still reports as pending is closed at once instead of after the time limit. It never
+ *  makes a payment paid, and a provider answer of paid still wins. With `late`, a prompt already closed as failed is asked about again, because the customer can
  *  approve after our time limit: if the provider says it was paid, the money is recorded instead of lost. */
-export async function reconcilePayment(txId: number, opts: { late?: boolean } = {}): Promise<PayStatus | null> {
+export async function reconcilePayment(txId: number, opts: { late?: boolean; declined?: boolean } = {}): Promise<PayStatus | null> {
   const d = await db();
   const [t] = await d.select().from(s.transactions).where(eq(s.transactions.id, txId));
   if (!t) return null;
@@ -36,6 +38,7 @@ export async function reconcilePayment(txId: number, opts: { late?: boolean } = 
   }
   // Nobody approved the prompt in time: close it so the customer can try again. When the provider could not be asked at
   // all, wait longer: closing a prompt that was in fact paid would invite a second payment.
+  if (opts.declined && !reopened && status === "pending") status = "failed";
   const age = Date.now() - Date.parse(iso(t.at)!);
   if (reopened) return status === "paid" ? settle(t, "paid", providerTxId, true) : "failed";
   if (status === "pending" && age > (unreachable ? UNREACHABLE_TTL_MS : PROMPT_TTL_MS)) status = "failed";

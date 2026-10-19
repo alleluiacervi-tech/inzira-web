@@ -1,10 +1,10 @@
-// Provider callbacks. The body never decides paid or failed: it only tells us which prompt to
-// re-check with the provider (lib/billing.ts). IntouchPay posts { jsonpayload } (API guide section 2.7)
+// Provider callbacks. The body never decides paid: it only tells us which prompt to re-check with the provider
+// (lib/billing.ts). An authenticated IntouchPay callback that names the prompt and says it failed may close it early. IntouchPay posts { jsonpayload } (API guide section 2.7)
 // and expects HTTP 200 with message, success and request_id.
 import { and, eq, like } from "drizzle-orm";
 import { reconcilePayment } from "./billing";
 import { db, schema as s } from "./db";
-import { callbackAuthConfigured, callbackAuthorized, readIntouchCallback, withIntouchTransactionId } from "./intouchpay";
+import { callbackAuthConfigured, callbackAuthorized, parseIntouchRef, readIntouchCallback, withIntouchTransactionId } from "./intouchpay";
 import { allow } from "./ratelimit";
 
 const json = (status: number, body: { message: string; success: boolean; request_id: string; received?: boolean }) =>
@@ -40,7 +40,9 @@ export async function handlePaymentCallback(input: { txId: number | null; body: 
         await d.update(s.transactions).set({ providerRef: next }).where(and(eq(s.transactions.id, t.id), eq(s.transactions.status, "pending")));
       }
     }
-    if (t) await reconcilePayment(t.id, { late: true });
+    // A decline is believed only from a callback that proved who it is (HTTP Basic) and names this very prompt.
+    const declined = callbackAuthConfigured() && callback?.outcome === "failed" && !!t?.providerRef && parseIntouchRef(t.providerRef)?.requestId === callback.requestId;
+    if (t) await reconcilePayment(t.id, { late: true, declined });
   }
   return json(200, { message: "success", success: true, request_id: callback?.requestId ?? (txId ? String(txId) : ""), received: true });
 }

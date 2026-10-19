@@ -86,8 +86,10 @@ function payments(): Check[] {
       : "";
     const auth = has("INTOUCHPAY_CALLBACK_USER", "INTOUCHPAY_CALLBACK_PASSWORD");
     if (!ready) return [{ key: "pay", name: "IntouchPay", state: "missing", detail: "Credentials not set. Customers can’t pay.", fix: "Set INTOUCHPAY_USERNAME, INTOUCHPAY_ACCOUNT_NO and INTOUCHPAY_PARTNER_PASSWORD from the IntouchPay partner account." }];
-    const detail = `Collects MTN and Airtel through IntouchPay (${base}).${callback ? ` Callback ${callback}.` : " Set NEXT_PUBLIC_SITE_URL to the https site address so prompts include a callback."}${auth ? " Callback basic auth is required." : " Callback basic auth is not set; payment state still comes from GetTransactionStatus."}`;
-    return [{ key: "pay", name: "IntouchPay", state: https ? "ready" : "missing", detail, fix: https ? undefined : "INTOUCHPAY_BASE_URL must be https." }];
+    const detail = `Collects MTN and Airtel through IntouchPay (${base}).${callback ? ` Callback ${callback}.` : " Set NEXT_PUBLIC_SITE_URL to the https site address so prompts include a callback."}${auth ? " Callback basic auth is required." : " Callback basic auth is not set: any caller can ask us to re-check a payment, and a declined prompt stays open until it times out."}`;
+    const open = !auth && production() && !demo();
+    const fix = !https ? "INTOUCHPAY_BASE_URL must be https." : open ? "Ask IntouchPay to send the callback with HTTP Basic, then set INTOUCHPAY_CALLBACK_USER and INTOUCHPAY_CALLBACK_PASSWORD to the same values." : undefined;
+    return [{ key: "pay", name: "IntouchPay", state: !https || open ? "missing" : "ready", detail, fix }];
   }
   if (mode === "direct") {
     const sandbox = (process.env.MTN_MOMO_ENVIRONMENT ?? "sandbox") === "sandbox";

@@ -18,6 +18,7 @@ import { audit, db, event, fail, invoiceFor, nextNumber, notify, refFor, s, type
 import { reconcilePayment } from "@/lib/billing";
 import { isUniqueViolation } from "@/lib/db/errors";
 import { isReservedTestEmail } from "@/lib/email";
+import { refusalKind, type RefusalKind } from "@/lib/intouchpay";
 import { PromptRefused, methodFor, newPrompt } from "@/lib/payments";
 import { SITE } from "@/lib/site";
 import { amountDue } from "@/lib/status";
@@ -38,6 +39,7 @@ async function customerLocale(): Promise<Locale> {
   return a?.locale ?? getLocale();
 }
 type Refusal = keyof typeof en.custErr;
+const REFUSAL_ERROR = { notRegistered: "payNotRegistered", network: "payNetwork", badNumber: "payBadNumber", amount: "payAmount", other: "momoDown" } as const satisfies Record<RefusalKind, Refusal>;
 const refuse = async (key: Refusal, vars?: Record<string, string | number>) => fail(tr(await customerLocale(), `custErr.${key}`, vars));
 
 async function checkFile(f: File): Promise<string | null> {
@@ -319,7 +321,9 @@ export async function startPayment(ref: string, phoneInput: string): Promise<Res
     console.error("[payments]", e);
     if (e instanceof PromptRefused) {
       await d.update(s.transactions).set({ status: "failed" }).where(and(eq(s.transactions.id, tx.id), eq(s.transactions.status, "pending")));
-      return refuse("momoDown");
+      // The provider's code is kept for staff in the audit log, and the customer is told what they can do about it.
+      await audit(d, { actor: "System", role: "—", action: "Payment prompt refused", entity: `${receipt} · ${methodFor(phone)} · IntouchPay code ${e.code ?? "none"}` }).catch(() => {});
+      return refuse(REFUSAL_ERROR[refusalKind(e.code ?? "")]);
     }
     // Unknown whether the prompt went out: leave it waiting. The check on the customer's screen and the scheduled job
     // ask the provider, and close it as failed after fifteen minutes if it never existed.

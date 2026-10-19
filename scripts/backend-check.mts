@@ -189,6 +189,26 @@ await check("payments: IntouchPay is paid only after status says so, and a repea
     await handlePaymentCallback({ txId: lateRow.id, body: { jsonpayload: { requesttransactionid: "reqlate", transactionid: "88", responsecode: "01", status: "Successfull" } }, authorization: header });
     const lateAgain = await d.select({ id: s.audit.id }).from(s.audit).where(sql`${s.audit.entity} like 'T-INTOUCH-LATE%'`);
     assert.equal(lateAgain.length, 1, "a repeated callback records it once");
+    // A declined prompt: IntouchPay still says pending, but its authenticated callback says failed.
+    code = "1000";
+    const [declRow] = await d.insert(s.transactions).values({ ref: r.ref, receipt: "T-INTOUCH-DECL", method: "MTN MoMo", official: 0, ours: 40, status: "pending", payer: "788123456", providerRef: "intouch:reqdecl:99" }).returning({ id: s.transactions.id });
+    const declined = (requestId: string) => ({ jsonpayload: { requesttransactionid: requestId, transactionid: "99", responsecode: "1005", status: "Failed" } });
+    const statusOf = async () => (await d.select().from(s.transactions).where(eq(s.transactions.id, declRow.id)))[0].status;
+    delete process.env.INTOUCHPAY_CALLBACK_USER;
+    delete process.env.INTOUCHPAY_CALLBACK_PASSWORD;
+    await handlePaymentCallback({ txId: declRow.id, body: declined("reqdecl"), authorization: null });
+    assert.equal(await statusOf(), "pending", "a failure claim from an unauthenticated callback is not believed");
+    process.env.INTOUCHPAY_CALLBACK_USER = "callback-user";
+    process.env.INTOUCHPAY_CALLBACK_PASSWORD = "callback-secret";
+    await handlePaymentCallback({ txId: declRow.id, body: declined("someoneelse"), authorization: header });
+    assert.equal(await statusOf(), "pending", "nor one that names a different prompt");
+    await handlePaymentCallback({ txId: declRow.id, body: declined("reqdecl"), authorization: header });
+    assert.equal(await statusOf(), "failed", "an authenticated callback that names the prompt closes it at once");
+    const [paidNever] = await d.insert(s.transactions).values({ ref: r.ref, receipt: "T-INTOUCH-DECL2", method: "MTN MoMo", official: 0, ours: 40, status: "pending", payer: "788123456", providerRef: "intouch:reqdecl2:98" }).returning({ id: s.transactions.id });
+    code = "01";
+    await handlePaymentCallback({ txId: paidNever.id, body: { jsonpayload: { requesttransactionid: "reqdecl2", transactionid: "98", responsecode: "1005", status: "Failed" } }, authorization: header });
+    assert.equal((await d.select().from(s.transactions).where(eq(s.transactions.id, paidNever.id)))[0].status, "paid", "a failure claim never beats a provider answer of paid");
+    await d.delete(s.transactions).where(sql`${s.transactions.id} in (${declRow.id}, ${paidNever.id})`);
     await d.delete(s.transactions).where(sql`${s.transactions.id} in (${lateRow.id}, ${unlisted.id})`);
     await d.delete(s.transactions).where(eq(s.transactions.id, failRow.id));
     await d.delete(s.transactions).where(eq(s.transactions.id, row.id));

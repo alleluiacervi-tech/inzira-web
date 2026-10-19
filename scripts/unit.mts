@@ -149,11 +149,22 @@ await asyncTest("intouch status codes follow the guide, and a denied success is 
 await asyncTest("intouch callback is only an identifier, and a second transaction id is ignored", async () => {
   assert.equal(intouch.readIntouchCallback({ status: "Successfull", responsecode: "01" }), null);
   const read = intouch.readIntouchCallback({ jsonpayload: { requesttransactionid: "4522233", transactionid: "6004994884", responsecode: "01", status: "Successfull" } });
-  assert.deepEqual(read, { requestId: "4522233", transactionId: "6004994884", responsecode: "01" });
+  assert.deepEqual(read, { requestId: "4522233", transactionId: "6004994884", responsecode: "01", outcome: "paid" });
+  assert.equal(intouch.readIntouchCallback({ jsonpayload: { requesttransactionid: "1", transactionid: "2", responsecode: "1005", status: "Failed" } })?.outcome, "failed");
+  assert.equal(intouch.readIntouchCallback({ jsonpayload: { requesttransactionid: "1", transactionid: "2", status: "Something new" } })?.outcome, "pending");
   assert.equal(intouch.withIntouchTransactionId("intouch:4522233", "6004994884", "4522233"), "intouch:4522233:6004994884");
   assert.equal(intouch.withIntouchTransactionId("intouch:4522233:6004994884", "111", "4522233"), null);
   assert.equal(intouch.withIntouchTransactionId("intouch:4522233", "6004994884", "999"), null);
   assert.equal(intouch.withIntouchTransactionId("mtn:abc", "6004994884", "abc"), null);
+});
+
+await asyncTest("intouch refusal codes become advice the customer can act on", async () => {
+  assert.equal(intouch.refusalKind("1002"), "notRegistered");
+  assert.equal(intouch.refusalKind("1100"), "network");
+  assert.equal(intouch.refusalKind("1200"), "badNumber");
+  assert.equal(intouch.refusalKind("2200"), "amount");
+  assert.equal(intouch.refusalKind("0005"), "other", "our own credentials failing is not the customer's to fix");
+  assert.equal(intouch.refusalKind("config"), "other");
 });
 
 await asyncTest("intouch callback basic auth matches only the configured pair", async () => {

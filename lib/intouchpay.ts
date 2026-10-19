@@ -82,15 +82,27 @@ export function requestDecision(body: Record<string, unknown>): { accepted: bool
   return { accepted: false, refused: false, code };
 }
 
-/** Guide section 2.7. Only the documented `jsonpayload` wrapper is read, and only as an identifier. */
-export function readIntouchCallback(body: unknown): { requestId: string; transactionId: string; responsecode: string } | null {
+export type RefusalKind = "notRegistered" | "network" | "badNumber" | "amount" | "other";
+
+/** Why IntouchPay refused a prompt, in terms the customer can act on. Anything else is "other": we could not send it. */
+export function refusalKind(code: string): RefusalKind {
+  if (code === "1002") return "notRegistered";
+  if (code === "1100") return "network";
+  if (code === "1200") return "badNumber";
+  if (code === "2100" || code === "2200" || code === "2300") return "amount";
+  return "other";
+}
+
+/** Guide section 2.7. The body is read as an identifier, and as a claim of "failed" that is acted on only when the
+ *  callback was authenticated (lib/payment-callback.ts). It is never read as proof of payment. */
+export function readIntouchCallback(body: unknown): { requestId: string; transactionId: string; responsecode: string; outcome: PayOutcome } | null {
   const root = asRecord(body);
   const payload = asRecord(root?.jsonpayload);
   if (!payload) return null;
   const requestId = txIdOk(payload.requesttransactionid);
   const transactionId = txIdOk(payload.transactionid);
   if (!requestId || !transactionId) return null;
-  return { requestId, transactionId, responsecode: payload.responsecode == null ? "" : String(payload.responsecode).trim() };
+  return { requestId, transactionId, responsecode: codeOf(payload), outcome: paymentOutcome(payload) };
 }
 
 export function parseIntouchRef(providerRef: string): { requestId: string; transactionId?: string } | null {

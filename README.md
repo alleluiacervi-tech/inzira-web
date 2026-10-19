@@ -85,7 +85,7 @@ Copy `.env.example` to `.env.local`. None are needed for development.
 | `PAYMENT_PROVIDER` | `live` for IntouchPay (MTN and Airtel through one API), `simulator` for demos, or `direct` for the older MTN MoMo and Airtel Money APIs. |
 | `INTOUCHPAY_USERNAME`, `INTOUCHPAY_ACCOUNT_NO`, `INTOUCHPAY_PARTNER_PASSWORD` | Partner credentials from IntouchPay. The partner password is only used to build the SHA-256 request password and is never sent or shown. |
 | `INTOUCHPAY_BASE_URL` | Defaults to `https://www.intouchpay.co.rw/api`. Must be HTTPS outside local development. The published guide uses this host for both test and production credentials. |
-| `INTOUCHPAY_CALLBACK_USER`, `INTOUCHPAY_CALLBACK_PASSWORD` | Optional. When both are set, `POST /api/payments/callback` requires HTTP Basic with those values (API guide section 2.7). |
+| `INTOUCHPAY_CALLBACK_USER`, `INTOUCHPAY_CALLBACK_PASSWORD` | Recommended on the live site. When both are set, `POST /api/payments/callback` requires HTTP Basic with those values (API guide section 2.7), and an IntouchPay callback that says a prompt failed closes it at once. Without them a callback only prompts a re-check, a declined prompt stays open until it times out, and Admin › System shows IntouchPay as needing setup. Ask IntouchPay to send HTTP Basic with these values. |
 | `MTN_MOMO_*`, `AIRTEL_*` | Used only when `PAYMENT_PROVIDER=direct`. |
 | `CRON_SECRET` | Protects `/api/cron`. Vercel sends it automatically to scheduled jobs. |
 | `NEXT_PUBLIC_SITE_URL` | The public address, used in SMS links. |
