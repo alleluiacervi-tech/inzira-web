@@ -6,6 +6,7 @@ import { db, iso, schema as s } from "./db";
 import { rwf } from "./format";
 import { msg, sms } from "./i18n/stored";
 import { audit, event, notify } from "./mutate";
+import { allow } from "./ratelimit";
 import { PROMPT_TTL_MS, providerStatus, type PayStatus } from "./payments";
 
 const UNREACHABLE_TTL_MS = 60 * 60e3;
@@ -44,6 +45,20 @@ export async function reconcilePayment(txId: number, opts: { late?: boolean; dec
   if (status === "pending" && age > (unreachable ? UNREACHABLE_TTL_MS : PROMPT_TTL_MS)) status = "failed";
   if (status === "pending") return "pending";
   return settle(t, status, providerTxId, false);
+}
+
+/** How often a customer's screen may make us ask the provider about one payment, however many screens are open. */
+const SCREEN_CHECK_EVERY_MS = 8e3;
+
+/** For a customer's screen polling a prompt. A real provider is asked at most once per interval; in between, the
+ *  answer is "pending" without a call. The provider's callback and the scheduled job go through reconcilePayment. */
+export async function reconcileForScreen(txId: number): Promise<PayStatus | null> {
+  const d = await db();
+  const [t] = await d.select({ status: s.transactions.status, providerRef: s.transactions.providerRef }).from(s.transactions).where(eq(s.transactions.id, txId));
+  if (!t) return null;
+  const real = t.status === "pending" && !!t.providerRef && !t.providerRef.startsWith("sim:");
+  if (real && !(await allow(`status:tx:${txId}`, 1, SCREEN_CHECK_EVERY_MS))) return "pending";
+  return reconcilePayment(txId);
 }
 
 type Payment = typeof s.transactions.$inferSelect;

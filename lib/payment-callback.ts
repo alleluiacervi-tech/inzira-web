@@ -1,7 +1,7 @@
 // Provider callbacks. The body never decides paid: it only tells us which prompt to re-check with the provider
 // (lib/billing.ts). An authenticated IntouchPay callback that names the prompt and says it failed may close it early. IntouchPay posts { jsonpayload } (API guide section 2.7)
 // and expects HTTP 200 with message, success and request_id.
-import { and, eq, like } from "drizzle-orm";
+import { and, eq, like, or } from "drizzle-orm";
 import { reconcilePayment } from "./billing";
 import { db, schema as s } from "./db";
 import { callbackAuthConfigured, callbackAuthorized, parseIntouchRef, readIntouchCallback, withIntouchTransactionId } from "./intouchpay";
@@ -19,7 +19,8 @@ export async function handlePaymentCallback(input: { txId: number | null; body: 
   let txId = input.txId;
   if (!txId && callback) {
     const [t] = await d.select({ id: s.transactions.id }).from(s.transactions)
-      .where(like(s.transactions.providerRef, `intouch:${callback.requestId}%`));
+      // The whole request id, so a short id from a callback cannot match the start of another prompt's id.
+      .where(or(eq(s.transactions.providerRef, `intouch:${callback.requestId}`), like(s.transactions.providerRef, `intouch:${callback.requestId}:%`), like(s.transactions.providerRef, `intouch:${callback.requestId}|%`)));
     txId = t?.id ?? null;
   }
   if (!txId) {

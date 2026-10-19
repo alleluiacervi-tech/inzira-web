@@ -6,7 +6,7 @@
 //   "approved" two seconds after it is sent; a number ending in 0000 is "declined".
 // The provider is remembered in each transaction's providerRef ("intouch:…", "mtn:…", "airtel:…", "sim:…"),
 // so status checks always go back to the provider that sent the prompt.
-import { randomBytes, randomUUID } from "node:crypto";
+import { randomInt, randomUUID } from "node:crypto";
 import { IntouchRejected, intouchPaymentStatus, requestIntouchPayment } from "./intouchpay";
 import { isDemo } from "./sms";
 
@@ -142,9 +142,14 @@ const airtel: Provider = {
 };
 
 // ---------------- IntouchPay (live collections) ----------------
+/** The guide's request ids are all digits (34555, 4522233), so ours are too: the millisecond clock then three random
+ *  digits, 16 digits in all. That stays an exact integer even if IntouchPay reads it as a number, and two prompts
+ *  in the same millisecond still differ. Longer-lived hex ids from earlier prompts are still understood. */
+export const newIntouchRequestId = () => `${Date.now()}${String(randomInt(1000)).padStart(3, "0")}`;
+
 const intouch: Provider = {
   key: "intouch",
-  newId: () => randomBytes(8).toString("hex"),
+  newId: newIntouchRequestId,
   async requestToPay({ id, phone9, amount, callbackUrl }) {
     try {
       const sent = await requestIntouchPayment({ requestId: id, phone9, amount, callbackUrl });
