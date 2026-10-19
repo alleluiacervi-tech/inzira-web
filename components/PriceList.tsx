@@ -5,6 +5,7 @@ import { rwf } from "@/lib/format";
 import { displayTime, officeText, unitLabel } from "@/lib/i18n/present";
 import { OFFICES, officeFor } from "@/lib/institutions";
 import type { Service } from "@/lib/types";
+import { withLocale } from "@/lib/seo";
 import { useI18n } from "./I18n";
 import { Icon } from "./ui";
 
@@ -14,7 +15,7 @@ export function ServiceRow({ s, showOffice = false }: { s: Service; showOffice?:
   const office = showOffice ? officeFor(s.category) : undefined;
   return (
     <li>
-      <Link href={`/services/${s.slug}`} className="pl-row">
+      <Link href={withLocale(locale, `/services/${s.slug}`)} className="pl-row">
         <span className="pl-main">
           <span className="pl-name">{s.name}</span>
           <span className="pl-time">{office && <span className="pl-code">{office.code}</span>}{displayTime(s, locale)}</span>

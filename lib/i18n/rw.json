@@ -2,8 +2,12 @@
   "meta": {
     "title": "Inzira — inyandiko za leta, zigukorerwa bitakugoye",
     "description": "Ubufasha bw'ikigo cyigenga mu Rwanda mu kwandikisha, imisoro, ubutaka, uruhushya rwo gutwara, serivisi za polisi n'ibyemezo. Si urubuga rwa leta. Amafaranga y'urwego n'aya Inzira bigaragara ukwabyo.",
-    "servicesTitle": "Serivisi",
-    "servicesDescription": "Kwandikisha, imisoro, ubutaka, gutwara, polisi n'ibyemezo mu Rwanda. Amafaranga y'urwego n'aya Inzira bigaragara ukwabyo mbere yo kwishyura.",
+    "servicesTitle": "Serivisi z'inyandiko za leta mu Rwanda",
+    "servicesDescription": "Kwandikisha, imisoro, ubutaka, uruhushya rwo gutwara, serivisi za polisi n'ibyemezo i Kigali. Inzira ni ikigo cyigenga. Amafaranga y'urwego n'aya Inzira bigaragara ukwabyo.",
+    "inPlace": "{name} mu Rwanda",
+    "serviceTail": "Ubufasha bw'ikigo cyigenga mu Rwanda. Amafaranga y'urwego n'aya Inzira bigaragara ukwabyo.",
+    "aboutTitle": "Ibyerekeye Inzira",
+    "aboutDescription": "Inzira Ltd ni ikigo cyigenga i Kigali gikugirira inyandiko za leta. Si ikinyamakuru kandi si urubuga rwa leta.",
     "privacyTitle": "Ibanga",
     "privacyDescription": "Ibyo Inzira ibika kuri wowe, igihe ibibikira, n'uko usaba ko bisibwa.",
     "termsTitle": "Amasezerano",
@@ -70,6 +74,7 @@
     "contact": "Twandikire",
     "privacy": "Ibanga",
     "terms": "Amasezerano",
+    "about": "Ibyerekeye",
     "start": "Tangira ubusabe",
     "track": "Kurikirana ubusabe",
     "signIn": "Injira",
@@ -80,6 +85,19 @@
     "visit": "Turahura ku gihe mwumvikanyeho, i {city}",
     "disclaimer": "Inzira ni sosiyete yigenga itanga ubufasha bw'umwuga. Ntabwo turi Irembo, RRA, RDB, RURA, ubuyobozi bw'ubutaka cyangwa urundi rwego urwo ari rwo rwose rwa leta, kandi ntidutanga inama z'amategeko. Amafaranga y'urwego n'imisoro bishyirwaho kandi bigakusanywa n'urwego rubifitiye ububasha; amafaranga ya Inzira yo gufasha ari ukwayo kandi agaragazwa ku murongo wayo wihariye buri gihe.",
     "copy": "© {year} {legal}"
+  },
+  "about": {
+    "h1": "Inyandiko za leta, tuzikugurira i Kigali",
+    "lead": "Inzira Ltd ni ikigo cyigenga i Kigali. Dusuzuma inyandiko zawe, dukohereza ubusabe mu nzira yemewe, tukaguha igisubizo.",
+    "doesT": "Ibyo dukora",
+    "does": "Kwandikisha, imisoro, ubutaka, uruhushya rwo gutwara, serivisi za polisi n'ibyemezo ku bantu n'ibigo mu Rwanda. Ubona amafaranga y'urwego n'aya Inzira ukwabyo mbere yo kwishyura.",
+    "notT": "Ibyo tutari",
+    "not": "Ntabwo turi Irembo, RRA, RDB, RURA, polisi, cyangwa urundi rwego rwa leta. Ntidushakisha indangamuntu, kandi ntidufata icyemezo. Urwego nirwo rurufata.",
+    "nameT": "Izina Inzira",
+    "name": "Andi bigo mu Rwanda nayo akoresha izina Inzira, harimo ikinyamakuru n'andi makompanyi. Uru rubuga ni urwa serivisi y'inyandiko za Inzira Ltd i Kigali gusa. Ntiduvugira ayo mabigo, kandi ntabwo aduvugira.",
+    "askT": "Tuvugishe",
+    "ask": "Hamagara {phone}, andikira {email}, cyangwa turahure ku gihe mwumvikanyeho, i {city}.",
+    "more": "Reba serivisi"
   },
   "legal": {
     "privacyTitle": "Ibanga",

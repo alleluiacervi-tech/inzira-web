@@ -1,8 +1,10 @@
 import type { Metadata, Viewport } from "next";
+import { headers } from "next/headers";
 import { Hanken_Grotesk } from "next/font/google";
 import { LocaleProvider } from "@/components/I18n";
 import { getLocale } from "@/lib/i18n/locale";
 import { text } from "@/lib/i18n/messages";
+import { isIndexable, languageAlternates } from "@/lib/seo";
 import { siteOrigin } from "@/lib/site";
 import "./globals.css";
 import "./public.css";
@@ -14,11 +16,23 @@ const sans = Hanken_Grotesk({ subsets: ["latin"], variable: "--f-sans", display:
 
 export async function generateMetadata(): Promise<Metadata> {
   const locale = await getLocale();
+  const pathname = ((await headers()).get("x-inzira-path") ?? "/").split("?")[0] || "/";
+  const origin = siteOrigin();
+  const indexable = isIndexable(pathname);
+  const alternates = origin && indexable ? languageAlternates(origin, pathname, locale) : undefined;
   return {
     title: { default: text(locale, "meta.title"), template: "%s · Inzira" },
     description: text(locale, "meta.description"),
-    metadataBase: new URL(siteOrigin() ?? "http://localhost:3000"),
-    openGraph: { siteName: "Inzira", type: "website", locale: locale === "rw" ? "rw_RW" : "en_RW" },
+    metadataBase: new URL(origin ?? "http://localhost:3000"),
+    alternates,
+    robots: indexable ? { index: true, follow: true } : { index: false, follow: false },
+    openGraph: {
+      siteName: "Inzira",
+      type: "website",
+      locale: locale === "rw" ? "rw_RW" : "en_RW",
+      alternateLocale: locale === "rw" ? ["en_RW"] : ["rw_RW"],
+      ...(typeof alternates?.canonical === "string" ? { url: alternates.canonical } : {}),
+    },
     twitter: { card: "summary_large_image" },
   };
 }

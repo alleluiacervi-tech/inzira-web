@@ -2,6 +2,7 @@ import { eq } from "drizzle-orm";
 import { getSession } from "@/lib/auth";
 import { db, schema as s } from "@/lib/db";
 import { asLocale, rememberLocale } from "@/lib/i18n/locale";
+import { withLocale } from "@/lib/seo";
 
 /**
  * Only a path on this site, never another site. Browsers drop tabs and newlines from a Location
@@ -32,5 +33,5 @@ export async function POST(req: Request) {
   if (session?.kind === "customer") await (await db()).update(s.accounts).set({ locale }).where(eq(s.accounts.id, session.subjectId));
   const referer = req.headers.get("referer");
   const fallback = referer && URL.canParse(referer) ? (({ pathname, search }) => pathname + search)(new URL(referer)) : "/";
-  return new Response(null, { status: 303, headers: { Location: backTo(fd.get("back") || fallback), "Cache-Control": "no-store" } });
+  return new Response(null, { status: 303, headers: { Location: withLocale(locale, backTo(fd.get("back") || fallback)), "Cache-Control": "no-store" } });
 }

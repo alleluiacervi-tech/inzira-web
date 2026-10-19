@@ -10,13 +10,20 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const origin = siteOrigin();
   if (!origin) return [];
   const services = await listServices();
-  return [
-    { url: `${origin}/`, changeFrequency: "weekly", priority: 1 },
-    { url: `${origin}/services`, changeFrequency: "weekly", priority: 0.9 },
-    ...services.map((s) => ({ url: `${origin}/services/${s.slug}`, changeFrequency: "monthly" as const, priority: 0.8 })),
-    { url: `${origin}/start`, changeFrequency: "monthly", priority: 0.6 },
-    { url: `${origin}/track`, changeFrequency: "yearly", priority: 0.3 },
-    { url: `${origin}/privacy`, changeFrequency: "yearly", priority: 0.3 },
-    { url: `${origin}/terms`, changeFrequency: "yearly", priority: 0.3 },
+  const pages: { path: string; changeFrequency: "weekly" | "monthly" | "yearly"; priority: number }[] = [
+    { path: "/", changeFrequency: "weekly", priority: 1 },
+    { path: "/services", changeFrequency: "weekly", priority: 0.9 },
+    ...services.map((s) => ({ path: `/services/${s.slug}`, changeFrequency: "monthly" as const, priority: 0.8 })),
+    { path: "/about", changeFrequency: "monthly", priority: 0.5 },
+    { path: "/start", changeFrequency: "monthly", priority: 0.6 },
+    { path: "/track", changeFrequency: "yearly", priority: 0.3 },
+    { path: "/privacy", changeFrequency: "yearly", priority: 0.3 },
+    { path: "/terms", changeFrequency: "yearly", priority: 0.3 },
   ];
+  // Kinyarwanda is the unprefixed address. English is the same page under /en.
+  return pages.flatMap((page) => {
+    const rw = page.path === "/" ? "/" : page.path;
+    const en = page.path === "/" ? "/en" : `/en${page.path}`;
+    return [rw, en].map((path) => ({ url: `${origin}${path}`, changeFrequency: page.changeFrequency, priority: page.priority }));
+  });
 }

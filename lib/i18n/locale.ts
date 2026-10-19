@@ -1,4 +1,4 @@
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 
 export const LANG_COOKIE = "inzira_lang";
 export type Locale = "en" | "rw";
@@ -11,6 +11,9 @@ export function asLocale(value: string | undefined | null): Locale {
 /** Language chosen on the public site. A signed-in customer's portal follows their account instead
  *  (repo.getPortalLocale), and the two are kept in step when either changes. */
 export async function getLocale(): Promise<Locale> {
+  // /en is English for every visitor, including a crawler that does not send the language cookie.
+  const fromPath = (await headers()).get("x-inzira-locale");
+  if (fromPath === "en" || fromPath === "rw") return fromPath;
   return asLocale((await cookies()).get(LANG_COOKIE)?.value);
 }
 
