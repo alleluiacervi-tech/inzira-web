@@ -5,7 +5,7 @@ import { open, seal, isSealed } from "../lib/crypto.ts";
 import { sniffType } from "../lib/storage.ts";
 import { safeReturnPath } from "../lib/return-path.ts";
 import { amountDue, payStatus } from "../lib/status.ts";
-import { emailCodeOnScreen, isReservedTestEmail } from "../lib/email.ts";
+import { canDeliverEmailCodes, isReservedTestEmail, showsEmailCodeOnScreen } from "../lib/email.ts";
 import { idAsk, idPolicyOf, mentionsNationalId, nationalIdDigits, nationalIdError } from "../lib/identity.ts";
 import { cleanTaxRef, periodsBetween, taxPhase, weekdayOnOrBefore } from "../lib/tax-calendar.ts";
 import { providerFor } from "../lib/payments.ts";
@@ -298,7 +298,7 @@ test("ID policy: required, hidden, or optional — uncertain stays optional", ()
   assert.equal(idAsk(null, "me"), "optional");
 });
 
-test("sample sign-in: only reserved addresses show a code when the live site has no mailbox", () => {
+test("sample sign-in: a live site shows no code on screen, not even for a reserved address", () => {
   const prev = { node: process.env.NODE_ENV, demo: process.env.INZIRA_DEMO, host: process.env.SMTP_HOST, user: process.env.SMTP_USER, pass: process.env.SMTP_PASS, from: process.env.EMAIL_FROM };
   const restore = () => {
     const set = (k: string, v: string | undefined) => { if (v === undefined) delete process.env[k]; else process.env[k] = v; };
@@ -311,10 +311,11 @@ test("sample sign-in: only reserved addresses show a code when the live site has
     assert.equal(isReservedTestEmail("admin@inzira.test"), true);
     assert.equal(isReservedTestEmail("aline.uwase@example.com"), true);
     assert.equal(isReservedTestEmail("person@gmail.com"), false);
-    assert.equal(emailCodeOnScreen("admin@inzira.test"), true);
-    assert.equal(emailCodeOnScreen("person@gmail.com"), false);
+    assert.equal(showsEmailCodeOnScreen(), false);
+    assert.equal(canDeliverEmailCodes(), false, "with no mailbox a live site refuses to send a code");
     process.env.SMTP_HOST = "smtp.example"; process.env.SMTP_USER = "u"; process.env.SMTP_PASS = "p"; process.env.EMAIL_FROM = "Inzira <no-reply@inzira.rw>";
-    assert.equal(emailCodeOnScreen("admin@inzira.test"), false, "a real mailbox sends the code instead of showing it");
+    assert.equal(showsEmailCodeOnScreen(), false, "a real mailbox sends the code instead of showing it");
+    assert.equal(canDeliverEmailCodes(), true);
   } finally { restore(); }
 });
 test("sample payment: the simulator is only for a reserved account when no provider is set", () => {

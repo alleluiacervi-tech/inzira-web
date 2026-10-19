@@ -9,7 +9,7 @@ import { db, iso, schema as s } from "./db";
 import type { Permission } from "./permissions";
 import type { Locale } from "./i18n/locale";
 import { sms, smsText } from "./i18n/stored";
-import { canDeliverEmailCodes, emailCodeOnScreen, sendEmail, showsEmailCodeOnScreen } from "./email";
+import { canDeliverEmailCodes, sendEmail, showsEmailCodeOnScreen } from "./email";
 import { text } from "./i18n/messages";
 import { allowFor } from "./ratelimit";
 import { canDeliverCodes, sendSms, showsCodeOnScreen } from "./sms";
@@ -116,13 +116,10 @@ export const normaliseEmail = (v: string) => {
 export async function issueEmailCode(emailInput: string, locale: Locale = "rw", purpose: "signIn" | "confirm" = "signIn"): Promise<{ ok: true; demoCode?: string } | { ok: false; error: string }> {
   const email = normaliseEmail(emailInput);
   if (!email) return { ok: false, error: "Enter a valid email address." };
-  // A reserved sample address (example.com, .test) can show its code when no mailbox is configured.
-  // Every other address still needs a real mailbox, and a live site never prints those codes.
-  const onScreen = emailCodeOnScreen(email);
-  if (!onScreen && !canDeliverEmailCodes()) return { ok: false, error: "Sign-in codes can’t be sent right now. Please contact us." };
+  // A live site sends every code by email, sample addresses included, and never prints one on screen.
+  if (!canDeliverEmailCodes()) return { ok: false, error: "Sign-in codes can’t be sent right now. Please contact us." };
   const made = await newCode(EMAIL_CODES, email);
   if (!made.ok) return made;
-  if (onScreen && !showsEmailCodeOnScreen()) return { ok: true, demoCode: made.code };
   try {
     const [account] = await (await db()).select({ locale: s.accounts.locale }).from(s.accounts).where(sql`lower(${s.accounts.email}) = ${email}`);
     const lang = account?.locale ?? locale;

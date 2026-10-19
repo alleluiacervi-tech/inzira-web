@@ -210,11 +210,16 @@ async function seedTaxDiary(tx: Tx) {
 const SAMPLE_ADMIN_EMAIL = "admin@inzira.test";
 const SAMPLE_CUSTOMER_EMAIL = "aline.uwase@example.com";
 
-/** Fills the two documented sample addresses when they are still blank.
- *  Runs on the live site as well as in demo: the addresses are reserved (.test and example.com),
- *  an existing address is never replaced, and nothing is inserted. Real customers are left alone.
- *  Skipped once a real mailbox is configured, so those rows can use a real work address instead. */
+/** Fills the two documented sample addresses when they are still blank, in development and demo builds.
+ *  On a live site it does the opposite: it ends any session a sample account (an example.com or .test address)
+ *  still has open, from before the live site stopped showing their codes. Real accounts are left alone. */
 export async function linkSampleSignIns(database: Db) {
+  if (!isDemo()) {
+    const reserved = (col: string) => sql.raw(`(lower(${col}) like '%@example.com' or lower(${col}) like '%.test')`);
+    await database.execute(sql`delete from ${s.sessions} where ${s.sessions.subjectId} in (
+      select id from ${s.staff} where ${reserved("email")} union select id from ${s.accounts} where ${reserved("email")})`);
+    return;
+  }
   if (sendsRealEmail()) return;
   await database.update(s.staff).set({ email: SAMPLE_ADMIN_EMAIL }).where(and(eq(s.staff.id, "s-diane"), sql`email is null`));
   await database.update(s.accounts).set({ email: SAMPLE_CUSTOMER_EMAIL }).where(and(eq(s.accounts.id, "acc-aline"), eq(s.accounts.phone, "788123456"), sql`email is null`));
