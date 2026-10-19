@@ -158,6 +158,15 @@ await asyncTest("intouch callback is only an identifier, and a second transactio
   assert.equal(intouch.withIntouchTransactionId("mtn:abc", "6004994884", "abc"), null);
 });
 
+await asyncTest("intouch request ids are sixteen digits and differ within a millisecond", async () => {
+  const { newIntouchRequestId } = await import("../lib/payments.ts");
+  const ids = Array.from({ length: 50 }, () => newIntouchRequestId());
+  for (const id of ids) assert.match(id, /^\d{16}$/);
+  assert.ok(Number.isSafeInteger(Number(ids[0])));
+  assert.ok(new Set(ids).size > 40, "ids made back to back do not collide");
+  assert.ok(intouch.parseIntouchRef(`intouch:${ids[0]}`), "and they pass our own reference check");
+});
+
 await asyncTest("intouch refusal codes become advice the customer can act on", async () => {
   assert.equal(intouch.refusalKind("1002"), "notRegistered");
   assert.equal(intouch.refusalKind("1100"), "network");

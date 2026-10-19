@@ -15,7 +15,7 @@ import { maskNationalId, parseDob, prettyPhone, rwf } from "@/lib/format";
 import { idAsk, idPolicyOf, mentionsNationalId, nationalIdDigits, nationalIdError } from "@/lib/identity";
 import { open, seal } from "@/lib/crypto";
 import { audit, db, event, fail, invoiceFor, nextNumber, notify, refFor, s, type Result } from "@/lib/mutate";
-import { reconcilePayment } from "@/lib/billing";
+import { reconcileForScreen, reconcilePayment } from "@/lib/billing";
 import { isUniqueViolation } from "@/lib/db/errors";
 import { isReservedTestEmail } from "@/lib/email";
 import { refusalKind, type RefusalKind } from "@/lib/intouchpay";
@@ -341,7 +341,7 @@ export async function checkPayment(txId: number): Promise<Result<{ status: "pend
   if (!t) return refuse("payment");
   const own = await ownRequest(t.ref);
   if (!own) return refuse("payment");
-  const status = (await reconcilePayment(txId)) ?? "failed";
+  const status = (await reconcileForScreen(txId)) ?? "failed";
   if (status !== "pending") revalidatePath(`/portal/requests/${t.ref}`);
   return { ok: true, status };
 }

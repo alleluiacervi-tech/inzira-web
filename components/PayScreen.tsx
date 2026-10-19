@@ -28,13 +28,15 @@ export default function PayScreen({ reqRef, billing: b, phone, serviceName }: { 
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => () => { if (timer.current) clearTimeout(timer.current); }, []);
 
+  // Approving takes a PIN on the phone, and the callback usually settles it first, so the screen asks slowly. The server
+  // also limits how often the provider is asked (reconcileForScreen). About fifteen minutes in all: the prompt's own limit.
   const poll = (id: number, tries = 0) => {
-    const wait = tries < 20 ? 1500 : 4000;
+    const wait = tries === 0 ? 3000 : tries < 12 ? 5000 : 10000;
     timer.current = setTimeout(async () => {
       const r = await checkPayment(id).catch(() => null);
       if (r?.ok && r.status === "paid") { setStage("paid"); return; }
       if (r?.ok && r.status === "failed") { setStage("failed"); return; }
-      if (tries > 220) { setStage("slow"); return; }
+      if (tries > 95) { setStage("slow"); return; }
       poll(id, tries + 1);
     }, wait);
   };

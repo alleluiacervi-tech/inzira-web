@@ -209,6 +209,20 @@ await check("payments: IntouchPay is paid only after status says so, and a repea
     await handlePaymentCallback({ txId: paidNever.id, body: { jsonpayload: { requesttransactionid: "reqdecl2", transactionid: "98", responsecode: "1005", status: "Failed" } }, authorization: header });
     assert.equal((await d.select().from(s.transactions).where(eq(s.transactions.id, paidNever.id)))[0].status, "paid", "a failure claim never beats a provider answer of paid");
     await d.delete(s.transactions).where(sql`${s.transactions.id} in (${declRow.id}, ${paidNever.id})`);
+    // A customer's screen polling is limited to one provider call per interval; the callback is not.
+    code = "1000";
+    const { reconcileForScreen } = await import("../lib/billing.ts");
+    const [pollRow] = await d.insert(s.transactions).values({ ref: r.ref, receipt: "T-INTOUCH-POLL", method: "MTN MoMo", official: 0, ours: 30, status: "pending", payer: "788123456", providerRef: "intouch:reqpoll:55" }).returning({ id: s.transactions.id });
+    const callsBefore = seen.length;
+    for (let i = 0; i < 5; i++) assert.equal(await reconcileForScreen(pollRow.id), "pending");
+    assert.equal(seen.length - callsBefore, 1, "five quick polls from screens make one call to IntouchPay");
+    await handlePaymentCallback({ txId: pollRow.id, body: { jsonpayload: { requesttransactionid: "reqpoll", transactionid: "55", responsecode: "01", status: "Successfull" } }, authorization: header });
+    assert.equal(seen.length - callsBefore, 2, "a callback still asks at once");
+    // A callback finds its prompt by the whole request id, not the start of it.
+    const lookup = await handlePaymentCallback({ txId: null, body: { jsonpayload: { requesttransactionid: "reqpo", transactionid: "55", responsecode: "01", status: "Successfull" } }, authorization: header });
+    assert.equal(lookup.status, 200);
+    assert.equal(seen.length - callsBefore, 2, "a shorter id does not reach another prompt");
+    await d.delete(s.transactions).where(eq(s.transactions.id, pollRow.id));
     await d.delete(s.transactions).where(sql`${s.transactions.id} in (${lateRow.id}, ${unlisted.id})`);
     await d.delete(s.transactions).where(eq(s.transactions.id, failRow.id));
     await d.delete(s.transactions).where(eq(s.transactions.id, row.id));
