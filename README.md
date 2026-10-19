@@ -72,6 +72,7 @@ Copy `.env.example` to `.env.local`. None are needed for development.
 | Variable | What it does |
 | --- | --- |
 | `DATABASE_URL` | Persistent Postgres connection string. Required in production; PGlite is for local development and `INZIRA_DEMO=1` builds only. |
+| `DATABASE_URL_UNPOOLED` | Optional. The direct (not pooled) address of the same database, used only to apply migrations at startup. Neon's Vercel integration sets it. A pooler can leave the startup lock held, so set it when `DATABASE_URL` goes through PgBouncer, Neon's pooler or Supabase's port 6543. |
 | `DB_AUTO_MIGRATE=0` | Skip applying migrations on startup. By default the server applies `drizzle/` when it starts. |
 | `INZIRA_DEMO=1` | Demo/staging builds: allows the console SMS, the payment simulator, PGlite and local file storage in a production build. Never on the live site. |
 | `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `EMAIL_FROM` | Email through Nodemailer over SMTP: sign-in codes for customers and updates about their requests. Port 465 is implicit TLS (default), 587 is STARTTLS; `SMTP_SECURE=1/0` overrides. Use a dedicated `no-reply@` mailbox on your domain and set SPF, DKIM and DMARC. Optional: `EMAIL_REPLY_TO`, `EMAIL_DAILY_LIMIT` (default 400; the app stops short of the mailbox's own daily cap). |

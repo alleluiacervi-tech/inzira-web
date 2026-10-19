@@ -181,10 +181,15 @@ async function addLaterObjects(database: Db) {
   for (const statement of statements) await database.execute(sql.raw(statement));
 }
 
+/** The timestamp of the newest bundled migration, as drizzle records it in __drizzle_migrations.created_at. */
+export function latestMigration(): number {
+  const journal = JSON.parse(readFileSync(path.join(migrationsFolder, "meta/_journal.json"), "utf8")) as { entries: { when: number }[] };
+  return Math.max(...journal.entries.map((e) => e.when));
+}
+
 /** Records the bundled migrations as applied so the next boot does not try to create existing tables. */
 async function stampMigrationHistory(database: Db) {
-  const journal = JSON.parse(readFileSync(path.join(migrationsFolder, "meta/_journal.json"), "utf8")) as { entries: { when: number }[] };
-  const latest = Math.max(...journal.entries.map((e) => e.when));
+  const latest = latestMigration();
   await database.execute(sql`CREATE SCHEMA IF NOT EXISTS drizzle`);
   await database.execute(sql`
     CREATE TABLE IF NOT EXISTS drizzle.__drizzle_migrations (
