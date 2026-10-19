@@ -6,6 +6,9 @@ import { allow, clientIp } from "@/lib/ratelimit";
 // provider directly (lib/billing.ts). IntouchPay posts { jsonpayload } and may send HTTP Basic
 // (API guide section 2.7). MTN calls the URL we pass with each prompt (?tx=<id>); Airtel posts
 // its transaction id, which we match to the prompt we sent.
+// A callback can trigger a status call to the provider, which retries once (lib/intouchpay.ts).
+export const maxDuration = 60;
+
 async function handle(req: Request) {
   // Each call can cost a request to the provider, so a flood from one address, or about one payment, is turned away.
   // Providers retry on a 429 later.

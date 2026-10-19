@@ -62,7 +62,14 @@ const mtnToken = () => cachedToken("mtn", async () => {
 
 /** The provider answered and said no (a 4xx): the prompt does not exist, so the customer can try again at once.
  *  Anything else (a timeout, a 5xx, a dropped connection) leaves it unknown, and the status check decides. */
-export class PromptRefused extends Error {}
+export class PromptRefused extends Error {
+  /** The provider's own reason code, when it gave one (IntouchPay's response codes). */
+  readonly code?: string;
+  constructor(message: string, code?: string) {
+    super(message);
+    this.code = code;
+  }
+}
 const refusedIf4xx = (status: number, what: string, detail = "") => {
   if (status >= 400 && status < 500 && status !== 408 && status !== 429) throw new PromptRefused(`${what}: ${status} ${detail}`.trim());
   throw new Error(`${what}: ${status} ${detail}`.trim());
@@ -143,7 +150,7 @@ const intouch: Provider = {
       const sent = await requestIntouchPayment({ requestId: id, phone9, amount, callbackUrl });
       return { providerTxId: sent.transactionId };
     } catch (e) {
-      if (e instanceof IntouchRejected) throw new PromptRefused(e.message);
+      if (e instanceof IntouchRejected) throw new PromptRefused(e.message, e.code);
       throw e;
     }
   },
