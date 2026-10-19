@@ -186,6 +186,13 @@ export async function listMyRequests(): Promise<CustomerRequest[]> {
 export async function getMyRequest(ref: string): Promise<CustomerRequest | undefined> {
   return (await listMyRequests()).find((r) => r.ref === ref);
 }
+/** The payment prompt still waiting on a request, for its payment screen. The caller has already checked that the
+ *  request is the signed-in customer's (getMyRequest). The provider's reference is not returned. */
+export async function getWaitingPayment(ref: string): Promise<{ txId: number; receipt: string; amount: number; payer: string | null } | null> {
+  const [t] = await (await db()).select({ id: s.transactions.id, receipt: s.transactions.receipt, official: s.transactions.official, ours: s.transactions.ours, payer: s.transactions.payer })
+    .from(s.transactions).where(and(eq(s.transactions.ref, ref), eq(s.transactions.status, "pending")));
+  return t ? { txId: t.id, receipt: t.receipt, amount: t.official + t.ours, payer: t.payer } : null;
+}
 export async function listMyDocuments(): Promise<LibraryDoc[]> {
   const locale = await getPortalLocale();
   const t = (path: string, vars?: Record<string, string | number>) => text(locale, path, vars);

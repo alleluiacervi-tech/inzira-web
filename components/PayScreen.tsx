@@ -12,19 +12,24 @@ import { isMobile, prettyMobile } from "./PhoneCode";
 import { FeeLines, Icon } from "./ui";
 
 /** The payment screen: one amount, the phone that receives the prompt, and what happened. */
-export default function PayScreen({ reqRef, billing: b, phone, serviceName }: { reqRef: string; billing: Billing; phone: string; serviceName: string }) {
+export default function PayScreen({ reqRef, billing: b, phone, serviceName, waiting }: {
+  reqRef: string; billing: Billing; phone: string; serviceName: string;
+  /** A prompt already sent and not yet settled: the screen opens on it and keeps checking. */
+  waiting?: { txId: number; receipt: string; amount: number; payer: string | null };
+}) {
   const { locale, t } = useI18n();
   const due = amountDue(b);
   const paid = paidSplit(b);
   const official = Math.max(0, (b.official ?? 0) - paid.official);
   const ours = Math.max(0, due - official);
   const canPay = b.quote !== "estimate" && due > 0;
-  const [stage, setStage] = useState<"review" | "pending" | "paid" | "failed" | "slow">(canPay ? "review" : "review");
-  const [txId, setTxId] = useState<number | null>(null);
-  const [num, setNum] = useState(prettyMobile(phone));
+  const [stage, setStage] = useState<"review" | "pending" | "paid" | "failed" | "slow">(waiting ? "pending" : "review");
+  const [txId, setTxId] = useState<number | null>(waiting?.txId ?? null);
+  const [num, setNum] = useState(prettyMobile(waiting?.payer ?? phone));
+  const [sentAmount, setSentAmount] = useState(waiting?.amount ?? due);
   const [agree, setAgree] = useState(false);
   const [error, setError] = useState("");
-  const [receipt, setReceipt] = useState("");
+  const [receipt, setReceipt] = useState(waiting?.receipt ?? "");
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => () => { if (timer.current) clearTimeout(timer.current); }, []);
 
@@ -40,6 +45,8 @@ export default function PayScreen({ reqRef, billing: b, phone, serviceName }: { 
       poll(id, tries + 1);
     }, wait);
   };
+  // Picks up checking a prompt sent before this page was opened. Runs once: `poll` reschedules itself.
+  useEffect(() => { if (waiting) poll(waiting.txId); }, []);
   const send = async () => {
     if (!agree) { setError(t("pay.tick")); return; }
     if (!isMobile(num)) { setError(t("pay.badNumber")); return; }
@@ -49,6 +56,7 @@ export default function PayScreen({ reqRef, billing: b, phone, serviceName }: { 
     if (!r.ok) { setError(trError(locale, r.error)); setStage("review"); return; }
     setReceipt(r.receipt);
     setTxId(r.txId);
+    setSentAmount(due);
     poll(r.txId);
   };
 
@@ -80,7 +88,7 @@ export default function PayScreen({ reqRef, billing: b, phone, serviceName }: { 
 
       {stage === "pending" && (
         <div className="stack g14" role="status">
-          <p style={{ fontSize: 15, lineHeight: 1.55 }}>{t("side.sent", { amount: rwf(due), phone: `+250 ${prettyMobile(num)}` })}</p>
+          <p style={{ fontSize: 15, lineHeight: 1.55 }}>{t("side.sent", { amount: rwf(sentAmount), phone: `+250 ${prettyMobile(num)}` })}</p>
           <div className="row g10 mut" style={{ fontSize: 14 }}><span className="spin spin-dark" /> {t("side.waiting")}</div>
           <span className="hint">{t("side.keep")}</span>
         </div>
@@ -88,7 +96,7 @@ export default function PayScreen({ reqRef, billing: b, phone, serviceName }: { 
 
       {stage === "paid" && (
         <div className="stack g14" role="status">
-          <div className="row g12"><span className="ok-dot"><Icon name="check" size={22} /></span><p style={{ fontSize: 15, lineHeight: 1.55 }}>{t("side.got", { amount: rwf(due), receipt })}</p></div>
+          <div className="row g12"><span className="ok-dot"><Icon name="check" size={22} /></span><p style={{ fontSize: 15, lineHeight: 1.55 }}>{t("side.got", { amount: rwf(sentAmount), receipt })}</p></div>
           <Link className="btn btn-d" href={`/portal/requests/${reqRef}`}>{t("side.done")}</Link>
         </div>
       )}

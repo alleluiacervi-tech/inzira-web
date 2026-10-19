@@ -3,7 +3,8 @@
 // - "direct": the MTN MoMo and Airtel Money APIs, kept for an account that already has those keys.
 //   Airtel numbers are 072/073; every other Rwandan mobile is treated as MTN.
 // - "simulator" (default outside production, or with INZIRA_DEMO=1): no money moves. The prompt is
-//   "approved" two seconds after it is sent; a number ending in 0000 is "declined".
+//   "approved" two seconds after it is sent; a number ending in 0000 is "declined", and one ending in 1111 is approved
+//   after twelve seconds (time to leave the payment screen and come back to it).
 // The provider is remembered in each transaction's providerRef ("intouch:…", "mtn:…", "airtel:…", "sim:…"),
 // so status checks always go back to the provider that sent the prompt.
 import { randomInt, randomUUID } from "node:crypto";
@@ -30,7 +31,7 @@ const simulator: Provider = {
   async requestToPay() { return {}; },
   async status(id) {
     const [at, phone] = id.split(":");
-    if (Date.now() - Number(at) < 2000) return { status: "pending" };
+    if (Date.now() - Number(at) < (phone.endsWith("1111") ? 12_000 : 2000)) return { status: "pending" };
     return { status: phone.endsWith("0000") ? "failed" : "paid" };
   },
 };

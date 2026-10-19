@@ -357,7 +357,12 @@ await step("customer", async () => {
   check("pay: shows a waiting state", await p.has("Check your phone"));
   await sleep(4500);
   check("pay: a declined prompt says nothing was charged", await p.has("didn’t go through") && await p.has("Nothing was charged"));
-  await p.click("Try again"); await sleep(200); await p.set("#mm", "788 123 456"); await p.click("Send payment prompt"); await sleep(5500);
+  // A number ending 1111 is approved by the simulator after twelve seconds: leave the page while it waits and come back.
+  await p.click("Try again"); await sleep(200); await p.set("#mm", "788 121 111"); await p.click("Send payment prompt"); await sleep(1000);
+  await p.go(await p.ev("location.pathname")); await waitFor(p, "Check your phone", 20);
+  check("pay: coming back to the page shows the prompt still waiting, not a new one", await p.has("Check your phone") && await p.has("788 121 111") && !(await p.has("Send payment prompt")),
+    (await p.ev("document.body.innerText")).replace(/\s+/g, " ").slice(0, 220));
+  await waitFor(p, "Payment received", 100);
   check("pay: success shows a receipt", await p.has("Payment received") && await p.has("INZ-R-22107"));
   await p.click("Done"); await waitFor(p, "Paid RWF 20,000");
   check("pay: the request now reads Paid, from the database", await p.has("Paid RWF 20,000") && !(await p.has("Review and pay")));
