@@ -9,6 +9,7 @@ import { canDeliverEmailCodes, isReservedTestEmail, showsEmailCodeOnScreen } fro
 import { idAsk, idPolicyOf, mentionsNationalId, nationalIdDigits, nationalIdError } from "../lib/identity.ts";
 import { cleanTaxRef, periodsBetween, taxPhase, weekdayOnOrBefore } from "../lib/tax-calendar.ts";
 import { providerFor } from "../lib/payments.ts";
+import { barePath, isIndexable, languageAlternates, withLocale } from "../lib/seo.ts";
 
 let passed = 0;
 const test = (name: string, fn: () => void) => { try { fn(); passed++; } catch (e) { console.error(`FAIL ${name}\n`, e); process.exitCode = 1; } };
@@ -358,6 +359,22 @@ test("tax state: RRA is paid only when the reference is saved", () => {
   assert.equal(taxPhase({ ...base, payRoute: "themselves", paymentRef: "PAY-1" }, "2026-11-20"), "paid");
   assert.equal(cleanTaxRef("1 1995 8 0045123 0 17"), null);
   assert.equal(cleanTaxRef("PAY-190334"), "PAY-190334");
+});
+
+test("english pages live under /en and private pages stay put", () => {
+  assert.equal(barePath("/en/services/criminal-record"), "/services/criminal-record");
+  assert.equal(barePath("/en"), "/");
+  assert.equal(withLocale("en", "/services?category=police"), "/en/services?category=police");
+  assert.equal(withLocale("en", "/#prices"), "/en#prices");
+  assert.equal(withLocale("rw", "/en/about"), "/about");
+  assert.equal(withLocale("en", "/sign-in"), "/sign-in");
+  assert.equal(withLocale("en", "/console/taxes"), "/console/taxes");
+  assert.equal(isIndexable("/sign-in"), false);
+  assert.equal(isIndexable("/en/services"), true);
+  const alt = languageAlternates("https://example.rw", "/services/criminal-record", "en");
+  assert.equal(alt.canonical, "https://example.rw/en/services/criminal-record");
+  assert.equal(alt.languages?.rw, "https://example.rw/services/criminal-record");
+  assert.equal(alt.languages?.["x-default"], "https://example.rw/services/criminal-record");
 });
 
 console.log(process.exitCode ? "unit tests FAILED" : `unit tests ok (${passed})`);

@@ -6,12 +6,14 @@ import { listCategories, listServices } from "@/lib/repo";
 import { OFFICES } from "@/lib/institutions";
 import { FilingRail } from "@/components/FilingRail";
 import { rwf } from "@/lib/format";
-import { isSet, SITE } from "@/lib/site";
+import { isSet, SITE, siteOrigin } from "@/lib/site";
 import { ContactList } from "@/components/Contact";
 import { PriceList } from "@/components/PriceList";
 import { getLocale } from "@/lib/i18n/locale";
 import { text } from "@/lib/i18n/messages";
+import { JsonLd } from "@/components/JsonLd";
 import { localizeCategory, localizeServices, officeText } from "@/lib/i18n/present";
+import { withLocale } from "@/lib/seo";
 
 type T = (path: string, vars?: Record<string, string | number>) => string;
 
@@ -83,8 +85,39 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ a
   const desks = six.flatMap((id) => { const item = browseById.get(id); return item ? [item] : []; });
   const more = ["ebm", "irembo", "other"].flatMap((id) => { const item = browseById.get(id); return item ? [item] : []; });
 
+  const origin = siteOrigin();
+  const pageUrl = (path: string) => (origin ? origin + withLocale(locale, path) : undefined);
   return (
     <>
+      {origin && (
+        <JsonLd data={{
+          "@context": "https://schema.org",
+          "@graph": [
+            {
+              "@type": "Organization",
+              name: SITE.name,
+              legalName: SITE.legalName,
+              url: origin,
+              email: isSet(SITE.email) ? SITE.email : undefined,
+              telephone: isSet(SITE.phone) ? SITE.phone : undefined,
+              areaServed: { "@type": "Country", name: "Rwanda" },
+              address: { "@type": "PostalAddress", addressLocality: SITE.city, addressCountry: "RW" },
+            },
+            {
+              "@type": "WebSite",
+              name: SITE.name,
+              url: origin,
+              inLanguage: locale === "en" ? "en" : "rw",
+              publisher: { "@type": "Organization", name: SITE.legalName },
+              potentialAction: { "@type": "SearchAction", target: `${pageUrl("/services")}?q={search_term_string}`, "query-input": "required name=search_term_string" },
+            },
+            {
+              "@type": "FAQPage",
+              mainEntity: faqs.map(([q, a]) => ({ "@type": "Question", name: t(q), acceptedAnswer: { "@type": "Answer", text: a } })),
+            },
+          ],
+        }} />
+      )}
       <PublicNav />
       <main id="main" className="home">
         {deleted && <div className="wrap" style={{ paddingTop: 20, paddingBottom: 20 }}><Alert kind="ok" title={t("home.deletedTitle")} live>{t("home.deletedBody")}</Alert></div>}
@@ -94,7 +127,7 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ a
             <div className="top-copy">
               <h1 id="hero-h" className="h-hero">{t("home.hero")}</h1>
               <p className="top-lead">{t("home.lead")}</p>
-              <form className="hero-search" role="search" action="/services" method="get">
+              <form className="hero-search" role="search" action={withLocale(locale, "/services")} method="get">
                 <label htmlFor="hero-q" className="hero-search-label">{t("home.searchLabel")}</label>
                 <div className="hero-search-box">
                   <Icon name="search" size={22} />
@@ -105,7 +138,7 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ a
               {popular.length > 0 && (
                 <div className="hero-popular">
                   <span>{t("home.popular")}</span>
-                  <ul>{popular.map((s) => <li key={s.slug}><Link href={`/services/${s.slug}`}>{s.name}</Link></li>)}</ul>
+                  <ul>{popular.map((s) => <li key={s.slug}><Link href={withLocale(locale, `/services/${s.slug}`)}>{s.name}</Link></li>)}</ul>
                 </div>
               )}
               <ul className="top-facts">
@@ -125,7 +158,7 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ a
               offices={OFFICES.map((o) => ({
                 code: o.code,
                 name: officeText(o.code, locale)?.name ?? o.name,
-                href: o.href,
+                href: withLocale(locale, o.href),
                 mark: o.mark,
                 label: o.code === "CIV" ? t("home.filedCivil") : o.code === "RNP" ? "RNP" : null,
               }))}
@@ -143,14 +176,14 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ a
                 <h2 id="browse-h" className="h-2">{t("home.browseTitle")}</h2>
                 <p className="sec-lead">{t("home.browseLead")}</p>
               </div>
-              <Link className="btn btn-s" href="/services">{t("home.viewAll")}<Icon name="arrow" size={16} /></Link>
+              <Link className="btn btn-s" href={withLocale(locale, "/services")}>{t("home.viewAll")}<Icon name="arrow" size={16} /></Link>
             </div>
             <ul className="desk">
               {desks.map(({ c, count, from }) => {
                 const mark = OFFICES.find((o) => (o.cats as readonly string[]).includes(c.id))?.mark ?? null;
                 return (
                   <li key={c.id}>
-                    <Link href={c.href ?? `/services?category=${c.id}`}>
+                    <Link href={withLocale(locale, c.href ?? `/services?category=${c.id}`)}>
                       <span className="desk-markslot">
                         {mark ? <img className="desk-mark" src={mark} alt="" /> : <span className="desk-word">{t("home.filedCivil")}</span>}
                       </span>
@@ -169,7 +202,7 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ a
               <p className="desk-more">
                 <span>{t("home.groupAlso")}</span>
                 {more.map(({ c }) => (
-                  <Link key={c.id} href={c.href ?? `/services?category=${c.id}`}>{c.href ? t("home.notListed") : t(`nav.cat.${c.id}`)}</Link>
+                  <Link key={c.id} href={withLocale(locale, c.href ?? `/services?category=${c.id}`)}>{c.href ? t("home.notListed") : t(`nav.cat.${c.id}`)}</Link>
                 ))}
               </p>
             )}
@@ -242,8 +275,8 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ a
               <h2 id="cta-h" className="h-2">{t("home.closeTitle")}</h2>
               <p className="sec-lead">{t("home.closeLead")}</p>
               <div className="close-ctas">
-                <Link className="btn btn-p btn-lg" href="/services">{t("home.start")}</Link>
-                <Link className="btn btn-s btn-lg" href="/start">{t("home.notListed")}</Link>
+                <Link className="btn btn-p btn-lg" href={withLocale(locale, "/services")}>{t("home.start")}</Link>
+                <Link className="btn btn-s btn-lg" href={withLocale(locale, "/start")}>{t("home.notListed")}</Link>
               </div>
             </div>
             <div className="contact-card">

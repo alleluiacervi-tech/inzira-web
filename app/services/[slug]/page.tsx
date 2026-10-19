@@ -11,14 +11,24 @@ import { getLocale } from "@/lib/i18n/locale";
 import { text } from "@/lib/i18n/messages";
 import { displayOfficial, displayOurs, displayTotal, localizeCategory, localizeService, localizeServices, officeText } from "@/lib/i18n/present";
 import { getService, listCategories, listServices } from "@/lib/repo";
-import { SITE } from "@/lib/site";
+import { JsonLd } from "@/components/JsonLd";
+import { languageAlternates, withLocale } from "@/lib/seo";
+import { SITE, siteOrigin } from "@/lib/site";
 
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const [locale, raw] = await Promise.all([getLocale(), getService((await params).slug)]);
   if (!raw) return {};
   const s = localizeService(raw, locale);
-  return { title: s.name, description: s.summary };
+  const t = (path: string, vars?: Record<string, string | number>) => text(locale, path, vars);
+  const tail = t("meta.serviceTail");
+  const description = s.summary.length + tail.length < 180 ? `${s.summary} ${tail}` : s.summary;
+  const origin = siteOrigin();
+  return {
+    title: t("meta.inPlace", { name: s.name }),
+    description,
+    ...(origin ? { alternates: languageAlternates(origin, `/services/${s.slug}`, locale) } : {}),
+  };
 }
 
 export default async function ServiceDetail({ params }: { params: Promise<{ slug: string }> }) {
@@ -35,13 +45,41 @@ export default async function ServiceDetail({ params }: { params: Promise<{ slug
   const officeName = office ? officeText(office.code, locale)?.name ?? office.name : catName(s.category);
   const related = services.filter((x) => x.slug !== s.slug).sort((a, b) => Number(b.category === s.category) - Number(a.category === s.category)).slice(0, 4);
 
+  const origin = siteOrigin();
+  const pageUrl = (path: string) => (origin ? origin + withLocale(locale, path) : undefined);
+  const crumbs = [
+    { name: t("catalogue.home"), path: "/" },
+    { name: t("nav.services"), path: "/services" },
+    { name: officeName, path: `/services?category=${s.category}` },
+    { name: s.name, path: `/services/${s.slug}` },
+  ];
   return (
     <>
+      {origin && (
+        <JsonLd data={{
+          "@context": "https://schema.org",
+          "@graph": [
+            {
+              "@type": "BreadcrumbList",
+              itemListElement: crumbs.map((c, i) => ({ "@type": "ListItem", position: i + 1, name: c.name, item: pageUrl(c.path) })),
+            },
+            {
+              "@type": "Service",
+              name: s.name,
+              description: s.summary,
+              serviceType: s.name,
+              url: pageUrl(`/services/${s.slug}`),
+              areaServed: { "@type": "Country", name: "Rwanda" },
+              provider: { "@type": "Organization", name: SITE.legalName, url: origin },
+            },
+          ],
+        }} />
+      )}
       <PublicNav />
       <main id="main">
         <div className="wrap" style={{ paddingTop: 28 }}>
           <nav aria-label={t("catalogue.crumb")} className="crumbs">
-            <Link href="/services">{t("nav.services")}</Link><Icon name="right" size={14} /><Link href={`/services?category=${s.category}`}>{officeName}</Link><Icon name="right" size={14} /><span aria-current="page">{s.name}</span>
+            <Link href={withLocale(locale, "/")}>{t("catalogue.home")}</Link><Icon name="right" size={14} /><Link href={withLocale(locale, "/services")}>{t("nav.services")}</Link><Icon name="right" size={14} /><Link href={withLocale(locale, `/services?category=${s.category}`)}>{officeName}</Link><Icon name="right" size={14} /><span aria-current="page">{s.name}</span>
           </nav>
         </div>
         <section className="wrap split svc-main" style={{ ["--aside" as string]: "440px" }}>
@@ -98,7 +136,7 @@ export default async function ServiceDetail({ params }: { params: Promise<{ slug
           </div>
           <aside className="stack g16 sticky-aside">
             <FeeBreakdown official={displayOfficial(s, locale)} officialNote={s.official.note} ours={displayOurs(s, locale)} total={displayTotal(s, locale)}>
-              <Link className="btn btn-p btn-lg" href={`/start/${s.slug}`}>{t("service.start")}</Link>
+              <Link className="btn btn-p btn-lg" href={withLocale(locale, `/start/${s.slug}`)}>{t("service.start")}</Link>
               <span className="hint" style={{ textAlign: "center" }}>{t("service.noPay")}</span>
             </FeeBreakdown>
             {s.official.verifiedAt && <p className="hint row g8" style={{ alignItems: "flex-start" }}><Icon name="calendar" size={16} /><span>{t("service.checked", { who: s.authority, date: fmtDate(s.official.verifiedAt, locale) })}</span></p>}
@@ -116,7 +154,7 @@ export default async function ServiceDetail({ params }: { params: Promise<{ slug
         </section>
         <div className="startbar">
           <span className="stack"><span className="startbar-l">{t("service.assistShort")}</span><strong className="fig startbar-v">{displayOurs(s, locale)}</strong></span>
-          <Link className="btn btn-p btn-lg" href={`/start/${s.slug}`}>{t("service.start")}</Link>
+          <Link className="btn btn-p btn-lg" href={withLocale(locale, `/start/${s.slug}`)}>{t("service.start")}</Link>
         </div>
       </main>
       <Footer />

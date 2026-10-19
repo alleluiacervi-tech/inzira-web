@@ -2,8 +2,12 @@
   "meta": {
     "title": "Inzira — government paperwork, handled for you",
     "description": "Private help in Rwanda with registration, taxes, land, transport permits, police services and certificates. Not a government website. Official fees and our fee are shown separately.",
-    "servicesTitle": "Services",
-    "servicesDescription": "Registration, taxes, land, transport, police and certificates in Rwanda. The official fee and our fee are shown separately before you pay.",
+    "servicesTitle": "Paperwork services in Rwanda",
+    "servicesDescription": "Registration, taxes, land, transport permits, police services and certificates in Kigali. Inzira is a private company. The official fee and our fee are shown separately.",
+    "inPlace": "{name} in Rwanda",
+    "serviceTail": "Private help in Rwanda. The official fee and Inzira’s fee are shown separately.",
+    "aboutTitle": "About Inzira",
+    "aboutDescription": "Inzira Ltd is a private company in Kigali that files government paperwork for you. This is not a magazine and not a government website.",
     "privacyTitle": "Privacy",
     "privacyDescription": "What Inzira keeps about you, how long it stays, and how you ask for it to be deleted.",
     "termsTitle": "Terms",
@@ -70,6 +74,7 @@
     "contact": "Contact",
     "privacy": "Privacy",
     "terms": "Terms",
+    "about": "About",
     "start": "Start a request",
     "track": "Track a request",
     "signIn": "Sign in",
@@ -80,6 +85,19 @@
     "visit": "By appointment in {city}",
     "disclaimer": "Inzira is a private, independent assistance company. We are not Irembo, RRA, RDB, RURA, the land administration or any government institution, and we do not give legal advice. Official fees and taxes are set and collected by the relevant institution; our assistance fee is separate and always shown on its own line.",
     "copy": "© {year} {legal}"
+  },
+  "about": {
+    "h1": "Government paperwork, filed for you in Kigali",
+    "lead": "Inzira Ltd is a private company in Kigali. We check your documents, file the request through the official channel, and send you the result.",
+    "doesT": "What we do",
+    "does": "Registration, taxes, land, transport permits, police services and certificates for people and businesses in Rwanda. You see the official fee and our fee separately before you pay.",
+    "notT": "What we are not",
+    "not": "We are not Irembo, RRA, RDB, RURA, the police, or any government office. We do not look up a national ID, and we do not decide the outcome. The institution does.",
+    "nameT": "The name Inzira",
+    "name": "Other organisations in Rwanda also use the name Inzira, including a magazine and other companies. This website is only the paperwork service of Inzira Ltd in Kigali. We do not speak for those organisations, and they do not speak for us.",
+    "askT": "Ask us",
+    "ask": "Call {phone}, email {email}, or meet us by appointment in {city}.",
+    "more": "Browse services"
   },
   "legal": {
     "privacyTitle": "Privacy",

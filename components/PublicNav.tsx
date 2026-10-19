@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import { ContactList } from "./Contact";
 import { LanguageSwitch } from "./LanguageSwitch";
 import { Icon, Logo } from "./ui";
+import { barePath, withLocale } from "@/lib/seo";
 import { useI18n } from "./I18n";
 import { useDialog } from "./useDialog";
 
@@ -22,7 +23,7 @@ const CATEGORIES = [
 
 export default function PublicNav() {
   const path = usePathname();
-  const { t } = useI18n();
+  const { locale, t } = useI18n();
   const [open, setOpen] = useState(false);
   const [menu, setMenu] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -45,14 +46,15 @@ export default function PublicNav() {
     { href: "/#help", label: t("nav.help") },
     { href: "/track", label: t("nav.track") },
   ];
-  const onServices = path.startsWith("/services");
+  const bare = barePath(path);
+  const onServices = bare === "/services" || bare.startsWith("/services/");
 
   return (
     <>
       <a className="skip" href="#main">{t("nav.skip")}</a>
       <header className="pubnav wrap">
         <div className="row" style={{ gap: 40 }}>
-          <Logo label={t("shell.logo")} />
+          <Logo label={t("shell.logo")} href={withLocale(locale, "/")} />
           <nav aria-label={t("nav.main")} className="pubnav-links">
             <div className="svcmenu" ref={menuRef}>
               <button type="button" className="pub pub-btn" aria-expanded={menu} aria-controls="svc-panel" aria-current={onServices ? "page" : undefined} onClick={() => setMenu(!menu)}>
@@ -63,15 +65,15 @@ export default function PublicNav() {
                   <p className="svc-panel-t">{t("nav.browse")}</p>
                   <ul className="svc-panel-list">
                     {CATEGORIES.map((c) => (
-                      <li key={c.id}><Link href={`/services?category=${c.id}`} className="svc-panel-a"><span className="svc-panel-ico"><Icon name={c.icon} size={20} /></span>{t(`nav.cat.${c.id}`)}</Link></li>
+                      <li key={c.id}><Link href={withLocale(locale, `/services?category=${c.id}`)} className="svc-panel-a"><span className="svc-panel-ico"><Icon name={c.icon} size={20} /></span>{t(`nav.cat.${c.id}`)}</Link></li>
                     ))}
                   </ul>
-                  <Link href="/services" className="svc-panel-all">{t("nav.allServices")}<Icon name="arrow" size={16} /></Link>
+                  <Link href={withLocale(locale, "/services")} className="svc-panel-all">{t("nav.allServices")}<Icon name="arrow" size={16} /></Link>
                 </div>
               )}
             </div>
             {links.map((l) => (
-              <Link key={l.href} className="pub" href={l.href} aria-current={l.href === "/track" && path.startsWith("/track") ? "page" : undefined}>{l.label}</Link>
+              <Link key={l.href} className="pub" href={withLocale(locale, l.href)} aria-current={l.href === "/track" && (bare === "/track" || bare.startsWith("/track/")) ? "page" : undefined}>{l.label}</Link>
             ))}
           </nav>
         </div>
@@ -81,7 +83,7 @@ export default function PublicNav() {
             <LanguageSwitch />
           </div>
           <Link className="btn btn-g" href="/sign-in">{t("nav.signIn")}</Link>
-          {!busy && <Link className="btn btn-p" href="/services">{t("nav.start")}</Link>}
+          {!busy && <Link className="btn btn-p" href={withLocale(locale, "/services")}>{t("nav.start")}</Link>}
         </div>
         <div className="row g4 nav-mob">
           <Link className="btn btn-g" href="/sign-in">{t("nav.signIn")}</Link>
@@ -91,7 +93,7 @@ export default function PublicNav() {
       {open && (
         <div ref={dialog} className="mobmenu" role="dialog" aria-modal="true" aria-label={t("nav.menu")}>
           <div className="row between mobmenu-top">
-            <Logo label={t("shell.logo")} />
+            <Logo label={t("shell.logo")} href={withLocale(locale, "/")} />
             <button className="btn btn-g btn-ico" type="button" aria-label={t("nav.closeMenu")} onClick={() => setOpen(false)}><Icon name="x" size={24} /></button>
           </div>
           <div className="mobmenu-body">
@@ -101,13 +103,13 @@ export default function PublicNav() {
               <input id="mm-q" name="q" type="search" placeholder={t("home.searchLabel")} autoComplete="off" enterKeyHint="search" />
             </form>
             <nav aria-label={t("nav.mobile")} className="stack">
-              <Link className="mm" href="/services" onClick={() => setOpen(false)}>{t("nav.allServices")}<Icon name="right" size={18} /></Link>
+              <Link className="mm" href={withLocale(locale, "/services")} onClick={() => setOpen(false)}>{t("nav.allServices")}<Icon name="right" size={18} /></Link>
               <ul className="mm-cats">
                 {CATEGORIES.map((c) => (
-                  <li key={c.id}><Link href={`/services?category=${c.id}`} onClick={() => setOpen(false)}><Icon name={c.icon} size={18} />{t(`nav.cat.${c.id}`)}</Link></li>
+                  <li key={c.id}><Link href={withLocale(locale, `/services?category=${c.id}`)} onClick={() => setOpen(false)}><Icon name={c.icon} size={18} />{t(`nav.cat.${c.id}`)}</Link></li>
                 ))}
               </ul>
-              {links.map((l) => <Link key={l.href} className="mm" href={l.href} onClick={() => setOpen(false)}>{l.label}<Icon name="right" size={18} /></Link>)}
+              {links.map((l) => <Link key={l.href} className="mm" href={withLocale(locale, l.href)} onClick={() => setOpen(false)}>{l.label}<Icon name="right" size={18} /></Link>)}
             </nav>
             <div className="stack g12" style={{ paddingTop: 20 }}>
               <span className="hint" style={{ fontSize: "var(--fs-sm)" }}>{t("nav.talk")}</span>
@@ -115,7 +117,7 @@ export default function PublicNav() {
             </div>
           </div>
           <div className="mobmenu-foot">
-            <Link className="btn btn-p btn-lg" href="/services" onClick={() => setOpen(false)}>{t("nav.start")}</Link>
+            <Link className="btn btn-p btn-lg" href={withLocale(locale, "/services")} onClick={() => setOpen(false)}>{t("nav.start")}</Link>
             <LanguageSwitch names />
           </div>
         </div>

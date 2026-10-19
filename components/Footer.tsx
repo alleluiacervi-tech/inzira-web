@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { getLocale } from "@/lib/i18n/locale";
 import { text } from "@/lib/i18n/messages";
+import { withLocale } from "@/lib/seo";
 import { isSet, mailUrl, SITE, telUrl, whatsappUrl } from "@/lib/site";
 import { Icon, Logo } from "./ui";
 
@@ -9,7 +10,7 @@ export default async function Footer() {
   const t = (path: string, vars?: Record<string, string | number>) => text(locale, path, vars);
   const cols: [string, [string, string][]][] = [
     [t("footer.services"), [[t("footer.rdb"), "/services?category=rdb"], [t("footer.tax"), "/services?category=tax"], [t("footer.land"), "/services?category=land"], [t("footer.rura"), "/services?category=rura"], [t("footer.police"), "/services?category=police"], [t("footer.papers"), "/services?category=papers"], [t("footer.irembo"), "/services?category=irembo"], [t("footer.all"), "/services"]]],
-    [t("footer.company"), [[t("footer.fees"), "/#prices"], [t("footer.how"), "/#how"], [t("footer.questions"), "/#help"], [t("footer.contact"), "/#talk"], [t("footer.privacy"), "/privacy"], [t("footer.terms"), "/terms"]]],
+    [t("footer.company"), [[t("footer.fees"), "/#prices"], [t("footer.how"), "/#how"], [t("footer.questions"), "/#help"], [t("footer.contact"), "/#talk"], [t("footer.about"), "/about"], [t("footer.privacy"), "/privacy"], [t("footer.terms"), "/terms"]]],
     [t("footer.request"), [[t("footer.start"), "/services"], [t("footer.track"), "/track"], [t("footer.signIn"), "/sign-in"], [t("footer.describe"), "/start"]]],
   ];
   const contact = [
@@ -26,7 +27,7 @@ export default async function Footer() {
       <div className="wrap footer-in">
       <div className="footer-grid">
         <div className="stack g18">
-          <Logo dark label={t("shell.logo")} />
+          <Logo dark label={t("shell.logo")} href={withLocale(locale, "/")} />
           <p style={{ fontSize: 15, lineHeight: 1.6, maxWidth: 320 }}>{t("footer.blurb")}</p>
           <ul className="stack g10 ft-contact" style={{ listStyle: "none", margin: 0, padding: 0, fontSize: 14.5 }}>
             {contact.map((c) => (
@@ -37,7 +38,7 @@ export default async function Footer() {
         {cols.map(([title, items]) => (
           <nav key={title} className="stack g12" aria-label={title}>
             <span style={{ fontSize: 14, fontWeight: 600, color: "var(--on-dark)" }}>{title}</span>
-            {items.map(([l, h]) => <Link key={h + l} className="ft" href={h}>{l}</Link>)}
+            {items.map(([l, h]) => <Link key={h + l} className="ft" href={withLocale(locale, h)}>{l}</Link>)}
           </nav>
         ))}
       </div>
