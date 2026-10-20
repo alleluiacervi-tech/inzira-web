@@ -881,6 +881,11 @@ li:last-child > .c-attn { border-bottom: 0; }
   .console-input, .console-select { min-height: 44px; font-size: 16px; }
 }
 
+.c-alert-pop { position: absolute; right: 0; top: calc(100% + 6px); width: min(380px, calc(100vw - 24px)); z-index: 50; padding: 0; overflow: hidden; box-shadow: var(--shadow-pop); }
+.c-alert-dot { position: absolute; top: 8px; right: 8px; width: 8px; height: 8px; border-radius: 50%; background: var(--c-red); }
+.c-alert-unread { width: 8px; height: 8px; border-radius: 50%; background: var(--c-ember); flex-shrink: 0; margin-top: 6px; }
+.is-search-active { outline: 2px solid var(--c-ember); outline-offset: -2px; }
+
 /* ============ admin › system ============ */
 .sys-sum { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 14px; align-items: center; }
 @media (max-width: 720px) { .sys-sum { grid-template-columns: auto minmax(0, 1fr); } .sys-actions { grid-column: 1 / -1; } }

@@ -21,6 +21,23 @@ export default function Ledger({ initial: rows, now, canRefund }: { initial: Req
   return (
     <>
       {done && <div className="alert t-ok" role="status"><Icon name="check" size={20} /><div className="alert-body"><strong>Refund issued</strong><span>{done}</span></div></div>}
+      <div className="row" style={{ justifyContent: "flex-end", marginBottom: 10 }}>
+        <button type="button" className="btn btn-s btn-sm" onClick={() => {
+          const header = ["Invoice", "Reference", "Customer", "Service", "Official fee", "Our fee", "Method", "Status", "Official receipt"];
+          const lines = rows.map((r) => {
+            const b = r.billing;
+            const receipt = b.officialMode === "direct" ? "Paid by customer" : b.officialMode === "none" ? "n/a" : RECEIPT[b.officialReceipt];
+            return [b.invoice, r.ref, r.profile.name, r.name, String(b.official ?? ""), String(b.ours), b.transactions[0]?.method ?? "", payStatus(b, now), receipt]
+              .map((v) => `"${String(v).replace(/"/g, '""')}"`).join(",");
+          });
+          const blob = new Blob([[header.join(","), ...lines].join("\n")], { type: "text/csv;charset=utf-8;" });
+          const a = document.createElement("a");
+          a.href = URL.createObjectURL(blob);
+          a.download = "inzira-payments.csv";
+          a.click();
+          URL.revokeObjectURL(a.href);
+        }}>Export CSV</button>
+      </div>
       <div className="card table-wrap"><table>
         <thead><tr><th>Invoice</th><th>Customer</th><th>Service</th><th>Official fee</th><th>Our fee</th><th>Method</th><th>Status</th><th>Official receipt</th><th><span className="sr-only">Actions</span></th></tr></thead>
         <tbody>{rows.map((r) => {

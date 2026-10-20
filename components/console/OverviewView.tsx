@@ -169,6 +169,7 @@ function Panel({ id, title, caption, children, action }: { id: string; title: st
 const RANGES: OverviewRange[] = [7, 30, 90];
 
 export function OverviewView({ overview: o }: { overview: AdminOverview }) {
+  const [more, setMore] = useState(false);
   const revenueTrend = o.monthly.map((m) => m.ours);
   const late = o.needsAttention.slaBreached;
   const solo = o.team.length < 2;
@@ -264,6 +265,12 @@ export function OverviewView({ overview: o }: { overview: AdminOverview }) {
         </Panel>
       </div>
 
+      <div>
+        <button type="button" className="c-btn c-btn-ghost c-btn-sm" onClick={() => setMore(!more)} aria-expanded={more}>
+          {more ? "Hide extra results" : "More results"}<Icon name="down" size={14} style={more ? { transform: "rotate(180deg)" } : undefined} />
+        </button>
+      </div>
+      {more && (
       <div className={solo ? "c-grid-2" : "c-grid-main"}>
         <Panel id="cat" title="Open cases by category" caption="Right now">
           {o.byCategory.length ? <BarList rows={o.byCategory} unit={["case", "cases"]} /> : <p className="c-caption">No open requests.</p>}
@@ -284,6 +291,7 @@ export function OverviewView({ overview: o }: { overview: AdminOverview }) {
           ) : <p className="c-caption">Nothing has happened yet.</p>}
         </Panel>
       </div>
+      )}
 
       {!solo && (
         <section className="console-panel" aria-labelledby="team-title">

@@ -119,6 +119,7 @@ async function loadRequests(where?: SQL, locale: Locale = "en"): Promise<Request
       summary: { ...r.summary, title: told(locale, sm, "title", r.summary.title), body: sm && hasPart(sm, "body") ? told(locale, sm, "body", r.summary.body) : legacyText(locale, r.summary.body) },
       next: sm && hasPart(sm, "next") ? told(locale, sm, "next", r.next) : legacyText(locale, r.next),
       followUp: r.followUp ?? undefined,
+      handover: r.handover ?? undefined,
       billing: {
         invoice: r.invoice, official: r.official, officialMode: r.officialMode ?? undefined, officialLabel: r.officialLabel, ours: r.ours, oursStandard: r.oursStandard,
         oursUnit: r.oursUnit ?? undefined, oursNote: r.oursNote ?? undefined, quote: r.quote, dueAt: iso(r.dueAt), officialReceipt: r.officialReceipt,
@@ -149,7 +150,7 @@ async function loadRequests(where?: SQL, locale: Locale = "en"): Promise<Request
 
 /** Drops everything a customer must never receive. */
 function forCustomer(r: RequestView): CustomerRequest {
-  const { notes: _notes, followUp: _followUp, idReviewNote: _note, idReviewedBy: _by, ...rest } = r;
+  const { notes: _notes, followUp: _followUp, handover: _handover, idReviewNote: _note, idReviewedBy: _by, ...rest } = r;
   return rest;
 }
 const byUpdated = (a: RequestView, b: RequestView) => Date.parse(b.updatedAt) - Date.parse(a.updatedAt);

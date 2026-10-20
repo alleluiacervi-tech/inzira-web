@@ -10,6 +10,8 @@ import { idAsk, idPolicyOf, mentionsNationalId, nationalIdDigits, nationalIdErro
 import { cleanTaxRef, periodsBetween, taxPhase, weekdayOnOrBefore } from "../lib/tax-calendar.ts";
 import { providerFor } from "../lib/payments.ts";
 import { barePath, isIndexable, languageAlternates, withLocale } from "../lib/seo.ts";
+import { customerWhatsAppUrl, defaultFollowUpAt, deskChecks, fromKigaliDateTime, handoverRequired, kigaliDateTimeParts, nextKind, nextSentence, stageTargetRows } from "../lib/desk.ts";
+import { text as i18nText } from "../lib/i18n/messages.ts";
 
 let passed = 0;
 const test = (name: string, fn: () => void) => { try { fn(); passed++; } catch (e) { console.error(`FAIL ${name}\n`, e); process.exitCode = 1; } };
@@ -359,6 +361,79 @@ test("tax state: RRA is paid only when the reference is saved", () => {
   assert.equal(taxPhase({ ...base, payRoute: "themselves", paymentRef: "PAY-1" }, "2026-11-20"), "paid");
   assert.equal(cleanTaxRef("1 1995 8 0045123 0 17"), null);
   assert.equal(cleanTaxRef("PAY-190334"), "PAY-190334");
+});
+
+// ---- staff desk: next action, checklist, handover, Kigali follow-up, WhatsApp
+const t = (path: string, vars?: Record<string, string | number>) => i18nText("en", path, vars);
+const caseOf = (over: Record<string, unknown> = {}) => ({
+  closed: undefined, stage: "checking", hold: undefined, idReview: undefined, documents: [],
+  billing: { ...base }, officialRef: undefined, next: "An agent checks your documents.",
+  flow: ["received", "checking", "preparing", "institution", "completed"],
+  ...over,
+});
+test("nextKind: hold, ID, documents, fees, then the stage", () => {
+  assert.deepEqual(nextKind(caseOf({ closed: { kind: "cancelled", at: "2026-01-01T00:00:00Z" } }) as never), { kind: "closed" });
+  assert.deepEqual(nextKind(caseOf({ stage: "completed" }) as never), { kind: "completed" });
+  assert.deepEqual(nextKind(caseOf({ hold: { reason: "document" } }) as never), { kind: "hold", reason: "document" });
+  assert.deepEqual(nextKind(caseOf({ idReview: "correction" }) as never), { kind: "id_correction" });
+  assert.deepEqual(nextKind(caseOf({ documents: [{ name: "Passport photo", status: "rejected" }] }) as never), { kind: "docs_rejected", name: "Passport photo" });
+  assert.deepEqual(nextKind(caseOf({ documents: [{ required: true, status: "required", name: "Lease" }] }) as never), { kind: "docs_needed", n: 1 });
+  assert.deepEqual(nextKind(caseOf({ billing: { ...base, quote: "confirmed" } }) as never), { kind: "pay", amount: 20000 });
+  assert.deepEqual(nextKind(caseOf({ billing: { ...base, transactions: [tx("paid", 5000, 15000)] }, stage: "institution", officialRef: "RDB-1" }) as never), { kind: "institution", officialRef: "RDB-1" });
+  assert.deepEqual(nextKind(caseOf({ billing: { ...base, quote: "estimate" } }) as never), { kind: "stage", stage: "checking" });
+});
+test("nextSentence: customer copy follows nextKind, and Kinyarwanda keeps the same keys", () => {
+  assert.equal(nextSentence(caseOf({ hold: { reason: "payment" }, next: "ignored" }) as never, t), "Pay the confirmed fees so we can continue.");
+  assert.equal(nextSentence(caseOf({ documents: [{ required: true, status: "required" }] }) as never, t), "Upload 1 required document(s).");
+  assert.equal(nextSentence(caseOf({ billing: { ...base } }) as never, t), "Pay RWF 20,000 in the portal.");
+  assert.equal(nextSentence(caseOf({ billing: { ...base, transactions: [tx("paid", 5000, 15000)] }, stage: "institution", officialRef: "X-9" }) as never, t), "We filed it. Waiting on the institution (ref X-9).");
+  assert.equal(nextSentence(caseOf({ billing: { ...base, quote: "estimate" }, stage: "received" }) as never, t), "An agent will take this within two working hours.");
+  assert.equal(nextSentence(caseOf({ closed: { kind: "cancelled" }, next: "Closed." }) as never, t), "Closed.");
+  const rw = (path: string, vars?: Record<string, string | number>) => i18nText("rw", path, vars);
+  assert.equal(nextSentence(caseOf({ hold: { reason: "information" } }) as never, rw), "Subiza umukozi wawe.");
+});
+test("deskChecks: documents, quote, our fee, official reference, official receipt", () => {
+  const now = "2026-06-01T00:00:00Z";
+  const open = deskChecks(caseOf({
+    documents: [{ required: true, status: "required" }, { required: true, status: "approved" }],
+    billing: { ...base, quote: "estimate", officialReceipt: "awaiting" },
+    stage: "preparing",
+  }) as never, now);
+  assert.equal(open.find((c) => c.id === "docs")?.done, false);
+  assert.equal(open.find((c) => c.id === "quote")?.done, false);
+  assert.equal(open.find((c) => c.id === "pay")?.done, false);
+  assert.equal(open.find((c) => c.id === "officialRef")?.done, false);
+  assert.equal(open.find((c) => c.id === "receipt")?.done, false);
+  const done = deskChecks(caseOf({
+    documents: [{ required: true, status: "approved" }],
+    billing: { ...base, quote: "confirmed", officialReceipt: "attached", transactions: [tx("paid", 5000, 15000)] },
+    officialRef: "RDB-22",
+    stage: "institution",
+  }) as never, now);
+  assert.ok(done.every((c) => c.done));
+  const free = deskChecks(caseOf({ billing: { ...base, ours: 0, quote: "confirmed", officialMode: "none" }, flow: ["received", "completed"], stage: "received" }) as never, now);
+  assert.equal(free.find((c) => c.id === "pay")?.done, true);
+  assert.equal(free.find((c) => c.id === "officialRef")?.done, true);
+  assert.equal(free.find((c) => c.id === "receipt")?.done, true);
+});
+test("handover is only required when a named agent hands to a different named agent", () => {
+  assert.equal(handoverRequired(null, "s2"), false);
+  assert.equal(handoverRequired("s1", null), false);
+  assert.equal(handoverRequired("s1", "s1"), false);
+  assert.equal(handoverRequired("s1", "s2"), true);
+});
+test("follow-up times are tomorrow 10:00 Kigali and round-trip", () => {
+  assert.equal(defaultFollowUpAt(Date.parse("2026-06-01T08:00:00Z")), "2026-06-02T08:00:00.000Z");
+  assert.deepEqual(kigaliDateTimeParts("2026-06-02T08:00:00.000Z"), { date: "2026-06-02", time: "10:00" });
+  assert.equal(fromKigaliDateTime("2026-06-02", "10:00"), "2026-06-02T08:00:00.000Z");
+  assert.equal(fromKigaliDateTime("bad", "10:00"), null);
+  assert.equal(fromKigaliDateTime("2026-06-02", "99:99"), null);
+});
+test("customer WhatsApp link is a Rwanda mobile number with the case reference", () => {
+  assert.equal(customerWhatsAppUrl("788123456", "INZ-1"), "https://wa.me/250788123456?text=" + encodeURIComponent("Hello, this is Inzira about INZ-1."));
+  assert.equal(customerWhatsAppUrl("+250 788 123 456", "INZ-1"), customerWhatsAppUrl("0788123456", "INZ-1"));
+  assert.equal(customerWhatsAppUrl("123", "INZ-1"), null);
+  assert.deepEqual(stageTargetRows({ received: 2, checking: 4, preparing: 24, institution: 72, completed: 0 }).map((r) => r.stage), ["received", "checking", "preparing", "institution", "completed"]);
 });
 
 test("english pages live under /en and private pages stay put", () => {

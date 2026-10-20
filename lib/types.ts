@@ -194,6 +194,10 @@ export type Request = {
   /** Internal. Never sent to the customer. */
   notes: Note[];
   followUp?: { at: string; what: string };
+  handover?: { at: string; by: string; body: string };
+};
+export type StaffAlert = {
+  id: string; icon: string; title: string; body?: string; href: string; ref?: string; at: string; unread: boolean;
 };
 
 /** A request joined with the records it points to. This is what staff screens receive. */
@@ -205,7 +209,7 @@ export type RequestView = Request & {
   labels: Partial<Record<Stage, string>>;
 };
 /** What the customer's own screens receive: the same request without internal fields. */
-export type CustomerRequest = Omit<RequestView, "notes" | "followUp" | "idReviewNote" | "idReviewedBy">;
+export type CustomerRequest = Omit<RequestView, "notes" | "followUp" | "handover" | "idReviewNote" | "idReviewedBy">;
 
 export type LibraryDoc = {
   key: string; ref: string; name: string; group: DocGroup;

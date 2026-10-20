@@ -13,7 +13,7 @@ import { sendSms } from "@/lib/sms";
 import { runAndRecord } from "@/lib/jobs";
 import { allow } from "@/lib/ratelimit";
 import { idPolicyOf } from "@/lib/identity";
-import type { Service, StaffRole } from "@/lib/types";
+import { STAGES, type Service, type StaffRole, type Stage } from "@/lib/types";
 
 /** The usual steps, for a new service that has none yet. */
 const defaultSteps = (channel: string, authority: string): Service["steps"] => [
@@ -204,4 +204,25 @@ export async function runJobNow(): Promise<Result<{ summary: string }>> {
   const parts = ([["payments", "settled", "payment settled", "payments settled"], ["overdue", "held", "overdue request put on hold", "overdue requests put on hold"], ["retention", "deleted", "old document deleted", "old documents deleted"], ["digest", "sent", "staff summary sent", "staff summaries sent"]] as const)
     .map(([k, f, one, many]) => [n(k, f), one, many] as const).filter(([c]) => c > 0).map(([c, one, many]) => `${c} ${c === 1 ? one : many}`);
   return { ok: true, summary: parts.length ? `${parts.join(", ")}.` : "nothing needed doing." };
+}
+
+/** Hours a case may stay in each stage before it is late. Zero means no clock. */
+export async function saveStageTargets(hours: Partial<Record<Stage, number>>): Promise<Result> {
+  const a = await admin("manageStaff");
+  if ("error" in a) return fail(a.error!);
+  const rows = STAGES.map((stage) => {
+    const n = Number(hours[stage]);
+    return { stage, targetHours: Number.isFinite(n) && n >= 0 ? Math.round(n) : null };
+  });
+  if (rows.some((r) => r.targetHours === null)) return fail("Stage targets must be zero or a number of hours.");
+  await a.d.transaction(async (tx) => {
+    for (const r of rows) {
+      await tx.insert(s.stageTargets).values({ stage: r.stage, targetHours: r.targetHours!, updatedAt: new Date().toISOString() })
+        .onConflictDoUpdate({ target: s.stageTargets.stage, set: { targetHours: r.targetHours!, updatedAt: new Date().toISOString() } });
+    }
+    await audit(tx, { actor: a.me.name, role: a.me.role, action: "Updated stage targets", entity: rows.map((r) => `${r.stage} ${r.targetHours}h`).join(", ") });
+  });
+  revalidatePath("/admin/system");
+  revalidatePath("/console", "layout");
+  return { ok: true };
 }

@@ -177,6 +177,19 @@ async function addLaterObjects(database: Db) {
     )`,
     `CREATE UNIQUE INDEX IF NOT EXISTS "tax_periods_watch_period" ON "tax_periods" ("watch_id", "period_key")`,
     `CREATE INDEX IF NOT EXISTS "tax_periods_work_by_idx" ON "tax_periods" USING btree ("work_by")`,
+    `ALTER TABLE "requests" ADD COLUMN IF NOT EXISTS "handover" jsonb`,
+    `CREATE TABLE IF NOT EXISTS "staff_notifications" (
+      "id" serial PRIMARY KEY NOT NULL,
+      "staff_id" text NOT NULL REFERENCES "staff"("id"),
+      "icon" text NOT NULL,
+      "title" text NOT NULL,
+      "body" text,
+      "href" text NOT NULL,
+      "ref" text,
+      "at" timestamp with time zone DEFAULT now() NOT NULL,
+      "unread" boolean DEFAULT true NOT NULL
+    )`,
+    `CREATE INDEX IF NOT EXISTS "staff_notifications_staff_idx" ON "staff_notifications" ("staff_id", "unread", "at")`,
   ];
   for (const statement of statements) await database.execute(sql.raw(statement));
 }

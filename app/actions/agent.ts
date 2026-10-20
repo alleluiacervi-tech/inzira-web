@@ -15,6 +15,7 @@ import { enqueue, sendSoon } from "@/lib/outbox";
 import { idAsk, idPolicyOf } from "@/lib/identity";
 import { getService } from "@/lib/repo";
 import { ALLOWED, MAX_BYTES, checkUpload, deleteFile, humanSize, putFile, sniffType } from "@/lib/storage";
+import { defaultFollowUpAt, followUpWhen, handoverRequired } from "@/lib/desk";
 import { STAGES, type Closed, type Hold, type Stage } from "@/lib/types";
 
 /** Loads a case for the signed-in staff member, if they may see it and hold `perm`. */
@@ -129,14 +130,26 @@ export async function markSubmitted(ref: string, channel: string, officialRef: s
   return done(ref);
 }
 
-export async function scheduleFollowUp(ref: string, what: string): Promise<Result> {
+export async function scheduleFollowUp(ref: string, what: string, at?: string): Promise<Result> {
   const w = await work(ref, "viewAssigned");
   if ("error" in w) return fail(w.error!);
-  // Tomorrow at 10:00 Kigali time (UTC+2).
-  const t = new Date(Date.now() + 864e5); t.setUTCHours(8, 0, 0, 0);
+  const when = at && Number.isFinite(Date.parse(at)) ? new Date(at).toISOString() : defaultFollowUpAt();
+  if (Date.parse(when) < Date.now() - 60e3) return fail("Pick a time that is still ahead.");
+  const note = what.trim() || "Follow up";
   await w.d.transaction(async (tx) => {
-    await tx.update(s.requests).set({ followUp: { at: t.toISOString(), what: what.trim() || "Follow up" } }).where(eq(s.requests.ref, ref));
-    await event(tx, ref, msg("ev.followUp"), w.me.id);
+    await tx.update(s.requests).set({ followUp: { at: when, what: note } }).where(eq(s.requests.ref, ref));
+    await event(tx, ref, msg("ev.followUp", { when: followUpWhen(when) }), w.me.id, note);
+  });
+  return done(ref);
+}
+
+export async function clearFollowUp(ref: string): Promise<Result> {
+  const w = await work(ref, "viewAssigned");
+  if ("error" in w) return fail(w.error!);
+  if (!w.r.followUp) return { ok: true };
+  await w.d.transaction(async (tx) => {
+    await tx.update(s.requests).set({ followUp: null }).where(eq(s.requests.ref, ref));
+    await event(tx, ref, msg("ev.followUpCleared"), w.me.id);
   });
   return done(ref);
 }
@@ -149,14 +162,23 @@ export async function addNote(ref: string, body: string): Promise<Result> {
   return done(ref);
 }
 
-export async function assignCase(ref: string, agentId: string | null): Promise<Result> {
+export async function assignCase(ref: string, agentId: string | null, handover?: string): Promise<Result> {
   const w = await work(ref, "assign");
   if ("error" in w) return fail(w.error!);
   const agent = agentId ? await assignableStaff(w.d, agentId) : null;
   if (agentId && !agent) return fail("That person can’t take cases.");
+  const note = handover?.trim() ?? "";
+  if (handoverRequired(w.r.agentId, agentId) && !note) return fail("Write a one-line handover for the person taking this case.");
   await w.d.transaction(async (tx) => {
-    await tx.update(s.requests).set({ agentId }).where(eq(s.requests.ref, ref));
+    await tx.update(s.requests).set({
+      agentId,
+      ...(note ? { handover: { at: now(), by: w.me.id, body: note } } : {}),
+    }).where(eq(s.requests.ref, ref));
     await event(tx, ref, agent ? msg("ev.assigned", { name: agent.name }) : msg("ev.unassigned"), w.me.id);
+    if (note) {
+      await event(tx, ref, msg("ev.handover"), w.me.id, note);
+      await tx.insert(s.notes).values({ ref, by: w.me.id, body: `Handover: ${note}` });
+    }
     await audit(tx, { actor: w.me.name, role: w.me.role, action: "Assigned case", entity: `${ref} → ${agent?.name ?? "nobody"}` });
   });
   return done(ref);

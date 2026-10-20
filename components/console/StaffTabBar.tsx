@@ -19,7 +19,7 @@ export function StaffTabBar({ user, permissions, inboxCount = 0 }: { user: Staff
     can("assign") && can("viewAll")
       ? { href: "/console/inbox", label: "Inbox", icon: "inbox", on: path === "/console/inbox", badge: inboxCount }
       : { href: "/console/clients", label: "Clients", icon: "users", on: path.startsWith("/console/clients") },
-    { href: "/console/clients", label: "Clients", icon: "users", on: path.startsWith("/console/clients") },
+    ...(can("assign") && can("viewAll") ? [{ href: "/console/clients", label: "Clients", icon: "users", on: path.startsWith("/console/clients") }] : []),
   ].filter((t, i, all) => all.findIndex((x) => x.href === t.href) === i);
 
   return (

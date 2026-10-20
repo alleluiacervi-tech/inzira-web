@@ -21,6 +21,7 @@ export function GlobalSearch({
   const [q, setQ] = useState("");
   const [results, setResults] = useState<SearchResult>({ requests: [], clients: [], services: [] });
   const [loading, setLoading] = useState(false);
+  const [active, setActive] = useState(0);
 
   useEffect(() => {
     if (!open) {
@@ -32,6 +33,7 @@ export function GlobalSearch({
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
     };
+    setActive(0);
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [open, onClose]);
@@ -46,6 +48,7 @@ export function GlobalSearch({
       try {
         const res = await onSearch(q);
         setResults(res);
+        setActive(0);
       } finally {
         setLoading(false);
       }
@@ -55,7 +58,18 @@ export function GlobalSearch({
 
   if (!open) return null;
 
-  const totalResults = results.requests.length + results.clients.length + results.services.length;
+  const hits = [
+    ...results.requests.map((r) => ({ key: r.ref, href: `/console/requests/${r.ref}` })),
+    ...results.clients.map((c) => ({ key: c.id, href: `/console/clients/${c.id}` })),
+    ...results.services.map((s) => ({ key: s.slug, href: `/services/${s.slug}` })),
+  ];
+  const totalResults = hits.length;
+  const onInputKey = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "ArrowDown") { e.preventDefault(); setActive((i) => (hits.length ? (i + 1) % hits.length : 0)); }
+    if (e.key === "ArrowUp") { e.preventDefault(); setActive((i) => (hits.length ? (i - 1 + hits.length) % hits.length : 0)); }
+    if (e.key === "Enter" && hits[active]) { e.preventDefault(); onClose(); window.location.href = hits[active].href; }
+  };
+  const rowClass = (href: string) => `row between g10 console-nav-item${hits[active]?.href === href ? " is-search-active" : ""}`;
 
   return (
     <div className="console-dialog-overlay" onClick={onClose} role="dialog" aria-modal="true" aria-label="Global Search">
@@ -71,6 +85,7 @@ export function GlobalSearch({
             autoFocus
             value={q}
             onChange={(e) => setQ(e.target.value)}
+            onKeyDown={onInputKey}
             placeholder="Search requests, clients, services... (ESC to close)"
             style={{ border: 0, outline: 0, fontSize: 15, width: "100%", background: "transparent" }}
           />
@@ -100,7 +115,7 @@ export function GlobalSearch({
                   key={r.ref}
                   href={`/console/requests/${r.ref}`}
                   onClick={onClose}
-                  className="row between g10 console-nav-item"
+                  className={rowClass(`/console/requests/${r.ref}`)}
                   style={{ margin: 0, padding: "8px 12px", background: "var(--c-surface)", border: "1px solid var(--c-border)" }}
                 >
                   <div className="stack" style={{ gap: 2 }}>
@@ -125,7 +140,7 @@ export function GlobalSearch({
                   key={c.id}
                   href={`/console/clients/${c.id}`}
                   onClick={onClose}
-                  className="row between g10 console-nav-item"
+                  className={rowClass(`/console/clients/${c.id}`)}
                   style={{ margin: 0, padding: "8px 12px", background: "var(--c-surface)", border: "1px solid var(--c-border)" }}
                 >
                   <div className="stack" style={{ gap: 2 }}>
@@ -147,7 +162,7 @@ export function GlobalSearch({
                   key={s.slug}
                   href={`/services/${s.slug}`}
                   onClick={onClose}
-                  className="row between g10 console-nav-item"
+                  className={rowClass(`/services/${s.slug}`)}
                   style={{ margin: 0, padding: "8px 12px", background: "var(--c-surface)", border: "1px solid var(--c-border)" }}
                 >
                   <strong style={{ fontSize: 13.5 }}>{s.name}</strong>

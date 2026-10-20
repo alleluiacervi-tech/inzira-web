@@ -4,6 +4,7 @@ import { useEffect, useState, useTransition } from "react";
 import {
   addNote,
   assignCase,
+  clearFollowUp,
   clearHold,
   closeCase,
   markSubmitted,
@@ -15,6 +16,7 @@ import {
   setStage,
   uploadCaseFile,
 } from "@/app/actions/agent";
+import { customerWhatsAppUrl, deskChecks, handoverRequired, MESSAGE_TEMPLATES } from "@/lib/desk";
 import { markIdChecked, revealNationalId, reviewIdentity } from "@/app/actions/console";
 import { Icon } from "@/components/ui";
 import { billOfficial, billOurs, fmtAgo, fmtMonth, fmtWhen, initials, rwf, shortName } from "@/lib/format";
@@ -23,6 +25,7 @@ import { payStatus, stageLabel } from "@/lib/status";
 import type { Closed, IdReview, RequestView, Staff, Stage } from "@/lib/types";
 import { RequestStatusBadge, PaymentStatusBadge, DocStatusBadge } from "./StatusBadge";
 import { ConfirmDialog } from "./ConfirmDialog";
+import { FollowUpDialog } from "./FollowUpDialog";
 import { Timeline } from "./Timeline";
 import { Toast } from "./Toast";
 import { RecordPaymentModal } from "./RecordPaymentModal";
@@ -70,6 +73,8 @@ export function RequestDetailView({
   const [closeDialogOpen, setCloseDialogOpen] = useState(false);
   const [manualPayOpen, setManualPayOpen] = useState(false);
   const [closeKind, setCloseKind] = useState<Closed["kind"]>("cancelled");
+  const [followOpen, setFollowOpen] = useState(false);
+  const [handoverFor, setHandoverFor] = useState<string | null>(null);
 
   // Form states
   const [msg, setMsg] = useState("");
@@ -176,6 +181,7 @@ export function RequestDetailView({
                 disabled={!can("assign") || busy}
                 onChange={(e) => {
                   const val = e.target.value || null;
+                  if (handoverRequired(c.agentId, val)) { setHandoverFor(val); return; }
                   run(val ? `Assigned to ${shortName(agents.find((a) => a.id === val)?.name ?? "")}` : "Unassigned", () => assignCase(c.ref, val));
                 }}
               >
@@ -247,16 +253,16 @@ export function RequestDetailView({
 
           <div className="row g6 wrapx" style={{ alignItems: "center" }}>
             {c.followUp && !finished && (
-              <span className="c-caption" title={c.followUp.what}>Follow-up {fmtWhen(c.followUp.at, now)}</span>
+              <span className="c-caption" title={c.followUp.what}>Reminder {fmtWhen(c.followUp.at, now)}</span>
             )}
             <button
               type="button"
               className="c-btn c-btn-secondary c-btn-sm"
               disabled={finished || busy}
-              onClick={() => run("Follow-up set for tomorrow 10:00", () => scheduleFollowUp(c.ref, `Follow up on ${c.ref}`))}
+              onClick={() => setFollowOpen(true)}
             >
               <Icon name="clock" size={13} />
-              <span>Follow-up</span>
+              <span>{c.followUp ? "Edit reminder" : "Remind me"}</span>
             </button>
             <button
               type="button"
@@ -276,6 +282,15 @@ export function RequestDetailView({
           <div className="c-notice-body">
             <span className="c-notice-title">{closed.kind === "rejected" ? "Rejected by the institution" : "Cancelled"} · {fmtWhen(closed.at, now)}</span>
             <span>{closed.reason}</span>
+          </div>
+        </div>
+      )}
+      {c.handover && (
+        <div className="c-notice c-notice-neutral" role="status">
+          <Icon name="users" size={18} />
+          <div className="c-notice-body">
+            <span className="c-notice-title">Handover · {fmtWhen(c.handover.at, now)}</span>
+            <span>{c.handover.body}</span>
           </div>
         </div>
       )}
@@ -330,6 +345,20 @@ export function RequestDetailView({
       {/* 2. Tab Content Panels */}
       {activeTab === "overview" && (
         <div className="grid cols-2" style={{ gap: 20, alignItems: "start" }}>
+          <div className="console-panel stack g12" style={{ padding: 18, gridColumn: "1 / -1" }}>
+            <h3 className="console-section-title" style={{ margin: 0 }}>Desk checklist</h3>
+            <ul className="c-list">
+              {deskChecks(c, now).map((item) => (
+                <li key={item.id} className="row between g12" style={{ padding: "8px 0" }}>
+                  <span className="stack" style={{ gap: 1 }}>
+                    <strong className="c-list-name">{item.label}</strong>
+                    <span className="c-caption">{item.detail}</span>
+                  </span>
+                  <span className={`c-badge ${item.done ? "c-badge-green" : "c-badge-amber"}`}>{item.done ? "Done" : "Open"}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
           {/* Customer & Service Summary */}
           <div className="stack g16">
             <div className="console-panel stack g14" style={{ padding: 18 }}>
@@ -397,7 +426,9 @@ export function RequestDetailView({
               </div>
               <div className="row g8">
                 <a className="c-btn c-btn-secondary c-btn-sm grow" href={`tel:+${phone}`}><Icon name="phone" size={14} /> Call</a>
-                <a className="c-btn c-btn-secondary c-btn-sm grow" href={`https://wa.me/${phone}`} target="_blank" rel="noopener"><Icon name="msg" size={14} /> WhatsApp</a>
+                {customerWhatsAppUrl(c.account.phone || c.profile.phone || "", c.ref)
+                  ? <a className="c-btn c-btn-secondary c-btn-sm grow" href={customerWhatsAppUrl(c.account.phone || c.profile.phone || "", c.ref)!} target="_blank" rel="noopener"><Icon name="msg" size={14} /> WhatsApp</a>
+                  : <a className="c-btn c-btn-secondary c-btn-sm grow" href={`https://wa.me/${phone}`} target="_blank" rel="noopener"><Icon name="msg" size={14} /> WhatsApp</a>}
               </div>
             </div>
 
@@ -686,16 +717,16 @@ export function RequestDetailView({
           {!finished && (
             <div className="stack g10" style={{ padding: "14px 18px", borderTop: "1px solid var(--c-border)", background: "var(--c-bg)" }}>
               <div className="row g6 wrapx">
-                <span style={{ fontSize: 12, fontWeight: 600, color: "var(--c-text-muted)" }}>Canned replies:</span>
-                {["Mwiriwe, please upload a clearer copy of your ID.", "Official application submitted, awaiting approval."].map((qk) => (
+                <span style={{ fontSize: 12, fontWeight: 600, color: "var(--c-text-muted)" }}>Templates:</span>
+                {MESSAGE_TEMPLATES.map((qk) => (
                   <button
-                    key={qk}
+                    key={qk.id}
                     type="button"
                     className="c-btn c-btn-ghost c-btn-sm"
                     style={{ fontSize: 12 }}
-                    onClick={() => setMsg(qk)}
+                    onClick={() => setMsg(qk.body)}
                   >
-                    “{qk.slice(0, 30)}...”
+                    {qk.label}
                   </button>
                 ))}
               </div>
@@ -735,7 +766,10 @@ export function RequestDetailView({
         <div className="grid cols-2" style={{ gap: 20, alignItems: "start" }}>
           {/* Fees Breakdown & Quote */}
           <div className="console-panel stack g14" style={{ padding: 18 }}>
-            <h3 className="console-section-title" style={{ margin: 0 }}>Fee breakdown (Two lines)</h3>
+            <div className="row between g8">
+              <h3 className="console-section-title" style={{ margin: 0 }}>Fee breakdown (Two lines)</h3>
+              <Link href={`/console/requests/${c.ref}/receipt`} className="c-btn c-btn-ghost c-btn-sm">Receipt</Link>
+            </div>
 
             {c.billing.officialMode ? (
               <div className="row between g12" style={{ fontSize: 13.5 }}>
@@ -996,6 +1030,32 @@ export function RequestDetailView({
           ))}
         </fieldset>
       </ConfirmDialog>
+
+      <FollowUpDialog
+        open={followOpen}
+        initial={c.followUp}
+        busy={busy}
+        onClose={() => setFollowOpen(false)}
+        onSave={(at, what) => run(`Reminder set for ${fmtWhen(at, now)}`, () => scheduleFollowUp(c.ref, what, at), () => setFollowOpen(false))}
+        onClear={() => run("Reminder cleared", () => clearFollowUp(c.ref), () => setFollowOpen(false))}
+      />
+
+      <ConfirmDialog
+        open={handoverFor !== null}
+        onClose={() => setHandoverFor(null)}
+        onConfirm={(reason) => {
+          const id = handoverFor;
+          if (!id) return;
+          run(`Assigned to ${shortName(agents.find((a) => a.id === id)?.name ?? "")}`, () => assignCase(c.ref, id, reason), () => setHandoverFor(null));
+        }}
+        title="Handover this case"
+        description={`Tell ${shortName(agents.find((a) => a.id === handoverFor)?.name ?? "the next agent")} what you already did and what is left.`}
+        confirmLabel="Assign with handover"
+        requireReason
+        reasonLabel="Handover note"
+        reasonPlaceholder="e.g. ID approved. Waiting on the lease. Official fee not quoted yet."
+        busy={busy}
+      />
 
       {/* Record Manual Payment Modal */}
       <RecordPaymentModal

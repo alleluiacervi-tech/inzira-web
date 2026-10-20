@@ -16,9 +16,6 @@ export default function StaffShell({
   openCasesCount = 0,
   identityCount = 0,
   taxCount = 0,
-  unreadNotifications = 0,
-  dateRange,
-  onDateRangeChange,
   children,
 }: {
   user: Staff;
@@ -27,9 +24,6 @@ export default function StaffShell({
   openCasesCount?: number;
   identityCount?: number;
   taxCount?: number;
-  unreadNotifications?: number;
-  dateRange?: number;
-  onDateRangeChange?: (days: number) => void;
   children: ReactNode;
 }) {
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -54,9 +48,6 @@ export default function StaffShell({
           <TopBar
             user={user}
             permissions={permissions}
-            unreadNotifications={unreadNotifications}
-            dateRange={dateRange}
-            onDateRangeChange={onDateRangeChange}
             onOpenNewClient={() => setClientModalOpen(true)}
             onOpenRecordPayment={() => setPaymentModalOpen(true)}
             onToggleMobileMenu={() => setMobileOpen(!mobileOpen)}

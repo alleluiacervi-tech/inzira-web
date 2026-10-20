@@ -12,7 +12,8 @@ import { english, feeVars, msg, sms } from "@/lib/i18n/stored";
 import { audit, db, event, fail, notify, s, type Result } from "@/lib/mutate";
 import { PERMISSIONS, type Permission } from "@/lib/permissions";
 import { searchGlobal } from "@/lib/repo";
-import type { Closed, PayMethod } from "@/lib/types";
+import { listStaffAlerts, markStaffAlertsRead, unreadStaffAlertCount } from "@/lib/staff-alerts";
+import type { Closed, PayMethod, StaffAlert } from "@/lib/types";
 
 const now = () => new Date().toISOString();
 const NOT_FOUND = "Request not found.";
@@ -60,6 +61,21 @@ export async function searchConsole(q: string) {
   const a = await staffAction("viewAssigned");
   if ("error" in a) return { requests: [], clients: [], services: [] };
   return searchGlobal(q);
+}
+
+export async function listMyStaffAlerts(): Promise<{ alerts: StaffAlert[]; unread: number }> {
+  const a = await staffAction();
+  if ("error" in a) return { alerts: [], unread: 0 };
+  const [alerts, unread] = await Promise.all([listStaffAlerts(a.me.id), unreadStaffAlertCount(a.me.id)]);
+  return { alerts, unread };
+}
+
+export async function markMyStaffAlertsRead(ids?: string[]): Promise<Result> {
+  const a = await staffAction();
+  if ("error" in a) return fail(a.error!);
+  await markStaffAlertsRead(a.me.id, ids);
+  revalidatePath("/console", "layout");
+  return { ok: true };
 }
 
 // ---------------- Inbox & Triage ----------------
