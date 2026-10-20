@@ -37,7 +37,7 @@ export async function notifyStaff(
   })));
   if (n.kind !== "reply" && n.kind !== "upload") return;
   if (people.length !== 1 || !people[0].phone || !/^7\d{8}$/.test(people[0].phone)) return;
-  if (!(await allow(`staff-ping:${people[0].id}:${ref}`, 1, 10 * 60e3))) return;
+  if (!(await allow(`staff-ping:${people[0].id}:${ref}`, 1, 10 * 60e3, tx))) return;
   const text = n.kind === "reply"
     ? `Inzira ${ref}: the client replied. Open the staff console.`
     : `Inzira ${ref}: the client uploaded a document. Open the staff console.`;
