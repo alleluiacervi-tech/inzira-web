@@ -3,6 +3,7 @@
 import Link from "next/link";
 import type { CSSProperties, ReactNode } from "react";
 import { ICONS } from "./icons";
+import { nextSentence } from "@/lib/desk";
 import { fmtDay } from "@/lib/format";
 import { requestChannel, requestTitle } from "@/lib/i18n/present";
 import { text } from "@/lib/i18n/messages";
@@ -255,7 +256,7 @@ export function RequestRow({ r }: { r: CustomerRequest }) {
         <span className="mut" style={{ fontSize: 12.5 }}>{open ? `${t("request.step", { n: step, total: steps })} · ${shown(locale, "status", stageLabel(r, r.stage))}` : r.closed ? t("request.closed", { date: fmtDay(r.closed.at, locale) }) : t("request.delivered", { date: fmtDay(r.stageDates.completed ?? r.updatedAt, locale) })}{r.agent ? ` · ${t("request.agent", { name: r.agent.name })}` : ""}</span>
       </div>
       <div className="stack g10" style={{ alignItems: "flex-start" }}>
-        <div className="stack g4"><span className="req-next" style={{ color: act ? "var(--ember-deep)" : "var(--muted)" }}>{act ? t("request.yourAction") : open ? t("request.next") : t("request.outcome")}</span><span style={{ fontSize: 14, lineHeight: 1.45 }}>{r.next}</span></div>
+        <div className="stack g4"><span className="req-next" style={{ color: act ? "var(--ember-deep)" : "var(--muted)" }}>{act ? t("request.yourAction") : open ? t("request.next") : t("request.outcome")}</span><span style={{ fontSize: 14, lineHeight: 1.45 }}>{nextSentence(r, t)}</span></div>
         <Link className={`btn btn-sm ${act ? "btn-p" : "btn-s"}`} href={`/portal/requests/${r.ref}`} aria-label={t("request.viewName", { action: act ? t("request.resolve") : t("request.view"), name, ref: r.ref })}>{act ? t("request.resolve") : t("request.view")}</Link>
       </div>
     </div>

@@ -128,6 +128,7 @@ async function portalLanguage(p, language) {
 async function signOut(p) {
   if (await p.ev(`!!document.querySelector('button[aria-label="Staff profile menu"]')`)) {
     await p.click("Staff profile menu", "button");
+    for (let i = 0; i < 20 && !(await p.ev(`[...document.querySelectorAll("button")].some((b) => (b.getAttribute("aria-label") || b.textContent).trim().startsWith("Sign out"))`)); i++) await sleep(100);
   }
   await p.click("Sign out", "button");
   await waitPath(p, (path) => path === "/sign-in");

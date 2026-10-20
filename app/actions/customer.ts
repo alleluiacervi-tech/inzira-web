@@ -23,6 +23,7 @@ import { PromptRefused, methodFor, newPrompt } from "@/lib/payments";
 import { SITE } from "@/lib/site";
 import { amountDue } from "@/lib/status";
 import { getService, listMyDocuments } from "@/lib/repo";
+import { notifyStaff } from "@/lib/staff-alerts";
 import { TOO_MANY, allowIp } from "@/lib/ratelimit";
 import { ALLOWED, MAX_BYTES, checkUpload, deleteFile, humanSize, putFile, sniffType } from "@/lib/storage";
 
@@ -171,6 +172,7 @@ export async function submitRequest(fd: FormData): Promise<Result<{ ref: string;
     const received = msg("nt.received", { service: service.name, serviceSlug: service.slug, ref });
     await tx.insert(s.notifications).values({ accountId: account.id, icon: "check", title: english(received), key: received.key, vars: received.vars, href: `/portal/requests/${ref}` });
     await audit(tx, { actor: account.name, role: "Customer", action: "Opened request", entity: `${ref} · ${service.name}` });
+    await notifyStaff(tx, ref, { kind: "new", icon: "inbox", title: `New request ${ref}`, body: `${account.name} · ${service.name}` });
     return { ref, accountId: account.id, locale: asLocale(account.locale) };
   }).catch(async (e) => {
     await Promise.all(stored.map((key) => deleteFile(key).catch(() => {})));
@@ -202,8 +204,13 @@ export async function sendMessage(ref: string, body: string): Promise<Result> {
   const own = await ownRequest(ref);
   if (!own) return refuse("request");
   if (!body.trim()) return refuse("message");
-  await own.d.insert(s.messages).values({ ref, by: "customer", body: body.trim().slice(0, 4000) });
+  const text = body.trim().slice(0, 4000);
+  await own.d.transaction(async (tx) => {
+    await tx.insert(s.messages).values({ ref, by: "customer", body: text });
+    await notifyStaff(tx, ref, { kind: "reply", icon: "msg", title: `${own.name} replied on ${ref}`, body: text.slice(0, 160) });
+  });
   revalidatePath(`/portal/requests/${ref}`);
+  revalidatePath("/console", "layout");
   return { ok: true };
 }
 
@@ -268,6 +275,7 @@ export async function uploadDocument(fd: FormData): Promise<Result<{ docs: Libra
       .where(eq(s.requestDocuments.id, docId));
     await event(tx, doc.ref, msg("ev.docUploaded", { doc: doc.name }), "customer");
     await audit(tx, { actor: own.name, role: "Customer", action: "Uploaded document", entity: `${doc.ref} · ${doc.name}` });
+    await notifyStaff(tx, doc.ref, { kind: "upload", icon: "file", title: `${own.name} uploaded ${doc.name}`, body: doc.ref });
   }); } catch (e) { await deleteFile(`${doc.ref}/${fileId}`).catch(() => {}); throw e; }
   revalidatePath("/portal", "layout");
   return { ok: true, docs: await listMyDocuments() };

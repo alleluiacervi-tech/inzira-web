@@ -520,3 +520,24 @@ details[open] .chev { transform: rotate(180deg); }
   .cat-card .ico-tile { width: 36px; height: 36px; }
   .review { grid-template-columns: 96px minmax(0, 1fr); }
 }
+
+/* ============ receipt (print / PDF) ============ */
+.receipt { max-width: 640px; margin: 0 auto; padding: 28px 8px 48px; }
+.receipt-head { display: flex; flex-direction: column; gap: 2px; font-size: 14px; color: var(--muted); margin-bottom: 20px; }
+.receipt-head strong { color: var(--ink); font-size: 18px; }
+.receipt h1 { font-size: 26px; margin: 0 0 8px; }
+.receipt-lead, .receipt-note { font-size: 14px; line-height: 1.5; color: var(--ink-2); max-width: 62ch; }
+.receipt-meta { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 20px; margin: 20px 0; }
+.receipt-meta div { display: flex; flex-direction: column; gap: 2px; }
+.receipt-meta dt { font-size: 12px; color: var(--muted); }
+.receipt-meta dd { margin: 0; font-weight: 600; }
+.receipt-table { width: 100%; border-collapse: collapse; margin: 12px 0; }
+.receipt-table th, .receipt-table td { text-align: left; padding: 8px 0; border-bottom: 1px solid var(--line); }
+.receipt-table th:last-child, .receipt-table td:last-child { text-align: right; font-variant-numeric: tabular-nums; }
+.receipt-txs { list-style: none; padding: 0; margin: 12px 0; font-size: 13.5px; color: var(--muted); }
+.receipt-paid { font-weight: 600; }
+.receipt-actions { margin-bottom: 12px; }
+@media print {
+  .receipt-actions, .console-topbar, .console-sidebar, .c-tabbar, .tabbar, .mobtop, .public-nav { display: none !important; }
+  .receipt { padding: 0; }
+}

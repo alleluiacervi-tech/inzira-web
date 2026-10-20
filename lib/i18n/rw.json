@@ -629,6 +629,20 @@
     "docsSub": "Inyandiko zose waduhaye n'inyandiko zose twaguhaye",
     "accountSub": "Imyirondoro yawe, uko winjira muri konti, n'amakuru tubika",
     "comingUp": "Ibiri imbere",
+    "nextHoldDoc": "Ohereza inyandiko twakubwiye.",
+    "nextHoldInfo": "Subiza umukozi wawe.",
+    "nextHoldPay": "Kwishyura amafaranga yemejwe kugira ngo dukomeze.",
+    "nextIdFix": "Kosanura nimero y'indangamuntu kuri ubu busabe.",
+    "nextDocReject": "Ongera wohereze {name}.",
+    "nextDocs": "Ohereza inyandiko {n} zisabwa.",
+    "nextPay": "Kwishyura {amount} muri poratale.",
+    "nextInst": "Twabishyize mu rwego rwa leta. Turategereza{ref}.",
+    "nextInstRef": " (nomero {officialRef})",
+    "nextChecking": "Turareba inyandiko zawe.",
+    "nextPreparing": "Turategura ubusabe.",
+    "nextReceived": "Umukozi azabufata mu masaha abiri y'akazi.",
+    "receipt": "Inyemezabuguzi",
+    "receiptDownload": "Kuramo inyemezabuguzi",
     "unread": "Bitarasomwa",
     "missingTitle": "Ntitwabonye ubwo busabe",
     "missingHint": "Reba nimero y'ubusabe, cyangwa usubire ku rutonde uhafungurire."
@@ -692,7 +706,9 @@
     "id_none": "Nta suzuma ryanditswe",
     "id_noneBody": "Nta mukozi wanditse isuzuma rya iyi nomero. Gufungura ubusabe ntabwo birisuzuma.",
     "idSave": "Ohereza ivugurura",
-    "idSent": "Twakiriye ivugurura. Nomero y'ubusabe ntizahindutse, kandi nomero irategereje isuzuma. Ntabwo isuzumwe."
+    "idSent": "Twakiriye ivugurura. Nomero y'ubusabe ntizahindutse, kandi nomero irategereje isuzuma. Ntabwo isuzumwe.",
+    "receiptTitle": "Inyemezabuguzi · {ref}",
+    "receiptLead": "Iyi ni inyandiko y'Inzira y'icyo wishyuye. Amafaranga ya leta n'ayo twishyuza byanditswe ku mirongo itandukanye."
   },
   "teams": {
     "Tax & EBM": "Imisoro na EBM",
@@ -989,8 +1005,13 @@
         "body": "Nomero mu rwego rwa leta: {officialRef}"
       },
       "followUp": {
-        "title": "Hateganyijwe gukurikirana",
-        "body": "Ejo saa 10:00"
+        "title": "Hateganyijwe gukurikirana {when}"
+      },
+      "followUpCleared": {
+        "title": "Gukurikirana byakuweho"
+      },
+      "handover": {
+        "title": "Inyandiko yo guhererekanya"
       },
       "assigned": {
         "title": "Bwahawe {name}"

@@ -19,8 +19,15 @@ export function NewMenu({
         setOpen(false);
       }
     };
-    if (open) document.addEventListener("mousedown", onDocClick);
-    return () => document.removeEventListener("mousedown", onDocClick);
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setOpen(false); };
+    if (open) {
+      document.addEventListener("mousedown", onDocClick);
+      window.addEventListener("keydown", onKey);
+    }
+    return () => {
+      document.removeEventListener("mousedown", onDocClick);
+      window.removeEventListener("keydown", onKey);
+    };
   }, [open]);
 
   return (

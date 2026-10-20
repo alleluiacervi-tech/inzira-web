@@ -629,6 +629,20 @@
     "docsSub": "Everything you’ve shared with us and everything we’ve delivered to you",
     "accountSub": "Your details, signing in, and what we keep",
     "comingUp": "Coming up",
+    "nextHoldDoc": "Upload the document we asked for.",
+    "nextHoldInfo": "Reply to your agent.",
+    "nextHoldPay": "Pay the confirmed fees so we can continue.",
+    "nextIdFix": "Correct the ID details on this request.",
+    "nextDocReject": "Replace {name}.",
+    "nextDocs": "Upload {n} required document(s).",
+    "nextPay": "Pay {amount} in the portal.",
+    "nextInst": "We filed it. Waiting on the institution{ref}.",
+    "nextInstRef": " (ref {officialRef})",
+    "nextChecking": "We are checking your documents.",
+    "nextPreparing": "We are preparing the application.",
+    "nextReceived": "An agent will take this within two working hours.",
+    "receipt": "Receipt",
+    "receiptDownload": "Download receipt",
     "unread": "Unread",
     "missingTitle": "We couldn’t find that request",
     "missingHint": "Check the reference, or go back to the list and open it from there."
@@ -692,7 +706,9 @@
     "id_none": "No review recorded",
     "id_noneBody": "No member of staff has recorded a review of this number. Opening the request does not verify it.",
     "idSave": "Send the correction",
-    "idSent": "We received the update. Your reference is unchanged, and the number is waiting for review. It is not verified yet."
+    "idSent": "We received the update. Your reference is unchanged, and the number is waiting for review. It is not verified yet.",
+    "receiptTitle": "Receipt · {ref}",
+    "receiptLead": "This is Inzira’s record of what you paid. Official fees and our assistance fee are shown on separate lines."
   },
   "teams": {
     "Tax & EBM": "Tax & EBM",
@@ -989,8 +1005,13 @@
         "body": "Official ref {officialRef}"
       },
       "followUp": {
-        "title": "Follow-up scheduled",
-        "body": "Tomorrow 10:00"
+        "title": "Follow-up scheduled for {when}"
+      },
+      "followUpCleared": {
+        "title": "Follow-up cleared"
+      },
+      "handover": {
+        "title": "Handover note left"
       },
       "assigned": {
         "title": "Assigned to {name}"

@@ -84,6 +84,7 @@ export function PaymentPanel({ reqRef, billing: b, now }: { reqRef: string; bill
         </ul>
       )}
       {b.quote === "estimate" && <p className="hint row g8" style={{ alignItems: "flex-start" }}><Icon name="info" size={16} /><span>{t("side.estimate")}</span></p>}
+      {paidSum > 0 && <Link className="btn btn-s btn-sm" href={`/portal/requests/${reqRef}/receipt`}>{t("portal.receiptDownload")}</Link>}
       {canPay && (
         <>
           <Link className="btn btn-p" href={`/portal/requests/${reqRef}/pay`}>{b.quote === "confirmed" ? t("pay.review") : t("pay.pay")} {rwf(due)}</Link>

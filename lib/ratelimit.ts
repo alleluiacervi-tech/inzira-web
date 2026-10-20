@@ -1,8 +1,10 @@
 // Simple fixed-window rate limiting, stored in the database so it works across server instances.
 import { sql } from "drizzle-orm";
 import { headers } from "next/headers";
-import { db, schema as s } from "./db";
+import { db, schema as s, type Db } from "./db";
 import { isDemo } from "./sms";
+
+type Queryable = Pick<Db, "insert">;
 
 let warned = false;
 /**
@@ -23,11 +25,13 @@ export async function clientIp() {
   return "unknown";
 }
 
-/** Counts one attempt for `key`. Returns false once more than `max` attempts fall in `windowMs`. */
-export async function allow(key: string, max: number, windowMs: number): Promise<boolean> {
+/** Counts one attempt for `key`. Returns false once more than `max` attempts fall in `windowMs`.
+ *  Pass the open transaction when calling from inside one: PGlite is a single connection, and a
+ *  second write while a transaction is open never comes back. */
+export async function allow(key: string, max: number, windowMs: number, database?: Queryable): Promise<boolean> {
   const now = new Date().toISOString();
   const cutoff = new Date(Date.now() - windowMs).toISOString();
-  const [row] = await (await db()).insert(s.rateLimits).values({ key, windowStart: now, count: 1 })
+  const [row] = await (database ?? await db()).insert(s.rateLimits).values({ key, windowStart: now, count: 1 })
     .onConflictDoUpdate({
       target: s.rateLimits.key,
       set: {

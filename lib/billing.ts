@@ -6,6 +6,7 @@ import { db, iso, schema as s } from "./db";
 import { rwf } from "./format";
 import { msg, sms } from "./i18n/stored";
 import { audit, event, notify } from "./mutate";
+import { notifyStaff } from "./staff-alerts";
 import { allow } from "./ratelimit";
 import { PROMPT_TTL_MS, providerStatus, type PayStatus } from "./payments";
 
@@ -82,6 +83,7 @@ async function settle(t: Payment, status: PayStatus, providerTxId: string | unde
     const paid = { total: rwf(t.official + t.ours), official: rwf(t.official), ours: rwf(t.ours), receipt: t.receipt };
     await event(tx, t.ref, msg("ev.paymentReceived", { amount: paid.total }), "system");
     await notify(tx, t.ref, { icon: "check", title: msg(t.official ? "nt.paymentReceivedSplit" : "nt.paymentReceived", paid), sms: sms("paymentReceived", paid) });
+    await notifyStaff(tx, t.ref, { kind: "payment", icon: "card", title: `Payment received on ${t.ref}`, body: `${paid.total} · ${t.method}` });
     await audit(tx, { actor: "System", role: "—", action: late ? "Payment reconciled after the prompt had timed out" : "Payment reconciled", entity: `${t.receipt} · ${rwf(t.official)} official + ${rwf(t.ours)} ours · ${t.method}`, fee: true });
   });
   return status;

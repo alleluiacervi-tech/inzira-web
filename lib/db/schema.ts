@@ -152,6 +152,8 @@ export const requests = pgTable("requests", {
   idConsent: boolean("id_consent").notNull().default(false),
   requirementsSnapshot: jsonb("requirements_snapshot").$type<string[]>(),
   followUp: jsonb("follow_up").$type<{ at: string; what: string }>(),
+  /** Last note written when the case moved from one agent to another. */
+  handover: jsonb("handover").$type<{ at: string; by: string; body: string }>(),
   // billing — always two lines: official (institution) and ours (Inzira)
   invoice: text("invoice").notNull().unique(),
   official: integer("official"),
@@ -258,6 +260,19 @@ export const files = pgTable("files", {
   uploadedAt: ts("uploaded_at").notNull().defaultNow(),
   uploadedBy: text("uploaded_by").notNull(),
 }, (t) => [index("files_ref_idx").on(t.ref)]);
+
+/** In-app alerts for staff. Customer portal notifications stay on `notifications`. */
+export const staffNotifications = pgTable("staff_notifications", {
+  id: serial("id").primaryKey(),
+  staffId: text("staff_id").notNull().references(() => staff.id),
+  icon: text("icon").notNull(),
+  title: text("title").notNull(),
+  body: text("body"),
+  href: text("href").notNull(),
+  ref: text("ref"),
+  at: ts("at").notNull().defaultNow(),
+  unread: boolean("unread").notNull().default(true),
+}, (t) => [index("staff_notifications_staff_idx").on(t.staffId, t.unread, t.at)]);
 
 export const notifications = pgTable("notifications", {
   id: serial("id").primaryKey(),
