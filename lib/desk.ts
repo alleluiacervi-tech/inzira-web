@@ -91,7 +91,7 @@ export function deskChecks(r: RequestView, now: string): DeskCheck[] {
       id: "officialRef",
       label: "Official reference",
       done: !needsOfficial || !!r.officialRef || r.stage === "received" || r.stage === "checking",
-      detail: r.officialRef ? r.officialRef : needsOfficial ? "Not recorded" : "Not needed",
+      detail: r.officialRef ? r.officialRef : needsOfficial ? (r.stage === "received" || r.stage === "checking" ? "Not needed yet" : "Not recorded") : "Not needed",
     },
     {
       id: "receipt",

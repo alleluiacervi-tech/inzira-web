@@ -415,6 +415,9 @@ test("deskChecks: documents, quote, our fee, official reference, official receip
   assert.equal(free.find((c) => c.id === "pay")?.done, true);
   assert.equal(free.find((c) => c.id === "officialRef")?.done, true);
   assert.equal(free.find((c) => c.id === "receipt")?.done, true);
+  const checking = deskChecks(caseOf({ billing: { ...base, quote: "estimate" }, stage: "checking" }) as never, now);
+  assert.equal(checking.find((c) => c.id === "officialRef")?.done, true);
+  assert.equal(checking.find((c) => c.id === "officialRef")?.detail, "Not needed yet");
 });
 test("handover is only required when a named agent hands to a different named agent", () => {
   assert.equal(handoverRequired(null, "s2"), false);
