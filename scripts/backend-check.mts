@@ -132,13 +132,14 @@ await check("payments: IntouchPay is paid only after status says so, and a repea
   delete process.env.INTOUCHPAY_CALLBACK_USER;
   delete process.env.INTOUCHPAY_CALLBACK_PASSWORD;
   try {
-    const { handlePaymentCallback } = await import("../lib/payment-callback.ts");
+    const { handlePaymentCallback, acknowledgeCallback, parseCallbackBody } = await import("../lib/payment-callback.ts");
     const [r] = await d.select({ ref: s.requests.ref }).from(s.requests).limit(1);
     const before = await d.select({ id: s.events.id }).from(s.events).where(eq(s.events.ref, r.ref));
     const [row] = await d.insert(s.transactions).values({ ref: r.ref, receipt: "T-INTOUCH", method: "MTN MoMo", official: 0, ours: 100, status: "pending", payer: "788123456", providerRef: "intouch:reqabc" }).returning({ id: s.transactions.id });
     const payload = { jsonpayload: { requesttransactionid: "reqabc", transactionid: "1425", responsecode: "01", status: "Successfull", statusdesc: "Successfully Processed Transaction", referenceno: "312333883" } };
     const waiting = await handlePaymentCallback({ txId: row.id, body: payload, authorization: null });
     assert.equal(waiting.status, 200);
+    assert.deepEqual(await waiting.json(), { message: "success", success: true, request_id: "reqabc" }, "IntouchPay gets the acknowledgement it expects");
     const [still] = await d.select().from(s.transactions).where(eq(s.transactions.id, row.id));
     assert.equal(still.status, "pending", "a callback that says successful does not mark the payment paid");
     assert.equal(still.providerRef, "intouch:reqabc:1425");
@@ -148,10 +149,22 @@ await check("payments: IntouchPay is paid only after status says so, and a repea
     assert.equal(untouched.providerRef, "intouch:reqabc:1425");
     process.env.INTOUCHPAY_CALLBACK_USER = "callback-user";
     process.env.INTOUCHPAY_CALLBACK_PASSWORD = "callback-secret";
-    const denied = await handlePaymentCallback({ txId: row.id, body: payload, authorization: null });
-    assert.equal(denied.status, 401);
+    // IntouchPay does not send the login: the callback is still acknowledged, and only makes us ask (still pending).
+    const noLogin = await handlePaymentCallback({ txId: row.id, body: payload, authorization: null });
+    assert.equal(noLogin.status, 200);
+    assert.deepEqual(await noLogin.json(), { message: "success", success: true, request_id: "reqabc" });
     const [locked] = await d.select().from(s.transactions).where(eq(s.transactions.id, row.id));
     assert.equal(locked.status, "pending");
+    // Whatever arrives is acknowledged the same way, and the body is read however IntouchPay encodes it.
+    for (const junk of [null, "nonsense", { jsonpayload: { requesttransactionid: "x y" } }]) {
+      const ack = acknowledgeCallback(junk);
+      assert.equal(ack.status, 200); assert.deepEqual(await ack.json(), { message: "success", success: true, request_id: "" });
+    }
+    const unknown = await handlePaymentCallback({ txId: null, body: { jsonpayload: { requesttransactionid: "nosuchprompt", transactionid: "1", status: "Successfull" } }, authorization: null });
+    assert.deepEqual(await unknown.json(), { message: "success", success: true, request_id: "nosuchprompt" }, "an unknown prompt is acknowledged too");
+    const inner = JSON.stringify({ requesttransactionid: "reqabc", transactionid: "1425", status: "Pending" });
+    assert.deepEqual(await acknowledgeCallback(parseCallbackBody(`jsonpayload=${encodeURIComponent(inner)}`)).json(), { message: "success", success: true, request_id: "reqabc" }, "a form-encoded callback is read");
+    assert.deepEqual(await acknowledgeCallback(parseCallbackBody(JSON.stringify({ jsonpayload: inner }))).json(), { message: "success", success: true, request_id: "reqabc" }, "and a jsonpayload sent as a string");
     code = "01";
     const header = `Basic ${Buffer.from("callback-user:callback-secret").toString("base64")}`;
     const paid = await handlePaymentCallback({ txId: row.id, body: payload, authorization: header });

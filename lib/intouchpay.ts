@@ -94,6 +94,11 @@ export function refusalKind(code: string): RefusalKind {
   return "other";
 }
 
+/** The request id a callback names, for the acknowledgement IntouchPay expects back. Empty when there is none. */
+export function callbackRequestId(body: unknown): string {
+  return txIdOk(asRecord(asRecord(body)?.jsonpayload)?.requesttransactionid) ?? "";
+}
+
 /** Guide section 2.7. The body is read as an identifier, and as a claim of "failed" that is acted on only when the
  *  callback was authenticated (lib/payment-callback.ts). It is never read as proof of payment. */
 export function readIntouchCallback(body: unknown): { requestId: string; transactionId: string; responsecode: string; outcome: PayOutcome } | null {

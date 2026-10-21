@@ -86,7 +86,7 @@ Copy `.env.example` to `.env.local`. None are needed for development.
 | `PAYMENT_PROVIDER` | `live` for IntouchPay (MTN and Airtel through one API), `simulator` for demos, or `direct` for the older MTN MoMo and Airtel Money APIs. |
 | `INTOUCHPAY_USERNAME`, `INTOUCHPAY_ACCOUNT_NO`, `INTOUCHPAY_PARTNER_PASSWORD` | Partner credentials from IntouchPay. The partner password is only used to build the SHA-256 request password and is never sent or shown. |
 | `INTOUCHPAY_BASE_URL` | Defaults to `https://www.intouchpay.co.rw/api`. Must be HTTPS outside local development. The published guide uses this host for both test and production credentials. |
-| `INTOUCHPAY_CALLBACK_USER`, `INTOUCHPAY_CALLBACK_PASSWORD` | Recommended on the live site. When both are set, `POST /api/payments/callback` requires HTTP Basic with those values (API guide section 2.7), and an IntouchPay callback that says a prompt failed closes it at once. Without them a callback only prompts a re-check, a declined prompt stays open until it times out, and Admin › System shows IntouchPay as needing setup. Ask IntouchPay to send HTTP Basic with these values. |
+| `INTOUCHPAY_CALLBACK_USER`, `INTOUCHPAY_CALLBACK_PASSWORD` | Optional. `POST /api/payments/callback` always answers 200 `{ "message": "success", "success": true, "request_id": … }` straight away, as IntouchPay requires, and then checks the payment with IntouchPay; a callback never decides the outcome, so it needs no login. If IntouchPay ever sends HTTP Basic with these values, a callback that says a prompt failed also closes it at once instead of when IntouchPay's status says so. |
 | `MTN_MOMO_*`, `AIRTEL_*` | Used only when `PAYMENT_PROVIDER=direct`. |
 | `CRON_SECRET` | Protects `/api/cron`. Vercel sends it automatically to scheduled jobs. |
 | `NEXT_PUBLIC_SITE_URL` | The public address, used in SMS links. |
@@ -107,8 +107,8 @@ Copy `.env.example` to `.env.local`. None are needed for development.
    once IntouchPay has issued credentials — `PAYMENT_PROVIDER=live` with `INTOUCHPAY_USERNAME`,
    `INTOUCHPAY_ACCOUNT_NO` and `INTOUCHPAY_PARTNER_PASSWORD`. Register
    `https://<your site>/api/payments/callback` as the transaction-status URL. Each prompt also sends
-   that address as `callbackurl`. If IntouchPay will call it with HTTP Basic, set
-   `INTOUCHPAY_CALLBACK_USER` and `INTOUCHPAY_CALLBACK_PASSWORD` to the same values.
+   that address as `callbackurl`. Every call to it is acknowledged with 200 and a success body;
+   the payment itself is then confirmed with `GetTransactionStatus`.
 6. Run `TEST_PHONE=07… npm run check:providers` against the staging environment: it sends a real SMS,
    a mobile money prompt per provider and a storage round trip through the site's own code.
 7. The owner signs in and opens **Admin › System**: every item should read Live. It sends a test SMS
