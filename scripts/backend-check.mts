@@ -428,6 +428,80 @@ await check("review fee: paying it sends a quoted request to staff, the quote co
   }
 });
 
+await check("refunds: sent back through RequestDeposit, recorded once confirmed, never sent twice", async () => {
+  const { sendRefund, reconcilePayout, closeUnclearPayout, PayoutRefused } = await import("../lib/payouts.ts");
+  const { createServer } = await import("node:http");
+  const [{ cols }] = (await d.execute(sql.raw(`select string_agg(column_name, ', ' order by ordinal_position) cols from information_schema.columns where table_name = 'requests'`))).rows as { cols: string }[];
+  const copy = async (ref: string, payer: string) => {
+    const pick = cols.split(", ").map((c) => c === "ref" ? `'${ref}'` : c === "invoice" ? `'INV-${ref}'` : c === "closed" ? "null" : c === "hold" ? "null" : c).join(", ");
+    await d.execute(sql.raw(`insert into requests (${cols}) select ${pick} from requests where ref = 'INZ-2026-04741'`));
+    await d.insert(s.transactions).values({ ref, receipt: `R-${ref}`, method: "MTN MoMo", official: 2000, ours: 5000, status: "paid", payer, providerRef: "sim:1:788123456" });
+  };
+  const txStatus = async (ref: string) => (await d.select({ status: s.transactions.status }).from(s.transactions).where(eq(s.transactions.ref, ref)))[0]?.status;
+  const payout = async (ref: string) => (await d.select().from(s.payouts).where(eq(s.payouts.ref, ref)).orderBy(s.payouts.id)).at(-1)!;
+  const by = { id: "s-diane", name: "Diane", role: "Owner" };
+  const refs = ["INZ-T-PO-SIM", "INZ-T-PO-LOW", "INZ-T-PO-LIVE"];
+  const prev = ["PAYMENT_PROVIDER", "INTOUCHPAY_USERNAME", "INTOUCHPAY_ACCOUNT_NO", "INTOUCHPAY_PARTNER_PASSWORD", "INTOUCHPAY_BASE_URL"].map((k) => [k, process.env[k]] as const);
+  let mode: "silent" | "pending" | "sent" = "silent";
+  const server = createServer((req, res) => {
+    let body = ""; req.on("data", (c) => (body += c));
+    req.on("end", () => {
+      res.setHeader("content-type", "application/json");
+      if ((req.url ?? "").includes("requestdeposit")) {
+        if (mode === "silent") { res.statusCode = 502; res.end("{}"); return; }
+        res.end(JSON.stringify({ success: true, responsecode: "1000", status: "Pending", transactionid: "DEP1", requesttransactionid: new URLSearchParams(body).get("requesttransactionid") }));
+        return;
+      }
+      res.end(JSON.stringify(mode === "sent" ? { success: true, responsecode: "2001", status: "Successfull" } : { success: true, responsecode: "1000", status: "Pending" }));
+    });
+  });
+  try {
+    // The demo's simulator: sent at once, and the request reads as refunded.
+    await copy("INZ-T-PO-SIM", "788123456");
+    assert.equal((await quiet(() => sendRefund("INZ-T-PO-SIM", by))).status, "sent");
+    assert.equal(await txStatus("INZ-T-PO-SIM"), "refunded");
+    assert.equal((await payout("INZ-T-PO-SIM")).amount, 5000, "our fee only, not the official fee");
+    assert.equal(Number((await d.execute(sql.raw(`select count(*) n from notifications where key = 'nt.refund' and href = '/portal/requests/INZ-T-PO-SIM'`))).rows[0].n), 1, "the customer is told");
+    await assert.rejects(() => sendRefund("INZ-T-PO-SIM", by), /Nothing to refund/, "a refunded request cannot be refunded again");
+    // Refused (balance too low): nothing recorded as refunded, and staff are told why.
+    await copy("INZ-T-PO-LOW", "788120000");
+    await assert.rejects(() => quiet(() => sendRefund("INZ-T-PO-LOW", by)), (e: unknown) => e instanceof PayoutRefused && /balance is too low/.test((e as Error).message));
+    assert.equal(await txStatus("INZ-T-PO-LOW"), "paid");
+    assert.equal((await payout("INZ-T-PO-LOW")).status, "failed");
+
+    // IntouchPay, through a stand-in: no answer, then an answer that is still pending, then confirmed.
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", () => resolve()));
+    const address = server.address();
+    if (!address || typeof address === "string") throw new Error("no port");
+    Object.assign(process.env, { PAYMENT_PROVIDER: "live", INTOUCHPAY_USERNAME: "bob", INTOUCHPAY_ACCOUNT_NO: "250160000011", INTOUCHPAY_PARTNER_PASSWORD: "x", INTOUCHPAY_BASE_URL: `http://127.0.0.1:${address.port}/api` });
+    await copy("INZ-T-PO-LIVE", "788123456");
+    assert.equal((await quiet(() => sendRefund("INZ-T-PO-LIVE", by))).status, "pending", "no answer: it may have been sent, so it waits");
+    assert.equal(await txStatus("INZ-T-PO-LIVE"), "paid", "and nothing is recorded as refunded yet");
+    await assert.rejects(() => sendRefund("INZ-T-PO-LIVE", by), /already being sent/, "a second click does not send it again");
+    const silent = await payout("INZ-T-PO-LIVE");
+    assert.equal(await reconcilePayout(silent.id), "pending", "with no IntouchPay id it cannot be asked about");
+    assert.equal(await closeUnclearPayout(silent.id, by), true, "staff close it after checking the IntouchPay portal");
+    mode = "pending";
+    assert.equal((await quiet(() => sendRefund("INZ-T-PO-LIVE", by))).status, "pending");
+    const waiting = await payout("INZ-T-PO-LIVE");
+    assert.match(waiting.providerRef ?? "", /^intouch:\d+:DEP1$/);
+    assert.equal(await quiet(() => reconcilePayout(waiting.id)), "pending");
+    mode = "sent";
+    assert.equal(await quiet(() => reconcilePayout(waiting.id)), "sent", "confirmed by its status");
+    assert.equal(await txStatus("INZ-T-PO-LIVE"), "refunded");
+    assert.equal(await quiet(() => reconcilePayout(waiting.id)), "sent", "and recorded once");
+    assert.equal(Number((await d.execute(sql.raw(`select count(*) n from audit where action = 'Refund sent' and entity like 'INZ-T-PO-LIVE%'`))).rows[0].n), 1);
+  } finally {
+    server.close();
+    for (const [k, v] of prev) { if (v === undefined) delete process.env[k]; else process.env[k] = v; }
+    const list = refs.map((r) => `'${r}'`).join(", ");
+    for (const t of ["payouts", "events", "transactions", "outbox", "notes"]) await d.execute(sql.raw(`delete from ${t} where ref in (${list})`));
+    await d.execute(sql.raw(`delete from requests where ref in (${list})`));
+    await d.execute(sql.raw(`delete from audit where entity like 'INZ-T-PO-%'`));
+    await d.execute(sql.raw(`delete from notifications where href like '%/INZ-T-PO-%'`));
+  }
+});
+
 await check("authenticator: a code works once; recovery codes work once", async () => {
   const secret = newSecret();
   const rec = "abcde-fghjk";

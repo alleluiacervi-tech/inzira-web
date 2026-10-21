@@ -4,6 +4,7 @@ import { retentionSweep } from "./privacy";
 import { allow } from "./ratelimit";
 import { deliverDue, enqueue, pruneOutbox, sendNow as deliverOne } from "./outbox";
 import { reconcileStalePayments } from "./billing";
+import { reconcilePendingPayouts } from "./payouts";
 import { db, iso, schema as s } from "./db";
 import { rwf } from "./format";
 import { english, feeVars, msg, sms } from "./i18n/stored";
@@ -204,6 +205,7 @@ export async function staffDigest() {
 export async function runAll() {
   const tasks = {
     payments: reconcileStalePayments,
+    refunds: reconcilePendingPayouts,
     overdue: holdOverduePayments,
     quoteReminders: remindUnpaidQuotes,
     unpaidExpiry: expireUnpaidQuotes,

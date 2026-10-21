@@ -2,6 +2,8 @@
 // https://intouchpay.co.rw/http-api (static/files/http_intouchpay_api.pdf).
 //
 // RequestPayment  POST {base}/requestpayment/        application/x-www-form-urlencoded
+// RequestDeposit  POST {base}/requestdeposit/        application/x-www-form-urlencoded  (sends money: refunds)
+// GetBalance      POST {base}/getbalance/            application/x-www-form-urlencoded
 // GetTransactionStatus  POST {base}/gettransactionstatus/   application/json
 // Callback        POST our URL with JSON { jsonpayload: { ... } }, optionally HTTP Basic
 //
@@ -233,6 +235,18 @@ export async function requestIntouchPayment(input: { requestId: string; phone9: 
 
 /** Section 4. One retry when the call fails or IntouchPay is unavailable. The body is the only source of paid/failed. */
 export async function intouchPaymentStatus(requestId: string, transactionId: string | undefined): Promise<{ status: "paid" | "pending" | "failed"; reference?: string }> {
+  const body = await statusBody(requestId, transactionId);
+  const outcome = paymentOutcome(body);
+  console.info("[payments] IntouchPay gettransactionstatus", codeOf(body) || "no-code");
+  if (outcome === "missing") throw new Error(`IntouchPay has no record of this prompt (${codeOf(body) || "no code"}).`);
+  const reference = txIdOk(body.referenceno);
+  if (outcome === "failed") return { status: "failed", reference };
+  if (outcome === "paid") return { status: "paid", reference };
+  return { status: "pending", reference };
+}
+
+/** GetTransactionStatus, for a payment or a deposit. It needs IntouchPay's transaction id as well as ours. */
+async function statusBody(requestId: string, transactionId: string | undefined): Promise<Record<string, unknown>> {
   if (!requestId || !transactionId) throw new Error("IntouchPay transaction id is not recorded yet.");
   const { username, accountNo, partnerPassword } = credentials();
   const ask = async () => {
@@ -249,19 +263,92 @@ export async function intouchPaymentStatus(requestId: string, transactionId: str
     }
     return body;
   };
-  let body: Record<string, unknown>;
   try {
-    body = await ask();
+    return await ask();
   } catch (e) {
     if (e instanceof IntouchRejected) throw e;
     await new Promise((r) => setTimeout(r, 1000));
-    body = await ask();
+    return ask();
   }
+}
+
+// ---------------- sending money (section 3) and the balance it comes from (section 5) ----------------
+
+/** RequestDeposit codes (section 3.7) that mean nothing was sent. Others that are not success (a general, service,
+ *  network or channel failure) leave it unknown whether money moved, so the deposit is checked with its status instead. */
+const DEPOSIT_REFUSED = new Set([
+  "0002", "0003", "0004", "0005", "0006", "0007", "0008",
+  "1100", "1101", "1102", "1103", "1104", "1105", "1106", "1107", "1108", "1110",
+  "2003", "2102", "2105", "2106", "2107", "2108", "2109", "2110", "2111", "2520", "2522", "2525",
+]);
+
+/** What a RequestDeposit answer means. 2001 is "Request Successful"; the sandbox also says status "Successfull". */
+export function depositDecision(body: Record<string, unknown>): { outcome: "sent" | "pending" | "refused"; code: string; transactionId?: string; reference?: string } {
+  const code = codeOf(body);
+  const st = String(body.status ?? "").toLowerCase().replace(/[\s_-]/g, "");
+  const transactionId = txIdOk(body.transactionid);
+  const reference = txIdOk(body.referenceid) ?? txIdOk(body.referenceno);
+  if (DEPOSIT_REFUSED.has(code)) return { outcome: "refused", code };
+  if (body.success !== false && (code === "2001" || st === "successfull" || st === "successful")) return { outcome: "sent", code, transactionId, reference };
+  return { outcome: "pending", code, transactionId, reference };
+}
+
+/** Plain words for staff when IntouchPay will not send a refund. */
+export function depositRefusalMessage(code: string, amount: string): string {
+  if (code === "1108" || code === "2108") return `The IntouchPay account balance is too low to send ${amount}. Top it up, then try again.`;
+  if (["1102", "2102", "2105", "2111"].includes(code)) return `That number can’t receive mobile money (IntouchPay code ${code}). Send the refund by hand.`;
+  if (["1103", "1104", "2109", "2107", "2522"].includes(code)) return `IntouchPay won’t send this amount (code ${code}). Send the refund by hand.`;
+  if (code === "1105") return "IntouchPay can’t send to that network. Send the refund by hand.";
+  if (["0005", "0006", "0007", "0008"].includes(code)) return `IntouchPay did not accept our account details (code ${code}). Check the IntouchPay settings.`;
+  return `IntouchPay refused the refund (code ${code || "none"}). Nothing was sent.`;
+}
+
+/** Section 3. Sends `amount` to a Rwandan mobile number. Does not retry: a call that timed out may still have been
+ *  accepted, so the caller records the attempt first and checks its status rather than sending again. */
+export async function requestIntouchDeposit(input: { requestId: string; phone9: string; amount: number; reason: string }): Promise<{ status: "sent" | "pending"; transactionId?: string; reference?: string; code: string }> {
+  if (!Number.isInteger(input.amount) || input.amount <= 0) throw new IntouchRejected("2107", "IntouchPay amount must be a positive number of francs.");
+  const { username, accountNo, partnerPassword } = credentials();
+  const timestamp = intouchTimestamp();
+  const form = new URLSearchParams({
+    username,
+    timestamp,
+    amount: String(input.amount),
+    withdrawcharge: "0",
+    reason: input.reason.slice(0, 100),
+    sid: "1",
+    password: intouchPassword(username, accountNo, partnerPassword, timestamp),
+    mobilephone: intouchMsisdn(input.phone9),
+    requesttransactionid: input.requestId,
+    accountno: accountNo,
+  });
+  const res = await post(`${baseUrl()}/requestdeposit/`, { headers: { "Content-Type": "application/x-www-form-urlencoded" }, body: form.toString() }, REQUEST_TIMEOUT_MS);
+  const body = await readBody(res);
+  if (!res.ok && (res.status >= 500 || res.status === 408 || res.status === 429)) throw new Error(`IntouchPay requestdeposit HTTP ${res.status}`);
+  // The sandbox answers a refusal with an HTTP error and its code in the body (422 for a balance too low).
+  const decision = !res.ok && !codeOf(body) ? { outcome: "refused" as const, code: String(res.status) } : depositDecision(body);
+  console.info("[payments] IntouchPay requestdeposit", decision.code || "no-code");
+  if (decision.outcome === "refused") throw new IntouchRejected(decision.code, `IntouchPay refused the deposit (${decision.code || "no code"}).`);
+  return { status: decision.outcome, transactionId: decision.transactionId, reference: decision.reference, code: decision.code };
+}
+
+/** Section 4 for a deposit: 2001 (or "Successfull") is sent. "missing" when IntouchPay has no record of it. */
+export async function intouchDepositStatus(requestId: string, transactionId: string | undefined): Promise<"sent" | "pending" | "failed" | "missing"> {
+  const body = await statusBody(requestId, transactionId);
+  console.info("[payments] IntouchPay deposit status", codeOf(body) || "no-code");
   const outcome = paymentOutcome(body);
-  console.info("[payments] IntouchPay gettransactionstatus", codeOf(body) || "no-code");
-  if (outcome === "missing") throw new Error(`IntouchPay has no record of this prompt (${codeOf(body) || "no code"}).`);
-  const reference = txIdOk(body.referenceno);
-  if (outcome === "failed") return { status: "failed", reference };
-  if (outcome === "paid") return { status: "paid", reference };
-  return { status: "pending", reference };
+  if (codeOf(body) === "2001" || outcome === "paid") return "sent";
+  if (outcome === "missing") return "missing";
+  return outcome === "failed" ? "failed" : "pending";
+}
+
+/** Section 5. What the IntouchPay account holds, in francs: refunds are sent from it. */
+export async function intouchBalance(): Promise<number> {
+  const { username, accountNo, partnerPassword } = credentials();
+  const timestamp = intouchTimestamp();
+  const form = new URLSearchParams({ username, timestamp, password: intouchPassword(username, accountNo, partnerPassword, timestamp), accountno: accountNo });
+  const res = await post(`${baseUrl()}/getbalance/`, { headers: { "Content-Type": "application/x-www-form-urlencoded" }, body: form.toString() }, 15_000);
+  const body = await readBody(res);
+  const balance = Number(body.balance);
+  if (!res.ok || body.success === false || !Number.isFinite(balance)) throw new Error(`IntouchPay getbalance failed (${codeOf(body) || `HTTP ${res.status}`}).`);
+  return Math.floor(balance);
 }

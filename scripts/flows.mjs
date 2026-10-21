@@ -548,8 +548,9 @@ await step("admin", async () => {
   await p.go("/admin/payments");
   await p.click("Refund"); await sleep(400);
   check("refund: dialog explains only our fee is refunded", await p.has("Only our assistance fee"));
-  await p.click("Issue refund"); await waitFor(p, "recorded as refunded");
-  check("refund: recorded", await p.has("recorded as refunded"));
+  check("refund: the dialog says the money goes back through IntouchPay", await p.has("through IntouchPay"));
+  await p.click("Send refund"); await waitFor(p, "sent back to");
+  check("refund: sent back by mobile money and recorded", await p.has("sent back to") && await p.has("by mobile money"));
   await p.go("/admin/roles");
   await p.click("Invite person"); await sleep(200); await p.set("#pp-name", "New Colleague"); await p.set("#pp-phone", "788 444 555"); await p.click("Send invite"); await waitFor(p, "invited as");
   check("people: inviting adds a person", await p.has("New Colleague"));

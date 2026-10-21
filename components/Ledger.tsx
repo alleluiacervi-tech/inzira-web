@@ -10,7 +10,8 @@ import { useDialog } from "./useDialog";
 const RECEIPT = { attached: "Receipt attached", awaiting: "Awaiting receipt", na: "n/a" };
 
 /** One row per request: what was quoted, what was paid, and whether the institution's receipt is on file. */
-export default function Ledger({ initial: rows, now, canRefund }: { initial: RequestView[]; now: string; canRefund: boolean }) {
+/** `autoRefund`: refunds are sent to the payer's phone through IntouchPay; otherwise staff send them and this records it. */
+export default function Ledger({ initial: rows, now, canRefund, autoRefund = false }: { initial: RequestView[]; now: string; canRefund: boolean; autoRefund?: boolean }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [refund, setRefund] = useState<RequestView | null>(null);
@@ -20,7 +21,7 @@ export default function Ledger({ initial: rows, now, canRefund }: { initial: Req
 
   return (
     <>
-      {done && <div className="alert t-ok" role="status"><Icon name="check" size={20} /><div className="alert-body"><strong>Refund issued</strong><span>{done}</span></div></div>}
+      {done && <div className="alert t-ok" role="status"><Icon name="check" size={20} /><div className="alert-body"><strong>{autoRefund ? "Refund" : "Refund issued"}</strong><span>{done}</span></div></div>}
       <div className="row" style={{ justifyContent: "flex-end", marginBottom: 10 }}>
         <button type="button" className="btn btn-s btn-sm" onClick={() => {
           const header = ["Invoice", "Reference", "Customer", "Service", "Official fee", "Our fee", "Method", "Status", "Official receipt"];
@@ -57,19 +58,22 @@ export default function Ledger({ initial: rows, now, canRefund }: { initial: Req
         <div className="modal-bg" onClick={(e) => e.target === e.currentTarget && setRefund(null)}>
           <div ref={dialog} className="modal" role="dialog" aria-modal="true" aria-labelledby="rf-t">
             <div className="row between" style={{ alignItems: "flex-start" }}><h3 id="rf-t" className="d" style={{ fontSize: 20 }}>Refund the assistance fee</h3><button className="btn btn-g btn-sm btn-ico" type="button" aria-label="Close" onClick={() => setRefund(null)}><Icon name="x" size={18} /></button></div>
-            <p style={{ fontSize: 15, lineHeight: 1.55 }}>Return <strong className="fee-ours">{rwf(refundable(refund))}</strong> to {refund.profile.name} for <span className="m">{refund.ref}</span>, to the {refund.billing.transactions[0]?.method ?? "original"} account it was paid from.</p>
+            <p style={{ fontSize: 15, lineHeight: 1.55 }}>{autoRefund ? "Send" : "Return"} <strong className="fee-ours">{rwf(refundable(refund))}</strong> to {refund.profile.name} for <span className="m">{refund.ref}</span>, to the {refund.billing.transactions[0]?.method ?? "original"} account it was paid from{autoRefund ? ", through IntouchPay. It reads as refunded once IntouchPay confirms the money was sent." : "."}</p>
             {error && <span className="err-text" role="alert"><Icon name="alert" size={15} /> {error}</span>}
             <p className="hint">Only our assistance fee is refunded here. Official fees already paid to an institution are recovered from that institution, not from Inzira. The refund is written to the audit log.</p>
             <div className="row g10" style={{ justifyContent: "flex-end" }}>
               <button className="btn btn-g" type="button" onClick={() => setRefund(null)}>Cancel</button>
               <button className="btn btn-danger" type="button" disabled={busy} onClick={async () => {
                 setBusy(true); setError("");
-                const r = await refundAction(refund.ref).catch(() => ({ ok: false as const, error: "Not saved. Check your connection and try again." }));
+                const r = await refundAction(refund.ref).catch(() => ({ ok: false as const, error: "Not sent. Check your connection, then look under Refunds being sent before trying again." }));
                 setBusy(false);
                 if (!r.ok) { setError(r.error); return; }
-                setDone(`${rwf(refundable(refund))} recorded as refunded to ${refund.profile.name} · ${refund.billing.invoice}. Send the money back from the mobile money dashboard.`);
+                const who = `${refund.profile.name} · ${refund.billing.invoice}`;
+                setDone(r.outcome === "sent" ? `${rwf(r.amount)} sent back to ${who} by mobile money.`
+                  : r.outcome === "pending" ? `${rwf(r.amount)} is being sent to ${who}. IntouchPay has not confirmed it yet: it is checked again, and shows under Refunds being sent until then.`
+                  : `${rwf(r.amount)} recorded as refunded to ${who}. Send the money back from the mobile money dashboard.`);
                 setRefund(null);
-              }}>{busy ? "Saving…" : "Issue refund"}</button>
+              }}>{busy ? (autoRefund ? "Sending…" : "Saving…") : autoRefund ? "Send refund" : "Issue refund"}</button>
             </div>
           </div>
         </div>

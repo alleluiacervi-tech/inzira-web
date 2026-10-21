@@ -189,6 +189,15 @@ export function providerFor(phone9: string, sampleDesk = false): Provider {
   throw new Error("Payments are not configured. Set PAYMENT_PROVIDER=live for IntouchPay, or simulator for demos.");
 }
 
+/** Who sends refunds to a phone: IntouchPay (RequestDeposit), the simulator in a demo, or nobody (the direct MTN and
+ *  Airtel integrations collect only), in which case staff send the money themselves and record it. */
+export function payoutProvider(): "intouch" | "sim" | null {
+  const selected = mode();
+  if (selected === "live" || selected === "intouchpay") return "intouch";
+  if (selected === "simulator" && isDemo()) return "sim";
+  return null;
+}
+
 /** Picks the provider for this number and makes the prompt's id and reference up front, so they can be saved before the
  *  provider is called: a call that times out after the provider accepted it is still found and settled later. */
 export function newPrompt(phone9: string, sampleDesk = false) {

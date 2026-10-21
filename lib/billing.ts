@@ -116,8 +116,8 @@ async function settle(t: Payment, status: PayStatus, providerTxId: string | unde
   return status;
 }
 
-/** When a request sent with a review fee is closed before it was quoted, we could not help: the fee is owed back. Refunds
- *  are sent from the IntouchPay portal, so staff are told on the case, and in the audit log, to send and record it. */
+/** When a request sent with a review fee is closed before it was quoted, we could not help: the fee is owed back. Staff are
+ *  told on the case, and in the audit log, to refund it from Payments (which sends it through IntouchPay). */
 export async function noteReviewFeeRefund(tx: Tx, ref: string, by: { id: string; name: string; role: string }) {
   const [r] = await tx.select({ reviewFee: s.requests.reviewFee, quote: s.requests.quote }).from(s.requests).where(eq(s.requests.ref, ref));
   if (!r?.reviewFee || r.quote !== "estimate") return;
@@ -126,7 +126,7 @@ export async function noteReviewFeeRefund(tx: Tx, ref: string, by: { id: string;
   if (!paid.length) return;
   const total = paid.reduce((n, p) => n + Number(p.amount), 0);
   const to = paid.map((p) => p.payer).filter(Boolean).map((p) => prettyPhone(p)).join(", ") || "the number that paid";
-  await tx.insert(s.notes).values({ ref, by: by.id, body: `Refund due: the customer paid a ${rwf(total)} review fee and the request was closed before it was quoted. Send it back to ${to} from the IntouchPay portal, then record the refund in Payments.` });
+  await tx.insert(s.notes).values({ ref, by: by.id, body: `Refund due: the customer paid a ${rwf(total)} review fee and the request was closed before it was quoted. Refund it from Admin › Payments: it goes back to ${to} by mobile money.` });
   await audit(tx, { actor: by.name, role: by.role, action: "Review fee to refund", entity: `${ref} · ${rwf(total)} · ${paid.map((p) => p.receipt).join(", ")}`, fee: true });
 }
 

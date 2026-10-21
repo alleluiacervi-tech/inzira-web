@@ -283,6 +283,20 @@ await asyncTest("intouch client speaks the published request and status calls", 
       const body = Buffer.concat(chunks).toString("utf8");
       seen.push({ url: req.url ?? "", type: req.headers["content-type"] ?? "", body });
       res.setHeader("content-type", "application/json");
+      if ((req.url ?? "").includes("requestdeposit")) {
+        const form = new URLSearchParams(body);
+        if (form.get("requesttransactionid") === "broke0000000001") {
+          res.statusCode = 422;
+          res.end(JSON.stringify({ success: false, responsecode: "1108", requesttransactionid: "broke0000000001" }));
+          return;
+        }
+        res.end(JSON.stringify({ status: "Successfull", requesttransactionid: form.get("requesttransactionid"), referenceid: "75859766829", success: true, responsecode: "2001", transactionid: "014HBDTR0TT29N5CDMTQ1374S6" }));
+        return;
+      }
+      if ((req.url ?? "").includes("getbalance")) {
+        res.end(JSON.stringify({ balance: "11250.00", success: true }));
+        return;
+      }
       if ((req.url ?? "").includes("requestpayment")) {
         const form = new URLSearchParams(body);
         if (form.get("requesttransactionid") === "unreg0000000001") {
@@ -356,6 +370,23 @@ await asyncTest("intouch client speaks the published request and status calls", 
     await assert.rejects(() => intouch.requestIntouchPayment({ requestId: "conflict0000001", phone9: "788123456", amount: 100 }),
       (e: unknown) => e instanceof intouch.IntouchRejected && e.code === "409" && intouch.refusalKind(e.code) === "other");
     await assert.rejects(() => intouch.requestIntouchPayment({ requestId: "bad", phone9: "788123456", amount: 0 }), /positive number/);
+    // RequestDeposit (refunds): form-encoded, signed like a payment, and 2001 means the money was sent.
+    const before = seen.length;
+    const deposit = await intouch.requestIntouchDeposit({ requestId: "7700001", phone9: "788123456", amount: 5000, reason: "Inzira refund INZ-1" });
+    assert.deepEqual(deposit, { status: "sent", transactionId: "014HBDTR0TT29N5CDMTQ1374S6", reference: "75859766829", code: "2001" });
+    const depositForm = new URLSearchParams(seen[before].body);
+    assert.equal(seen[before].type, "application/x-www-form-urlencoded");
+    assert.equal(depositForm.get("mobilephone"), "250788123456");
+    assert.equal(depositForm.get("amount"), "5000");
+    assert.equal(depositForm.get("sid"), "1");
+    assert.equal(depositForm.get("withdrawcharge"), "0");
+    assert.equal(depositForm.get("password"), intouch.intouchPassword("bob", "250160000011", "pass123456789", depositForm.get("timestamp") ?? ""));
+    assert.ok(!seen[before].body.includes("pass123456789"));
+    await assert.rejects(() => intouch.requestIntouchDeposit({ requestId: "broke0000000001", phone9: "788123456", amount: 5000, reason: "x" }),
+      (e: unknown) => e instanceof intouch.IntouchRejected && e.code === "1108" && /balance is too low to send RWF 5,000/.test(intouch.depositRefusalMessage(e.code, "RWF 5,000")));
+    statusCode = "2001";
+    assert.equal(await intouch.intouchDepositStatus("7700001", "014HBDTR0TT29N5CDMTQ1374S6"), "sent");
+    assert.equal(await intouch.intouchBalance(), 11250);
     process.env.NODE_ENV = "production";
     await assert.rejects(() => intouch.requestIntouchPayment({ requestId: "https", phone9: "788123456", amount: 100 }), /HTTPS/);
   } finally {
@@ -370,6 +401,14 @@ await asyncTest("intouch client speaks the published request and status calls", 
   }
 });
 
+test("intouch deposit: sent, refused (nothing left), or unclear (checked later, never sent twice)", () => {
+  assert.equal(intouch.depositDecision({ success: true, responsecode: "2001", status: "Successfull" }).outcome, "sent");
+  assert.equal(intouch.depositDecision({ success: false, responsecode: "1108" }).outcome, "refused");
+  assert.equal(intouch.depositDecision({ success: false, responsecode: "1110" }).outcome, "refused", "a duplicate id is never a second payout");
+  assert.equal(intouch.depositDecision({ success: false, responsecode: "2600" }).outcome, "pending", "a network timeout may have sent it");
+  assert.equal(intouch.depositDecision({ success: false, responsecode: "2001" }).outcome, "pending", "success:false is not sent");
+  assert.equal(intouch.depositDecision({}).outcome, "pending");
+});
 test("national ID: exactly 16 digits, and a formatted paste counts", () => {
   assert.equal(nationalIdDigits("1 1995 8 0045123 0 17"), "1199580045123017");
   assert.equal(nationalIdError("1199580045123017"), null);

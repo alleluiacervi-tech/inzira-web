@@ -254,6 +254,28 @@ export const transactions = pgTable("transactions", {
   uniqueIndex("transactions_one_pending").on(t.ref).where(sql`${t.status} = 'pending'`),
 ]);
 
+/** Money sent back to a customer's phone (refunds), through IntouchPay RequestDeposit (lib/payouts.ts). Recorded before
+ *  the call, so one that times out can still be checked. The request is marked refunded only once it is "sent". */
+export const payouts = pgTable("payouts", {
+  id: serial("id").primaryKey(),
+  ref: text("ref").notNull().references(() => requests.ref),
+  amount: integer("amount").notNull(),
+  phone: text("phone").notNull(),
+  reason: text("reason").notNull(),
+  status: text("status").$type<"pending" | "sent" | "failed">().notNull(),
+  /** "intouch:<our id>:<their transaction id>|<their reference>", or "sim:…" in a demo. */
+  providerRef: text("provider_ref"),
+  /** The provider's last answer code, kept for staff and the audit log. */
+  code: text("code"),
+  by: text("by").notNull(),
+  at: ts("at").notNull().defaultNow(),
+  settledAt: ts("settled_at"),
+}, (t) => [
+  index("payouts_ref_idx").on(t.ref),
+  // One refund being sent per request at a time, so two clicks cannot send the money twice.
+  uniqueIndex("payouts_one_pending").on(t.ref).where(sql`${t.status} = 'pending'`),
+]);
+
 /** Uploaded files. The bytes live in file storage (lib/storage.ts); this row says who may read them. */
 export const files = pgTable("files", {
   id: text("id").primaryKey(),
