@@ -147,6 +147,9 @@ await asyncTest("intouch status codes follow the guide, and a denied success is 
   assert.equal(intouch.paymentOutcome({ success: false, responsecode: "2400" }), "pending");
   assert.equal(intouch.paymentOutcome({ success: false, responsecode: "3100" }), "missing");
   assert.equal(intouch.paymentOutcome({ success: true, status: "Something new" }), "pending");
+  assert.equal(intouch.paymentOutcome({ success: true, status: "TimedOut" }), "failed", "the sandbox's timed-out prompt is closed, not left waiting");
+  assert.equal(intouch.paymentOutcome({ status: "Timed Out" }), "failed");
+  assert.equal(intouch.paymentOutcome({ success: true, status: "Successful", responsecode: "01" }), "paid");
 });
 
 await asyncTest("intouch callback is only an identifier, and a second transaction id is ignored", async () => {
@@ -207,6 +210,16 @@ await asyncTest("intouch client speaks the published request and status calls", 
       res.setHeader("content-type", "application/json");
       if ((req.url ?? "").includes("requestpayment")) {
         const form = new URLSearchParams(body);
+        if (form.get("requesttransactionid") === "unreg0000000001") {
+          res.statusCode = 422;
+          res.end(JSON.stringify({ success: false, responsecode: "1002", requesttransactionid: "unreg0000000001" }));
+          return;
+        }
+        if (form.get("requesttransactionid") === "conflict0000001") {
+          res.statusCode = 409;
+          res.end(JSON.stringify({ detail: "exists" }));
+          return;
+        }
         if (form.get("requesttransactionid") === "dup0000000000001") {
           res.end(JSON.stringify({ success: false, responsecode: "2400", requesttransactionid: "dup0000000000001" }));
           return;
@@ -262,6 +275,11 @@ await asyncTest("intouch client speaks the published request and status calls", 
     const duplicate = await intouch.requestIntouchPayment({ requestId: "dup0000000000001", phone9: "788123456", amount: 1000 });
     assert.equal(duplicate.code, "2400");
     assert.equal(duplicate.transactionId, undefined);
+    // A refusal that comes as an HTTP error keeps its reason code from the body; without one, the HTTP status stands in.
+    await assert.rejects(() => intouch.requestIntouchPayment({ requestId: "unreg0000000001", phone9: "788123456", amount: 100 }),
+      (e: unknown) => e instanceof intouch.IntouchRejected && e.code === "1002" && intouch.refusalKind(e.code) === "notRegistered");
+    await assert.rejects(() => intouch.requestIntouchPayment({ requestId: "conflict0000001", phone9: "788123456", amount: 100 }),
+      (e: unknown) => e instanceof intouch.IntouchRejected && e.code === "409" && intouch.refusalKind(e.code) === "other");
     await assert.rejects(() => intouch.requestIntouchPayment({ requestId: "bad", phone9: "788123456", amount: 0 }), /positive number/);
     process.env.NODE_ENV = "production";
     await assert.rejects(() => intouch.requestIntouchPayment({ requestId: "https", phone9: "788123456", amount: 100 }), /HTTPS/);
