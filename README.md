@@ -197,6 +197,12 @@ by every server action.
   provider, production refuses payments. Refunds are recorded in the admin console; sending the money
   back is done from the IntouchPay portal (the deposit API is not used). `PAYMENT_PROVIDER=direct`
   still calls MTN MoMo and Airtel Money for an account that already has those keys.
+- **Paying.** No payment, no work: a request can be checked and quoted for free, but preparing it, submitting it to an
+  institution and completing it wait until it is paid in full. A supervisor or the owner can move a case on with a written
+  reason, kept on the case and in the audit log. A service with a settled price (nothing passed through us, or an official
+  fee Inzira has checked, and a fixed fee of ours with no per-year, per-month or per-property unit) asks for payment right
+  after the request is sent. Any other service is quoted by an agent first. Fees not paid a week after they were sent close
+  the request (the daily job also reminds the customer once). To take a service back to quoting, mark its official fee as unchecked.
 - **Email.** Buy a mailbox on the business domain, put its SMTP settings in the environment and run
   `npm run check:email` from where the app runs (a VPS or cloud host can block outbound mail ports; the check says which).
   Send a real message to Gmail and Outlook and look for `spf=pass` and `dkim=pass` in its headers, or codes will land in spam.
