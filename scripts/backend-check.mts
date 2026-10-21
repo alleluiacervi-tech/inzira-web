@@ -260,6 +260,54 @@ await check("live site: the sample admin gets no code, and sample sessions are c
   }
 });
 
+await check("unpaid quotes: one reminder, then the request is closed a week after the fees were sent", async () => {
+  const { remindUnpaidQuotes, expireUnpaidQuotes } = await import("../lib/jobs.ts");
+  const [{ cols }] = (await d.execute(sql.raw(`select string_agg(column_name, ', ' order by ordinal_position) cols from information_schema.columns where table_name = 'requests'`))).rows as { cols: string }[];
+  const copyOf = async (ref: string, stage: string, dueIn: number, quote = "confirmed") => {
+    const pick = cols.split(", ").map((c) => c === "ref" ? `'${ref}'` : c === "invoice" ? `'INV-${ref}'` : c === "stage" ? `'${stage}'` : c === "quote" ? `'${quote}'` : c === "closed" ? "null" : c === "hold" ? "null"
+      : c === "due_at" ? `now() + interval '${dueIn} hours'` : c === "agent_id" ? "null" : c).join(", ");
+    await d.execute(sql.raw(`insert into requests (${cols}) select ${pick} from requests where ref = 'INZ-2026-04741'`));
+  };
+  const notified = async (ref: string) => Number((await d.execute(sql.raw(`select count(*) n from notifications where key = 'nt.fees' and href = '/portal/requests/${ref}'`))).rows[0].n);
+  const closedOf = async (ref: string) => (await d.execute(sql.raw(`select closed from requests where ref = '${ref}'`))).rows[0].closed as { kind: string } | null;
+  const refs = ["INZ-T-DUE1D", "INZ-T-OVER5D", "INZ-T-WORK", "INZ-T-PAID", "INZ-T-NEW"];
+  try {
+    await copyOf("INZ-T-DUE1D", "checking", 30);       // fees sent about two days ago, due in 30 hours
+    await copyOf("INZ-T-OVER5D", "checking", -5 * 24); // fell due five days ago: a week since the fees
+    await copyOf("INZ-T-WORK", "preparing", -5 * 24);  // work already started (past the lock): never closed by this job
+    await copyOf("INZ-T-PAID", "checking", -5 * 24);   // paid in full: never closed
+    await d.execute(sql.raw(`insert into transactions (ref, receipt, method, official, ours, status) select 'INZ-T-PAID', 'T-PAID', 'MTN MoMo', coalesce(official, 0), ours, 'paid' from requests where ref = 'INZ-T-PAID'`));
+    await copyOf("INZ-T-NEW", "checking", 60);         // just sent: nothing yet
+    const before = await notified("INZ-T-DUE1D");
+    const first = await remindUnpaidQuotes();
+    assert.ok(first.reminded >= 1);
+    assert.equal(await notified("INZ-T-DUE1D"), before + 1, "a request due within two days is reminded");
+    assert.equal(await notified("INZ-T-NEW"), 0, "one just sent is not");
+    assert.equal(await notified("INZ-T-OVER5D"), 0, "one already overdue is handled by the hold, not a reminder");
+    await remindUnpaidQuotes();
+    assert.equal(await notified("INZ-T-DUE1D"), before + 1, "and only once");
+    const result = await expireUnpaidQuotes();
+    assert.ok(result.expired >= 1);
+    assert.equal((await closedOf("INZ-T-OVER5D"))?.kind, "cancelled", "unpaid a week after the fees: closed");
+    assert.equal(await closedOf("INZ-T-DUE1D"), null, "not yet due: left open");
+    assert.equal(await closedOf("INZ-T-WORK"), null, "work already started: left open");
+    assert.equal(await closedOf("INZ-T-PAID"), null, "paid: left open");
+    const events = Number((await d.execute(sql.raw(`select count(*) n from events where ref = 'INZ-T-OVER5D' and key = 'ev.quoteExpired'`))).rows[0].n);
+    assert.equal(events, 1);
+    await expireUnpaidQuotes();
+    assert.equal(Number((await d.execute(sql.raw(`select count(*) n from events where ref = 'INZ-T-OVER5D' and key = 'ev.quoteExpired'`))).rows[0].n), 1, "closing is not repeated");
+  } finally {
+    const list = refs.map((r) => `'${r}'`).join(", ");
+    await d.execute(sql.raw(`delete from events where ref in (${list})`));
+    await d.execute(sql.raw(`delete from transactions where ref in (${list})`));
+    await d.execute(sql.raw(`delete from requests where ref in (${list})`));
+    await d.execute(sql.raw(`delete from audit where entity like 'INZ-T-%'`));
+    await d.execute(sql.raw(`delete from notifications where href like '%/INZ-T-%'`));
+    await d.execute(sql.raw(`delete from outbox where ref like 'INZ-T-%'`));
+    await d.execute(sql.raw(`delete from rate_limits where key like 'quote-nudge:INZ-T-%'`));
+  }
+});
+
 await check("authenticator: a code works once; recovery codes work once", async () => {
   const secret = newSecret();
   const rec = "abcde-fghjk";

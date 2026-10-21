@@ -9,6 +9,7 @@ import { canDeliverEmailCodes, isReservedTestEmail, showsEmailCodeOnScreen } fro
 import { idAsk, idPolicyOf, mentionsNationalId, nationalIdDigits, nationalIdError } from "../lib/identity.ts";
 import { cleanTaxRef, periodsBetween, taxPhase, weekdayOnOrBefore } from "../lib/tax-calendar.ts";
 import { providerFor } from "../lib/payments.ts";
+import { GATED_STAGES, PAYMENT_LOCK, isGated, lockMessage, paymentLock } from "../lib/payment-gate.ts";
 import { barePath, isIndexable, languageAlternates, withLocale } from "../lib/seo.ts";
 import { customerWhatsAppUrl, defaultFollowUpAt, deskChecks, fromKigaliDateTime, handoverRequired, kigaliDateTimeParts, nextKind, nextSentence, stageTargetRows } from "../lib/desk.ts";
 import { text as i18nText } from "../lib/i18n/messages.ts";
@@ -112,6 +113,37 @@ test("amountDue: only paid payments count", () => {
 });
 test("amountDue: never negative", () => assert.equal(amountDue({ ...base, transactions: [tx("paid", 9000, 99000)] } as never), 0));
 test("amountDue: an official fee not yet known counts as nothing", () => assert.equal(amountDue({ ...base, official: null, transactions: [] } as never), 15000));
+test("payment lock: preparing, submitting and completing wait for payment in full", () => {
+  const tx = (status: "pending" | "paid" | "failed" | "refunded", official: number, ours: number) => ({ receipt: "R", at: "2026-10-01T10:00:00Z", method: "MTN MoMo" as const, official, ours, status });
+  const bill = (o: { official: number | null; mode?: "none" | "direct"; ours: number; txs?: ReturnType<typeof tx>[] }) =>
+    ({ invoice: "I-1", official: o.official, officialLabel: "", officialMode: o.mode, ours: o.ours, oursStandard: o.ours, quote: "confirmed", officialReceipt: "na", transactions: o.txs ?? [] }) as never;
+  assert.deepEqual([...GATED_STAGES], ["preparing", "institution", "completed"]);
+  assert.equal(isGated("checking"), false);
+  assert.equal(isGated("received"), false);
+  assert.equal(isGated("institution"), true);
+  // Nothing paid: locked, and what is due is the official fee plus ours.
+  const unpaid = paymentLock(bill({ official: 12000, ours: 8000 }));
+  assert.deepEqual(unpaid, { locked: true, due: 20000, feesKnown: true });
+  // Part paid is still locked; a prompt that has not been approved is not payment; a failed or refunded one is not either.
+  assert.equal(paymentLock(bill({ official: 12000, ours: 8000, txs: [tx("paid", 0, 8000)] })).due, 12000);
+  assert.equal(paymentLock(bill({ official: 12000, ours: 8000, txs: [tx("pending", 12000, 8000)] })).locked, true);
+  assert.equal(paymentLock(bill({ official: 12000, ours: 8000, txs: [tx("failed", 12000, 8000), tx("refunded", 12000, 8000)] })).locked, true);
+  // Paid in full: open. Paying the institution direct, or no official fee, leaves only our fee.
+  assert.equal(paymentLock(bill({ official: 12000, ours: 8000, txs: [tx("paid", 12000, 8000)] })).locked, false);
+  assert.equal(paymentLock(bill({ official: null, mode: "direct", ours: 10000, txs: [tx("paid", 0, 10000)] })).locked, false);
+  assert.equal(paymentLock(bill({ official: 0, ours: 5000, txs: [tx("paid", 0, 5000)] })).locked, false);
+  // Fees not confirmed yet: locked even though nothing is owed on paper.
+  const unknown = paymentLock(bill({ official: null, ours: 0 }));
+  assert.deepEqual(unknown, { locked: true, due: 0, feesKnown: false });
+  // A free service (no official fee, nothing of ours) is not locked.
+  assert.equal(paymentLock(bill({ official: null, mode: "none", ours: 0 })).locked, false);
+  // The refusal starts with the marker a screen looks for, and says who can lift it.
+  assert.ok(lockMessage(unpaid, false).startsWith(PAYMENT_LOCK));
+  assert.ok(lockMessage(unpaid, false).includes("Ask a supervisor"));
+  assert.ok(!lockMessage(unpaid, true).includes("Ask a supervisor"));
+  assert.ok(lockMessage(unpaid, true).includes("20,000"));
+  assert.ok(lockMessage(unknown, true).includes("fees have not been confirmed"));
+});
 test("payStatus: quote, unpaid, overdue, part, pending, paid, refunded", () => {
   const now = "2026-06-01T00:00:00Z";
   assert.equal(payStatus({ ...base, quote: "estimate" } as never, now), "quote");

@@ -16,7 +16,8 @@ import { idAsk, idPolicyOf } from "@/lib/identity";
 import { getService } from "@/lib/repo";
 import { ALLOWED, MAX_BYTES, checkUpload, deleteFile, humanSize, putFile, sniffType } from "@/lib/storage";
 import { defaultFollowUpAt, followUpWhen, handoverRequired } from "@/lib/desk";
-import { STAGES, type Closed, type Hold, type Stage } from "@/lib/types";
+import { lockMessage, isGated, paymentLock } from "@/lib/payment-gate";
+import { STAGES, type Billing, type Closed, type Hold, type Stage } from "@/lib/types";
 
 /** Loads a case for the signed-in staff member, if they may see it and hold `perm`. */
 async function work(ref: string, perm?: Permission) {
@@ -29,6 +30,34 @@ async function work(ref: string, perm?: Permission) {
   const svc = await getService(r.serviceSlug);
   return { me, d, r, flow: (svc?.flow ?? [...STAGES]) as Stage[] };
 }
+type Worked = Exclude<Awaited<ReturnType<typeof work>>, { error: string }>;
+type Override = { reason: string; due: number; feesKnown: boolean };
+
+/** No payment, no work (lib/payment-gate.ts). Returns the refusal while the case is unpaid. A supervisor or the owner (the
+ *  "change our fee" permission) can let it go ahead with a written reason, which the caller records with recordOverride. */
+async function paymentGate(w: Worked, override?: string): Promise<{ error: string } | { override?: Override }> {
+  const { r, d, me } = w;
+  const txs = await d.select().from(s.transactions).where(eq(s.transactions.ref, r.ref));
+  const lock = paymentLock({
+    invoice: r.invoice, official: r.official, officialMode: r.officialMode ?? undefined, officialLabel: r.officialLabel, ours: r.ours, oursStandard: r.oursStandard,
+    quote: r.quote, officialReceipt: r.officialReceipt,
+    transactions: txs.map((t) => ({ receipt: t.receipt, at: "", method: t.method, official: t.official, ours: t.ours, status: t.status })),
+  } as Billing);
+  if (!lock.locked) return {};
+  const canOverride = me.permissions.has("changeOurs");
+  const reason = override?.trim() ?? "";
+  if (!reason || !canOverride) return { error: lockMessage(lock, canOverride) };
+  if (reason.length < 5) return { error: "Write the reason in a few words. It is kept on the case." };
+  return { override: { reason, due: lock.due, feesKnown: lock.feesKnown } };
+}
+
+/** Keeps a payment override on the case (a staff note) and in the audit log. Called inside the transaction that moves the case. */
+async function recordOverride(tx: Parameters<Parameters<Worked["d"]["transaction"]>[0]>[0], w: Worked, o: Override) {
+  const what = o.feesKnown ? `${rwf(o.due)} still due` : "fees not confirmed";
+  await tx.insert(s.notes).values({ ref: w.r.ref, by: w.me.id, body: `Moved without payment (${what}). Reason: ${o.reason}` });
+  await audit(tx, { actor: w.me.name, role: w.me.role, action: "Moved a case without payment", entity: `${w.r.ref} · ${what} · ${o.reason}`, fee: true });
+}
+
 const done = (ref: string): Result => { revalidatePath("/console", "layout"); revalidatePath(`/portal/requests/${ref}`); return { ok: true }; };
 const now = () => new Date().toISOString();
 
@@ -92,13 +121,20 @@ export async function clearHold(ref: string): Promise<Result> {
   return done(ref);
 }
 
-export async function setStage(ref: string, stage: Stage, message: string, tell: boolean): Promise<Result> {
+export async function setStage(ref: string, stage: Stage, message: string, tell: boolean, override?: string): Promise<Result> {
   const w = await work(ref, stage === "completed" ? "complete" : "updateStatus");
   if ("error" in w) return fail(w.error!);
   const { me, d, r, flow } = w;
   if (!flow.includes(stage)) return fail("That stage does not apply to this service.");
   if (r.closed) return fail("This case is closed.");
+  let paid: Override | undefined;
+  if (isGated(stage)) {
+    const gate = await paymentGate(w, override);
+    if ("error" in gate) return fail(gate.error);
+    paid = gate.override;
+  }
   await d.transaction(async (tx) => {
+    if (paid) await recordOverride(tx, w, paid);
     await tx.update(s.requests).set({ stage, stageDates: { ...r.stageDates, [stage]: r.stageDates[stage] ?? now() }, hold: stage === "completed" ? null : r.hold }).where(eq(s.requests.ref, ref));
     const done = stage === "completed";
     await event(tx, ref, done ? msg("ev.completed") : msg("ev.moved", { stage: STAGE_LABEL[stage] }), me.id, message.trim() || undefined);
@@ -113,14 +149,18 @@ export async function setStage(ref: string, stage: Stage, message: string, tell:
   return done(ref);
 }
 
-export async function markSubmitted(ref: string, channel: string, officialRef: string): Promise<Result> {
+export async function markSubmitted(ref: string, channel: string, officialRef: string, override?: string): Promise<Result> {
   const w = await work(ref, "updateStatus");
   if ("error" in w) return fail(w.error!);
   const { me, d, r, flow } = w;
   if (!flow.includes("institution")) return fail("This service is not submitted to an institution.");
   if (!officialRef.trim()) return fail("Add the official reference first.");
   const again = r.stage === "institution";
+  // Saving a new reference on a case that is already with the institution is not a new submission: it got there past the lock.
+  const gate = again ? {} : await paymentGate(w, override);
+  if ("error" in gate) return fail(gate.error);
   await d.transaction(async (tx) => {
+    if (gate.override) await recordOverride(tx, w, gate.override);
     await tx.update(s.requests).set({ stage: "institution", channel: channel || r.channel, officialRef: officialRef.trim(), hold: null, stageDates: { ...r.stageDates, institution: r.stageDates.institution ?? now() } }).where(eq(s.requests.ref, ref));
     const vars = { channel: channel || r.channel, officialRef: officialRef.trim() };
     await event(tx, ref, again ? msg("ev.resubmitted", vars) : msg("ev.submitted", vars), me.id);
