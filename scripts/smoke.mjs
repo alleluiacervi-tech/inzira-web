@@ -113,6 +113,12 @@ if (!failures.length) {
   const forgedBody = await forged.json().catch(() => null);
   if (forged.status !== 200 || forgedBody?.success !== true) fail("/api/payments/callback forged", `an unknown callback must not be treated as an error the provider should retry, got ${forged.status}`);
   else console.log("  ok   /api/payments/callback (unknown prompt is acknowledged, not paid)");
+  // IntouchPay's own shape: a form field, no login (or a wrong one). It must still get 200 and its request id back.
+  const form = await fetch(base + "/api/payments/callback", { method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded", Authorization: "Basic d3Jvbmc6d3Jvbmc=" },
+    body: `jsonpayload=${encodeURIComponent(JSON.stringify({ requesttransactionid: "11223344", transactionid: "1", responsecode: "1000", status: "Pending" }))}` });
+  const formBody = await form.json().catch(() => null);
+  if (form.status !== 200 || formBody?.success !== true || formBody?.message !== "success" || formBody?.request_id !== "11223344") fail("/api/payments/callback form", `expected success with request_id 11223344, got ${form.status} ${JSON.stringify(formBody)}`);
+  else console.log("  ok   /api/payments/callback (any login, any encoding: success with the request id)");
   const headers = (await fetch(base + "/")).headers;
   if (headers.get("x-frame-options") !== "DENY" || headers.get("x-content-type-options") !== "nosniff") fail("/", "security headers missing"); else console.log("  ok   security headers");
   const file = await fetch(base + "/files/anything");

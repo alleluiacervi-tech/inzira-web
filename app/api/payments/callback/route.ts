@@ -1,30 +1,29 @@
-import { handlePaymentCallback } from "@/lib/payment-callback";
+import { after } from "next/server";
+import { acknowledgeCallback, parseCallbackBody, processPaymentCallback } from "@/lib/payment-callback";
 import { allow, clientIp } from "@/lib/ratelimit";
 
 // Mobile money providers call this when a prompt is approved or declined. The body is never
 // trusted: it only tells us WHICH payment to re-check, and the outcome comes from asking the
-// provider directly (lib/billing.ts). IntouchPay posts { jsonpayload } and may send HTTP Basic
-// (API guide section 2.7). MTN calls the URL we pass with each prompt (?tx=<id>); Airtel posts
-// its transaction id, which we match to the prompt we sent.
-// A callback can trigger a status call to the provider, which retries once (lib/intouchpay.ts).
+// provider directly (lib/billing.ts). IntouchPay posts { jsonpayload } (API guide section 2.7).
+// MTN calls the URL we pass with each prompt (?tx=<id>); Airtel posts its transaction id, which
+// we match to the prompt we sent.
+// IntouchPay must always get 200 { message: "success", success: true, request_id } straight away,
+// or it records the callback as failed. So the reply comes first, and the re-check with the
+// provider (which can take a while, lib/intouchpay.ts) runs after it.
 export const maxDuration = 60;
 
+const MAX_BODY = 16_384;
+
 async function handle(req: Request) {
-  // Each call can cost a request to the provider, so a flood from one address, or about one payment, is turned away.
-  // Providers retry on a 429 later.
-  if (!(await allow(`callback:ip:${await clientIp()}`, 120, 60e3))) {
-    return Response.json({ message: "busy", success: false, request_id: "", received: false }, { status: 429 });
+  const text = Number(req.headers.get("content-length") ?? 0) > MAX_BODY ? "" : (await req.text().catch(() => "")).slice(0, MAX_BODY);
+  const body = parseCallbackBody(text);
+  const input = { txId: Number(new URL(req.url).searchParams.get("tx")) || null, body, authorization: req.headers.get("authorization") };
+  // A flood from one address is acknowledged like anything else, but not acted on. If the limit can't be read (the
+  // database is down), the reply still goes out and the work is attempted.
+  if (await allow(`callback:ip:${await clientIp()}`, 120, 60e3).catch(() => true)) {
+    after(() => processPaymentCallback(input).catch((e) => console.error("[payments] callback", e)));
   }
-  if (Number(req.headers.get("content-length") ?? 0) > 16_384) {
-    return Response.json({ message: "too large", success: false, request_id: "" }, { status: 413 });
-  }
-  const url = new URL(req.url);
-  const body = await req.json().catch(() => null);
-  return handlePaymentCallback({
-    txId: Number(url.searchParams.get("tx")) || null,
-    body,
-    authorization: req.headers.get("authorization"),
-  });
+  return acknowledgeCallback(body);
 }
 
 export const POST = handle;
