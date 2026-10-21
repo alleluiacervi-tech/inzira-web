@@ -276,9 +276,17 @@ await step("start", async () => {
   check("training: no national ID is asked for", (await p.ev(`document.querySelector("#f-nid") === null && !!document.querySelector('[aria-label^="Step 1 of 2"]')`)));
   await p.go("/start/ebm-installation");
   check("ebm: an unconfirmed ID rule is not mandatory", await p.has("not confirmed") && (await p.ev(`!!document.querySelector("#f-nid")`)) === true);
-  await p.set("#f-name", "Ebm Person"); await p.set("#f-email", "ebm.person@example.com");
+  // The phone number is the one the first customer just used: another email must still be able to send a request.
+  await p.set("#f-name", "Ebm Person"); await p.set("#f-email", "ebm.person@example.com"); await p.set("#f-phone", "788 555 010");
   await p.click("Continue"); await sleep(300);
   check("ebm: a service that does not require an ID continues without one", await p.has("Check and send") && !(await p.has("ID numbers have 16 digits")));
+  await p.ev(`document.querySelector('input[aria-describedby="ack-err"]').click()`); await p.click("Send request"); await sleep(1200);
+  await waitFor(p, "Enter the code we sent you");
+  await p.set("#otp", await p.ev(`document.querySelector("[data-demo-code]").dataset.demoCode`)); await p.click("Confirm and send request"); await waitFor(p, "Request received");
+  check("start: a phone number that belongs to another account does not block a new email", await p.has("Request received") && await p.has("We didn’t save the phone number") && !(await p.has("already belongs to another account")),
+    (await p.ev(`document.querySelector("main")?.innerText ?? ""`)).slice(0, 300).replace(/\s+/g, " "));
+  await p.click("See my request"); await waitFor(p, "Cancel this request");
+  await p.click("Cancel this request", "summary"); await sleep(300); await p.click("Cancel request", "button"); await waitFor(p, "Cancelled by you");
   await p.close();
 });
 

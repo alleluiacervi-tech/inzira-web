@@ -539,6 +539,7 @@
     "emailRow": "Imeri",
     "dobRow": "Itariki y'amavuko",
     "receivedTrack": "Ushobora kububona igihe cyose ku rupapuro rwo gukurikirana, ukoresheje nomero yabwo n'imeri yawe.",
+    "phoneShared": "Nomero ya telefoni watanze ntitwayibitse kuko isanzwe ikoreshwa na konti indi. Tuzakohereza amakuru kuri imeri yawe.",
     "trackIt": "Kurikirana ubu busabe"
   },
   "notFound": {
@@ -1230,7 +1231,6 @@
     "openMany": "Ufite ubusabe {n} bukirimo gukorwa. Buhagarike cyangwa utegereze burangire, hanyuma usibe konti yawe.",
     "badEmail": "Andika imeri nyayo.",
     "badDob": "Andika itariki y'amavuko nk'uko iri ku ndangamuntu.",
-    "phoneTaken": "Iyo nomero ya telefoni isanzwe ikoreshwa na konti indi. Koresha indi nomero, cyangwa uyisige ubusa.",
     "idShort": "Nomero y'indangamuntu igizwe n'imibare 16.",
     "idLong": "Andika imibare 16 gusa.",
     "idConsent": "Emeza ko wumvise uko nomero y'indangamuntu ikoreshwa.",

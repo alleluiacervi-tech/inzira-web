@@ -52,15 +52,16 @@ async function checkFile(f: File): Promise<string | null> {
 /** Sends a new request: checks the code emailed to the customer, creates their contact record if needed, stores the
  *  files and opens the request. With "portal" (the default) it also signs them in; without it they stay a contact:
  *  they can follow the request with its reference and email, and open a portal later by signing in with that email. */
-export async function submitRequest(fd: FormData): Promise<Result<{ ref: string; portal: boolean }>> {
+export async function submitRequest(fd: FormData): Promise<Result<{ ref: string; portal: boolean; phoneShared: boolean }>> {
   const email = normaliseEmail(text(fd, "email"));
   const phoneInput = text(fd, "phone");
-  const phone = phoneInput ? normalisePhone(phoneInput) : null;
+  const typedPhone = phoneInput ? normalisePhone(phoneInput) : null;
+  let phone = typedPhone;
   const name = text(fd, "name"), subject = text(fd, "subject"), forWho = text(fd, "forWho") || "me";
   const digits = nationalIdDigits(text(fd, "nid"));
   const portal = fd.get("portal") !== "0";
   if (!email) return refuse("badEmail");
-  if (phoneInput && !phone) return refuse("badPhone");
+  if (phoneInput && !typedPhone) return refuse("badPhone");
   if (!name) return refuse("name");
   const slug = text(fd, "slug") || "other-online-service";
   const service = await getService(slug);
@@ -90,10 +91,13 @@ export async function submitRequest(fd: FormData): Promise<Result<{ ref: string;
 
   const d = await db();
   const now = new Date().toISOString();
-  // A phone number belongs to one account. Someone else's account is never joined to this email just because the number matches.
+  // A phone number belongs to one account, and someone else's account is never joined to this email just because the number
+  // matches. A number already on another account is not a reason to turn the request away (families and offices share
+  // phones, and the code has just been used up): the request goes through on the email, and the number is not saved.
+  let phoneShared = false;
   if (phone) {
     const [owner] = await d.select({ id: s.accounts.id, email: s.accounts.email }).from(s.accounts).where(eq(s.accounts.phone, phone));
-    if (owner && owner.email?.toLowerCase() !== email) return refuse("phoneTaken");
+    if (owner && owner.email?.toLowerCase() !== email) { phone = null; phoneShared = true; }
   }
   // Files are written inside the transaction; if it fails, the ones already stored are removed so none is left behind.
   const stored: string[] = [];
@@ -187,7 +191,7 @@ export async function submitRequest(fd: FormData): Promise<Result<{ ref: string;
     await rememberLocale(result.locale);
   }
   revalidatePath("/", "layout");
-  return { ok: true, ref: result.ref, portal };
+  return { ok: true, ref: result.ref, portal, phoneShared };
 }
 
 /** Confirms the request belongs to the signed-in customer. */
