@@ -227,6 +227,8 @@ await step("private areas", async () => {
 });
 
 // ---------- a new customer sends a request ----------
+// A request the start step leaves unpaid at checkout: staff must not see it as work, and privacy cancels it later.
+let unpaidRef = "";
 await step("start", async () => {
   const p = await page();
   await p.go("/start/land-spouse-update");
@@ -248,35 +250,37 @@ await step("start", async () => {
   await p.click("Continue"); await sleep(300);
   check("start: the saved draft has no ID number", !(await p.ev(`(sessionStorage.getItem("inzira:start:land-spouse-update") || "").includes("0045123")`)));
   await p.go("/start/land-spouse-update"); await sleep(400);
-  check("start: a refresh keeps the draft and the step", await p.has("Check and send"));
+  check("start: a refresh keeps the draft and the step", await p.has("Check, then pay"));
   await p.click("Back"); await sleep(200);
   await p.set("#f-nid", "1 1995 8 0045123 0 17"); await p.set("#f-dob", "1995-08-12");
   await p.ev(`document.querySelector("#f-id-consent").click()`);
   await p.click("Continue"); await sleep(300);
-  check("start: the review says what is paid after sending", await p.has("you pay RWF 5,000 to start the work") && await p.has("you pay it directly to the institution"));
+  check("start: a fixed price shows paying as the last step, with the total", (await p.ev(`!!document.querySelector('[aria-label^="Step 2 of 3"]')`)) && await p.has("3. Pay")
+    && (await p.ev(`document.querySelector("[data-checkout-total]")?.innerText ?? ""`)).includes("RWF 5,000") && await p.has("Paying sends your request to our team") && await p.has("you pay it directly to the institution"));
   await attach(p, "input[type=file]"); await sleep(300);
   check("start: a chosen file is listed", await p.has("id_photo.png"));
-  check("start: review lists what was entered", await p.has("Check and send") && await p.has("Test Person") && await p.has("test.person@example.com") && await p.has("1995-08-12") && await p.has("Add a spouse after marriage"));
-  await p.click("Send request"); await sleep(200);
+  check("start: review lists what was entered", await p.has("Check, then pay") && await p.has("Test Person") && await p.has("test.person@example.com") && await p.has("1995-08-12") && await p.has("Add a spouse after marriage"));
+  await p.click("Continue to payment"); await sleep(200);
   check("start: cannot send without the acknowledgement", await p.has("Please confirm you’ve read this"));
-  await p.ev(`document.querySelector('input[aria-describedby="ack-err"]').click()`); await p.click("Send request"); await sleep(1200);
-  check("start: emails a code to confirm the address", await p.has("Enter the code we sent you") && await p.has("test.person@example.com"));
-  await p.set("#otp", "111111"); await p.click("Confirm and send request"); await sleep(1000);
+  await p.ev(`document.querySelector('input[aria-describedby="ack-err"]').click()`); await p.click("Continue to payment"); await sleep(1200);
+  check("start: emails a code to confirm the address", await p.has("Enter the code we sent you") && await p.has("test.person@example.com") && await p.has("then pay"));
+  await p.set("#otp", "111111"); await p.click("Confirm and go to payment"); await sleep(1000);
   check("start: a wrong code is refused", await p.has("not right"));
-  await p.set("#otp", await p.ev(`document.querySelector("[data-demo-code]").dataset.demoCode`)); await p.click("Confirm and send request"); await waitFor(p, "Request received");
-  if (!(await p.has("Request received"))) console.log("    page says:", (await p.ev(`document.querySelector("main")?.innerText ?? ""`)).slice(0, 300).replace(/\s+/g, " "));
-  const ref = await p.ev(`document.querySelector("[data-ref]")?.textContent ?? ""`);
-  check("start: creates the request with a new reference", await p.has("Request received") && /^INZ-\d{4}-\d{5}$/.test(ref), ref);
+  await p.set("#otp", await p.ev(`document.querySelector("[data-demo-code]").dataset.demoCode`)); await p.click("Confirm and go to payment");
+  await waitPath(p, (path) => path.endsWith("/pay"), 120); await waitFor(p, "Pay to send your request", 60);
+  if (!(await p.has("Pay to send your request"))) console.log("    page says:", (await p.ev(`document.body?.innerText ?? ""`)).slice(0, 300).replace(/\s+/g, " "));
+  const ref = (await p.ev("location.pathname")).split("/")[3] ?? "";
+  unpaidRef = ref;
+  check("start: a fixed price goes straight to payment, which sends the request", /^INZ-\d{4}-\d{5}$/.test(ref) && await p.has("Pay to send your request") && await p.has("Order summary") && await p.has("RWF 5,000")
+    && (await p.ev(`!!document.querySelector('[aria-label="Step 3 of 3: Pay"]')`)), `${ref} ${(await p.ev(`document.body?.innerText ?? ""`)).slice(0, 300).replace(/\s+/g, " ")}`);
   check("start: the draft is cleared after sending", (await p.ev(`sessionStorage.getItem("inzira:start:land-spouse-update")`)) === null);
-  check("start: a fixed-price service asks for payment straight away", await p.has("one step left") && await p.has("The price is fixed: RWF 5,000") && (await p.ev(`document.querySelector("[data-pay-now]")?.textContent ?? ""`)).includes("Pay RWF 5,000 now"),
-    (await p.ev(`document.querySelector("main")?.innerText ?? ""`)).slice(0, 300).replace(/\s+/g, " "));
-  await p.click("Pay RWF 5,000 now", "a"); await waitFor(p, "Approve and pay", 60);
-  check("start: the pay link opens the payment screen for the fixed price", (await p.ev("location.pathname")).endsWith("/pay") && await p.has("5,000") && await p.has("Approve and pay"), await p.ev("location.pathname"));
+  await p.set("#mm", "722 123 456"); await sleep(100);
+  check("pay: the number's network is recognised as it is typed", (await p.ev(`document.querySelector(".pay-net")?.textContent ?? ""`)) === "Airtel Money");
   await p.go(`/portal/requests/${ref}`); await waitFor(p, "We married in August.");
   check("start: the new customer is signed in and sees the request", await p.has("Add or remove a spouse in the land register") && await p.has("We married in August.") && await p.has("id_photo.png"));
+  check("start: an unpaid checkout asks the customer to pay to send it", await p.has("Pay to send your request") && await p.has("Go to payment"));
   check("start: a submitted ID is pending review and is not called verified", await p.has("Pending verification") && await p.has("does not verify") && !(await p.has("officially verified")));
-  await p.click("Cancel this request", "summary"); await sleep(300); await p.click("Cancel request", "button"); await waitFor(p, "Cancelled by you");
-  check("cancel: a customer can cancel before paying", await p.has("Cancelled by you") && !(await p.has("Cancel this request")));
+  // This one is left unpaid: staff see it under Awaiting payment, not in the inbox (the console step).
   await p.go("/start/irembo-training");
   check("training: no national ID is asked for", (await p.ev(`document.querySelector("#f-nid") === null && !!document.querySelector('[aria-label^="Step 1 of 2"]')`)));
   await p.go("/start/ebm-installation");
@@ -292,21 +296,23 @@ await step("start", async () => {
     (await p.ev(`document.querySelector("main")?.innerText ?? ""`)).slice(0, 300).replace(/\s+/g, " "));
   await p.click("See my request"); await waitFor(p, "Cancel this request");
   await p.click("Cancel this request", "summary"); await sleep(300); await p.click("Cancel request", "button"); await waitFor(p, "Cancelled by you");
+  check("cancel: a customer can cancel before paying", await p.has("Cancelled by you") && !(await p.has("Cancel this request")));
   // A fixed price paid on the spot: the customer pays straight after sending, and the request is paid when an agent first sees it.
   await p.go("/start/ebm-training"); await waitFor(p, "Continue");
   await p.set("#f-name", "Pay First"); await p.set("#f-email", "pay.first@example.com");
   await p.click("Continue"); await sleep(300);
-  check("pay first: the review says what is paid after sending", await p.has("you pay RWF 20,000 to start the work") && !(await p.has("you pay it directly to the institution")), (await p.ev(`document.querySelector("main")?.innerText ?? ""`)).slice(0, 300).replace(/\s+/g, " "));
-  await p.ev(`document.querySelector('input[aria-describedby="ack-err"]').click()`); await p.click("Send request"); await sleep(1200);
+  check("pay first: the review shows the total and that paying sends it", (await p.ev(`document.querySelector("[data-checkout-total]")?.innerText ?? ""`)).includes("RWF 20,000") && !(await p.has("you pay it directly to the institution")), (await p.ev(`document.querySelector("main")?.innerText ?? ""`)).slice(0, 300).replace(/\s+/g, " "));
+  await p.ev(`document.querySelector('input[aria-describedby="ack-err"]').click()`); await p.click("Continue to payment"); await sleep(1200);
   await waitFor(p, "Enter the code we sent you");
-  await p.set("#otp", await p.ev(`document.querySelector("[data-demo-code]").dataset.demoCode`)); await p.click("Confirm and send request"); await waitFor(p, "one step left");
-  check("pay first: the confirmation asks for the fixed price", await p.has("The price is fixed: RWF 20,000") && await p.has("Pay RWF 20,000 now"));
-  await p.click("Pay RWF 20,000 now", "a"); await waitFor(p, "Approve and pay", 60);
-  await p.ev(`document.querySelector("#pay-agree").click()`); await p.set("#mm", "788 123 456"); await p.click("Send payment prompt");
-  await waitFor(p, "Payment received", 100);
-  check("pay first: the payment goes through on the spot", await p.has("Payment received") && await p.has("RWF 20,000"), (await p.ev(`document.querySelector("main")?.innerText ?? ""`)).slice(0, 200).replace(/\s+/g, " "));
-  await p.click("Done"); await waitFor(p, "Paid RWF 20,000");
-  check("pay first: the request reads Paid", await p.has("Paid RWF 20,000") && !(await p.has("Review and pay")));
+  await p.set("#otp", await p.ev(`document.querySelector("[data-demo-code]").dataset.demoCode`)); await p.click("Confirm and go to payment");
+  await waitPath(p, (path) => path.endsWith("/pay"), 120); await waitFor(p, "Pay to send your request", 60);
+  check("pay first: the checkout asks for the fixed price", await p.has("Pay to send your request") && (await p.ev(`document.querySelector("[data-pay]")?.textContent ?? ""`)).includes("Pay RWF 20,000"));
+  await p.ev(`document.querySelector("#pay-agree").click()`); await p.set("#mm", "788 123 456"); await p.click("Pay RWF 20,000", "button");
+  await waitFor(p, "Your request is with our team", 100);
+  check("pay first: paying sends the request and says what happens next", await p.has("Your request is with our team") && await p.has("RWF 20,000") && await p.has("What happens next") && await p.has("MTN MoMo"),
+    (await p.ev(`document.body?.innerText ?? ""`)).slice(0, 300).replace(/\s+/g, " "));
+  await p.click("Follow your request"); await waitFor(p, "Paid RWF 20,000");
+  check("pay first: the request reads Paid and received", await p.has("Paid RWF 20,000") && await p.has("We’ve received your request") && !(await p.has("Pay to send your request")) && !(await p.has("Review and pay")));
   await p.close();
 });
 
@@ -379,17 +385,17 @@ await step("customer", async () => {
   await waitFor(p, "Approve and pay", 40);
   check("pay: the payment screen shows the amount on its own page", (await p.ev("location.pathname")).endsWith("/pay") && await p.has("Approve and pay") && await p.has("20,000") && await p.has("Nothing is taken until you approve it"),
     `${await p.ev("location.pathname")} ${(await p.ev("document.body.innerText")).replace(/\s+/g, " ").slice(0, 220)}`);
-  await p.click("Send payment prompt"); await sleep(200);
+  await p.click("Pay RWF 20,000", "button"); await sleep(200);
   check("pay: cannot pay without approving the amounts", await p.has("Tick the box to approve"));
   await p.ev(`document.querySelector("#pay-agree").click()`);
-  await p.set("#mm", "788 120 000"); await p.click("Send payment prompt"); await sleep(600);
+  await p.set("#mm", "788 120 000"); await p.click("Pay RWF 20,000", "button"); await sleep(600);
   check("pay: shows a waiting state", await p.has("Check your phone"));
   await sleep(4500);
   check("pay: a declined prompt says nothing was charged", await p.has("didn’t go through") && await p.has("Nothing was charged"));
   // A number ending 1111 is approved by the simulator after twelve seconds: leave the page while it waits and come back.
-  await p.click("Try again"); await sleep(200); await p.set("#mm", "788 121 111"); await p.click("Send payment prompt"); await sleep(1000);
+  await p.click("Try again"); await sleep(200); await p.set("#mm", "788 121 111"); await p.click("Pay RWF 20,000", "button"); await sleep(1000);
   await p.go(await p.ev("location.pathname")); await waitFor(p, "Check your phone", 20);
-  check("pay: coming back to the page shows the prompt still waiting, not a new one", await p.has("Check your phone") && await p.has("788 121 111") && !(await p.has("Send payment prompt")),
+  check("pay: coming back to the page shows the prompt still waiting, not a new one", await p.has("Check your phone") && await p.has("788 121 111") && !(await p.ev(`!!document.querySelector("[data-pay]")`)),
     (await p.ev("document.body.innerText")).replace(/\s+/g, " ").slice(0, 220));
   await waitFor(p, "Payment received", 100);
   check("pay: success shows a receipt", await p.has("Payment received") && await p.has("INZ-R-22107"));
@@ -559,6 +565,8 @@ await step("console", async () => {
   // 1. Overview: the work queue, its filters, the stage pipeline and the period switch
   await p.go("/console/overview");
   check("console: overview leads with the work queue and the pipeline", await p.has("Do next") && await p.has("Open cases by stage") && await p.has("Fees by month"));
+  const rate = await p.ev(`document.querySelector("[data-checkout-rate]")?.innerText ?? ""`);
+  check("console: the overview shows how many checkouts were paid", rate.includes("1 of 2 fixed-price requests paid") && rate.includes("1 waiting") && rate.includes("50%"), rate.replace(/\s+/g, " "));
   const lateCount = Number(await p.ev(`[...document.querySelectorAll(".c-chip")].find((b) => b.textContent.startsWith("Past target"))?.querySelector("b")?.textContent ?? "-1"`));
   await p.click("Past target", "button"); await sleep(300);
   const lateRows = await p.ev(`document.querySelectorAll(".c-donext .c-list-row").length`);
@@ -575,9 +583,17 @@ await step("console", async () => {
   await p.click("Accept", "a"); await waitFor(p, "Inbox / Triage");
   check("console: a new request in the queue leads to the inbox", (await p.ev("location.pathname")) === "/console/inbox");
 
-  // 2. Inbox: the owner takes the request sent earlier in one tap
+  // 2. Inbox: paid requests first; unpaid checkouts are kept apart; the owner takes the request sent earlier in one tap
   await p.go("/console/inbox");
-  triageRef = await p.ev(`document.querySelector(".console-panel .c-mono-ref")?.textContent?.trim() ?? ""`);
+  // The admin step refunded this payment, so its badge now says so.
+  check("inbox: a request paid at checkout comes first, marked, with no quote to send", (await p.ev(`document.querySelector("#inbox-ready .console-panel")?.innerText.includes("Pay First")`))
+    && (await p.ev(`document.querySelector("#inbox-ready .console-panel [data-paid]")?.textContent ?? ""`)) === "Refunded"
+    && (await p.ev(`document.querySelector("#inbox-ready .console-panel")?.innerText.includes("Quote")`)) === false, (await p.ev(`document.querySelector("#inbox-ready")?.innerText ?? ""`)).slice(0, 300).replace(/\s+/g, " "));
+  check("inbox: an unpaid checkout is not in the queue", !(await p.ev(`document.querySelector("#inbox-ready")?.innerText.includes("Test Person")`)));
+  await p.click("Awaiting payment", "button"); await sleep(300);
+  check("inbox: unpaid checkouts are listed apart, to follow up", await p.has("Test Person") && await p.has("RWF 5,000") && await p.has("closes on its own after three days") && (await p.ev(`document.querySelectorAll("[data-checkout]").length`)) >= 1);
+  await p.click("Ready to work", "button"); await sleep(200);
+  triageRef = await p.ev(`document.querySelector("#inbox-ready .console-panel .c-mono-ref")?.textContent?.trim() ?? ""`);
   check("console: the owner can take a new request themselves", !!triageRef && await p.has("Accept & take it"));
   if (triageRef) {
     await p.click("Accept & take it", "button"); await waitFor(p, "You took");
@@ -697,6 +713,9 @@ await step("account", async () => {
 await step("privacy", async () => {
   const p = await page();
   await signIn(p, "test.person@example.com");
+  await p.go(`/portal/requests/${unpaidRef}`); await waitFor(p, "Cancel this request");
+  await p.click("Cancel this request", "summary"); await sleep(300); await p.click("Cancel request", "button"); await waitFor(p, "Cancelled by you");
+  check("cancel: an unpaid checkout can be cancelled by the customer", await p.has("Cancelled by you") && !(await p.has("Pay to send your request")));
   await p.go("/portal/account"); await waitFor(p, "Your details");
   check("privacy: finished requests' documents are counted", await p.has("1 file from 1 request"));
   await p.set("#acct-name", "Test Person Renamed");

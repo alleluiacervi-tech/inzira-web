@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import PayScreen from "@/components/PayScreen";
+import { Steps } from "@/components/Steps";
 import { Icon } from "@/components/ui";
 import { text } from "@/lib/i18n/messages";
 import { reconcileForScreen } from "@/lib/billing";
@@ -12,7 +13,7 @@ export const maxDuration = 60;
 export async function generateMetadata({ params }: { params: Promise<{ ref: string }> }) {
   const r = await getMyRequest((await params).ref);
   const locale = await getPortalLocale();
-  return { title: r ? `${text(locale, "pay.approve")} · ${r.ref}` : text(locale, "request.missing") };
+  return { title: r ? `${text(locale, r.checkout === "open" ? "pay.checkoutTitle" : "pay.approve")} · ${r.ref}` : text(locale, "request.missing") };
 }
 
 export default async function PayPage({ params }: { params: Promise<{ ref: string }> }) {
@@ -27,11 +28,18 @@ export default async function PayPage({ params }: { params: Promise<{ ref: strin
     if (now === "paid") redirect(`/portal/requests/${r.ref}`);
     if (now !== "pending") waiting = null;
   }
-  const t = (path: string) => text(locale, path);
+  const t = (path: string, vars?: Record<string, string | number>) => text(locale, path, vars);
+  // A request started at checkout continues the form's steps: details and review are done, paying sends it. Just after
+  // paying, the page is read again with the checkout over; it keeps the same frame until an agent starts on it.
+  const checkout = !r.closed && (r.checkout === "open" || (r.checkout === "paid" && r.stage === "received"));
+  const steps = [t("start.about"), t("start.review"), t("start.stepPay")];
   return (
-    <div className="stack g18" style={{ maxWidth: 520, margin: "0 auto", padding: "28px 0 80px" }}>
-      <Link href={`/portal/requests/${r.ref}`} className="lnk row g6" style={{ fontSize: 14 }}><Icon name="arrow-l" size={16} /> {t("pay.back")}</Link>
-      <PayScreen reqRef={r.ref} billing={r.billing} phone={r.account.phone} serviceName={r.service.name} waiting={waiting ?? undefined} />
+    <div className="stack g18 pay-page">
+      {checkout
+        ? <Steps names={steps} current={2} label={t("start.stepLabel", { n: 3, total: 3, name: steps[2] })} caption={`${t("start.stepOf", { n: 3, total: 3 })} · ${steps[2]}`} />
+        : <Link href={`/portal/requests/${r.ref}`} className="lnk row g6" style={{ fontSize: 14 }}><Icon name="arrow-l" size={16} /> {t("pay.back")}</Link>}
+      <PayScreen reqRef={r.ref} billing={r.billing} phone={r.account.phone} serviceName={r.service.name} contact={r.account.email ?? r.account.phone}
+        checkout={checkout} waiting={waiting ?? undefined} />
     </div>
   );
 }

@@ -444,7 +444,7 @@
     "payBody": "Your reference is {ref}. The price is fixed: {total}. We start the work as soon as your payment is confirmed.",
     "payNow": "Pay {total} now",
     "payLaterHint": "You can also pay later from your portal. A request that is not paid within a week is closed, and you can start it again any time.",
-    "payNote": "After you send this request, you pay {total} to start the work. Nothing is taken until you approve it on your phone.",
+    "payNote": "Paying sends your request to our team. Nothing is taken until you approve it on your phone.",
     "payNoteDirect": "The official fee is not included: you pay it directly to the institution.",
     "see": "See my request",
     "more": "Browse more services",
@@ -546,7 +546,15 @@
     "dobRow": "Date of birth",
     "receivedTrack": "Follow it any time on the Track page with the reference and your email.",
     "phoneShared": "We didn’t save the phone number you gave, because another account already uses it. We will send updates to your email.",
-    "trackIt": "Track this request"
+    "trackIt": "Track this request",
+    "stepPay": "Pay",
+    "lastPay": "Confirm your email · then pay",
+    "confirmPay": "Confirm and go to payment",
+    "payUpfront": "You pay {total} at the end, and your request goes to our team as soon as it is paid. Nothing is taken until you approve it on your phone.",
+    "checkPay": "Check, then pay",
+    "checkPayLead": "Make sure everything is right. Next you confirm your email and pay {total}.",
+    "toPayTotal": "To pay",
+    "toPayment": "Continue to payment"
   },
   "notFound": {
     "kicker": "Page not found",
@@ -715,7 +723,8 @@
     "idSave": "Send the correction",
     "idSent": "We received the update. Your reference is unchanged, and the number is waiting for review. It is not verified yet.",
     "receiptTitle": "Receipt · {ref}",
-    "receiptLead": "This is Inzira’s record of what you paid. Official fees and our assistance fee are shown on separate lines."
+    "receiptLead": "This is Inzira’s record of what you paid. Official fees and our assistance fee are shown on separate lines.",
+    "notSent": "Not sent yet: waiting for your payment"
   },
   "teams": {
     "Tax & EBM": "Tax & EBM",
@@ -797,7 +806,37 @@
       "Bank transfer": "Bank transfer",
       "Card": "Card",
       "Cash": "Cash"
-    }
+    },
+    "summary": "Order summary",
+    "ref": "Reference {ref}",
+    "checkoutTitle": "Pay to send your request",
+    "payBtn": "Pay {total}",
+    "trustApprove": "Nothing is taken until you approve with your PIN",
+    "trustReceipt": "Receipt by email, with the official fee and our fee shown separately",
+    "later": "Not ready? Your request is saved for three days.",
+    "laterLink": "Pay later",
+    "sendingTitle": "Sending the prompt…",
+    "sendingBody": "We are sending a payment prompt to {phone}. Keep your phone close.",
+    "stepSending": "Sending the prompt",
+    "stepSent": "Prompt sent",
+    "stepPin": "Approve with your PIN",
+    "stepDone": "Payment confirmed",
+    "stepSentToTeam": "Request sent to our team",
+    "elapsed": "Waiting {time}",
+    "noPrompt": "No prompt after a minute? Check that the phone is on and has signal. If the prompt times out, nothing is charged and you can try again.",
+    "paidCheckoutTitle": "Paid. Your request is with our team",
+    "paidCheckoutBody": "An agent checks it within {time} and contacts you at {contact}.",
+    "receiptNo": "Receipt",
+    "amount": "Amount",
+    "paidWith": "Paid with",
+    "date": "Date",
+    "nextTitle": "What happens next",
+    "next1": "An agent checks your details within {time}",
+    "next2": "We submit your application to the institution",
+    "next3": "You follow every step here and by email",
+    "follow": "Follow your request",
+    "viewReceipt": "View receipt",
+    "allPaid": "Everything is paid. Thank you."
   },
   "docs": {
     "filter": "Filter by status",
@@ -1090,6 +1129,12 @@
       "docsDeletedAccount": {
         "title": "Customer documents deleted",
         "body": "{n} file(s), when the customer deleted their account"
+      },
+      "sentToTeam": {
+        "title": "Sent to our team"
+      },
+      "checkoutExpired": {
+        "title": "Not paid in time · request closed"
       }
     },
     "nt": {
@@ -1116,7 +1161,10 @@
       "idChecked": "The details you sent for {ref} were checked by Inzira staff. This is not a government ID check.",
       "idCorrection": "{ref} needs a correction to the ID details. Sign in to update them.",
       "idUnable": "We could not confirm the ID details on {ref} from the documents sent.",
-      "idUpdated": "We received the updated details for {ref}. They are waiting for review."
+      "idUpdated": "We received the updated details for {ref}. They are waiting for review.",
+      "checkoutPaid": "Paid {total} · {ref} is now with our team",
+      "checkoutReminder": "{ref} is not sent yet: pay {total} to send it",
+      "checkoutExpired": "{ref} was closed: it was not paid within three days"
     },
     "sum": {
       "received": {
@@ -1159,6 +1207,16 @@
         "title": "Cancelled",
         "body": "You cancelled this request. Nothing was charged.",
         "next": "Closed."
+      },
+      "checkout": {
+        "title": "Waiting for your payment",
+        "body": "Pay {total} to send this request to our team. Nothing starts until it is paid.",
+        "next": "Pay {total} to send it to our team."
+      },
+      "checkoutExpired": {
+        "title": "Closed: not paid",
+        "body": "This request was not paid within three days, so it was closed. Nothing was charged. You can start it again at any time.",
+        "next": "Closed."
       }
     },
     "hold": {
@@ -1174,12 +1232,17 @@
       "overdue": {
         "title": "Payment of {amount} is overdue",
         "detail": "Everything else is ready. We carry on as soon as it is paid."
+      },
+      "checkout": {
+        "title": "Pay to send your request",
+        "detail": "Your request is ready. Pay {total} and it goes straight to our team. Nothing is taken until you approve it on your phone."
       }
     },
     "closed": {
       "byCustomer": "Cancelled by you: {why}",
       "byCustomerNoReason": "Cancelled by you.",
-      "quoteExpired": "The fees were not paid within a week."
+      "quoteExpired": "The fees were not paid within a week.",
+      "checkoutExpired": "Not paid within three days."
     },
     "fee": {
       "none": "no official fee",
@@ -1216,7 +1279,9 @@
     "idChecked": "staff checked the details you sent for {ref}. This is not a government ID check.",
     "idCorrection": "{ref} needs a correction to the ID details. Sign in to update them. We never text the number itself.",
     "idUnable": "we could not confirm the ID details on {ref} from the documents sent.",
-    "idUpdated": "we received the updated details for {ref}."
+    "idUpdated": "we received the updated details for {ref}.",
+    "checkoutPaid": "we received {total}. Receipt {receipt}. Your request is now with our team.",
+    "checkoutReminder": "your request is not sent yet. Pay {total} in your portal and it goes straight to our team."
   },
   "custErr": {
     "badPhone": "Enter a Rwandan mobile number.",

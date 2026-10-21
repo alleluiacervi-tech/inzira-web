@@ -41,7 +41,7 @@ export async function holdOverduePayments() {
 }
 
 /** Requests with fees sent and still unpaid, narrowed by `extra`. Ones with a prompt waiting on the customer's phone are left out. */
-async function unpaidQuotes(extra: SQL | undefined) {
+async function unpaidRequests(extra: SQL | undefined) {
   const d = await db();
   const rows = await d.select().from(s.requests).where(and(isNull(s.requests.closed), ne(s.requests.stage, "completed"), ne(s.requests.quote, "estimate"), isNotNull(s.requests.dueAt), extra));
   if (!rows.length) return [];
@@ -55,6 +55,10 @@ async function unpaidQuotes(extra: SQL | undefined) {
     return due > 0 && !txs.some((t) => t.status === "pending") ? [{ r, due }] : [];
   });
 }
+/** Quotes an agent sent. Unpaid checkouts have their own reminder and expiry below. */
+const unpaidQuotes = (extra: SQL | undefined) => unpaidRequests(and(ne(s.requests.checkout, "open"), extra));
+/** Requests started at checkout (pay to submit) and not paid. */
+const unpaidCheckouts = (extra: SQL | undefined) => unpaidRequests(and(eq(s.requests.checkout, "open"), extra));
 
 /** Fees are due three days after they are sent (see sendQuote). A day in, a customer who has not paid gets the fees again, once. */
 export async function remindUnpaidQuotes() {
@@ -96,6 +100,47 @@ export async function expireUnpaidQuotes() {
   return { expired };
 }
 
+/** How long an unpaid checkout stays open. The customer is told so on the payment screen. */
+const CHECKOUT_DAYS = 3;
+
+/** A customer who left the checkout without paying hears once, a couple of hours on, that the request has not been sent. */
+export async function remindOpenCheckouts() {
+  const d = await db();
+  let reminded = 0;
+  // Not one about to be closed: three days unpaid is closed by expireOpenCheckouts, in the same run.
+  const young = and(lt(s.requests.openedAt, new Date(Date.now() - 2 * 3600e3).toISOString()), gt(s.requests.openedAt, new Date(Date.now() - CHECKOUT_DAYS * 864e5).toISOString()));
+  for (const { r, due } of await unpaidCheckouts(young)) {
+    if (!(await allow(`checkout-nudge:${r.ref}`, 1, 90 * 864e5))) continue;
+    const vars = { total: rwf(due), ref: r.ref };
+    await d.transaction((tx) => notify(tx, r.ref, { icon: "card", title: msg("nt.checkoutReminder", vars), sms: sms("checkoutReminder", vars) }));
+    reminded++;
+  }
+  return { reminded };
+}
+
+/** Three days on, an unpaid checkout is closed. It never reached staff, so nobody's work is lost; the customer can start again. */
+export async function expireOpenCheckouts() {
+  const d = await db();
+  let expired = 0;
+  for (const { r, due } of await unpaidCheckouts(lt(s.requests.openedAt, new Date(Date.now() - CHECKOUT_DAYS * 864e5).toISOString()))) {
+    const reason = msg("closed.checkoutExpired");
+    const summary = msg("sum.checkoutExpired");
+    await d.transaction(async (tx) => {
+      const [closed] = await tx.update(s.requests).set({
+        closed: { kind: "cancelled", at: new Date().toISOString(), reason: english(reason), msg: reason }, hold: null,
+        summary: { title: english(summary, "title"), body: english(summary, "body"), msg: summary }, next: english(summary, "next"),
+      }).where(and(eq(s.requests.ref, r.ref), isNull(s.requests.closed), eq(s.requests.checkout, "open"))).returning({ ref: s.requests.ref });
+      if (!closed) return; // paid or closed a moment earlier
+      await event(tx, r.ref, msg("ev.checkoutExpired"), "system");
+      // In the portal only: the customer was already reminded once by SMS or email.
+      await notify(tx, r.ref, { icon: "alert", title: msg("nt.checkoutExpired", { ref: r.ref }) });
+      await audit(tx, { actor: "System", role: "—", action: "Closed an unpaid checkout", entity: `${r.ref} · ${rwf(due)} not paid within three days` });
+    });
+    expired++;
+  }
+  return { expired };
+}
+
 /** Removes expired sign-in codes, sessions, old rate-limit counters and delivered messages. */
 export async function cleanUp() {
   const d = await db();
@@ -122,7 +167,7 @@ export async function staffDigest() {
   const d = await db();
   const people = (await d.select().from(s.staff).where(eq(s.staff.active, true))).filter((p) => p.phone);
   const open = await d.select({ agentId: s.requests.agentId, followUp: s.requests.followUp, hold: s.requests.hold, stage: s.requests.stage, closed: s.requests.closed }).from(s.requests)
-    .where(and(isNull(s.requests.closed), ne(s.requests.stage, "completed")));
+    .where(and(isNull(s.requests.closed), ne(s.requests.stage, "completed"), ne(s.requests.checkout, "open")));
   const endOfToday = Date.parse(`${today}T23:59:59+02:00`);
   const threeDaysAgo = Date.now() - 3 * 864e5;
   const unassigned = open.filter((r) => !r.agentId).length;
@@ -159,6 +204,8 @@ export async function runAll() {
     overdue: holdOverduePayments,
     quoteReminders: remindUnpaidQuotes,
     unpaidExpiry: expireUnpaidQuotes,
+    checkoutReminders: remindOpenCheckouts,
+    checkoutExpiry: expireOpenCheckouts,
     retention: retentionSweep,
     messages: deliverDue,
     taxes: () => countTaxAttention().then((attention) => ({ attention })),

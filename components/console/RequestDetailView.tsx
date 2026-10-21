@@ -312,7 +312,25 @@ export function RequestDetailView({
           </div>
         </div>
       )}
-      {lock.locked && !finished && (
+      {c.checkout === "open" && !finished && (
+        <div className="c-notice c-notice-amber" role="status" data-checkout-open>
+          <Icon name="card" size={18} />
+          <div className="c-notice-body">
+            <span className="c-notice-title">Unpaid checkout · {rwf(lock.due)} not paid yet</span>
+            <span>The customer started this at checkout and has not paid. It is not in the inbox or anyone&rsquo;s queue, and it reaches the inbox by itself once paid. It closes after three days unpaid.</span>
+          </div>
+        </div>
+      )}
+      {c.checkout === "paid" && !finished && (c.stage === "received" || c.stage === "checking") && (
+        <div className="c-notice c-notice-neutral" role="status">
+          <Icon name="check-circle" size={18} />
+          <div className="c-notice-body">
+            <span className="c-notice-title">Paid at checkout</span>
+            <span>The customer paid the catalogue price before sending this request, so there is no quote to send.</span>
+          </div>
+        </div>
+      )}
+      {lock.locked && !finished && c.checkout !== "open" && (
         <div className="c-notice c-notice-amber" role="status">
           <Icon name="card" size={18} />
           <div className="c-notice-body">
@@ -324,7 +342,7 @@ export function RequestDetailView({
           </div>
         </div>
       )}
-      {hold && !finished && (
+      {hold && !finished && c.checkout !== "open" && (
         <div className="c-notice c-notice-amber" role="status">
           <Icon name="clock" size={18} />
           <div className="c-notice-body">

@@ -2,36 +2,60 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { checkPayment, startPayment } from "@/app/actions/customer";
-import { billOfficial, rwf } from "@/lib/format";
+import { billOfficial, fmtDay, rwf } from "@/lib/format";
 import { trError } from "@/lib/i18n/errors";
 import { feeCaption, phrase } from "@/lib/i18n/present";
 import { amountDue, paidSplit } from "@/lib/status";
 import type { Billing } from "@/lib/types";
 import { useI18n } from "./I18n";
-import { isMobile, prettyMobile } from "./PhoneCode";
-import { FeeLines, Icon } from "./ui";
+import { isMobile, mobile, prettyMobile } from "./PhoneCode";
+import { FeeTag, Icon } from "./ui";
 
-/** The payment screen: one amount, the phone that receives the prompt, and what happened. */
-export default function PayScreen({ reqRef, billing: b, phone, serviceName, waiting }: {
+type Stage = "review" | "sending" | "pending" | "paid" | "failed" | "slow";
+type Network = "MTN MoMo" | "Airtel Money";
+/** The network a complete Rwandan number is on: 072 and 073 are Airtel, the rest MTN (as lib/payments.ts sends it). */
+const networkOf = (v: string): Network | null => (isMobile(v) ? (/^7[23]/.test(mobile(v)) ? "Airtel Money" : "MTN MoMo") : null);
+const clock = (ms: number) => { const s = Math.max(0, Math.floor(ms / 1000)); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`; };
+
+/** The payment screen: what is being paid, the phone that gets the prompt, then the wait and the outcome.
+ *  With `checkout`, the request is waiting to be paid before it is sent to staff, and paying sends it. */
+export default function PayScreen({ reqRef, billing: b, phone, serviceName, contact, checkout: startedAtCheckout = false, waiting }: {
   reqRef: string; billing: Billing; phone: string; serviceName: string;
+  /** Where the agent will reach the customer, for the confirmation. */
+  contact: string;
+  checkout?: boolean;
   /** A prompt already sent and not yet settled: the screen opens on it and keeps checking. */
   waiting?: { txId: number; receipt: string; amount: number; payer: string | null };
 }) {
   const { locale, t } = useI18n();
+  // Fixed when the screen opens: once paid, the server says the checkout is over, but this screen still finishes it.
+  const [checkout] = useState(startedAtCheckout);
   const due = amountDue(b);
   const paid = paidSplit(b);
   const official = Math.max(0, (b.official ?? 0) - paid.official);
   const ours = Math.max(0, due - official);
   const canPay = b.quote !== "estimate" && due > 0;
-  const [stage, setStage] = useState<"review" | "pending" | "paid" | "failed" | "slow">(waiting ? "pending" : "review");
+  const [stage, setStage] = useState<Stage>(waiting ? "pending" : "review");
   const [txId, setTxId] = useState<number | null>(waiting?.txId ?? null);
   const [num, setNum] = useState(prettyMobile(waiting?.payer ?? phone));
   const [sentAmount, setSentAmount] = useState(waiting?.amount ?? due);
   const [agree, setAgree] = useState(false);
   const [error, setError] = useState("");
   const [receipt, setReceipt] = useState(waiting?.receipt ?? "");
+  const [startedAt, setStartedAt] = useState(() => Date.now());
+  const [now, setNow] = useState(() => Date.now());
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const heading = useRef<HTMLHeadingElement>(null);
+  const network = networkOf(num);
   useEffect(() => () => { if (timer.current) clearTimeout(timer.current); }, []);
+  // The waiting card counts up, so a long wait reads as progress rather than a frozen screen.
+  useEffect(() => {
+    if (stage !== "pending" && stage !== "sending") return;
+    const id = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, [stage]);
+  // Screen readers and keyboard users land on the new state's heading each time it changes.
+  useEffect(() => { if (stage !== "review") heading.current?.focus(); }, [stage]);
 
   // Approving takes a PIN on the phone, and the callback usually settles it first, so the screen asks slowly. The server
   // also limits how often the provider is asked (reconcileForScreen). About fifteen minutes in all: the prompt's own limit.
@@ -48,71 +72,157 @@ export default function PayScreen({ reqRef, billing: b, phone, serviceName, wait
   // Picks up checking a prompt sent before this page was opened. Runs once: `poll` reschedules itself.
   useEffect(() => { if (waiting) poll(waiting.txId); }, []);
   const send = async () => {
-    if (!agree) { setError(t("pay.tick")); return; }
     if (!isMobile(num)) { setError(t("pay.badNumber")); return; }
+    if (!agree) { setError(t("pay.tick")); return; }
     setError("");
-    setStage("pending");
+    setStartedAt(Date.now());
+    setStage("sending");
     const r = await startPayment(reqRef, num).catch(() => ({ ok: false as const, error: t("pay.reach") }));
     if (!r.ok) { setError(trError(locale, r.error)); setStage("review"); return; }
     setReceipt(r.receipt);
     setTxId(r.txId);
     setSentAmount(due);
+    setStage("pending");
     poll(r.txId);
   };
 
-  return (
-    <div className="card stack g16" style={{ padding: 24 }}>
-      <div className="stack g6">
-        <h1 className="h-flow" style={{ fontSize: 28 }}>{stage === "paid" ? t("pay.received") : stage === "failed" ? t("pay.failed") : stage === "pending" || stage === "slow" ? t("pay.checkPhone") : t("pay.approve")}</h1>
-        <p className="mut" style={{ fontSize: 15, lineHeight: 1.5 }}>{serviceName}</p>
+  const officialText = b.officialMode ? phrase(locale, billOfficial(b)) : official === 0 ? (b.official === 0 ? t("pay.free") : t("pay.already")) : rwf(official);
+  const shownNumber = `+250 ${prettyMobile(num)}`;
+  const busy = stage === "sending" || stage === "pending" || stage === "slow";
+
+  const bill = (
+    <section className="pay-bill" aria-labelledby="bill-h">
+      <div className="stack g4">
+        <span className="eb" style={{ fontSize: 10.5 }}>{t("pay.summary")}</span>
+        <strong id="bill-h" className="d" style={{ fontSize: 19, lineHeight: 1.25 }}>{serviceName}</strong>
+        <span className="mut m" style={{ fontSize: 13 }}>{t("pay.ref", { ref: reqRef })}</span>
       </div>
+      <dl className="pay-lines">
+        <div><dt><FeeTag kind="official" /> {feeCaption(locale, b.officialLabel)}</dt><dd>{officialText}</dd></div>
+        <div><dt><FeeTag kind="ours" /> {t("service.assistShort")}</dt><dd className="fee-ours">{rwf(ours)}</dd></div>
+      </dl>
+      <div className="pay-perf" aria-hidden="true" />
+      <div className="row between g12" style={{ alignItems: "baseline" }}>
+        <span style={{ fontWeight: 700, fontSize: 15 }}>{stage === "paid" ? t("pay.totalPaid") : t("pay.toPay")}</span>
+        <strong className="d pay-total">{rwf(stage === "paid" ? sentAmount : due)}</strong>
+      </div>
+    </section>
+  );
 
-      {!canPay && (
-        <p style={{ fontSize: 15, lineHeight: 1.55 }}>{t("pay.notYet")}</p>
-      )}
+  if (!canPay && stage === "review") {
+    return (
+      <div className="stack g16">
+        {bill}
+        <div className="card stack g10" style={{ padding: 20 }}>
+          <h1 className="d" style={{ fontSize: 22 }}>{due > 0 ? t("pay.approve") : t("pay.received")}</h1>
+          <p style={{ fontSize: 15, lineHeight: 1.55 }}>{due > 0 ? t("pay.notYet") : t("pay.allPaid")}</p>
+          <Link className="btn btn-s" href={`/portal/requests/${reqRef}`} style={{ alignSelf: "flex-start" }}>{t("pay.back")}</Link>
+        </div>
+      </div>
+    );
+  }
 
-      {canPay && stage === "review" && (
-        <>
-          <p style={{ fontSize: 15, lineHeight: 1.55, margin: 0 }}>{t("pay.screenLead")}</p>
-          <FeeLines officialLabel={feeCaption(locale, b.officialLabel)} official={b.officialMode ? phrase(locale, billOfficial(b)) : official === 0 ? (b.official === 0 ? t("pay.free") : t("pay.already")) : rwf(official)} ours={rwf(ours)} total={rwf(due)} totalLabel={t("pay.toPay")} />
-          <label className="check"><input id="pay-agree" type="checkbox" checked={agree} onChange={(e) => { setAgree(e.target.checked); setError(""); }} /> {t("side.agree")}</label>
+  return (
+    <div className="stack g16">
+      {stage !== "paid" && bill}
+
+      {stage === "review" && (
+        <section className="card pay-form" aria-labelledby="pay-h">
+          <div className="stack g6">
+            <h1 id="pay-h" className="d" style={{ fontSize: 24 }}>{checkout ? t("pay.checkoutTitle") : t("pay.approve")}</h1>
+            <p className="mut" style={{ fontSize: 15, lineHeight: 1.5 }}>{t("pay.screenLead")}</p>
+          </div>
           <div className="field">
             <label htmlFor="mm">{t("side.number")}</label>
-            <div className="row g8"><span className="in in-prefix" aria-hidden="true">+250</span><input id="mm" className="in" value={num} onChange={(e) => { setNum(e.target.value); setError(""); }} inputMode="tel" autoComplete="tel-national" /></div>
-            <span className="hint">{t("side.pin")}</span>
+            <div className="pay-phone">
+              <span className="in in-prefix" aria-hidden="true">+250</span>
+              <input id="mm" className={`in ${network ? "has-net" : ""} ${error && !isMobile(num) ? "in-err" : ""}`} value={num} inputMode="tel" autoComplete="tel-national" placeholder="788 123 456"
+                aria-describedby="mm-hint" onChange={(e) => { setNum(e.target.value); setError(""); }} />
+              {network && <span className={`pay-net ${network === "MTN MoMo" ? "pay-net-mtn" : "pay-net-airtel"}`}>{t(`pay.methods.${network}`)}</span>}
+            </div>
+            <span className="hint" id="mm-hint">{t("side.pin")}</span>
           </div>
+          <label className="check"><input id="pay-agree" type="checkbox" checked={agree} onChange={(e) => { setAgree(e.target.checked); setError(""); }} /> {t("side.agree")}</label>
           {error && <span className="err-text" role="alert"><Icon name="alert" size={15} /> {error}</span>}
-          <button className="btn btn-p btn-lg" type="button" onClick={send}>{t("side.prompt")}</button>
-        </>
+          <div className="pay-cta">
+            <button className="btn btn-p btn-lg pay-btn" type="button" onClick={send} data-pay>
+              <Icon name="lock" size={18} /> {t("pay.payBtn", { total: rwf(due) })}
+            </button>
+          </div>
+          <ul className="pay-trust">
+            <li><Icon name="shield" size={16} color="var(--ok)" /> {t("pay.trustApprove")}</li>
+            <li><Icon name="file-text" size={16} /> {t("pay.trustReceipt")}</li>
+            <li><Icon name="check-circle" size={16} /> {t("service.refund")}</li>
+          </ul>
+          {checkout && <p className="hint" style={{ margin: 0 }}>{t("pay.later")} <Link className="lnk" href={`/portal/requests/${reqRef}`}>{t("pay.laterLink")}</Link></p>}
+        </section>
       )}
 
-      {stage === "pending" && (
-        <div className="stack g14" role="status">
-          <p style={{ fontSize: 15, lineHeight: 1.55 }}>{t("side.sent", { amount: rwf(sentAmount), phone: `+250 ${prettyMobile(num)}` })}</p>
-          <div className="row g10 mut" style={{ fontSize: 14 }}><span className="spin spin-dark" /> {t("side.waiting")}</div>
-          <span className="hint">{t("side.keep")}</span>
-        </div>
+      {busy && (
+        <section className="card pay-wait" role="status" aria-live="polite">
+          <div className="pay-phone-art" aria-hidden="true">
+            <span className="pay-ring" /><span className="pay-ring pay-ring-2" />
+            <span className="pay-handset"><span className="pay-pin"><i /><i /><i /><i /></span></span>
+          </div>
+          <div className="stack g6" style={{ textAlign: "center", alignItems: "center" }}>
+            <h1 ref={heading} tabIndex={-1} className="d" style={{ fontSize: 24 }}>{stage === "sending" ? t("pay.sendingTitle") : t("pay.checkPhone")}</h1>
+            <p style={{ fontSize: 15, lineHeight: 1.55, maxWidth: 400 }}>
+              {stage === "sending" ? t("pay.sendingBody", { phone: shownNumber }) : stage === "slow" ? t("side.stillOpen") : t("side.sent", { amount: rwf(sentAmount), phone: shownNumber })}
+            </p>
+          </div>
+          <ol className="pay-steps">
+            <li className={stage === "sending" ? "cur" : "done"}>{stage === "sending" ? t("pay.stepSending") : t("pay.stepSent")}</li>
+            <li className={stage === "sending" ? "" : "cur"}>{t("pay.stepPin")}</li>
+            <li>{checkout ? t("pay.stepSentToTeam") : t("pay.stepDone")}</li>
+          </ol>
+          {stage !== "slow" && <span className="pay-elapsed">{t("pay.elapsed", { time: clock(now - startedAt) })}</span>}
+          {stage === "slow" && txId !== null
+            ? <button className="btn btn-p" type="button" onClick={() => { setStage("pending"); poll(txId); }}>{t("side.checkAgain")}</button>
+            : <p className="hint" style={{ textAlign: "center", maxWidth: 400 }}>{t("pay.noPrompt")}</p>}
+        </section>
       )}
 
       {stage === "paid" && (
-        <div className="stack g14" role="status">
-          <div className="row g12"><span className="ok-dot"><Icon name="check" size={22} /></span><p style={{ fontSize: 15, lineHeight: 1.55 }}>{t("side.got", { amount: rwf(sentAmount), receipt })}</p></div>
-          <Link className="btn btn-d" href={`/portal/requests/${reqRef}`}>{t("side.done")}</Link>
-        </div>
-      )}
-
-      {stage === "slow" && txId !== null && (
-        <div className="stack g14" role="status">
-          <p style={{ fontSize: 15, lineHeight: 1.55 }}>{t("side.stillOpen")}</p>
-          <button className="btn btn-p" type="button" onClick={() => { setStage("pending"); poll(txId); }}>{t("side.checkAgain")}</button>
-        </div>
+        <section className="card pay-done" role="status" aria-live="polite">
+          <svg className="pay-tick" viewBox="0 0 52 52" aria-hidden="true"><circle cx="26" cy="26" r="24" /><path d="M15 27l7 7 15-16" /></svg>
+          <div className="stack g8" style={{ textAlign: "center", alignItems: "center" }}>
+            <h1 ref={heading} tabIndex={-1} className="d" style={{ fontSize: 26 }}>{checkout ? t("pay.paidCheckoutTitle") : t("pay.received")}</h1>
+            <p style={{ fontSize: 15.5, lineHeight: 1.55, maxWidth: 420 }}>
+              {checkout ? t("pay.paidCheckoutBody", { time: t("responseTime"), contact }) : t("side.got", { amount: rwf(sentAmount), receipt })}
+            </p>
+          </div>
+          <dl className="pay-receipt">
+            <div><dt>{t("pay.receiptNo")}</dt><dd className="m">{receipt}</dd></div>
+            <div><dt>{t("pay.amount")}</dt><dd>{rwf(sentAmount)}</dd></div>
+            <div><dt>{t("pay.paidWith")}</dt><dd>{network ? t(`pay.methods.${network}`) : shownNumber}</dd></div>
+            <div><dt>{t("pay.date")}</dt><dd>{fmtDay(new Date().toISOString(), locale)}</dd></div>
+          </dl>
+          {checkout && (
+            <div className="stack g10" style={{ width: "100%" }}>
+              <span className="eb" style={{ fontSize: 10.5 }}>{t("pay.nextTitle")}</span>
+              <ol className="pay-next">
+                <li><Icon name="user" size={17} /> {t("pay.next1", { time: t("responseTime") })}</li>
+                <li><Icon name="send" size={17} /> {t("pay.next2")}</li>
+                <li><Icon name="bell" size={17} /> {t("pay.next3")}</li>
+              </ol>
+            </div>
+          )}
+          <div className="stack g10" style={{ width: "100%" }}>
+            <Link className="btn btn-p btn-lg" href={`/portal/requests/${reqRef}`} style={{ justifyContent: "center" }}>{checkout ? t("pay.follow") : t("side.done")}</Link>
+            <Link className="btn btn-s" href={`/portal/requests/${reqRef}/receipt`} style={{ justifyContent: "center" }}><Icon name="file-text" size={17} /> {t("pay.viewReceipt")}</Link>
+          </div>
+        </section>
       )}
 
       {stage === "failed" && (
-        <div className="stack g14" role="alert">
-          <p style={{ fontSize: 15, lineHeight: 1.55 }}>{t("side.declined")}</p>
-          <button className="btn btn-p" type="button" onClick={() => setStage("review")}>{t("side.again")}</button>
-        </div>
+        <section className="card pay-failed" role="alert">
+          <span className="pay-x" aria-hidden="true"><Icon name="x" size={26} /></span>
+          <div className="stack g6" style={{ textAlign: "center", alignItems: "center" }}>
+            <h1 ref={heading} tabIndex={-1} className="d" style={{ fontSize: 24 }}>{t("pay.failed")}</h1>
+            <p style={{ fontSize: 15, lineHeight: 1.55, maxWidth: 420 }}>{t("side.declined")}</p>
+          </div>
+          <button className="btn btn-p btn-lg" type="button" onClick={() => { setStage("review"); setAgree(true); }} style={{ width: "100%", justifyContent: "center" }}>{t("side.again")}</button>
+        </section>
       )}
     </div>
   );

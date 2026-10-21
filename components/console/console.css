@@ -924,3 +924,15 @@ li:last-child > .c-attn { border-bottom: 0; }
   .tax-rail, .tax-add { grid-template-columns: 1fr; }
   .tax-row { grid-template-columns: 1fr; gap: 6px; }
 }
+
+/* Live payment alert: a new paid request or a payment on a case, while the console is open. */
+.c-pay-toast { position: fixed; right: 20px; bottom: 20px; z-index: 95; display: flex; gap: 12px; align-items: flex-start; width: min(380px, calc(100vw - 24px)); padding: 14px 12px 14px 14px; background: var(--c-surface); border: 1px solid var(--c-green-border); border-left: 4px solid var(--c-green); border-radius: 12px; box-shadow: var(--shadow-pop); animation: c-pay-in .32s var(--ease); }
+.c-pay-toast-ico { width: 36px; height: 36px; flex-shrink: 0; border-radius: 50%; display: grid; place-items: center; background: var(--c-green-bg); color: var(--c-green); }
+.c-pay-toast-link { margin-top: 4px; font-size: 13px; font-weight: 700; color: var(--c-green); text-decoration: none; }
+.c-pay-toast-link:hover { text-decoration: underline; }
+@keyframes c-pay-in { from { transform: translateY(12px); opacity: 0; } }
+@media (max-width: 768px) { .c-pay-toast { right: 12px; bottom: calc(80px + env(safe-area-inset-bottom)); } }
+@media (prefers-reduced-motion: reduce) { .c-pay-toast { animation: none; } }
+.c-checkout-rate { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 12px; border-radius: 10px; background: var(--c-bg); border: 1px solid var(--c-border-subtle); }
+.c-checkout-pct { font-size: 22px; font-weight: 700; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; color: var(--c-text); text-decoration: none; min-width: 52px; text-align: right; }
+.c-checkout-pct:hover { color: var(--c-ember); }

@@ -200,9 +200,13 @@ by every server action.
 - **Paying.** No payment, no work: a request can be checked and quoted for free, but preparing it, submitting it to an
   institution and completing it wait until it is paid in full. A supervisor or the owner can move a case on with a written
   reason, kept on the case and in the audit log. A service with a settled price (nothing passed through us, or an official
-  fee Inzira has checked, and a fixed fee of ours with no per-year, per-month or per-property unit) asks for payment right
-  after the request is sent. Any other service is quoted by an agent first. Fees not paid a week after they were sent close
-  the request (the daily job also reminds the customer once). To take a service back to quoting, mark its official fee as unchecked.
+  fee Inzira has checked, and a fixed fee of ours with no per-year, per-month or per-property unit) is pay to submit: the
+  form ends on the payment screen, and the request reaches staff only once it is paid. Until then it is an unpaid checkout
+  (`requests.checkout = 'open'`), listed under Inbox › Awaiting payment and nowhere else in the console; the daily job
+  reminds the customer once after two hours and closes it after three days. Paying hands it to the inbox, paid requests
+  first, and staff with the console open get a live alert. Any other service is quoted by an agent first. Quoted fees not
+  paid a week after they were sent close the request (the daily job also reminds the customer once). To take a service back
+  to quoting, mark its official fee as unchecked.
 - **Email.** Buy a mailbox on the business domain, put its SMTP settings in the environment and run
   `npm run check:email` from where the app runs (a VPS or cloud host can block outbound mail ports; the check says which).
   Send a real message to Gmail and Outlook and look for `spf=pass` and `dkim=pass` in its headers, or codes will land in spam.

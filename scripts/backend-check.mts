@@ -308,6 +308,67 @@ await check("unpaid quotes: one reminder, then the request is closed a week afte
   }
 });
 
+await check("pay to submit: an unpaid checkout is reminded once, closes after three days, and paying hands it to staff", async () => {
+  const { remindOpenCheckouts, expireOpenCheckouts, expireUnpaidQuotes } = await import("../lib/jobs.ts");
+  const { reconcilePayment } = await import("../lib/billing.ts");
+  const [{ cols }] = (await d.execute(sql.raw(`select string_agg(column_name, ', ' order by ordinal_position) cols from information_schema.columns where table_name = 'requests'`))).rows as { cols: string }[];
+  const hold = JSON.stringify({ reason: "payment", title: "Pay to send your request", detail: "Pay RWF 5,000", since: new Date().toISOString(), msg: { key: "hold.checkout", vars: { total: "RWF 5,000" } } });
+  // A copy of a sample request, started at checkout `hoursAgo` hours ago for RWF 5,000 and not paid.
+  const checkoutOf = async (ref: string, hoursAgo: number, dueHoursAgo = hoursAgo - 72) => {
+    const pick = cols.split(", ").map((c) => c === "ref" ? `'${ref}'` : c === "invoice" ? `'INV-${ref}'` : c === "stage" ? "'received'" : c === "quote" ? "'confirmed'" : c === "closed" ? "null"
+      : c === "hold" ? `'${hold}'::jsonb` : c === "checkout" ? "'open'" : c === "agent_id" ? "null" : c === "official" ? "0" : c === "official_mode" ? "null" : c === "ours" ? "5000"
+      : c === "opened_at" ? `now() - interval '${hoursAgo} hours'` : c === "due_at" ? `now() - interval '${dueHoursAgo} hours'` : c).join(", ");
+    await d.execute(sql.raw(`insert into requests (${cols}) select ${pick} from requests where ref = 'INZ-2026-04741'`));
+  };
+  const count = async (q: string) => Number((await d.execute(sql.raw(q))).rows[0].n);
+  const notified = (ref: string, key: string) => count(`select count(*) n from notifications where key = '${key}' and href = '/portal/requests/${ref}'`);
+  const row = async (ref: string) => (await d.execute(sql.raw(`select checkout, closed, hold, summary from requests where ref = '${ref}'`))).rows[0] as { checkout: string; closed: { msg?: { key: string } } | null; hold: unknown; summary: { msg?: { key: string } } };
+  const prompt = async (ref: string) => (await d.insert(s.transactions).values({ ref, receipt: `R-${ref}`, method: "MTN MoMo", official: 0, ours: 5000, status: "pending", payer: "788123456", providerRef: `sim:${Date.now() - 5000}:788123456` }).returning({ id: s.transactions.id }))[0].id;
+  const refs = ["INZ-T-CO-NEW", "INZ-T-CO-LEFT", "INZ-T-CO-STALE"];
+  try {
+    await checkoutOf("INZ-T-CO-NEW", 1);            // still on the payment screen, probably
+    await checkoutOf("INZ-T-CO-LEFT", 3, 5 * 24);   // left three hours ago; due date long past, as a quote would read it
+    await checkoutOf("INZ-T-CO-STALE", 80);         // started more than three days ago
+    await remindOpenCheckouts();
+    assert.equal(await notified("INZ-T-CO-NEW", "nt.checkoutReminder"), 0, "not reminded within two hours");
+    assert.equal(await notified("INZ-T-CO-LEFT", "nt.checkoutReminder"), 1, "reminded once it has been left");
+    assert.equal(await notified("INZ-T-CO-STALE", "nt.checkoutReminder"), 0, "not one about to be closed");
+    await remindOpenCheckouts();
+    assert.equal(await notified("INZ-T-CO-LEFT", "nt.checkoutReminder"), 1, "and only once");
+    assert.ok(await count(`select count(*) n from outbox where ref = 'INZ-T-CO-LEFT'`) >= 1, "the reminder goes out by email");
+    await expireUnpaidQuotes();
+    assert.equal((await row("INZ-T-CO-LEFT")).closed, null, "the quote expiry does not touch checkouts");
+    await expireOpenCheckouts();
+    assert.equal((await row("INZ-T-CO-STALE")).closed?.msg?.key, "closed.checkoutExpired", "three days unpaid: closed");
+    assert.equal((await row("INZ-T-CO-LEFT")).closed, null, "younger ones stay open");
+    assert.equal(await notified("INZ-T-CO-STALE", "nt.checkoutExpired"), 1);
+    assert.equal(await count(`select count(*) n from staff_notifications where ref in ('INZ-T-CO-LEFT', 'INZ-T-CO-STALE')`), 0, "staff hear nothing about unpaid checkouts");
+
+    assert.equal(await reconcilePayment(await prompt("INZ-T-CO-LEFT")), "paid");
+    const paid = await row("INZ-T-CO-LEFT");
+    assert.equal(paid.checkout, "paid"); assert.equal(paid.hold, null); assert.equal(paid.summary.msg?.key, "sum.received");
+    assert.equal(await notified("INZ-T-CO-LEFT", "nt.checkoutPaid"), 1, "the customer is told it was sent");
+    assert.equal(await notified("INZ-T-CO-LEFT", "nt.paymentReceived"), 0, "once, not twice");
+    assert.ok(await count(`select count(*) n from staff_notifications where ref = 'INZ-T-CO-LEFT' and title = 'New paid request INZ-T-CO-LEFT'`) >= 1, "staff are told a paid request arrived");
+    assert.equal(await count(`select count(*) n from events where ref = 'INZ-T-CO-LEFT' and key = 'ev.sentToTeam'`), 1);
+
+    // A prompt approved after the checkout was closed: the money is in, so the request is opened again and handed over.
+    assert.equal(await reconcilePayment(await prompt("INZ-T-CO-STALE")), "paid");
+    const late = await row("INZ-T-CO-STALE");
+    assert.equal(late.closed, null); assert.equal(late.checkout, "paid");
+  } finally {
+    const list = refs.map((r) => `'${r}'`).join(", ");
+    await d.execute(sql.raw(`delete from events where ref in (${list})`));
+    await d.execute(sql.raw(`delete from transactions where ref in (${list})`));
+    await d.execute(sql.raw(`delete from staff_notifications where ref in (${list})`));
+    await d.execute(sql.raw(`delete from outbox where ref in (${list})`));
+    await d.execute(sql.raw(`delete from requests where ref in (${list})`));
+    await d.execute(sql.raw(`delete from audit where entity like '%INZ-T-CO-%'`));
+    await d.execute(sql.raw(`delete from notifications where href like '%/INZ-T-CO-%'`));
+    await d.execute(sql.raw(`delete from rate_limits where key like '%INZ-T-CO-%'`));
+  }
+});
+
 await check("authenticator: a code works once; recovery codes work once", async () => {
   const secret = newSecret();
   const rec = "abcde-fghjk";

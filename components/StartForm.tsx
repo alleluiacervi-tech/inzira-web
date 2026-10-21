@@ -1,5 +1,6 @@
 "use client";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Fragment, useEffect, useState, type ReactNode } from "react";
 import { displayOfficial, displayOurs, displayTotal } from "@/lib/i18n/present";
 import { trError } from "@/lib/i18n/errors";
@@ -12,6 +13,7 @@ import { submitRequest } from "@/app/actions/customer";
 import { useHuman } from "./Human";
 import { useI18n } from "./I18n";
 import { CodeEntry, isMobile, prettyMobile } from "./PhoneCode";
+import { Steps } from "./Steps";
 import { Alert, FeeLines, Icon } from "./ui";
 
 /** Puts React elements where a translated sentence has `{name}` placeholders, e.g. the reference in bold. */
@@ -33,11 +35,14 @@ const isDob = (v: string) => { const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(v); if
 export default function StartForm({ service: s }: { service: Service | null }) {
   const { locale, t } = useI18n();
   const draftKey = `inzira:start:${s?.slug ?? "describe"}`;
-  // A service with a settled price is paid for right after the request is sent.
+  // Pay to submit: a service with a settled price is paid for at the end of this form, and only then sent to our team.
   const price = s ? checkoutPrice(s) : null;
   // Two steps: who you are, then a short check. Documents and extra questions wait until an agent needs them.
+  // With a price, paying is shown as the third step; it happens on the payment screen.
   const keys: Key[] = ["about", "review"];
   const names: Record<Key, string> = { about: t("start.about"), review: t("start.review") };
+  const stepNames = [...keys.map((k) => names[k]), ...(price ? [t("start.stepPay")] : [])];
+  const router = useRouter();
   const who: [string, string][] = [["me", t("start.me")], ["family", t("start.family")], ["business", t("start.myBiz")]];
   const last = keys.length - 1;
 
@@ -128,6 +133,8 @@ export default function StartForm({ service: s }: { service: Service | null }) {
     const r = await submitRequest(fd).catch(() => ({ ok: false as const, error: t("authErr.submitFail") }));
     if (!r.ok) return trError(locale, r.error);
     try { sessionStorage.removeItem(draftKey); } catch { /* ignore */ }
+    // Signed in now: straight on to paying, which is what sends the request.
+    if (r.payNow !== null && r.portal) { router.replace(`/portal/requests/${r.ref}/pay`); return null; }
     setRef(r.ref);
     setPortalOpened(r.portal);
     setPhoneShared(r.phoneShared);
@@ -172,8 +179,9 @@ export default function StartForm({ service: s }: { service: Service | null }) {
     return (
       <section className="wrap" style={{ paddingTop: 48, paddingBottom: 96 }}>
         <div className="stack g20" style={{ maxWidth: 460, margin: "0 auto" }}>
-          <span className="eb" style={{ fontSize: 11 }}>{t("start.last")}</span>
-          <CodeEntry email={f.email.trim().toLowerCase()} demoCode={demoCode} cta={t("start.confirm")} onBack={() => { setPhase("form"); setStep(0); }}
+          {price && <Steps names={stepNames} current={1} label={t("start.stepLabel", { n: 2, total: stepNames.length, name: stepNames[1] })} />}
+          <span className="eb" style={{ fontSize: 11 }}>{price ? t("start.lastPay") : t("start.last")}</span>
+          <CodeEntry email={f.email.trim().toLowerCase()} demoCode={demoCode} cta={price ? t("start.confirmPay") : t("start.confirm")} onBack={() => { setPhase("form"); setStep(0); }}
             onResend={async () => { const r = await requestEmailCode(f.email, await human.get()); return r.ok ? { demoCode: r.demoCode } : { error: r.error }; }}
             onSubmit={send} />
           <p className="hint row g8" style={{ alignItems: "flex-start" }}><Icon name="lock" size={16} /><span>{t("start.emailUse")}</span></p>
@@ -187,15 +195,8 @@ export default function StartForm({ service: s }: { service: Service | null }) {
       <div className="stack g24" style={{ maxWidth: 640 }}>
         <div className="stack g12">
           <Link href={s ? `/services/${s.slug}` : "/services"} className="lnk row g6" style={{ fontSize: 14 }}><Icon name="arrow-l" size={16} /> {s ? s.name : t("start.all")}</Link>
-          <div className="row g8" role="img" aria-label={t("start.stepLabel", { n: step + 1, total: keys.length, name: names[key] })}>
-            {keys.map((k, i) => (
-              <div key={k} className="stack g6 grow">
-                <span style={{ height: 4, borderRadius: 2, background: i <= step ? "var(--ember)" : "var(--sand)" }} />
-                <span className="m-hide" style={{ fontSize: 12.5, fontWeight: 700, color: i === step ? "var(--ink)" : "var(--muted)" }}>{i + 1}. {names[k]}</span>
-              </div>
-            ))}
-          </div>
-          <span className="eb d-hide" style={{ fontSize: 11 }}>{t("start.stepOf", { n: step + 1, total: keys.length })} · {names[key]}</span>
+          <Steps names={stepNames} current={step} label={t("start.stepLabel", { n: step + 1, total: stepNames.length, name: names[key] })} />
+          <span className="eb d-hide" style={{ fontSize: 11 }}>{t("start.stepOf", { n: step + 1, total: stepNames.length })} · {names[key]}</span>
         </div>
 
         {s && (
@@ -210,7 +211,7 @@ export default function StartForm({ service: s }: { service: Service | null }) {
             <div className="stack g12" style={{ paddingTop: 14 }}>
               <FeeLines officialLabel={t("service.officialShort")} official={displayOfficial(s, locale)} ours={displayOurs(s, locale)} total={displayTotal(s, locale)} totalLabel={t("service.estimate")} />
               <p className="hint">{s.official.note}</p>
-              <p className="hint row g8" style={{ alignItems: "flex-start" }}><Icon name="shield" size={16} color="var(--ok)" /><span>{t("start.payAfter")}</span></p>
+              <p className="hint row g8" style={{ alignItems: "flex-start" }}><Icon name="shield" size={16} color="var(--ok)" /><span>{price ? t("start.payUpfront", { total: rwf(price.total) }) : t("start.payAfter")}</span></p>
             </div>
           </details>
         )}
@@ -278,7 +279,7 @@ export default function StartForm({ service: s }: { service: Service | null }) {
 
         {key === "review" && (
           <div className="stack g20">
-            <div className="stack g8"><h1 className="h-flow">{t("start.check")}</h1><p className="mut" style={{ fontSize: 15 }}>{t("start.checkLead")}</p></div>
+            <div className="stack g8"><h1 className="h-flow">{price ? t("start.checkPay") : t("start.check")}</h1><p className="mut" style={{ fontSize: 15 }}>{price ? t("start.checkPayLead", { total: rwf(price.total) }) : t("start.checkLead")}</p></div>
             <div className="card" style={{ padding: 18 }}>
               <dl className="review">
                 <dt>{t("start.svc")}</dt><dd>{s ? s.name : t("start.unsureYet")}</dd>
@@ -315,7 +316,15 @@ export default function StartForm({ service: s }: { service: Service | null }) {
                 </label>
               )}
             </div>
-            {price && <p className="hint" style={{ margin: 0 }}>{t("start.payNote", { total: rwf(price.total) })}{price.direct ? ` ${t("start.payNoteDirect")}` : ""}</p>}
+            {price && (
+              <div className="card stack g12" style={{ padding: 16, background: "var(--bone)" }} data-checkout-total>
+                <div className="row between g12" style={{ alignItems: "baseline" }}>
+                  <strong style={{ fontSize: 15 }}>{t("start.toPayTotal")}</strong>
+                  <strong className="d fig" style={{ fontSize: 22, color: "var(--brand)" }}>{rwf(price.total)}</strong>
+                </div>
+                <p className="hint row g8" style={{ alignItems: "flex-start", margin: 0 }}><Icon name="lock" size={16} /><span>{t("start.payNote", { total: rwf(price.total) })}{price.direct ? ` ${t("start.payNoteDirect")}` : ""}</span></p>
+              </div>
+            )}
             <label className="check"><input type="checkbox" checked={ack} onChange={(e) => setAck(e.target.checked)} aria-describedby="ack-err" /> {t("start.ack")}</label>
             {err("ack")}
           </div>
@@ -324,7 +333,7 @@ export default function StartForm({ service: s }: { service: Service | null }) {
         {sendError && <Alert kind="err" title={t("start.codeFail")} live>{sendError}</Alert>}
         <div className="row g10" style={{ paddingTop: 8 }}>
           {step > 0 && <button type="button" className="btn btn-s btn-lg" onClick={() => { setStep(step - 1); setTouched(false); }}>{t("start.back")}</button>}
-          <button type="button" className="btn btn-p btn-lg grow" onClick={next} disabled={sending}>{sending ? <><span className="spin" /> {t("start.sendingCode")}</> : key === "review" ? t("start.send") : t("start.continue")}</button>
+          <button type="button" className="btn btn-p btn-lg grow" onClick={next} disabled={sending}>{sending ? <><span className="spin" /> {t("start.sendingCode")}</> : key === "review" ? (price ? t("start.toPayment") : t("start.send")) : t("start.continue")}</button>
         </div>
       </div>
 
@@ -335,7 +344,7 @@ export default function StartForm({ service: s }: { service: Service | null }) {
           <span className="mut" style={{ fontSize: 13.5 }}>{s.via} · {s.time}</span>
           <FeeLines officialLabel={t("service.officialFee")} official={displayOfficial(s, locale)} ours={displayOurs(s, locale)} total={displayTotal(s, locale)} totalLabel={t("service.totalShort")} />
           <p className="hint">{s.official.note}</p>
-          <p className="hint row g8" style={{ alignItems: "flex-start" }}><Icon name="shield" size={16} color="var(--ok)" /><span>{t("start.payAfter")}</span></p>
+          <p className="hint row g8" style={{ alignItems: "flex-start" }}><Icon name="shield" size={16} color="var(--ok)" /><span>{price ? t("start.payUpfront", { total: rwf(price.total) }) : t("start.payAfter")}</span></p>
         </aside>
       ) : (
         <aside className="card stack g14 sticky-aside" style={{ padding: 20 }}>

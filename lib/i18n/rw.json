@@ -444,7 +444,7 @@
     "payBody": "Nomero y'ubusabe bwawe ni {ref}. Igiciro kirazwi: {total}. Dutangira akazi ubwishyu bwawe bwamaze kwemezwa.",
     "payNow": "Ishyura {total} nonaha",
     "payLaterHint": "Ushobora no kwishyura nyuma ukoresheje konti yawe. Ubusabe butishyuwe mu cyumweru kimwe burafungwa, kandi ushobora kongera kubutangira igihe cyose.",
-    "payNote": "Nyuma yo kohereza ubu busabe, wishyura {total} kugira ngo akazi gatangire. Nta mafaranga afatwa utabanje kubyemeza kuri telefoni yawe.",
+    "payNote": "Kwishyura ni byo byohereza ubusabe bwawe ku itsinda ryacu. Nta mafaranga afatwa utabanje kubyemeza kuri telefoni yawe.",
     "payNoteDirect": "Amafaranga y'urwego ntarimo: uyishyura urwego mu buryo butaziguye.",
     "see": "Reba ubusabe bwanjye",
     "more": "Reba izindi serivisi",
@@ -546,7 +546,15 @@
     "dobRow": "Itariki y'amavuko",
     "receivedTrack": "Ushobora kububona igihe cyose ku rupapuro rwo gukurikirana, ukoresheje nomero yabwo n'imeri yawe.",
     "phoneShared": "Nomero ya telefoni watanze ntitwayibitse kuko isanzwe ikoreshwa na konti indi. Tuzakohereza amakuru kuri imeri yawe.",
-    "trackIt": "Kurikirana ubu busabe"
+    "trackIt": "Kurikirana ubu busabe",
+    "stepPay": "Kwishyura",
+    "lastPay": "Emeza email yawe · hanyuma wishyure",
+    "confirmPay": "Emeza maze ukomeze ku bwishyu",
+    "payUpfront": "Wishyura {total} ku iherezo, kandi ubusabe bwawe bugera ku itsinda ryacu bukimara kwishyurwa. Nta mafaranga afatwa utabanje kubyemeza kuri telefoni yawe.",
+    "checkPay": "Genzura, hanyuma wishyure",
+    "checkPayLead": "Reba ko byose ari byo. Hanyuma wemeza email yawe maze ukishyura {total}.",
+    "toPayTotal": "Ayo kwishyura",
+    "toPayment": "Komeza ku bwishyu"
   },
   "notFound": {
     "kicker": "Urupapuro ntirubonetse",
@@ -715,7 +723,8 @@
     "idSave": "Ohereza ivugurura",
     "idSent": "Twakiriye ivugurura. Nomero y'ubusabe ntizahindutse, kandi nomero irategereje isuzuma. Ntabwo isuzumwe.",
     "receiptTitle": "Inyemezabuguzi · {ref}",
-    "receiptLead": "Iyi ni inyandiko y'Inzira y'icyo wishyuye. Amafaranga ya leta n'ayo twishyuza byanditswe ku mirongo itandukanye."
+    "receiptLead": "Iyi ni inyandiko y'Inzira y'icyo wishyuye. Amafaranga ya leta n'ayo twishyuza byanditswe ku mirongo itandukanye.",
+    "notSent": "Ntiburoherezwa: dutegereje ubwishyu bwawe"
   },
   "teams": {
     "Tax & EBM": "Imisoro na EBM",
@@ -797,7 +806,37 @@
       "Bank transfer": "Kohereza kuri banki",
       "Card": "Ikarita",
       "Cash": "Amafaranga mu ntoki"
-    }
+    },
+    "summary": "Incamake y'ibyo wishyura",
+    "ref": "Nomero {ref}",
+    "checkoutTitle": "Ishyura kugira ngo wohereze ubusabe bwawe",
+    "payBtn": "Ishyura {total}",
+    "trustApprove": "Nta mafaranga afatwa utabanje kwemeza ukoresheje PIN yawe",
+    "trustReceipt": "Inyemezabwishyu kuri email, igaragaza amafaranga y'urwego n'aya Inzira ukwayo",
+    "later": "Ntiwiteguye? Ubusabe bwawe bubikwa iminsi itatu.",
+    "laterLink": "Ishyura nyuma",
+    "sendingTitle": "Turohereza ubutumwa…",
+    "sendingBody": "Turohereza ubutumwa bwo kwishyura kuri {phone}. Gumana telefoni yawe hafi.",
+    "stepSending": "Kohereza ubutumwa",
+    "stepSent": "Ubutumwa bwoherejwe",
+    "stepPin": "Emeza ukoresheje PIN yawe",
+    "stepDone": "Ubwishyu bwemejwe",
+    "stepSentToTeam": "Ubusabe bwoherejwe ku itsinda ryacu",
+    "elapsed": "Dutegereje {time}",
+    "noPrompt": "Nta butumwa wabonye nyuma y'umunota? Reba ko telefoni yaka kandi ifite rezo. Iyo igihe kirangiye, nta mafaranga afatwa kandi ushobora kongera kugerageza.",
+    "paidCheckoutTitle": "Wishyuye. Ubusabe bwawe buri ku itsinda ryacu",
+    "paidCheckoutBody": "Umukozi arabusuzuma mu {time}, maze akuvugishe kuri {contact}.",
+    "receiptNo": "Inyemezabwishyu",
+    "amount": "Amafaranga",
+    "paidWith": "Byishyuwe na",
+    "date": "Itariki",
+    "nextTitle": "Ibikurikiraho",
+    "next1": "Umukozi asuzuma imyirondoro yawe mu {time}",
+    "next2": "Twohereza ubusabe bwawe ku rwego bireba",
+    "next3": "Ukurikirana buri ntambwe hano no kuri email",
+    "follow": "Kurikirana ubusabe bwawe",
+    "viewReceipt": "Reba inyemezabwishyu",
+    "allPaid": "Byose byishyuwe. Murakoze."
   },
   "docs": {
     "filter": "Gushungura ku miterere yazo",
@@ -1090,6 +1129,12 @@
       "docsDeletedAccount": {
         "title": "Inyandiko z'umukiriya zasibwe",
         "body": "Dosiye {n}, igihe umukiriya yasibaga konti ye"
+      },
+      "sentToTeam": {
+        "title": "Bwoherejwe ku itsinda ryacu"
+      },
+      "checkoutExpired": {
+        "title": "Ntibwishyuwe mu gihe · ubusabe bwafunzwe"
       }
     },
     "nt": {
@@ -1116,7 +1161,10 @@
       "idChecked": "Amakuru wohereje kuri {ref} yasuzumwe n'umukozi wa Inzira. Ibi ntabwo ari isuzuma rya leta.",
       "idCorrection": "{ref} rukeneye gukosorwa ku makuru y'indangamuntu. Injira uyavugurure.",
       "idUnable": "Ntitwashoboye kwemeza amakuru y'indangamuntu kuri {ref} ku nyandiko zoherejwe.",
-      "idUpdated": "Twakiriye amakuru yavuguruwe kuri {ref}. Arategereje isuzuma."
+      "idUpdated": "Twakiriye amakuru yavuguruwe kuri {ref}. Arategereje isuzuma.",
+      "checkoutPaid": "Twakiriye {total} · {ref} ubu iri ku itsinda ryacu",
+      "checkoutReminder": "{ref} ntiroherezwa: ishyura {total} kugira ngo yoherezwe",
+      "checkoutExpired": "Ubusabe {ref} bwafunzwe: ntibwishyuwe mu minsi itatu"
     },
     "sum": {
       "received": {
@@ -1159,6 +1207,16 @@
         "title": "Bwahagaritswe",
         "body": "Wahagaritse ubu busabe. Nta mafaranga wishyujwe.",
         "next": "Dosiye yafunzwe."
+      },
+      "checkout": {
+        "title": "Dutegereje ubwishyu bwawe",
+        "body": "Ishyura {total} kugira ngo ubu busabe bugere ku itsinda ryacu. Nta kintu gitangira butarishyurwa.",
+        "next": "Ishyura {total} kugira ngo bugere ku itsinda ryacu."
+      },
+      "checkoutExpired": {
+        "title": "Bwafunzwe: ntibwishyuwe",
+        "body": "Ubu busabe ntibwishyuwe mu minsi itatu, bityo bwafunzwe. Nta mafaranga wishyujwe. Ushobora kongera kubutangira igihe cyose.",
+        "next": "Dosiye yafunzwe."
       }
     },
     "hold": {
@@ -1174,12 +1232,17 @@
       "overdue": {
         "title": "Ubwishyu bwa {amount} bwarengeje igihe",
         "detail": "Ibindi byose biriteguye. Turakomeza tukimara kubona ubwishyu."
+      },
+      "checkout": {
+        "title": "Ishyura kugira ngo wohereze ubusabe bwawe",
+        "detail": "Ubusabe bwawe buriteguye. Ishyura {total} buhite bugera ku itsinda ryacu. Nta mafaranga afatwa utabanje kubyemeza kuri telefoni yawe."
       }
     },
     "closed": {
       "byCustomer": "Wabuhagaritse: {why}",
       "byCustomerNoReason": "Wabuhagaritse.",
-      "quoteExpired": "Amafaranga ntiyishyuwe mu cyumweru kimwe."
+      "quoteExpired": "Amafaranga ntiyishyuwe mu cyumweru kimwe.",
+      "checkoutExpired": "Ntibwishyuwe mu minsi itatu."
     },
     "fee": {
       "none": "nta mafaranga y'urwego",
@@ -1216,7 +1279,9 @@
     "idChecked": "umukozi yasuzumye amakuru wohereje kuri {ref}. Ibi ntabwo ari isuzuma rya leta.",
     "idCorrection": "{ref} rukeneye gukosorwa ku makuru y'indangamuntu. Injira uyavugurure. Ntituwohereza nomero ubwayo.",
     "idUnable": "ntitwashoboye kwemeza amakuru y'indangamuntu kuri {ref} ku nyandiko zoherejwe.",
-    "idUpdated": "twakiriye amakuru yavuguruwe kuri {ref}."
+    "idUpdated": "twakiriye amakuru yavuguruwe kuri {ref}.",
+    "checkoutPaid": "twakiriye {total}. Inyemezabwishyu {receipt}. Ubusabe bwawe ubu buri ku itsinda ryacu.",
+    "checkoutReminder": "ubusabe bwawe ntiburoherezwa. Ishyura {total} muri konti yawe buhite bugera ku itsinda ryacu."
   },
   "custErr": {
     "badPhone": "Shyiramo nomero ya telefoni yo mu Rwanda.",

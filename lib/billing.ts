@@ -3,8 +3,8 @@
 // provider directly and never trusts what a callback says.
 import { and, eq, lt } from "drizzle-orm";
 import { db, iso, schema as s } from "./db";
-import { rwf } from "./format";
-import { msg, sms } from "./i18n/stored";
+import { prettyPhone, rwf } from "./format";
+import { english, msg, sms } from "./i18n/stored";
 import { audit, event, notify } from "./mutate";
 import { notifyStaff } from "./staff-alerts";
 import { allow } from "./ratelimit";
@@ -79,11 +79,30 @@ async function settle(t: Payment, status: PayStatus, providerTxId: string | unde
       return;
     }
     const [r] = await tx.select().from(s.requests).where(eq(s.requests.ref, t.ref));
-    if (r.hold?.reason === "payment") await tx.update(s.requests).set({ hold: null }).where(eq(s.requests.ref, t.ref));
     const paid = { total: rwf(t.official + t.ours), official: rwf(t.official), ours: rwf(t.ours), receipt: t.receipt };
     await event(tx, t.ref, msg("ev.paymentReceived", { amount: paid.total }), "system");
-    await notify(tx, t.ref, { icon: "check", title: msg(t.official ? "nt.paymentReceivedSplit" : "nt.paymentReceived", paid), sms: sms("paymentReceived", paid) });
-    await notifyStaff(tx, t.ref, { kind: "payment", icon: "card", title: `Payment received on ${t.ref}`, body: `${paid.total} · ${t.method}` });
+    const all = await tx.select({ official: s.transactions.official, ours: s.transactions.ours }).from(s.transactions)
+      .where(and(eq(s.transactions.ref, t.ref), eq(s.transactions.status, "paid")));
+    const fullyPaid = all.reduce((n, x) => n + x.official + x.ours, 0) >= (r.official ?? 0) + r.ours;
+    if (r.checkout === "open" && fullyPaid) {
+      // Pay to submit: the paid checkout becomes a request in the staff queue now, and its clock starts now. One closed
+      // as unpaid is opened again: the money arrived (a prompt approved late), so the customer still wants it done.
+      const [who] = await tx.select({ name: s.accounts.name, email: s.accounts.email, phone: s.accounts.phone }).from(s.profiles)
+        .innerJoin(s.accounts, eq(s.accounts.id, s.profiles.accountId)).where(eq(s.profiles.id, r.profileId));
+      const [svc] = await tx.select({ name: s.services.name }).from(s.services).where(eq(s.services.slug, r.serviceSlug));
+      const summary = msg("sum.received", { contact: who?.email ?? prettyPhone(who?.phone) });
+      await tx.update(s.requests).set({
+        checkout: "paid", hold: null, closed: null, stageDates: { ...r.stageDates, received: new Date().toISOString() },
+        summary: { title: english(summary, "title"), body: english(summary, "body"), msg: summary }, next: english(summary, "next"),
+      }).where(eq(s.requests.ref, t.ref));
+      await event(tx, t.ref, msg("ev.sentToTeam"), "system");
+      await notify(tx, t.ref, { icon: "check", title: msg("nt.checkoutPaid", { total: paid.total, ref: t.ref }), sms: sms("checkoutPaid", paid) });
+      await notifyStaff(tx, t.ref, { kind: "new", icon: "card", title: `New paid request ${t.ref}`, body: `${who?.name ?? "Customer"} · ${svc?.name ?? r.serviceSlug} · ${paid.total} paid by ${t.method}` });
+    } else {
+      if (r.hold?.reason === "payment") await tx.update(s.requests).set({ hold: null }).where(eq(s.requests.ref, t.ref));
+      await notify(tx, t.ref, { icon: "check", title: msg(t.official ? "nt.paymentReceivedSplit" : "nt.paymentReceived", paid), sms: sms("paymentReceived", paid) });
+      await notifyStaff(tx, t.ref, { kind: "payment", icon: "card", title: `Payment received on ${t.ref}`, body: `${paid.total} · ${t.method}` });
+    }
     await audit(tx, { actor: "System", role: "—", action: late ? "Payment reconciled after the prompt had timed out" : "Payment reconciled", entity: `${t.receipt} · ${rwf(t.official)} official + ${rwf(t.ours)} ours · ${t.method}`, fee: true });
   });
   return status;

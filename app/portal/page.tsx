@@ -33,7 +33,9 @@ export default async function PortalHome() {
           </Alert>
         )}
         {holds.map((r) => (
-          <Alert key={r.ref} kind="act" title={r.hold!.title} action={<Link className="btn btn-p btn-sm" href={`/portal/requests/${r.ref}`}>{t("portal.resolve")}</Link>}>
+          <Alert key={r.ref} kind="act" title={r.hold!.title} action={r.hold!.reason === "payment"
+            ? <Link className="btn btn-p btn-sm" href={`/portal/requests/${r.ref}/pay`}>{t("request.pay")}</Link>
+            : <Link className="btn btn-p btn-sm" href={`/portal/requests/${r.ref}`}>{t("portal.resolve")}</Link>}>
             {requestTitle(r.name, r.service, locale)} · {r.ref}. {r.hold!.reason === "payment" ? t("portal.holdPay") : t("portal.holdFix")}
           </Alert>
         ))}

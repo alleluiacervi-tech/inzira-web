@@ -4,26 +4,36 @@ import { useState, useTransition } from "react";
 import { acceptAndAssignRequest, declineRequest, quoteCustomRequest } from "@/app/actions/console";
 import { messageCustomer } from "@/app/actions/agent";
 import { Icon } from "@/components/ui";
+import { customerWhatsAppUrl } from "@/lib/desk";
 import { fmtAgo, fmtWhen, initials, rwf, shortName } from "@/lib/format";
+import { amountDue, paidSplit } from "@/lib/status";
 import type { RequestView, Staff } from "@/lib/types";
 import { RequestStatusBadge } from "./StatusBadge";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { SidePanel } from "./SidePanel";
 import { Toast } from "./Toast";
 
+const paidTotal = (r: RequestView) => { const p = paidSplit(r.billing); return p.official + p.ours; };
+
 export function InboxView({
-  requests,
+  requests: queue,
+  checkouts,
   agents,
   meId,
   now,
 }: {
   requests: RequestView[];
+  /** Started at checkout and not paid: people to follow up, not work. Not assignable until paid. */
+  checkouts: RequestView[];
   agents: Staff[];
   /** The signed-in person: offered first, so a one-person team takes its own requests in one tap. */
   meId: string;
   now: string;
 }) {
   const [busy, start] = useTransition();
+  const [tab, setTab] = useState<"ready" | "unpaid">("ready");
+  // Paid first: money is in and the customer was promised a reply. The rest, oldest first.
+  const requests = [...queue].sort((a, b) => Number(b.checkout === "paid") - Number(a.checkout === "paid"));
   const [selectedReq, setSelectedReq] = useState<RequestView | null>(null);
   const [assignReq, setAssignReq] = useState<RequestView | null>(null);
   const [declineReq, setDeclineReq] = useState<RequestView | null>(null);
@@ -97,13 +107,66 @@ export function InboxView({
         <div className="stack" style={{ gap: 2 }}>
           <h1 className="console-page-title">Inbox / Triage</h1>
           <span style={{ fontSize: 13, color: "var(--c-text-muted)" }}>
-            New customer submissions awaiting assignment and initial review. ({requests.length} open)
+            New requests waiting for an agent. Paid ones come first.
           </span>
         </div>
       </div>
 
+      <div className="row console-tabs c-tabs" role="tablist" aria-label="Inbox">
+        <button type="button" role="tab" className="c-tab" aria-selected={tab === "ready"} aria-controls="inbox-ready" onClick={() => setTab("ready")} data-tab="ready">
+          <Icon name="inbox" size={15} /> Ready to work <span className="c-badge c-badge-neutral">{requests.length}</span>
+        </button>
+        <button type="button" role="tab" className="c-tab" aria-selected={tab === "unpaid"} aria-controls="inbox-unpaid" onClick={() => setTab("unpaid")} data-tab="unpaid">
+          <Icon name="card" size={15} /> Awaiting payment <span className="c-badge c-badge-neutral">{checkouts.length}</span>
+        </button>
+      </div>
+
+      {tab === "unpaid" && (
+        <div id="inbox-unpaid" role="tabpanel" className="stack g10">
+          <span style={{ fontSize: 13, color: "var(--c-text-muted)", lineHeight: 1.5 }}>
+            Customers who started a fixed-price request and have not paid. These are not in anyone&rsquo;s queue and cannot be worked on.
+            Each customer gets one reminder, and the request closes on its own after three days.
+          </span>
+          {checkouts.length === 0 ? (
+            <div className="console-panel stack g8" style={{ padding: 40, textAlign: "center", alignItems: "center" }}>
+              <Icon name="check" size={28} color="var(--c-green)" />
+              <strong style={{ fontSize: 14.5 }}>No unpaid checkouts</strong>
+              <span style={{ fontSize: 13, color: "var(--c-text-muted)" }}>Everyone who started a fixed-price request has paid.</span>
+            </div>
+          ) : checkouts.map((r) => {
+            const wa = customerWhatsAppUrl(r.account.phone, r.ref);
+            const pending = r.billing.transactions.some((t) => t.status === "pending");
+            return (
+              <div key={r.ref} className="console-panel row between g16 wrapx" style={{ padding: 16 }} data-checkout={r.ref}>
+                <div className="stack grow" style={{ gap: 6, minWidth: 240 }}>
+                  <div className="row g8 wrapx">
+                    <span className="c-mono-ref">{r.ref}</span>
+                    <strong style={{ fontSize: 14 }}>{r.profile.name}</strong>
+                    {pending
+                      ? <span className="c-badge c-badge-blue"><Icon name="phone" size={12} /><span>Approving on phone</span></span>
+                      : <span className="c-badge c-badge-amber"><Icon name="clock" size={12} /><span>Unpaid</span></span>}
+                    <span className="c-caption">started {fmtAgo(r.openedAt, now).toLowerCase()}</span>
+                  </div>
+                  <div className="row g10 wrapx" style={{ fontSize: 13 }}>
+                    <strong style={{ color: "var(--c-text)" }}>{r.name}</strong>
+                    <span className="tabular-nums" style={{ color: "var(--c-text)" }}>· {rwf(amountDue(r.billing))}</span>
+                    <span style={{ color: "var(--c-text-muted)", overflowWrap: "anywhere" }}>· {[r.account.email, r.account.phone].filter(Boolean).join(" · ")}</span>
+                  </div>
+                </div>
+                <div className="row g8 wrapx" style={{ alignItems: "center" }}>
+                  {wa && <a className="c-btn c-btn-secondary c-btn-sm" href={wa} target="_blank" rel="noopener"><Icon name="whatsapp" size={13} /><span>WhatsApp</span></a>}
+                  {r.account.phone && <a className="c-btn c-btn-secondary c-btn-sm" href={`tel:${r.account.phone.replace(/\s/g, "")}`}><Icon name="call" size={13} /><span>Call</span></a>}
+                  {r.account.email && <a className="c-btn c-btn-secondary c-btn-sm" href={`mailto:${r.account.email}?subject=${encodeURIComponent(`Your Inzira request ${r.ref}`)}`}><Icon name="mail" size={13} /><span>Email</span></a>}
+                  <Link className="c-btn c-btn-ghost c-btn-sm" href={`/console/requests/${r.ref}`}>Open</Link>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
       {/* Requests List */}
-      {requests.length === 0 ? (
+      {tab === "unpaid" ? null : requests.length === 0 ? (
         <div className="console-panel stack g8" style={{ padding: 48, textAlign: "center", alignItems: "center" }}>
           <Icon name="check" size={32} color="var(--c-green)" />
           <strong style={{ fontSize: 15 }}>All caught up!</strong>
@@ -112,7 +175,7 @@ export function InboxView({
           </span>
         </div>
       ) : (
-        <div className="stack g10">
+        <div id="inbox-ready" role="tabpanel" className="stack g10">
           {requests.map((r) => {
             const ageHours = Math.round((Date.parse(now) - Date.parse(r.openedAt)) / (3600 * 1000));
             const isUrgent = ageHours > 2;
@@ -133,6 +196,11 @@ export function InboxView({
                     <strong style={{ fontSize: 14 }}>{r.profile.name}</strong>
                     <span className="c-badge c-badge-neutral">{r.profile.kind}</span>
                     <RequestStatusBadge r={r} viewer="staff" />
+                    {r.checkout === "paid"
+                      ? paidTotal(r) > 0
+                        ? <span className="c-badge c-badge-green" data-paid><Icon name="card" size={12} /><span>Paid {rwf(paidTotal(r))}</span></span>
+                        : <span className="c-badge c-badge-neutral" data-paid>Refunded</span>
+                      : r.billing.quote === "estimate" && <span className="c-badge c-badge-neutral">Needs a quote</span>}
                     {isUrgent && (
                       <span className="c-badge c-badge-amber">
                         <Icon name="clock" size={12} />
@@ -143,7 +211,7 @@ export function InboxView({
                   <div className="row g10 wrapx" style={{ fontSize: 13 }}>
                     <strong style={{ color: "var(--c-text)" }}>{r.name}</strong>
                     <span style={{ color: "var(--c-text-muted)" }}>· {r.channel}</span>
-                    <span style={{ color: "var(--c-text-muted)" }}>· Contact: {r.account.phone}</span>
+                    <span style={{ color: "var(--c-text-muted)", overflowWrap: "anywhere" }}>· Contact: {r.account.phone || r.account.email || "none given"}</span>
                   </div>
                   {r.purpose && (
                     <div style={{ fontSize: 12.5, color: "var(--c-text-muted)" }}>
@@ -172,7 +240,7 @@ export function InboxView({
                     <span>Ask info</span>
                   </button>
 
-                  <button
+                  {r.checkout !== "paid" && <button
                     type="button"
                     className="c-btn c-btn-secondary c-btn-sm"
                     onClick={() => {
@@ -184,7 +252,7 @@ export function InboxView({
                   >
                     <Icon name="card" size={13} />
                     <span>Quote</span>
-                  </button>
+                  </button>}
 
                   <button
                     type="button"

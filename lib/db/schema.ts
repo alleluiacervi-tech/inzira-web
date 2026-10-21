@@ -3,7 +3,7 @@
 import { sql } from "drizzle-orm";
 import { boolean, index, integer, jsonb, pgTable, primaryKey, serial, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
 import type { Locale } from "../i18n/locale";
-import type { Closed, DocGroup, DocStatus, Hold, IdPolicy, IdReview, MsgVars, OfficialMode, Request, Service, Stage, StaffRole } from "../types";
+import type { Checkout, Closed, DocGroup, DocStatus, Hold, IdPolicy, IdReview, MsgVars, OfficialMode, Request, Service, Stage, StaffRole } from "../types";
 
 const ts = (name: string) => timestamp(name, { withTimezone: true, mode: "string" });
 
@@ -154,6 +154,9 @@ export const requests = pgTable("requests", {
   followUp: jsonb("follow_up").$type<{ at: string; what: string }>(),
   /** Last note written when the case moved from one agent to another. */
   handover: jsonb("handover").$type<{ at: string; by: string; body: string }>(),
+  /** Pay to submit (lib/pricing.ts). "open": started at checkout and not paid yet, so staff do not see it in their queues;
+   *  "paid": paid at checkout and handed to staff; "none": an ordinary request, checked and quoted first. */
+  checkout: text("checkout").$type<Checkout>().notNull().default("none"),
   // billing — always two lines: official (institution) and ours (Inzira)
   invoice: text("invoice").notNull().unique(),
   official: integer("official"),
