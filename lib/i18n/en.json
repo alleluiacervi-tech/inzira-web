@@ -1043,6 +1043,9 @@
       "cancelledByCustomer": {
         "title": "Cancelled by the customer"
       },
+      "quoteExpired": {
+        "title": "Fees not paid in time · request closed"
+      },
       "delivered": {
         "title": "Document delivered",
         "body": "{doc}"
@@ -1096,6 +1099,7 @@
       "taken": "{agent} has taken your request {ref}",
       "declined": "Request {ref} was declined",
       "cancelled": "{ref} was cancelled",
+      "quoteExpired": "{ref} was closed: the fees were not paid in time",
       "rejected": "{ref} was rejected by the institution",
       "delivered": "{doc} is ready in your portal",
       "paymentRecorded": "Payment of {total} received for {ref}",
@@ -1136,6 +1140,11 @@
         "title": "Cancelled",
         "next": "Closed."
       },
+      "quoteExpired": {
+        "title": "Closed: fees not paid",
+        "body": "The fees were not paid within a week, so this request was closed. Nothing was charged. You can start it again at any time.",
+        "next": "Closed."
+      },
       "rejected": {
         "title": "Rejected by the institution",
         "next": "Rejected by the institution."
@@ -1163,7 +1172,8 @@
     },
     "closed": {
       "byCustomer": "Cancelled by you: {why}",
-      "byCustomerNoReason": "Cancelled by you."
+      "byCustomerNoReason": "Cancelled by you.",
+      "quoteExpired": "The fees were not paid within a week."
     },
     "fee": {
       "none": "no official fee",
@@ -1190,6 +1200,7 @@
     "taken": "{agent} is handling your request {ref}. See progress in your portal.",
     "declined": "your request {ref} was declined: {reason}",
     "cancelled": "cancelled: {reason}",
+    "quoteExpired": "your request was closed because the fees were not paid within a week. You can start again at any time.",
     "rejected": "rejected by the institution: {reason}",
     "delivered": "{doc} is ready. Download it from your portal.",
     "paymentRecorded": "we received your payment of {total} for {ref}. Official receipt: {receipt}.",

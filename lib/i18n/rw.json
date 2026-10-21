@@ -1043,6 +1043,9 @@
       "cancelledByCustomer": {
         "title": "Umukiriya yahagaritse ubusabe"
       },
+      "quoteExpired": {
+        "title": "Amafaranga ntiyishyuwe mu gihe · ubusabe bwafunzwe"
+      },
       "delivered": {
         "title": "Inyandiko yatanzwe",
         "body": "{doc}"
@@ -1096,6 +1099,7 @@
       "taken": "{agent} yafashe ubusabe bwawe {ref}",
       "declined": "Ubusabe {ref} bwanzwe",
       "cancelled": "Ubusabe {ref} bwahagaritswe",
+      "quoteExpired": "Ubusabe {ref} bwafunzwe: amafaranga ntiyishyuwe mu gihe",
       "rejected": "Ubusabe {ref} bwanzwe n'urwego rwa leta",
       "delivered": "Inyandiko {doc} iboneka muri konti yawe",
       "paymentRecorded": "Ubwishyu bwa {total} bwakiriwe kuri {ref}",
@@ -1136,6 +1140,11 @@
         "title": "Bwahagaritswe",
         "next": "Dosiye yafunzwe."
       },
+      "quoteExpired": {
+        "title": "Bwafunzwe: amafaranga ntiyishyuwe",
+        "body": "Amafaranga ntiyishyuwe mu cyumweru kimwe, bityo ubu busabe bwafunzwe. Nta mafaranga wishyujwe. Ushobora kongera kubutangira igihe cyose.",
+        "next": "Dosiye yafunzwe."
+      },
       "rejected": {
         "title": "Bwanzwe n'urwego rwa leta",
         "next": "Bwanzwe n'urwego rwa leta."
@@ -1163,7 +1172,8 @@
     },
     "closed": {
       "byCustomer": "Wabuhagaritse: {why}",
-      "byCustomerNoReason": "Wabuhagaritse."
+      "byCustomerNoReason": "Wabuhagaritse.",
+      "quoteExpired": "Amafaranga ntiyishyuwe mu cyumweru kimwe."
     },
     "fee": {
       "none": "nta mafaranga y'urwego",
@@ -1190,6 +1200,7 @@
     "taken": "{agent} ni we ukurikirana ubusabe bwawe {ref}. Reba aho bugeze muri konti yawe.",
     "declined": "ubusabe bwawe {ref} bwanzwe: {reason}",
     "cancelled": "bwahagaritswe: {reason}",
+    "quoteExpired": "ubusabe bwawe bwafunzwe kuko amafaranga atishyuwe mu cyumweru kimwe. Ushobora gutangira bundi bushya igihe cyose.",
     "rejected": "bwanzwe n'urwego rwa leta: {reason}",
     "delivered": "inyandiko {doc} iriteguye. Uyikure muri konti yawe.",
     "paymentRecorded": "twakiriye ubwishyu bwawe bwa {total} kuri {ref}. Inyemezabwishyu: {receipt}.",

@@ -441,6 +441,32 @@ await step("agent", async () => {
   await p.close();
 });
 
+// ---------- No payment, no work: an agent is stopped, a supervisor can go ahead with a reason ----------
+await step("payment lock", async () => {
+  const p = await page();
+  const clickStage = (label) => p.ev(`(async () => { const b = [...document.querySelectorAll(".c-step-btn")].find((x) => x.querySelector(".c-step-label")?.textContent.trim() === ${JSON.stringify(label)}); if (!b) return false; await __t.hydrated(b); b.click(); return true; })()`);
+  await signIn(p, "780000001");
+  await p.go("/console/requests/INZ-2026-04741");
+  check("lock: an unpaid case says payment is not received", await p.has("Payment not received") && (await currentStage(p)) === "Checking documents", await currentStage(p));
+  check("lock: an agent is told a supervisor can move it on", await p.has("A supervisor or the owner can move it on without payment"));
+  await clickStage("Preparing"); await waitFor(p, "Ask a supervisor or the owner");
+  check("lock: an agent cannot move an unpaid case into preparing", await p.has("Ask a supervisor or the owner if this case should go ahead anyway") && (await currentStage(p)) === "Checking documents" && !(await p.has("Move without payment?")), await currentStage(p));
+  await signOut(p);
+  await signIn(p, "780000006");
+  await p.go("/console/requests/INZ-2026-04741");
+  check("lock: a supervisor is told they can move it on with a reason", await p.has("You can move it on anyway with a written reason"));
+  await clickStage("Preparing"); await waitFor(p, "Move without payment?");
+  check("lock: a supervisor is asked for a reason first", await p.has("Move without payment?") && await p.has("still due from the customer") && (await currentStage(p)) === "Checking documents");
+  await p.set(".console-dialog textarea", "ok"); await p.click("Move anyway", "button"); await sleep(1200);
+  check("lock: a reason of a word or two is refused", (await currentStage(p)) === "Checking documents", await currentStage(p));
+  await p.set(".console-dialog textarea", "Corporate client: invoice paid by bank transfer on Friday."); await p.click("Move anyway", "button");
+  await waitUntil(p, `document.querySelector(".c-step-btn[aria-current=step] .c-step-label")?.textContent === "Preparing"`);
+  check("lock: with a reason the supervisor moves the case on", (await currentStage(p)) === "Preparing", await currentStage(p));
+  await p.click("Activity", "button"); await sleep(300);
+  await p.click("Overview", "button"); await sleep(200);
+  await p.close();
+});
+
 // ---------- Patrick (agent): approve the customer's new upload, deliver, send fees ----------
 await step("patrick", async () => {
   const p = await page();

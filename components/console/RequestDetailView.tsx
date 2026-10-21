@@ -21,6 +21,7 @@ import { markIdChecked, revealNationalId, reviewIdentity } from "@/app/actions/c
 import { Icon } from "@/components/ui";
 import { billOfficial, billOurs, fmtAgo, fmtMonth, fmtWhen, initials, rwf, shortName } from "@/lib/format";
 import type { Permission } from "@/lib/permissions";
+import { PAYMENT_LOCK, paymentLock } from "@/lib/payment-gate";
 import { payStatus, stageLabel } from "@/lib/status";
 import type { Closed, IdReview, RequestView, Staff, Stage } from "@/lib/types";
 import { RequestStatusBadge, PaymentStatusBadge, DocStatusBadge } from "./StatusBadge";
@@ -75,6 +76,8 @@ export function RequestDetailView({
   const [closeKind, setCloseKind] = useState<Closed["kind"]>("cancelled");
   const [followOpen, setFollowOpen] = useState(false);
   const [handoverFor, setHandoverFor] = useState<string | null>(null);
+  // An action the payment lock refused, kept so a supervisor or the owner can run it again with a written reason.
+  const [override, setOverride] = useState<{ ok: string; fn: (reason?: string) => Promise<{ ok: boolean; error?: string }> } | null>(null);
 
   // Form states
   const [msg, setMsg] = useState("");
@@ -105,6 +108,21 @@ export function RequestDetailView({
         return;
       }
       after?.();
+      setToast(ok);
+    });
+  };
+
+  const lock = paymentLock(c.billing);
+  /** Like `run`, for the actions that wait for payment: when refused for no payment, someone who may override is asked for a reason. */
+  const attempt = (ok: string, fn: (reason?: string) => Promise<{ ok: boolean; error?: string }>) => {
+    start(async () => {
+      setError("");
+      const r = await fn().catch(() => ({ ok: false, error: "Network error. Try again." }));
+      if (!r.ok) {
+        if (r.error?.startsWith(PAYMENT_LOCK) && can("changeOurs")) { setOverride({ ok, fn }); return; }
+        setError(r.error || "Action failed.");
+        return;
+      }
       setToast(ok);
     });
   };
@@ -197,7 +215,7 @@ export function RequestDetailView({
                 type="button"
                 className="c-btn c-btn-primary c-btn-sm"
                 disabled={busy}
-                onClick={() => run("Case completed · client notified", () => setStage(c.ref, "completed", "", true))}
+                onClick={() => attempt("Case completed · client notified", (reason) => setStage(c.ref, "completed", "", true, reason))}
               >
                 <Icon name="check" size={14} />
                 <span>Complete</span>
@@ -240,7 +258,7 @@ export function RequestDetailView({
                     className="c-step-btn"
                     aria-current={active ? "step" : undefined}
                     disabled={finished || active || busy || !can("updateStatus")}
-                    onClick={() => run(`Moved to ${stageLabel(c, st)}`, () => setStage(c.ref, st, "", true))}
+                    onClick={() => attempt(`Moved to ${stageLabel(c, st)}`, (reason) => setStage(c.ref, st, "", true, reason))}
                     title={active ? "Current stage" : `Move to ${stageLabel(c, st)}`}
                   >
                     <span className="c-step-dot">{state === "done" ? <Icon name="check" size={12} stroke={2.6} /> : idx + 1}</span>
@@ -291,6 +309,18 @@ export function RequestDetailView({
           <div className="c-notice-body">
             <span className="c-notice-title">Handover · {fmtWhen(c.handover.at, now)}</span>
             <span>{c.handover.body}</span>
+          </div>
+        </div>
+      )}
+      {lock.locked && !finished && (
+        <div className="c-notice c-notice-amber" role="status">
+          <Icon name="card" size={18} />
+          <div className="c-notice-body">
+            <span className="c-notice-title">Payment not received{lock.feesKnown ? ` · ${rwf(lock.due)} due` : ""}</span>
+            <span>
+              {lock.feesKnown ? "Preparing, submitting to the institution and completing wait until the customer has paid." : "Confirm the fees and send the quote first. Preparing, submitting and completing wait until they are paid."}
+              {can("changeOurs") ? " You can move it on anyway with a written reason." : " A supervisor or the owner can move it on without payment."}
+            </span>
           </div>
         </div>
       )}
@@ -517,7 +547,7 @@ export function RequestDetailView({
                 className="c-btn c-btn-primary c-btn-sm"
                 style={{ alignSelf: "flex-start" }}
                 disabled={finished || !officialRef.trim() || busy || !can("updateStatus")}
-                onClick={() => run("Marked submitted with official ref", () => markSubmitted(c.ref, channel, officialRef))}
+                onClick={() => attempt("Marked submitted with official ref", (reason) => markSubmitted(c.ref, channel, officialRef, reason))}
               >
                 Save submission reference
               </button>
@@ -984,6 +1014,21 @@ export function RequestDetailView({
           </div>
         </div>
       )}
+
+      {/* Payment lock override: supervisor or owner, with a reason kept on the case and in the audit log */}
+      <ConfirmDialog
+        open={!!override}
+        onClose={() => setOverride(null)}
+        onConfirm={(reason) => { if (override) run(override.ok, () => override.fn(reason), () => setOverride(null)); }}
+        title="Move without payment?"
+        description={`${lock.feesKnown ? `${rwf(lock.due)} is still due from the customer.` : "The fees have not been confirmed yet."} Moving on anyway is kept on the case and in the audit log with your reason.`}
+        confirmLabel="Move anyway"
+        confirmVariant="danger"
+        requireReason
+        reasonLabel="Reason (kept on the case)"
+        reasonPlaceholder="e.g. Corporate client, paying by bank transfer on Friday."
+        busy={busy}
+      />
 
       {/* Reject Document Dialog */}
       <ConfirmDialog
