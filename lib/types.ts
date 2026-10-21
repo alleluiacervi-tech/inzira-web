@@ -146,6 +146,8 @@ export type Billing = {
   quote: "estimate" | "confirmed" | "approved";
   dueAt?: string;
   officialReceipt: "attached" | "awaiting" | "na";
+  /** Paid to send a quoted request (lib/pricing.ts), then counted toward our fee like any other payment. */
+  reviewFee?: number;
   transactions: Transaction[];
 };
 

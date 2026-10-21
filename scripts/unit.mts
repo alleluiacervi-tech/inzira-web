@@ -4,13 +4,13 @@ import { base32, codeAt, fromBase32, matchStep, newRecoveryCodes, normaliseRecov
 import { open, seal, isSealed } from "../lib/crypto.ts";
 import { sniffType } from "../lib/storage.ts";
 import { safeReturnPath } from "../lib/return-path.ts";
-import { amountDue, payStatus } from "../lib/status.ts";
+import { amountDue, payableNow, payStatus } from "../lib/status.ts";
 import { canDeliverEmailCodes, isReservedTestEmail, showsEmailCodeOnScreen } from "../lib/email.ts";
 import { idAsk, idPolicyOf, mentionsNationalId, nationalIdDigits, nationalIdError } from "../lib/identity.ts";
 import { cleanTaxRef, periodsBetween, taxPhase, weekdayOnOrBefore } from "../lib/tax-calendar.ts";
 import { providerFor } from "../lib/payments.ts";
 import { GATED_STAGES, PAYMENT_LOCK, isGated, lockMessage, paymentLock } from "../lib/payment-gate.ts";
-import { checkoutPrice } from "../lib/pricing.ts";
+import { checkoutPrice, quoteRefusal, reviewFeeFor } from "../lib/pricing.ts";
 import { barePath, isIndexable, languageAlternates, withLocale } from "../lib/seo.ts";
 import { customerWhatsAppUrl, defaultFollowUpAt, deskChecks, fromKigaliDateTime, handoverRequired, kigaliDateTimeParts, nextKind, nextSentence, stageTargetRows } from "../lib/desk.ts";
 import { text as i18nText } from "../lib/i18n/messages.ts";
@@ -130,6 +130,31 @@ test("pay at checkout: only a settled price skips the quote", () => {
   // No price of ours, or a hidden service: no checkout.
   assert.equal(checkoutPrice(svc({ mode: "none", ours: 0 })), null);
   assert.equal(checkoutPrice(svc({ mode: "direct", ours: 3000, visible: false })), null);
+});
+test("review fee: a quoted service starts with it, a settled price never does, and it is never more than our fee", () => {
+  const svc = (o: { amount?: number | null; mode?: "none" | "direct"; verified?: boolean; ours?: number; unit?: string }) =>
+    ({ official: { amount: o.amount ?? null, mode: o.mode, verifiedAt: o.verified ? "2026-10-01T00:00:00Z" : undefined }, ours: o.ours ?? 5000, oursUnit: o.unit, visible: true }) as never;
+  assert.equal(reviewFeeFor(svc({ amount: 12000, ours: 8000 }), 1000), 1000, "quoted: an unchecked official fee");
+  assert.equal(reviewFeeFor(svc({ mode: "direct", ours: 10000, unit: "per year" }), 1000), 1000, "quoted: counted per year");
+  assert.equal(reviewFeeFor(svc({ mode: "direct", ours: 2000 }), 1000), null, "a settled price is paid in full instead");
+  assert.equal(reviewFeeFor(svc({ amount: 12000, ours: 500 }), 1000), 500, "capped at our fee, since it is taken off it");
+  assert.equal(reviewFeeFor(svc({ amount: 12000, ours: 8000 }), 0), null, "a fee of 0 turns it off");
+});
+test("review fee: what the pay screen charges, and that it counts toward the quote", () => {
+  const quoted = { ...base, official: null, ours: 8000, quote: "estimate" as const, reviewFee: 1000 };
+  assert.deepEqual(payableNow(quoted as never, true), { amount: 1000, review: true }, "at checkout: the review fee");
+  assert.deepEqual(payableNow({ ...quoted, transactions: [tx("paid", 0, 1000)] } as never, true), { amount: 0, review: true }, "paid: nothing more at checkout");
+  assert.deepEqual(payableNow({ ...quoted, transactions: [tx("paid", 0, 1000)] } as never, false), { amount: 0, review: false }, "being quoted: nothing to pay yet");
+  assert.equal(payStatus({ ...quoted, transactions: [tx("paid", 0, 1000)] } as never, "2026-10-02T00:00:00Z"), "quote", "a paid review fee still reads as fees to be confirmed");
+  const confirmed = { ...quoted, official: 2000, quote: "confirmed" as const, transactions: [tx("paid", 0, 1000)] };
+  assert.deepEqual(payableNow(confirmed as never, false), { amount: 9000, review: false }, "the quote asks for the rest: 2,000 + 8,000 − 1,000");
+  assert.deepEqual(payableNow({ ...base, quote: "confirmed" } as never, true), { amount: 20000, review: false }, "a full-price checkout charges the whole price");
+});
+test("review fee: staff can quote a request sent with one, not one paid in full or not paid yet", () => {
+  assert.equal(quoteRefusal({ checkout: "none", reviewFee: null }), null);
+  assert.equal(quoteRefusal({ checkout: "paid", reviewFee: 1000 }), null);
+  assert.match(quoteRefusal({ checkout: "paid", reviewFee: null }) ?? "", /paid at checkout/);
+  assert.match(quoteRefusal({ checkout: "open", reviewFee: 1000 }) ?? "", /not paid/);
 });
 test("payment lock: preparing, submitting and completing wait for payment in full", () => {
   const tx = (status: "pending" | "paid" | "failed" | "refunded", official: number, ours: number) => ({ receipt: "R", at: "2026-10-01T10:00:00Z", method: "MTN MoMo" as const, official, ours, status });

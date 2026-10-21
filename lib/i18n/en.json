@@ -178,7 +178,7 @@
     "howTitle": "How it works",
     "howLead": "Four steps, and only the first one needs you. One person handles your request from start to finish.",
     "s1t": "Tell us what you need",
-    "s1d": "Pick a service, or describe your situation in English, Kinyarwanda or French. Asking is free.",
+    "s1d": "Pick a service, or describe your situation in English, Kinyarwanda or French. Questions on WhatsApp or by phone are free.",
     "s2t": "We check your documents",
     "s2d": "You hear exactly what is missing before anything is filed. Most rejections start here.",
     "s3t": "We file and follow up",
@@ -265,7 +265,8 @@
     "noQuery": "No service matches “{q}”",
     "noFilters": "No service matches these filters",
     "noHint": "Describe what you need and we’ll find the right procedure for you.",
-    "describeNeed": "Describe what I need"
+    "describeNeed": "Describe what I need",
+    "unsureBodyFee": "Describe your situation and an agent tells you which procedure applies and what it costs. Sending it costs a {fee} review fee, taken off our fee if you go ahead."
   },
   "prices": {
     "service": "Service and usual time",
@@ -309,7 +310,9 @@
     "officialShort": "Official fee",
     "estimate": "Estimate",
     "totalShort": "Total estimated",
-    "confirmPay": "You approve every amount before you pay. Nothing is charged without your confirmation."
+    "confirmPay": "You approve every amount before you pay. Nothing is charged without your confirmation.",
+    "payUpfront": "You pay {total} when you send the request. Nothing is taken until you approve it on your phone.",
+    "payReview": "You pay a {fee} review fee to send the request. It is taken off our fee when you approve the quote."
   },
   "feeTag": {
     "official": "Official",
@@ -554,7 +557,15 @@
     "checkPay": "Check, then pay",
     "checkPayLead": "Make sure everything is right. Next you confirm your email and pay {total}.",
     "toPayTotal": "To pay",
-    "toPayment": "Continue to payment"
+    "toPayment": "Continue to payment",
+    "reviewUpfront": "You pay a {fee} review fee when you send this request. An agent then confirms the exact amounts, and the {fee} is taken off our fee.",
+    "checkReviewLead": "Make sure everything is right. Next you confirm your email and pay the {fee} review fee.",
+    "reviewFeeName": "Review fee",
+    "reviewWhat": "An agent checks your request and sends you the exact fees within {time}.",
+    "reviewCredit": "Taken off our fee when you pay the quote.",
+    "reviewRefund": "Refunded if we can’t take on your request.",
+    "reviewEb": "Review fee {fee}",
+    "phoneSharedTitle": "Phone number not saved"
   },
   "notFound": {
     "kicker": "Page not found",
@@ -836,7 +847,13 @@
     "next3": "You follow every step here and by email",
     "follow": "Follow your request",
     "viewReceipt": "View receipt",
-    "allPaid": "Everything is paid. Thank you."
+    "allPaid": "Everything is paid. Thank you.",
+    "reviewTitle": "Pay the review fee to send your request",
+    "reviewLine": "An agent checks your request and sends you the exact fees. This amount is then taken off our fee.",
+    "alreadyPaid": "Already paid",
+    "paidReviewBody": "An agent checks it within {time} and sends the exact fees to {contact}. Your {fee} review fee is taken off our fee.",
+    "next2Review": "You get the exact fees to approve, minus what you paid today",
+    "payReview": "Pay review fee"
   },
   "docs": {
     "filter": "Filter by status",
@@ -995,7 +1012,9 @@
     "cancelReq": "Cancel this request",
     "cancelFree": "Nothing has been charged, so cancelling costs nothing.",
     "why": "Why are you cancelling?",
-    "ph": "e.g. I no longer need it"
+    "ph": "e.g. I no longer need it",
+    "reviewPaid": "You paid a {amount} review fee. Your agent confirms the exact amounts next, and it is taken off our fee.",
+    "reviewDue": "Pay the {fee} review fee to send this request. It is taken off our fee later."
   },
   "stored": {
     "ev": {
@@ -1217,6 +1236,21 @@
         "title": "Closed: not paid",
         "body": "This request was not paid within three days, so it was closed. Nothing was charged. You can start it again at any time.",
         "next": "Closed."
+      },
+      "reviewFee": {
+        "title": "Waiting for your review fee",
+        "body": "Pay the {fee} review fee to send this request to our team. An agent then checks it and tells you the exact fees.",
+        "next": "Pay the {fee} review fee to send it."
+      },
+      "reviewPaid": {
+        "title": "We’ve received your request",
+        "body": "An agent checks it within 2 working hours and sends the exact fees to {contact}. Your {fee} review fee is taken off our fee.",
+        "next": "An agent checks your request and sends you the fees."
+      },
+      "quoteExpiredReview": {
+        "title": "Closed: fees not paid",
+        "body": "The fees were not paid within a week, so this request was closed. The {fee} review fee paid for checking it. You can start again at any time.",
+        "next": "Closed."
       }
     },
     "hold": {
@@ -1236,6 +1270,10 @@
       "checkout": {
         "title": "Pay to send your request",
         "detail": "Your request is ready. Pay {total} and it goes straight to our team. Nothing is taken until you approve it on your phone."
+      },
+      "reviewFee": {
+        "title": "Pay the review fee to send your request",
+        "detail": "Your request is ready. Pay {fee} and an agent checks it and sends you the exact fees. The {fee} is taken off our fee."
       }
     },
     "closed": {

@@ -5,7 +5,7 @@ import { checkPayment, startPayment } from "@/app/actions/customer";
 import { billOfficial, fmtDay, rwf } from "@/lib/format";
 import { trError } from "@/lib/i18n/errors";
 import { feeCaption, phrase } from "@/lib/i18n/present";
-import { amountDue, paidSplit } from "@/lib/status";
+import { amountDue, paidSplit, payableNow } from "@/lib/status";
 import type { Billing } from "@/lib/types";
 import { useI18n } from "./I18n";
 import { isMobile, mobile, prettyMobile } from "./PhoneCode";
@@ -18,7 +18,8 @@ const networkOf = (v: string): Network | null => (isMobile(v) ? (/^7[23]/.test(m
 const clock = (ms: number) => { const s = Math.max(0, Math.floor(ms / 1000)); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`; };
 
 /** The payment screen: what is being paid, the phone that gets the prompt, then the wait and the outcome.
- *  With `checkout`, the request is waiting to be paid before it is sent to staff, and paying sends it. */
+ *  With `checkout`, the request is waiting to be paid before it is sent to staff, and paying sends it: the whole price,
+ *  or for a quoted service its review fee (lib/pricing.ts). */
 export default function PayScreen({ reqRef, billing: b, phone, serviceName, contact, checkout: startedAtCheckout = false, waiting }: {
   reqRef: string; billing: Billing; phone: string; serviceName: string;
   /** Where the agent will reach the customer, for the confirmation. */
@@ -30,11 +31,13 @@ export default function PayScreen({ reqRef, billing: b, phone, serviceName, cont
   const { locale, t } = useI18n();
   // Fixed when the screen opens: once paid, the server says the checkout is over, but this screen still finishes it.
   const [checkout] = useState(startedAtCheckout);
-  const due = amountDue(b);
+  const review = checkout && !!b.reviewFee;
+  const due = payableNow(b, checkout).amount;
   const paid = paidSplit(b);
-  const official = Math.max(0, (b.official ?? 0) - paid.official);
-  const ours = Math.max(0, due - official);
-  const canPay = b.quote !== "estimate" && due > 0;
+  const paidSum = paid.official + paid.ours;
+  const canPay = due > 0;
+  // Nothing to pay now because everything is paid, not because the fees are still being worked out.
+  const settled = b.quote !== "estimate" && amountDue(b) === 0;
   const [stage, setStage] = useState<Stage>(waiting ? "pending" : "review");
   const [txId, setTxId] = useState<number | null>(waiting?.txId ?? null);
   const [num, setNum] = useState(prettyMobile(waiting?.payer ?? phone));
@@ -86,7 +89,8 @@ export default function PayScreen({ reqRef, billing: b, phone, serviceName, cont
     poll(r.txId);
   };
 
-  const officialText = b.officialMode ? phrase(locale, billOfficial(b)) : official === 0 ? (b.official === 0 ? t("pay.free") : t("pay.already")) : rwf(official);
+  // The lines are the whole fees; what was already paid (a review fee, say) is its own line, so the total adds up.
+  const officialText = b.officialMode ? phrase(locale, billOfficial(b)) : !b.official ? t("pay.free") : rwf(b.official);
   const shownNumber = `+250 ${prettyMobile(num)}`;
   const busy = stage === "sending" || stage === "pending" || stage === "slow";
 
@@ -97,10 +101,20 @@ export default function PayScreen({ reqRef, billing: b, phone, serviceName, cont
         <strong id="bill-h" className="d" style={{ fontSize: 19, lineHeight: 1.25 }}>{serviceName}</strong>
         <span className="mut m" style={{ fontSize: 13 }}>{t("pay.ref", { ref: reqRef })}</span>
       </div>
-      <dl className="pay-lines">
-        <div><dt><FeeTag kind="official" /> {feeCaption(locale, b.officialLabel)}</dt><dd>{officialText}</dd></div>
-        <div><dt><FeeTag kind="ours" /> {t("service.assistShort")}</dt><dd className="fee-ours">{rwf(ours)}</dd></div>
-      </dl>
+      {review ? (
+        <div className="stack g8">
+          <dl className="pay-lines">
+            <div><dt><FeeTag kind="ours" /> {t("start.reviewFeeName")}</dt><dd className="fee-ours">{rwf(b.reviewFee!)}</dd></div>
+          </dl>
+          <p className="hint" style={{ margin: 0 }}>{t("pay.reviewLine")}</p>
+        </div>
+      ) : (
+        <dl className="pay-lines">
+          <div><dt><FeeTag kind="official" /> {feeCaption(locale, b.officialLabel)}</dt><dd>{officialText}</dd></div>
+          <div><dt><FeeTag kind="ours" /> {t("service.assistShort")}</dt><dd className="fee-ours">{rwf(b.ours)}</dd></div>
+          {paidSum > 0 && <div data-paid-line><dt>{t("pay.alreadyPaid")}</dt><dd>−{rwf(paidSum)}</dd></div>}
+        </dl>
+      )}
       <div className="pay-perf" aria-hidden="true" />
       <div className="row between g12" style={{ alignItems: "baseline" }}>
         <span style={{ fontWeight: 700, fontSize: 15 }}>{stage === "paid" ? t("pay.totalPaid") : t("pay.toPay")}</span>
@@ -114,8 +128,8 @@ export default function PayScreen({ reqRef, billing: b, phone, serviceName, cont
       <div className="stack g16">
         {bill}
         <div className="card stack g10" style={{ padding: 20 }}>
-          <h1 className="d" style={{ fontSize: 22 }}>{due > 0 ? t("pay.approve") : t("pay.received")}</h1>
-          <p style={{ fontSize: 15, lineHeight: 1.55 }}>{due > 0 ? t("pay.notYet") : t("pay.allPaid")}</p>
+          <h1 className="d" style={{ fontSize: 22 }}>{settled ? t("pay.received") : t("pay.approve")}</h1>
+          <p style={{ fontSize: 15, lineHeight: 1.55 }}>{settled ? t("pay.allPaid") : t("pay.notYet")}</p>
           <Link className="btn btn-s" href={`/portal/requests/${reqRef}`} style={{ alignSelf: "flex-start" }}>{t("pay.back")}</Link>
         </div>
       </div>
@@ -129,7 +143,7 @@ export default function PayScreen({ reqRef, billing: b, phone, serviceName, cont
       {stage === "review" && (
         <section className="card pay-form" aria-labelledby="pay-h">
           <div className="stack g6">
-            <h1 id="pay-h" className="d" style={{ fontSize: 24 }}>{checkout ? t("pay.checkoutTitle") : t("pay.approve")}</h1>
+            <h1 id="pay-h" className="d" style={{ fontSize: 24 }}>{review ? t("pay.reviewTitle") : checkout ? t("pay.checkoutTitle") : t("pay.approve")}</h1>
             <p className="mut" style={{ fontSize: 15, lineHeight: 1.5 }}>{t("pay.screenLead")}</p>
           </div>
           <div className="field">
@@ -152,7 +166,7 @@ export default function PayScreen({ reqRef, billing: b, phone, serviceName, cont
           <ul className="pay-trust">
             <li><Icon name="shield" size={16} color="var(--ok)" /> {t("pay.trustApprove")}</li>
             <li><Icon name="file-text" size={16} /> {t("pay.trustReceipt")}</li>
-            <li><Icon name="check-circle" size={16} /> {t("service.refund")}</li>
+            <li><Icon name="check-circle" size={16} /> {review ? t("start.reviewRefund") : t("service.refund")}</li>
           </ul>
           {checkout && <p className="hint" style={{ margin: 0 }}>{t("pay.later")} <Link className="lnk" href={`/portal/requests/${reqRef}`}>{t("pay.laterLink")}</Link></p>}
         </section>
@@ -188,7 +202,8 @@ export default function PayScreen({ reqRef, billing: b, phone, serviceName, cont
           <div className="stack g8" style={{ textAlign: "center", alignItems: "center" }}>
             <h1 ref={heading} tabIndex={-1} className="d" style={{ fontSize: 26 }}>{checkout ? t("pay.paidCheckoutTitle") : t("pay.received")}</h1>
             <p style={{ fontSize: 15.5, lineHeight: 1.55, maxWidth: 420 }}>
-              {checkout ? t("pay.paidCheckoutBody", { time: t("responseTime"), contact }) : t("side.got", { amount: rwf(sentAmount), receipt })}
+              {review ? t("pay.paidReviewBody", { time: t("responseTime"), contact, fee: rwf(b.reviewFee!) })
+                : checkout ? t("pay.paidCheckoutBody", { time: t("responseTime"), contact }) : t("side.got", { amount: rwf(sentAmount), receipt })}
             </p>
           </div>
           <dl className="pay-receipt">
@@ -202,7 +217,7 @@ export default function PayScreen({ reqRef, billing: b, phone, serviceName, cont
               <span className="eb" style={{ fontSize: 10.5 }}>{t("pay.nextTitle")}</span>
               <ol className="pay-next">
                 <li><Icon name="user" size={17} /> {t("pay.next1", { time: t("responseTime") })}</li>
-                <li><Icon name="send" size={17} /> {t("pay.next2")}</li>
+                <li><Icon name="send" size={17} /> {review ? t("pay.next2Review") : t("pay.next2")}</li>
                 <li><Icon name="bell" size={17} /> {t("pay.next3")}</li>
               </ol>
             </div>

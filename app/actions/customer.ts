@@ -11,7 +11,7 @@ import { text as tr } from "@/lib/i18n/messages";
 import type en from "@/lib/i18n/en.json";
 import type { LibraryDoc } from "@/lib/types";
 import { english, feeVars, msg, sms } from "@/lib/i18n/stored";
-import { checkoutPrice } from "@/lib/pricing";
+import { checkoutPrice, reviewFeeFor } from "@/lib/pricing";
 import { maskNationalId, parseDob, prettyPhone, rwf } from "@/lib/format";
 import { idAsk, idPolicyOf, mentionsNationalId, nationalIdDigits, nationalIdError } from "@/lib/identity";
 import { open, seal } from "@/lib/crypto";
@@ -22,7 +22,7 @@ import { isReservedTestEmail } from "@/lib/email";
 import { refusalKind, type RefusalKind } from "@/lib/intouchpay";
 import { PromptRefused, methodFor, newPrompt } from "@/lib/payments";
 import { SITE } from "@/lib/site";
-import { amountDue } from "@/lib/status";
+import { payableNow } from "@/lib/status";
 import { getService, listMyDocuments } from "@/lib/repo";
 import { notifyStaff } from "@/lib/staff-alerts";
 import { TOO_MANY, allowIp } from "@/lib/ratelimit";
@@ -67,8 +67,11 @@ export async function submitRequest(fd: FormData): Promise<Result<{ ref: string;
   const slug = text(fd, "slug") || "other-online-service";
   const service = await getService(slug);
   if (!service || (!service.visible && slug !== "other-online-service")) return refuse("service");
-  // A service whose price is settled by the catalogue asks for payment right after the request, with no quote to wait for.
+  // Pay to submit. A service whose price the catalogue settles is paid in full; any other starts with a review fee, taken
+  // off our fee when the quote is paid. Either way the request reaches staff once that payment is in (lib/billing.ts).
   const price = checkoutPrice(service);
+  const reviewFee = reviewFeeFor(service);
+  const payFirst = price ? price.total : reviewFee;
   // The ID rule is the service's. A business request never asks for a personal number. An uncertain rule stays optional.
   const ask = idAsk(service, forWho);
   const policy = idPolicyOf(service);
@@ -146,12 +149,12 @@ export async function submitRequest(fd: FormData): Promise<Result<{ ref: string;
     const invoice = invoiceFor(await nextNumber(tx, "invoice"));
     // Pay to submit: a request with a settled price waits at checkout, out of the staff queues, until it is paid
     // (lib/billing.ts hands it over). The customer sees it in their portal as one thing to do: pay.
-    const total = price ? rwf(price.total) : "";
-    const summary = price ? msg("sum.checkout", { total }) : msg("sum.received", { contact: email });
-    const checkoutHold = price ? msg("hold.checkout", { total }) : null;
+    const total = payFirst ? rwf(payFirst) : "";
+    const summary = price ? msg("sum.checkout", { total }) : reviewFee ? msg("sum.reviewFee", { fee: total }) : msg("sum.received", { contact: email });
+    const checkoutHold = price ? msg("hold.checkout", { total }) : reviewFee ? msg("hold.reviewFee", { fee: total }) : null;
     await tx.insert(s.requests).values({
       ref, serviceSlug: service.slug, profileId: profile.id, agentId: null, stage: "received", stageDates: { received: now }, channel: service.channel,
-      checkout: price ? "open" : "none",
+      checkout: payFirst ? "open" : "none", reviewFee,
       hold: checkoutHold ? { reason: "payment", title: english(checkoutHold, "title"), detail: english(checkoutHold, "detail"), since: now, msg: checkoutHold } : null,
       summary: { title: english(summary, "title"), body: english(summary, "body"), msg: summary },
       next: english(summary, "next"), purpose: text(fd, "purpose") || null,
@@ -184,10 +187,10 @@ export async function submitRequest(fd: FormData): Promise<Result<{ ref: string;
     const notes = text(fd, "notes");
     if (notes) await tx.insert(s.messages).values({ ref, by: "customer", body: notes });
     await event(tx, ref, msg("ev.opened"), "customer", text(fd, "purpose") || undefined);
-    if (price) {
-      await event(tx, ref, msg("ev.feesConfirmed", { ...feeVars(service.official.mode, price.official), ours: rwf(price.ours) }), "system");
+    if (price) await event(tx, ref, msg("ev.feesConfirmed", { ...feeVars(service.official.mode, price.official), ours: rwf(price.ours) }), "system");
+    if (payFirst) {
       // Staff hear about it, and the customer is told it was received, once it is paid.
-      await audit(tx, { actor: account.name, role: "Customer", action: "Started a request at checkout", entity: `${ref} · ${service.name} · ${total}` });
+      await audit(tx, { actor: account.name, role: "Customer", action: price ? "Started a request at checkout" : "Started a request with a review fee", entity: `${ref} · ${service.name} · ${total}` });
     } else {
       const received = msg("nt.received", { service: service.name, serviceSlug: service.slug, ref });
       await tx.insert(s.notifications).values({ accountId: account.id, icon: "check", title: english(received), key: received.key, vars: received.vars, href: `/portal/requests/${ref}` });
@@ -208,7 +211,7 @@ export async function submitRequest(fd: FormData): Promise<Result<{ ref: string;
     await rememberLocale(result.locale);
   }
   revalidatePath("/", "layout");
-  return { ok: true, ref: result.ref, portal, phoneShared, payNow: price ? price.total : null };
+  return { ok: true, ref: result.ref, portal, phoneShared, payNow: payFirst };
 }
 
 /** Confirms the request belongs to the signed-in customer. */
@@ -311,7 +314,9 @@ export async function startPayment(ref: string, phoneInput: string): Promise<Res
   const d = own.d;
   const [r] = await d.select().from(s.requests).where(eq(s.requests.ref, ref));
   if (r.closed) return refuse("finished");
-  if (r.quote === "estimate") return refuse("notConfirmed");
+  // A quoted request waiting at checkout pays its review fee; any other pays confirmed fees.
+  const reviewing = r.checkout === "open" && !!r.reviewFee;
+  if (r.quote === "estimate" && !reviewing) return refuse("notConfirmed");
   if (!(await allowIp("payment"))) return refuse("tooMany");
   let txs = await d.select().from(s.transactions).where(eq(s.transactions.ref, ref));
   // A prompt left open (a closed tab, a missed callback) would block the customer until the daily job. Ask the provider
@@ -320,11 +325,13 @@ export async function startPayment(ref: string, phoneInput: string): Promise<Res
     for (const t of txs) if (t.status === "pending") await reconcilePayment(t.id);
     txs = await d.select().from(s.transactions).where(eq(s.transactions.ref, ref));
   }
-  const billing = { ...r, official: r.official, officialMode: r.officialMode ?? undefined, transactions: txs.map((t) => ({ ...t, at: iso(t.at)! })) } as never;
-  const due = amountDue(billing);
+  const billing = { ...r, official: r.official, officialMode: r.officialMode ?? undefined, reviewFee: r.reviewFee ?? undefined, transactions: txs.map((t) => ({ ...t, at: iso(t.at)! })) } as never;
+  const due = payableNow(billing, r.checkout === "open").amount;
   if (due <= 0) return refuse("nothingDue");
   const paidOfficial = txs.filter((t) => t.status === "paid").reduce((n, t) => n + t.official, 0);
-  const official = Math.max(0, (r.official ?? 0) - paidOfficial);
+  // A review fee is ours. On a quote, what was already paid (the review fee) comes off our fee first; were it ever more
+  // than our fee, the rest comes off the official fee, so neither line goes below zero.
+  const official = reviewing ? 0 : Math.min(due, Math.max(0, (r.official ?? 0) - paidOfficial));
   if (txs.some((t) => t.status === "pending")) return refuse("promptWaiting");
   const receipt = txs.length ? `${r.invoice}-${txs.length + 1}` : r.invoice;
   let prompt: ReturnType<typeof newPrompt>;
@@ -357,10 +364,11 @@ export async function startPayment(ref: string, phoneInput: string): Promise<Res
     }
     // Unknown whether the prompt went out: leave it waiting. The check on the customer's screen and the scheduled job
     // ask the provider, and close it as failed after fifteen minutes if it never existed.
-    await d.update(s.requests).set({ quote: "approved" }).where(eq(s.requests.ref, ref));
+    if (!reviewing) await d.update(s.requests).set({ quote: "approved" }).where(eq(s.requests.ref, ref));
     return { ok: true, txId: tx.id, receipt };
   }
-  await d.update(s.requests).set({ quote: "approved" }).where(eq(s.requests.ref, ref));
+  // Paying a quote approves it. Paying a review fee does not: there is no quote yet.
+  if (!reviewing) await d.update(s.requests).set({ quote: "approved" }).where(eq(s.requests.ref, ref));
   return { ok: true, txId: tx.id, receipt };
 }
 

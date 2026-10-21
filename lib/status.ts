@@ -66,14 +66,25 @@ export function amountDue(b: Billing) {
   const paid = paidSplit(b);
   return Math.max(0, (b.official ?? 0) + b.ours - paid.official - paid.ours);
 }
+/** What the payment screen charges now. While a quoted request waits at checkout, that is its review fee; otherwise it is
+ *  what is still due on fees the agent has confirmed (nothing while they are an estimate). */
+export function payableNow(b: Billing, checkoutOpen: boolean): { amount: number; review: boolean } {
+  if (checkoutOpen && b.reviewFee) {
+    const paid = paidSplit(b);
+    return { amount: Math.max(0, b.reviewFee - paid.official - paid.ours), review: true };
+  }
+  return { amount: b.quote === "estimate" ? 0 : amountDue(b), review: false };
+}
+
 export function payStatus(b: Billing, now: string): PayStatus {
   if (b.transactions.some((t) => t.status === "refunded")) return "refunded";
   if (b.transactions.some((t) => t.status === "pending")) return "pending";
   const paid = paidSplit(b);
   const officialKnown = b.official !== null || !!b.officialMode;
   if (officialKnown && amountDue(b) === 0) return "paid";
-  if (paid.official + paid.ours > 0) return "part";
+  // A review fee paid on a request still being quoted leaves it "to be confirmed", not part-paid.
   if (b.quote === "estimate") return "quote";
+  if (paid.official + paid.ours > 0) return "part";
   if (b.dueAt && Date.parse(now) > Date.parse(b.dueAt)) return "overdue";
   return "unpaid";
 }

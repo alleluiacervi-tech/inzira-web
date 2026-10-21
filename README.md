@@ -204,9 +204,12 @@ by every server action.
   form ends on the payment screen, and the request reaches staff only once it is paid. Until then it is an unpaid checkout
   (`requests.checkout = 'open'`), listed under Inbox › Awaiting payment and nowhere else in the console; the daily job
   reminds the customer once after two hours and closes it after three days. Paying hands it to the inbox, paid requests
-  first, and staff with the console open get a live alert. Any other service is quoted by an agent first. Quoted fees not
-  paid a week after they were sent close the request (the daily job also reminds the customer once). To take a service back
-  to quoting, mark its official fee as unchecked.
+  first, and staff with the console open get a live alert. Any other service is quoted by an agent, and is also pay to
+  submit: it is sent with a review fee (`NEXT_PUBLIC_REVIEW_FEE_RWF`, RWF 1,000 by default, never more than our own fee;
+  `0` sends quoted requests free). The fee is recorded as a payment of ours, so the quote asks only for the rest. A request
+  declined or closed before it was quoted gets a "Refund due" note on the case. Quoted fees not paid a week after they were
+  sent close the request (the daily job also reminds the customer once). To take a service back to quoting, mark its
+  official fee as unchecked.
 - **Email.** Buy a mailbox on the business domain, put its SMTP settings in the environment and run
   `npm run check:email` from where the app runs (a VPS or cloud host can block outbound mail ports; the check says which).
   Send a real message to Gmail and Outlook and look for `spf=pass` and `dkim=pass` in its headers, or codes will land in spam.

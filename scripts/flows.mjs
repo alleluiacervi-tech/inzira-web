@@ -282,21 +282,27 @@ await step("start", async () => {
   check("start: a submitted ID is pending review and is not called verified", await p.has("Pending verification") && await p.has("does not verify") && !(await p.has("officially verified")));
   // This one is left unpaid: staff see it under Awaiting payment, not in the inbox (the console step).
   await p.go("/start/irembo-training");
-  check("training: no national ID is asked for", (await p.ev(`document.querySelector("#f-nid") === null && !!document.querySelector('[aria-label^="Step 1 of 2"]')`)));
+  check("training: no national ID is asked for, and a quoted service ends on its review fee", (await p.ev(`document.querySelector("#f-nid") === null && !!document.querySelector('[aria-label^="Step 1 of 3"]')`)) && await p.has("review fee when you send this request"));
   await p.go("/start/ebm-installation");
   check("ebm: an unconfirmed ID rule is not mandatory", await p.has("not confirmed") && (await p.ev(`!!document.querySelector("#f-nid")`)) === true);
   // The phone number is the one the first customer just used: another email must still be able to send a request.
   await p.set("#f-name", "Ebm Person"); await p.set("#f-email", "ebm.person@example.com"); await p.set("#f-phone", "788 555 010");
   await p.click("Continue"); await sleep(300);
-  check("ebm: a service that does not require an ID continues without one", await p.has("Check and send") && !(await p.has("ID numbers have 16 digits")));
-  await p.ev(`document.querySelector('input[aria-describedby="ack-err"]').click()`); await p.click("Send request"); await sleep(1200);
+  check("ebm: a service that does not require an ID continues without one", await p.has("Check, then pay") && !(await p.has("ID numbers have 16 digits")));
+  check("review fee: a quoted service asks for the review fee, taken off our fee", (await p.ev(`document.querySelector("[data-review-fee]")?.innerText ?? ""`)).includes("RWF 1,000") && await p.has("Taken off our fee when you pay the quote") && await p.has("Refunded if we can’t take on your request"));
+  await p.ev(`document.querySelector('input[aria-describedby="ack-err"]').click()`); await p.click("Continue to payment"); await sleep(1200);
   await waitFor(p, "Enter the code we sent you");
-  await p.set("#otp", await p.ev(`document.querySelector("[data-demo-code]").dataset.demoCode`)); await p.click("Confirm and send request"); await waitFor(p, "Request received");
-  check("start: a phone number that belongs to another account does not block a new email", await p.has("Request received") && await p.has("We didn’t save the phone number") && !(await p.has("already belongs to another account")),
-    (await p.ev(`document.querySelector("main")?.innerText ?? ""`)).slice(0, 300).replace(/\s+/g, " "));
-  await p.click("See my request"); await waitFor(p, "Cancel this request");
-  await p.click("Cancel this request", "summary"); await sleep(300); await p.click("Cancel request", "button"); await waitFor(p, "Cancelled by you");
-  check("cancel: a customer can cancel before paying", await p.has("Cancelled by you") && !(await p.has("Cancel this request")));
+  await p.set("#otp", await p.ev(`document.querySelector("[data-demo-code]").dataset.demoCode`)); await p.click("Confirm and go to payment");
+  await waitPath(p, (path) => path.endsWith("/pay"), 120); await waitFor(p, "Pay the review fee to send your request", 60);
+  check("start: a phone number that belongs to another account does not block a new email", await p.has("Pay the review fee to send your request") && await p.has("We didn’t save the phone number") && !(await p.has("already belongs to another account")),
+    (await p.ev(`document.body?.innerText ?? ""`)).slice(0, 300).replace(/\s+/g, " "));
+  check("review fee: the payment screen charges only the review fee", (await p.ev(`document.querySelector("[data-pay]")?.textContent ?? ""`)).includes("Pay RWF 1,000") && await p.has("Review fee"));
+  await p.ev(`document.querySelector("#pay-agree").click()`); await p.set("#mm", "788 123 456"); await p.click("Pay RWF 1,000", "button");
+  await waitFor(p, "Your request is with our team", 100);
+  check("review fee: paying it sends the request and says the fees come next", await p.has("sends the exact fees") && await p.has("taken off our fee") && await p.has("minus what you paid today"),
+    (await p.ev(`document.body?.innerText ?? ""`)).slice(0, 300).replace(/\s+/g, " "));
+  await p.click("Follow your request"); await waitFor(p, "You paid a RWF 1,000 review fee");
+  check("review fee: the request shows it paid and waits for the quote", await p.has("You paid a RWF 1,000 review fee") && await p.has("Fee to be confirmed") && !(await p.has("Pay the review fee")));
   // A fixed price paid on the spot: the customer pays straight after sending, and the request is paid when an agent first sees it.
   await p.go("/start/ebm-training"); await waitFor(p, "Continue");
   await p.set("#f-name", "Pay First"); await p.set("#f-email", "pay.first@example.com");
@@ -566,7 +572,7 @@ await step("console", async () => {
   await p.go("/console/overview");
   check("console: overview leads with the work queue and the pipeline", await p.has("Do next") && await p.has("Open cases by stage") && await p.has("Fees by month"));
   const rate = await p.ev(`document.querySelector("[data-checkout-rate]")?.innerText ?? ""`);
-  check("console: the overview shows how many checkouts were paid", rate.includes("1 of 2 fixed-price requests paid") && rate.includes("1 waiting") && rate.includes("50%"), rate.replace(/\s+/g, " "));
+  check("console: the overview shows how many checkouts were paid", rate.includes("2 of 3 requests paid when sent") && rate.includes("1 waiting") && rate.includes("67%"), rate.replace(/\s+/g, " "));
   const lateCount = Number(await p.ev(`[...document.querySelectorAll(".c-chip")].find((b) => b.textContent.startsWith("Past target"))?.querySelector("b")?.textContent ?? "-1"`));
   await p.click("Past target", "button"); await sleep(300);
   const lateRows = await p.ev(`document.querySelectorAll(".c-donext .c-list-row").length`);
@@ -590,6 +596,8 @@ await step("console", async () => {
     && (await p.ev(`document.querySelector("#inbox-ready .console-panel [data-paid]")?.textContent ?? ""`)) === "Refunded"
     && (await p.ev(`document.querySelector("#inbox-ready .console-panel")?.innerText.includes("Quote")`)) === false, (await p.ev(`document.querySelector("#inbox-ready")?.innerText ?? ""`)).slice(0, 300).replace(/\s+/g, " "));
   check("inbox: an unpaid checkout is not in the queue", !(await p.ev(`document.querySelector("#inbox-ready")?.innerText.includes("Test Person")`)));
+  const reviewRow = await p.ev(`[...document.querySelectorAll("#inbox-ready .console-panel")].find((e) => e.innerText.includes("Ebm Person"))?.innerText ?? ""`);
+  check("inbox: a request sent with a review fee is marked and still needs its quote", reviewRow.includes("Review fee paid RWF 1,000") && reviewRow.includes("Needs a quote") && reviewRow.includes("Quote"), reviewRow.replace(/\s+/g, " ").slice(0, 200));
   await p.click("Awaiting payment", "button"); await sleep(300);
   check("inbox: unpaid checkouts are listed apart, to follow up", await p.has("Test Person") && await p.has("RWF 5,000") && await p.has("closes on its own after three days") && (await p.ev(`document.querySelectorAll("[data-checkout]").length`)) >= 1);
   await p.click("Ready to work", "button"); await sleep(200);
@@ -744,12 +752,13 @@ await step("contact", async () => {
   await p.go("/start/irembo-training");
   await p.set("#f-name", "Guest Person"); await p.set("#f-email", "guest.person@example.com");
   await p.click("Online", "label"); await p.click("Continue"); await sleep(300);
-  check("contact: sending does not ask whether to create a portal", !(await p.has("Create my portal")) && await p.has("Check and send") && await p.has("Online"));
-  await p.ev(`document.querySelector('input[aria-describedby="ack-err"]').click()`); await p.click("Send request"); await sleep(1200);
-  await p.set("#otp", await p.ev(`document.querySelector("[data-demo-code]").dataset.demoCode`)); await p.click("Confirm and send request"); await waitFor(p, "Request received");
-  const ref = await p.ev(`document.querySelector("[data-ref]")?.textContent ?? ""`);
-  check("contact: sending opens a portal for the same reference", /^INZ-\d{4}-\d{5}$/.test(ref) && await p.has("See my request"), ref);
-  await p.click("See my request");
+  check("contact: sending does not ask whether to create a portal", !(await p.has("Create my portal")) && await p.has("Check, then pay") && await p.has("Online"));
+  await p.ev(`document.querySelector('input[aria-describedby="ack-err"]').click()`); await p.click("Continue to payment"); await sleep(1200);
+  await p.set("#otp", await p.ev(`document.querySelector("[data-demo-code]").dataset.demoCode`)); await p.click("Confirm and go to payment");
+  await waitPath(p, (path) => path.endsWith("/pay"), 120);
+  const ref = (await p.ev("location.pathname")).split("/")[3] ?? "";
+  check("contact: sending opens a portal for the same reference", /^INZ-\d{4}-\d{5}$/.test(ref), ref);
+  await p.go(`/portal/requests/${ref}`);
   // The address changes first, then the portal shell, and only then the request itself. Wait until the reference is on that page.
   let landed = false;
   for (let i = 0; i < 80; i++) {

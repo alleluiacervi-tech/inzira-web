@@ -157,6 +157,8 @@ export const requests = pgTable("requests", {
   /** Pay to submit (lib/pricing.ts). "open": started at checkout and not paid yet, so staff do not see it in their queues;
    *  "paid": paid at checkout and handed to staff; "none": an ordinary request, checked and quoted first. */
   checkout: text("checkout").$type<Checkout>().notNull().default("none"),
+  /** The review fee a quoted request was sent with (lib/pricing.ts). Null when it was free or priced in full at checkout. */
+  reviewFee: integer("review_fee"),
   // billing — always two lines: official (institution) and ours (Inzira)
   invoice: text("invoice").notNull().unique(),
   official: integer("official"),

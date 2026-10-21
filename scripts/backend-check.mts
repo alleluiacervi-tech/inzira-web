@@ -382,6 +382,52 @@ await check("pay to submit: an unpaid checkout is reminded once, closes after th
   }
 });
 
+await check("review fee: paying it sends a quoted request to staff, the quote counts it, and declining asks for a refund", async () => {
+  const { remindOpenCheckouts, expireUnpaidQuotes } = await import("../lib/jobs.ts");
+  const { reconcilePayment, noteReviewFeeRefund } = await import("../lib/billing.ts");
+  const [{ cols }] = (await d.execute(sql.raw(`select string_agg(column_name, ', ' order by ordinal_position) cols from information_schema.columns where table_name = 'requests'`))).rows as { cols: string }[];
+  const hold = JSON.stringify({ reason: "payment", title: "Pay the review fee to send your request", detail: "Pay RWF 1,000", since: new Date().toISOString(), msg: { key: "hold.reviewFee", vars: { fee: "RWF 1,000" } } });
+  const ref = "INZ-T-RV-1";
+  const pick = cols.split(", ").map((c) => c === "ref" ? `'${ref}'` : c === "invoice" ? `'INV-${ref}'` : c === "stage" ? "'received'" : c === "quote" ? "'estimate'" : c === "closed" ? "null"
+    : c === "hold" ? `'${hold}'::jsonb` : c === "checkout" ? "'open'" : c === "review_fee" ? "1000" : c === "agent_id" ? "null" : c === "official" ? "null" : c === "official_mode" ? "null" : c === "ours" ? "8000"
+    : c === "opened_at" ? "now() - interval '3 hours'" : c === "due_at" ? "null" : c).join(", ");
+  const row = async () => (await d.execute(sql.raw(`select checkout, quote, closed, hold, summary from requests where ref = '${ref}'`))).rows[0] as { checkout: string; quote: string; closed: { msg?: { key: string } } | null; hold: unknown; summary: { msg?: { key: string } } };
+  const count = async (q: string) => Number((await d.execute(sql.raw(q))).rows[0].n);
+  try {
+    await d.execute(sql.raw(`insert into requests (${cols}) select ${pick} from requests where ref = 'INZ-2026-04741'`));
+    await remindOpenCheckouts();
+    const [reminder] = (await d.execute(sql.raw(`select vars from notifications where key = 'nt.checkoutReminder' and href = '/portal/requests/${ref}'`))).rows as { vars: { total: string } }[];
+    assert.equal(reminder?.vars.total, "RWF 1,000", "the reminder asks for the review fee, not the whole fee");
+
+    const [p] = await d.insert(s.transactions).values({ ref, receipt: `R-${ref}`, method: "MTN MoMo", official: 0, ours: 1000, status: "pending", payer: "788123456", providerRef: `sim:${Date.now() - 5000}:788123456` }).returning({ id: s.transactions.id });
+    assert.equal(await reconcilePayment(p.id), "paid");
+    const sent = await row();
+    assert.equal(sent.checkout, "paid"); assert.equal(sent.hold, null);
+    assert.equal(sent.quote, "estimate", "paying the review fee does not approve fees nobody has sent yet");
+    assert.equal(sent.summary.msg?.key, "sum.reviewPaid");
+    assert.ok(await count(`select count(*) n from staff_notifications where ref = '${ref}' and title = 'New request ${ref} · review fee paid'`) >= 1, "staff are told it needs a quote");
+
+    const by = { id: "s-diane", name: "Diane", role: "Owner" };
+    await d.transaction((tx) => noteReviewFeeRefund(tx, ref, by));
+    assert.equal(await count(`select count(*) n from notes where ref = '${ref}' and body like 'Refund due: the customer paid a RWF 1,000 review fee%'`), 1, "declined before a quote: staff are told to refund it");
+
+    // Quoted and then not paid within a week: closed, and the customer is not told "nothing was charged".
+    await d.execute(sql.raw(`update requests set quote = 'confirmed', official = 2000, due_at = now() - interval '5 days' where ref = '${ref}'`));
+    await d.transaction((tx) => noteReviewFeeRefund(tx, ref, by));
+    assert.equal(await count(`select count(*) n from notes where ref = '${ref}' and body like 'Refund due%'`), 1, "once quoted, closing it does not ask for a refund");
+    await expireUnpaidQuotes();
+    const closed = await row();
+    assert.ok(closed.closed, "unpaid a week after the quote: closed");
+    assert.equal(closed.summary.msg?.key, "sum.quoteExpiredReview");
+  } finally {
+    for (const t of ["events", "transactions", "staff_notifications", "outbox", "notes"]) await d.execute(sql.raw(`delete from ${t} where ref = '${ref}'`));
+    await d.execute(sql.raw(`delete from requests where ref = '${ref}'`));
+    await d.execute(sql.raw(`delete from audit where entity like '%${ref}%'`));
+    await d.execute(sql.raw(`delete from notifications where href like '%/${ref}'`));
+    await d.execute(sql.raw(`delete from rate_limits where key like '%${ref}%'`));
+  }
+});
+
 await check("authenticator: a code works once; recovery codes work once", async () => {
   const secret = newSecret();
   const rec = "abcde-fghjk";

@@ -6,7 +6,7 @@ import { messageCustomer } from "@/app/actions/agent";
 import { Icon } from "@/components/ui";
 import { customerWhatsAppUrl } from "@/lib/desk";
 import { fmtAgo, fmtWhen, initials, rwf, shortName } from "@/lib/format";
-import { amountDue, paidSplit } from "@/lib/status";
+import { paidSplit, payableNow } from "@/lib/status";
 import type { RequestView, Staff } from "@/lib/types";
 import { RequestStatusBadge } from "./StatusBadge";
 import { ConfirmDialog } from "./ConfirmDialog";
@@ -14,6 +14,10 @@ import { SidePanel } from "./SidePanel";
 import { Toast } from "./Toast";
 
 const paidTotal = (r: RequestView) => { const p = paidSplit(r.billing); return p.official + p.ours; };
+/** Paid in full at checkout, or a quoted request whose review fee is paid (it still needs its quote). */
+const paidInFull = (r: RequestView) => r.checkout === "paid" && !r.billing.reviewFee;
+const reviewPaid = (r: RequestView) => r.checkout === "paid" && !!r.billing.reviewFee;
+const rank = (r: RequestView) => (paidInFull(r) ? 2 : reviewPaid(r) ? 1 : 0);
 
 export function InboxView({
   requests: queue,
@@ -32,8 +36,8 @@ export function InboxView({
 }) {
   const [busy, start] = useTransition();
   const [tab, setTab] = useState<"ready" | "unpaid">("ready");
-  // Paid first: money is in and the customer was promised a reply. The rest, oldest first.
-  const requests = [...queue].sort((a, b) => Number(b.checkout === "paid") - Number(a.checkout === "paid"));
+  // Paid in full first, then those with a review fee paid: money is in and the customer was promised a reply. Oldest first within each.
+  const requests = [...queue].sort((a, b) => rank(b) - rank(a));
   const [selectedReq, setSelectedReq] = useState<RequestView | null>(null);
   const [assignReq, setAssignReq] = useState<RequestView | null>(null);
   const [declineReq, setDeclineReq] = useState<RequestView | null>(null);
@@ -149,7 +153,7 @@ export function InboxView({
                   </div>
                   <div className="row g10 wrapx" style={{ fontSize: 13 }}>
                     <strong style={{ color: "var(--c-text)" }}>{r.name}</strong>
-                    <span className="tabular-nums" style={{ color: "var(--c-text)" }}>· {rwf(amountDue(r.billing))}</span>
+                    <span className="tabular-nums" style={{ color: "var(--c-text)" }}>· {rwf(payableNow(r.billing, true).amount)}{r.billing.reviewFee ? " review fee" : ""}</span>
                     <span style={{ color: "var(--c-text-muted)", overflowWrap: "anywhere" }}>· {[r.account.email, r.account.phone].filter(Boolean).join(" · ")}</span>
                   </div>
                 </div>
@@ -196,11 +200,13 @@ export function InboxView({
                     <strong style={{ fontSize: 14 }}>{r.profile.name}</strong>
                     <span className="c-badge c-badge-neutral">{r.profile.kind}</span>
                     <RequestStatusBadge r={r} viewer="staff" />
-                    {r.checkout === "paid"
-                      ? paidTotal(r) > 0
-                        ? <span className="c-badge c-badge-green" data-paid><Icon name="card" size={12} /><span>Paid {rwf(paidTotal(r))}</span></span>
-                        : <span className="c-badge c-badge-neutral" data-paid>Refunded</span>
-                      : r.billing.quote === "estimate" && <span className="c-badge c-badge-neutral">Needs a quote</span>}
+                    {paidInFull(r) && (paidTotal(r) > 0
+                      ? <span className="c-badge c-badge-green" data-paid><Icon name="card" size={12} /><span>Paid {rwf(paidTotal(r))}</span></span>
+                      : <span className="c-badge c-badge-neutral" data-paid>Refunded</span>)}
+                    {reviewPaid(r) && (paidTotal(r) > 0
+                      ? <span className="c-badge c-badge-blue" data-review-paid><Icon name="card" size={12} /><span>Review fee paid {rwf(paidTotal(r))}</span></span>
+                      : <span className="c-badge c-badge-neutral" data-review-paid>Review fee refunded</span>)}
+                    {!paidInFull(r) && r.billing.quote === "estimate" && <span className="c-badge c-badge-neutral">Needs a quote</span>}
                     {isUrgent && (
                       <span className="c-badge c-badge-amber">
                         <Icon name="clock" size={12} />
@@ -240,7 +246,7 @@ export function InboxView({
                     <span>Ask info</span>
                   </button>
 
-                  {r.checkout !== "paid" && <button
+                  {!paidInFull(r) && <button
                     type="button"
                     className="c-btn c-btn-secondary c-btn-sm"
                     onClick={() => {
@@ -442,7 +448,7 @@ export function InboxView({
         onClose={() => setDeclineReq(null)}
         onConfirm={handleDecline}
         title={`Decline ${declineReq?.ref}`}
-        description="The customer will receive an SMS and a portal notification explaining why their request was declined."
+        description={`The customer will receive an SMS and a portal notification explaining why their request was declined.${declineReq && reviewPaid(declineReq) && paidTotal(declineReq) > 0 ? ` They paid a ${rwf(paidTotal(declineReq))} review fee: a note to refund it is added to the case.` : ""}`}
         confirmLabel="Decline request"
         confirmVariant="danger"
         requireReason

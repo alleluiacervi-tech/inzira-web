@@ -6,7 +6,8 @@ import Footer from "@/components/Footer";
 import { Alert, FeeBreakdown, Icon, Plate } from "@/components/ui";
 import { ServiceRows } from "@/components/PriceList";
 import { officeFor } from "@/lib/institutions";
-import { fmtDate } from "@/lib/format";
+import { fmtDate, rwf } from "@/lib/format";
+import { checkoutPrice, reviewFeeFor } from "@/lib/pricing";
 import { getLocale } from "@/lib/i18n/locale";
 import { text } from "@/lib/i18n/messages";
 import { displayOfficial, displayOurs, displayTotal, localizeCategory, localizeService, localizeServices, officeText } from "@/lib/i18n/present";
@@ -41,6 +42,9 @@ export default async function ServiceDetail({ params }: { params: Promise<{ slug
   const cats = categories.map((c) => localizeCategory(c, locale));
   const catName = (id: string) => cats.find((c) => c.id === id)?.name ?? "";
   const training = s.official.mode === "none";
+  // What sending the request costs: the whole price when it is settled, otherwise the review fee (lib/pricing.ts).
+  const price = checkoutPrice(s);
+  const reviewFee = reviewFeeFor(s);
   const office = officeFor(s.category);
   const officeName = office ? officeText(office.code, locale)?.name ?? office.name : catName(s.category);
   const related = services.filter((x) => x.slug !== s.slug).sort((a, b) => Number(b.category === s.category) - Number(a.category === s.category)).slice(0, 4);
@@ -137,7 +141,7 @@ export default async function ServiceDetail({ params }: { params: Promise<{ slug
           <aside className="stack g16 sticky-aside">
             <FeeBreakdown official={displayOfficial(s, locale)} officialNote={s.official.note} ours={displayOurs(s, locale)} total={displayTotal(s, locale)}>
               <Link className="btn btn-p btn-lg" href={withLocale(locale, `/start/${s.slug}`)}>{t("service.start")}</Link>
-              <span className="hint" style={{ textAlign: "center" }}>{t("service.noPay")}</span>
+              <span className="hint" style={{ textAlign: "center" }}>{price ? t("service.payUpfront", { total: rwf(price.total) }) : reviewFee ? t("service.payReview", { fee: rwf(reviewFee) }) : t("service.noPay")}</span>
             </FeeBreakdown>
             {s.official.verifiedAt && <p className="hint row g8" style={{ alignItems: "flex-start" }}><Icon name="calendar" size={16} /><span>{t("service.checked", { who: s.authority, date: fmtDate(s.official.verifiedAt, locale) })}</span></p>}
             <div className="card stack g12" style={{ padding: 18 }}>

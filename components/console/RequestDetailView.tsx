@@ -22,7 +22,7 @@ import { Icon } from "@/components/ui";
 import { billOfficial, billOurs, fmtAgo, fmtMonth, fmtWhen, initials, rwf, shortName } from "@/lib/format";
 import type { Permission } from "@/lib/permissions";
 import { PAYMENT_LOCK, paymentLock } from "@/lib/payment-gate";
-import { payStatus, stageLabel } from "@/lib/status";
+import { payableNow, payStatus, stageLabel } from "@/lib/status";
 import type { Closed, IdReview, RequestView, Staff, Stage } from "@/lib/types";
 import { RequestStatusBadge, PaymentStatusBadge, DocStatusBadge } from "./StatusBadge";
 import { ConfirmDialog } from "./ConfirmDialog";
@@ -316,12 +316,21 @@ export function RequestDetailView({
         <div className="c-notice c-notice-amber" role="status" data-checkout-open>
           <Icon name="card" size={18} />
           <div className="c-notice-body">
-            <span className="c-notice-title">Unpaid checkout · {rwf(lock.due)} not paid yet</span>
+            <span className="c-notice-title">Unpaid checkout · {rwf(payableNow(c.billing, true).amount)}{c.billing.reviewFee ? " review fee" : ""} not paid yet</span>
             <span>The customer started this at checkout and has not paid. It is not in the inbox or anyone&rsquo;s queue, and it reaches the inbox by itself once paid. It closes after three days unpaid.</span>
           </div>
         </div>
       )}
-      {c.checkout === "paid" && !finished && (c.stage === "received" || c.stage === "checking") && (
+      {c.checkout === "paid" && !!c.billing.reviewFee && c.billing.quote === "estimate" && !finished && (
+        <div className="c-notice c-notice-neutral" role="status" data-review-paid>
+          <Icon name="card" size={18} />
+          <div className="c-notice-body">
+            <span className="c-notice-title">Review fee paid · {rwf(c.billing.reviewFee)}</span>
+            <span>The customer paid to have this request checked. Send the fees as usual: the review fee counts toward our fee, so they are asked only for the rest. If you decline it, the fee is refunded.</span>
+          </div>
+        </div>
+      )}
+      {c.checkout === "paid" && !c.billing.reviewFee && !finished && (c.stage === "received" || c.stage === "checking") && (
         <div className="c-notice c-notice-neutral" role="status">
           <Icon name="check-circle" size={18} />
           <div className="c-notice-body">

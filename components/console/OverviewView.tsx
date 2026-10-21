@@ -230,7 +230,7 @@ export function OverviewView({ overview: o }: { overview: AdminOverview }) {
             <div className="stack" style={{ gap: 2, minWidth: 0 }}>
               <span className="c-caption" style={{ fontWeight: 600 }}>Paid at checkout</span>
               <span className="c-caption">
-                {o.checkout.started ? `${o.checkout.paid} of ${o.checkout.started} fixed-price requests paid` : "No fixed-price requests started yet"}
+                {o.checkout.started ? `${o.checkout.paid} of ${o.checkout.started} requests paid when sent` : "No requests started at checkout yet"}
                 {o.checkout.waiting ? ` · ${o.checkout.waiting} waiting (${o.checkout.waitingValue})` : ""}
               </span>
             </div>
