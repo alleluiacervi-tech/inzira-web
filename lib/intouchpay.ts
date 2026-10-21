@@ -53,13 +53,14 @@ export type PayOutcome = "paid" | "pending" | "failed" | "missing";
 /** Maps a RequestPayment or GetTransactionStatus body. Unknown shapes stay pending: they are not treated as paid or failed. */
 export function paymentOutcome(body: Record<string, unknown>): PayOutcome {
   const code = codeOf(body);
-  const st = body.status == null ? "" : String(body.status).trim().toLowerCase();
+  const st = body.status == null ? "" : String(body.status).trim().toLowerCase().replace(/[\s_-]/g, "");
   const success = body.success;
   const denied = success === false || success === "false" || success === 0;
   if (code === "3000" || code === "3100" || code === "3200") return "missing";
   if (code === "2400") return "pending";
   // A documented refusal wins over a status word, so a failure code is never left pending.
-  if (REFUSED.has(code) || st === "failed" || st === "failure" || st.startsWith("fail")) return "failed";
+  // The sandbox also reports a prompt nobody approved in time as "TimedOut".
+  if (REFUSED.has(code) || st === "failed" || st === "failure" || st.startsWith("fail") || st === "timedout") return "failed";
   // 01 is "Successful" for a payment (section 2.9 and 4.7). The guide spells the status "Successfull".
   // A body that says successful and also success:false is not treated as paid or failed.
   if (code === "01" || st === "successfull" || st === "successful") return denied ? "pending" : "paid";
@@ -211,7 +212,10 @@ export async function requestIntouchPayment(input: { requestId: string; phone9: 
   if (!res.ok) {
     console.error("[payments] IntouchPay requestpayment HTTP", res.status);
     if (res.status >= 400 && res.status < 500 && res.status !== 408 && res.status !== 429) {
-      throw new IntouchRejected(String(res.status), `IntouchPay refused the prompt (HTTP ${res.status}).`);
+      // The sandbox answers a refusal with an HTTP error and the reason in the body (422 with 1002, for a number that is
+      // not on mobile money). Keep that reason, so the customer is told what to do; fall back to the HTTP status.
+      const code = codeOf(body) || String(res.status);
+      throw new IntouchRejected(code, `IntouchPay refused the prompt (${code}, HTTP ${res.status}).`);
     }
     throw new Error(`IntouchPay requestpayment HTTP ${res.status}`);
   }
