@@ -539,6 +539,7 @@
     "emailRow": "Email",
     "dobRow": "Date of birth",
     "receivedTrack": "Follow it any time on the Track page with the reference and your email.",
+    "phoneShared": "We didn’t save the phone number you gave, because another account already uses it. We will send updates to your email.",
     "trackIt": "Track this request"
   },
   "notFound": {
@@ -1230,7 +1231,6 @@
     "openMany": "You have {n} requests still in progress. Cancel them or wait until they are finished, then delete your account.",
     "badEmail": "Enter a valid email address.",
     "badDob": "Enter the date of birth exactly as it appears on the ID.",
-    "phoneTaken": "That phone number already belongs to another account. Use a different number, or leave it blank.",
     "idShort": "ID numbers have 16 digits.",
     "idLong": "Enter exactly 16 digits.",
     "idConsent": "Please confirm you understand how this National ID number will be used.",

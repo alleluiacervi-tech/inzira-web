@@ -50,6 +50,7 @@ export default function StartForm({ service: s }: { service: Service | null }) {
   const [ack, setAck] = useState(false);
   const [idConsent, setIdConsent] = useState(false);
   const [portalOpened, setPortalOpened] = useState(true);
+  const [phoneShared, setPhoneShared] = useState(false);
   const [touched, setTouched] = useState(false);
   const [restored, setRestored] = useState(false);
   const set = (k: keyof typeof EMPTY, v: string) => setF((cur) => ({ ...cur, [k]: v }));
@@ -120,14 +121,11 @@ export default function StartForm({ service: s }: { service: Service | null }) {
     if (s) s.documents.forEach((d, i) => { if (files[d.name]) fd.set(`file-${i}`, files[d.name]); });
     else Object.values(files).forEach((file) => fd.append("file-extra", file));
     const r = await submitRequest(fd).catch(() => ({ ok: false as const, error: t("authErr.submitFail") }));
-    if (!r.ok) {
-      // A phone number that belongs to another account: back to the first step to fix it, not stuck on the code.
-      if (r.error === t("custErr.phoneTaken")) { setSendError(trError(locale, r.error)); setPhase("form"); setStep(0); window.scrollTo({ top: 0 }); return null; }
-      return trError(locale, r.error);
-    }
+    if (!r.ok) return trError(locale, r.error);
     try { sessionStorage.removeItem(draftKey); } catch { /* ignore */ }
     setRef(r.ref);
     setPortalOpened(r.portal);
+    setPhoneShared(r.phoneShared);
     setPhase("done");
     window.scrollTo({ top: 0 });
     return null;
@@ -147,6 +145,7 @@ export default function StartForm({ service: s }: { service: Service | null }) {
             contact: <strong style={{ overflowWrap: "anywhere" }}>{f.email.trim().toLowerCase()}</strong>,
           })}</p>
           <p className="hint">{portalOpened ? t("start.ready") : t("start.receivedTrack")}</p>
+          {phoneShared && <p className="hint">{t("start.phoneShared")}</p>}
           <div className="row g10 wrapx" style={{ justifyContent: "center" }}>
             {portalOpened ? <Link className="btn btn-d" href={`/portal/requests/${ref}`}>{t("start.see")}</Link> : <Link className="btn btn-d" href="/track">{t("start.trackIt")}</Link>}
             <Link className="btn btn-s" href="/services">{t("start.more")}</Link>
