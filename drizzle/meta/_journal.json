@@ -85,6 +85,13 @@
       "when": 1792457751055,
       "tag": "0011_staff_desk",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1792587247835,
+      "tag": "0012_checkout",
+      "breakpoints": true
     }
   ]
 }

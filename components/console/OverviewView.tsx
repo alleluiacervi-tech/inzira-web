@@ -226,6 +226,16 @@ export function OverviewView({ overview: o }: { overview: AdminOverview }) {
             <div><dt>Official fees passed on</dt><dd>{o.revenue.official}</dd></div>
             <div><dt>Refunded</dt><dd>{o.revenue.refundCount ? `${o.revenue.refunds} (${o.revenue.refundCount})` : "None"}</dd></div>
           </dl>
+          <div className="c-checkout-rate" data-checkout-rate>
+            <div className="stack" style={{ gap: 2, minWidth: 0 }}>
+              <span className="c-caption" style={{ fontWeight: 600 }}>Paid at checkout</span>
+              <span className="c-caption">
+                {o.checkout.started ? `${o.checkout.paid} of ${o.checkout.started} fixed-price requests paid` : "No fixed-price requests started yet"}
+                {o.checkout.waiting ? ` · ${o.checkout.waiting} waiting (${o.checkout.waitingValue})` : ""}
+              </span>
+            </div>
+            <Link href="/console/inbox" className="c-checkout-pct" aria-label="See unpaid checkouts in the inbox">{o.checkout.rate === null ? "—" : `${o.checkout.rate}%`}</Link>
+          </div>
           {o.revenue.methods.length ? (
             <>
               <span className="c-caption" style={{ fontWeight: 600 }}>By payment method</span>

@@ -1,28 +1,54 @@
 "use client";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { listMyStaffAlerts, markMyStaffAlertsRead } from "@/app/actions/console";
 import { Icon } from "@/components/ui";
 import { fmtAgo } from "@/lib/format";
 import type { StaffAlert } from "@/lib/types";
 
+/** How often an open console asks for new alerts. Payments should show up while someone is looking at the screen. */
+const CHECK_EVERY_MS = 20_000;
+const MONEY_ICON = "card";
+
 export function StaffAlerts({ now }: { now: string }) {
   const [open, setOpen] = useState(false);
   const [alerts, setAlerts] = useState<StaffAlert[]>([]);
   const [unread, setUnread] = useState(0);
+  const [money, setMoney] = useState<StaffAlert | null>(null);
   const box = useRef<HTMLDivElement>(null);
+  // Alerts already on screen. The first load only sets this, so opening the console does not replay old payments.
+  const seen = useRef<Set<string> | null>(null);
+  const router = useRouter();
 
   const load = async () => {
-    const r = await listMyStaffAlerts();
+    const r = await listMyStaffAlerts().catch(() => null);
+    if (!r) return;
+    if (seen.current) {
+      const fresh = r.alerts.filter((a) => a.unread && !seen.current!.has(a.id));
+      // Something changed on a case: lists, badges and the overview catch up without a reload.
+      if (fresh.length) router.refresh();
+      const paid = fresh.find((a) => a.icon === MONEY_ICON);
+      if (paid) setMoney(paid);
+    }
+    seen.current = new Set(r.alerts.map((a) => a.id));
     setAlerts(r.alerts);
     setUnread(r.unread);
   };
 
   useEffect(() => {
     void load();
-    const id = window.setInterval(() => { if (document.visibilityState === "visible") void load(); }, 45_000);
-    return () => window.clearInterval(id);
+    const id = window.setInterval(() => { if (document.visibilityState === "visible") void load(); }, CHECK_EVERY_MS);
+    const onShow = () => { if (document.visibilityState === "visible") void load(); };
+    document.addEventListener("visibilitychange", onShow);
+    return () => { window.clearInterval(id); document.removeEventListener("visibilitychange", onShow); };
   }, []);
+
+  useEffect(() => {
+    if (!money) return;
+    const id = window.setTimeout(() => setMoney(null), 12_000);
+    return () => window.clearTimeout(id);
+  }, [money]);
 
   useEffect(() => {
     if (!open) return;
@@ -35,6 +61,19 @@ export function StaffAlerts({ now }: { now: string }) {
 
   return (
     <div ref={box} style={{ position: "relative" }}>
+      <div aria-live="polite" className="c-pay-toast-slot">
+        {money && (
+          <div className="c-pay-toast" role="status" data-pay-toast>
+            <span className="c-pay-toast-ico" aria-hidden="true"><Icon name="card" size={18} /></span>
+            <div className="stack grow" style={{ gap: 2, minWidth: 0 }}>
+              <strong className="c-clip-1" style={{ fontSize: 14 }}>{money.title}</strong>
+              {money.body && <span className="c-caption c-clip-2">{money.body}</span>}
+              <Link href={money.href} className="c-pay-toast-link" onClick={() => { setMoney(null); void markMyStaffAlertsRead([money.id]); }}>Open case →</Link>
+            </div>
+            <button type="button" className="c-btn c-btn-ghost c-btn-sm c-btn-icon" aria-label="Dismiss" onClick={() => setMoney(null)}><Icon name="x" size={16} /></button>
+          </div>
+        )}
+      </div>
       <button
         type="button"
         className="c-btn c-btn-ghost c-btn-icon"

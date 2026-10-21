@@ -147,6 +147,7 @@ export async function quoteCustomRequest(ref: string, official: number | null, o
   const { me, d, req } = a;
 
   if (req.closed || req.stage === "completed") return fail("This request is already finished.");
+  if (req.checkout !== "none") return fail("This request is priced and paid at checkout, so it has no quote to send.");
   if (ours <= 0) return fail("Set our assistance fee first.");
   if (ours !== req.ours && !me.permissions.has("changeOurs")) return fail("Changing our fee needs a supervisor. Ask one to change it on this case.");
   if (official !== null && official < 0) return fail("Official fee cannot be negative.");

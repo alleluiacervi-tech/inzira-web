@@ -144,9 +144,15 @@ export async function submitRequest(fd: FormData): Promise<Result<{ ref: string;
 
     const ref = refFor(await nextNumber(tx, "request"));
     const invoice = invoiceFor(await nextNumber(tx, "invoice"));
-    const summary = msg("sum.received", { contact: email });
+    // Pay to submit: a request with a settled price waits at checkout, out of the staff queues, until it is paid
+    // (lib/billing.ts hands it over). The customer sees it in their portal as one thing to do: pay.
+    const total = price ? rwf(price.total) : "";
+    const summary = price ? msg("sum.checkout", { total }) : msg("sum.received", { contact: email });
+    const checkoutHold = price ? msg("hold.checkout", { total }) : null;
     await tx.insert(s.requests).values({
       ref, serviceSlug: service.slug, profileId: profile.id, agentId: null, stage: "received", stageDates: { received: now }, channel: service.channel,
+      checkout: price ? "open" : "none",
+      hold: checkoutHold ? { reason: "payment", title: english(checkoutHold, "title"), detail: english(checkoutHold, "detail"), since: now, msg: checkoutHold } : null,
       summary: { title: english(summary, "title"), body: english(summary, "body"), msg: summary },
       next: english(summary, "next"), purpose: text(fd, "purpose") || null,
       idPolicy: policy, idRequired: ask === "required", idReview: ask === "required" ? "pending" : null, idConsent: storeId && consent,
@@ -154,7 +160,7 @@ export async function submitRequest(fd: FormData): Promise<Result<{ ref: string;
       invoice, official: service.official.mode ? null : service.official.amount, officialMode: service.official.mode ?? null,
       officialLabel: service.official.mode === "none" ? "Official fee" : `${service.official.label ?? "Official fee"} · ${service.channel}`,
       ours: service.ours, oursStandard: service.ours, oursUnit: service.oursUnit ?? null, quote: price ? "confirmed" : "estimate",
-      // Fees due three days after they are fixed, as for a quote an agent sends; an unpaid request is reminded and then closed (lib/jobs.ts).
+      // An unpaid checkout is reminded once and closed after three days (lib/jobs.ts).
       ...(price ? { dueAt: new Date(Date.now() + 3 * 864e5).toISOString() } : {}),
       officialReceipt: service.official.mode ? "na" : "awaiting",
     });
@@ -178,11 +184,16 @@ export async function submitRequest(fd: FormData): Promise<Result<{ ref: string;
     const notes = text(fd, "notes");
     if (notes) await tx.insert(s.messages).values({ ref, by: "customer", body: notes });
     await event(tx, ref, msg("ev.opened"), "customer", text(fd, "purpose") || undefined);
-    if (price) await event(tx, ref, msg("ev.feesConfirmed", { ...feeVars(service.official.mode, price.official), ours: rwf(price.ours) }), "system");
-    const received = msg("nt.received", { service: service.name, serviceSlug: service.slug, ref });
-    await tx.insert(s.notifications).values({ accountId: account.id, icon: "check", title: english(received), key: received.key, vars: received.vars, href: `/portal/requests/${ref}` });
-    await audit(tx, { actor: account.name, role: "Customer", action: "Opened request", entity: `${ref} · ${service.name}` });
-    await notifyStaff(tx, ref, { kind: "new", icon: "inbox", title: `New request ${ref}`, body: `${account.name} · ${service.name}` });
+    if (price) {
+      await event(tx, ref, msg("ev.feesConfirmed", { ...feeVars(service.official.mode, price.official), ours: rwf(price.ours) }), "system");
+      // Staff hear about it, and the customer is told it was received, once it is paid.
+      await audit(tx, { actor: account.name, role: "Customer", action: "Started a request at checkout", entity: `${ref} · ${service.name} · ${total}` });
+    } else {
+      const received = msg("nt.received", { service: service.name, serviceSlug: service.slug, ref });
+      await tx.insert(s.notifications).values({ accountId: account.id, icon: "check", title: english(received), key: received.key, vars: received.vars, href: `/portal/requests/${ref}` });
+      await audit(tx, { actor: account.name, role: "Customer", action: "Opened request", entity: `${ref} · ${service.name}` });
+      await notifyStaff(tx, ref, { kind: "new", icon: "inbox", title: `New request ${ref}`, body: `${account.name} · ${service.name}` });
+    }
     return { ref, accountId: account.id, locale: asLocale(account.locale) };
   }).catch(async (e) => {
     await Promise.all(stored.map((key) => deleteFile(key).catch(() => {})));
@@ -299,6 +310,7 @@ export async function startPayment(ref: string, phoneInput: string): Promise<Res
   if (!phone) return refuse("payPhone");
   const d = own.d;
   const [r] = await d.select().from(s.requests).where(eq(s.requests.ref, ref));
+  if (r.closed) return refuse("finished");
   if (r.quote === "estimate") return refuse("notConfirmed");
   if (!(await allowIp("payment"))) return refuse("tooMany");
   let txs = await d.select().from(s.transactions).where(eq(s.transactions.ref, ref));

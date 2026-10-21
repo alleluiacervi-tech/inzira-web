@@ -246,18 +246,22 @@ export function RequestRow({ r }: { r: CustomerRequest }) {
   const step = stageIndex(r) + 1;
   const act = !!r.hold && !r.closed;
   const open = !r.closed && r.stage !== "completed";
+  // Started at checkout and not paid: nothing has been sent yet, and the one thing to do is pay.
+  const payFirst = open && r.checkout === "open";
+  const href = payFirst ? `/portal/requests/${r.ref}/pay` : `/portal/requests/${r.ref}`;
+  const cta = payFirst ? t("request.pay") : act ? t("request.resolve") : t("request.view");
   const name = requestTitle(r.name, r.service, locale);
   return (
     <div className="req-row">
       <div className="stack" style={{ gap: 5 }}><span className="m mut">{r.ref}</span><Link className="lnk" href={`/portal/requests/${r.ref}`} style={{ fontSize: 16 }}>{name}</Link><span className="mut" style={{ fontSize: 13 }}>{t("request.forLine", { name: r.profile.name, channel: requestChannel(r.channel, r.service, locale) })}</span></div>
       <div className="stack g8" style={{ alignItems: "flex-start" }}>
         <RequestBadge r={r} viewer="customer" />
-        {open && <div className="progress" style={{ width: "100%" }} role="img" aria-label={t("request.step", { n: step, total: steps })}><span style={{ width: `${(step / steps) * 100}%`, background: act ? "var(--signal-deep)" : undefined }} /></div>}
-        <span className="mut" style={{ fontSize: 12.5 }}>{open ? `${t("request.step", { n: step, total: steps })} · ${shown(locale, "status", stageLabel(r, r.stage))}` : r.closed ? t("request.closed", { date: fmtDay(r.closed.at, locale) }) : t("request.delivered", { date: fmtDay(r.stageDates.completed ?? r.updatedAt, locale) })}{r.agent ? ` · ${t("request.agent", { name: r.agent.name })}` : ""}</span>
+        {open && !payFirst && <div className="progress" style={{ width: "100%" }} role="img" aria-label={t("request.step", { n: step, total: steps })}><span style={{ width: `${(step / steps) * 100}%`, background: act ? "var(--signal-deep)" : undefined }} /></div>}
+        <span className="mut" style={{ fontSize: 12.5 }}>{payFirst ? t("request.notSent") : open ? `${t("request.step", { n: step, total: steps })} · ${shown(locale, "status", stageLabel(r, r.stage))}` : r.closed ? t("request.closed", { date: fmtDay(r.closed.at, locale) }) : t("request.delivered", { date: fmtDay(r.stageDates.completed ?? r.updatedAt, locale) })}{r.agent ? ` · ${t("request.agent", { name: r.agent.name })}` : ""}</span>
       </div>
       <div className="stack g10" style={{ alignItems: "flex-start" }}>
-        <div className="stack g4"><span className="req-next" style={{ color: act ? "var(--ember-deep)" : "var(--muted)" }}>{act ? t("request.yourAction") : open ? t("request.next") : t("request.outcome")}</span><span style={{ fontSize: 14, lineHeight: 1.45 }}>{nextSentence(r, t)}</span></div>
-        <Link className={`btn btn-sm ${act ? "btn-p" : "btn-s"}`} href={`/portal/requests/${r.ref}`} aria-label={t("request.viewName", { action: act ? t("request.resolve") : t("request.view"), name, ref: r.ref })}>{act ? t("request.resolve") : t("request.view")}</Link>
+        <div className="stack g4"><span className="req-next" style={{ color: act ? "var(--ember-deep)" : "var(--muted)" }}>{act ? t("request.yourAction") : open ? t("request.next") : t("request.outcome")}</span><span style={{ fontSize: 14, lineHeight: 1.45 }}>{payFirst ? r.next : nextSentence(r, t)}</span></div>
+        <Link className={`btn btn-sm ${act ? "btn-p" : "btn-s"}`} href={href} aria-label={t("request.viewName", { action: cta, name, ref: r.ref })}>{cta}</Link>
       </div>
     </div>
   );

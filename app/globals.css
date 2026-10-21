@@ -541,3 +541,75 @@ details[open] .chev { transform: rotate(180deg); }
   .receipt-actions, .console-topbar, .console-sidebar, .c-tabbar, .tabbar, .mobtop, .public-nav { display: none !important; }
   .receipt { padding: 0; }
 }
+
+/* ============ payment screen ============ */
+.pay-page { width: 100%; max-width: 560px; margin: 0 auto; padding: 28px 16px 120px; }
+.pay-bill { position: relative; overflow: hidden; display: flex; flex-direction: column; gap: 16px; padding: 22px 20px 20px; background: var(--paper); border: 1px solid var(--line); border-radius: var(--r-lg); box-shadow: 0 1px 0 rgba(15, 22, 38, .03), 0 18px 36px -24px rgba(15, 22, 38, .35); }
+.pay-bill::before { content: ""; position: absolute; inset: 0 0 auto; height: 4px; background: linear-gradient(90deg, var(--brand), var(--brand-2) 60%, var(--signal)); }
+.pay-lines { display: flex; flex-direction: column; gap: 12px; margin: 0; font-size: 14.5px; }
+.pay-lines > div { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+.pay-lines dt { display: flex; align-items: center; gap: 8px; color: var(--ink-2); min-width: 0; }
+.pay-lines dd { margin: 0; font-weight: 700; text-align: right; font-variant-numeric: tabular-nums; }
+.pay-perf { position: relative; border-top: 2px dashed var(--line); margin: 2px 0; }
+.pay-perf::before, .pay-perf::after { content: ""; position: absolute; top: -12px; width: 22px; height: 22px; border-radius: 50%; background: var(--bone); border: 1px solid var(--line); }
+.pay-perf::before { left: -32px; }
+.pay-perf::after { right: -32px; }
+.pay-total { font-size: 32px; line-height: 1; color: var(--brand); font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
+.pay-form { display: flex; flex-direction: column; gap: 18px; padding: 22px 20px 18px; }
+.pay-phone { position: relative; display: flex; gap: 8px; }
+.pay-phone .in:not(.in-prefix) { font-size: 17px; font-weight: 600; letter-spacing: .02em; font-variant-numeric: tabular-nums; }
+.pay-phone .in.has-net { padding-right: 124px; }
+.pay-net { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); display: inline-flex; align-items: center; height: 28px; padding: 0 10px; border-radius: 999px; font-size: 12px; font-weight: 800; letter-spacing: .01em; white-space: nowrap; pointer-events: none; animation: pay-pop .25s var(--ease); }
+.pay-net-mtn { background: #ffcb05; color: #1b1b1b; }
+.pay-net-airtel { background: #e4002b; color: #fff; }
+.pay-cta { position: sticky; bottom: 0; z-index: 5; margin: 0 -20px; padding: 12px 20px calc(12px + env(safe-area-inset-bottom)); background: linear-gradient(to top, var(--paper) 72%, rgba(255, 255, 255, 0)); }
+.pay-btn { width: 100%; height: 56px; justify-content: center; gap: 10px; font-size: 17px; border-radius: 12px; box-shadow: 0 12px 24px -14px rgba(20, 40, 80, .7); }
+.pay-trust { list-style: none; margin: 0; padding: 14px 0 0; border-top: 1px solid var(--line-2); display: grid; gap: 9px; font-size: 13.5px; color: var(--muted); }
+.pay-trust li { display: flex; gap: 9px; align-items: flex-start; line-height: 1.4; }
+.pay-trust svg { flex-shrink: 0; margin-top: 1px; }
+.pay-wait, .pay-done, .pay-failed { display: flex; flex-direction: column; align-items: center; gap: 18px; padding: 30px 20px 24px; }
+.pay-wait h1:focus, .pay-done h1:focus, .pay-failed h1:focus { outline: none; }
+.pay-phone-art { position: relative; width: 132px; height: 132px; display: grid; place-items: center; }
+.pay-ring { position: absolute; inset: 0; border-radius: 50%; background: var(--brand-tint); animation: pay-ring 2.4s var(--ease) infinite; }
+.pay-ring-2 { animation-delay: 1.2s; }
+.pay-handset { position: relative; width: 58px; height: 96px; border: 3px solid var(--brand); border-radius: 14px; background: var(--paper); display: grid; place-items: center; box-shadow: 0 10px 20px -12px rgba(20, 40, 80, .6); }
+.pay-handset::before { content: ""; position: absolute; top: 6px; width: 18px; height: 4px; border-radius: 2px; background: var(--brand-line); }
+.pay-pin { display: flex; gap: 5px; }
+.pay-pin i { width: 7px; height: 7px; border-radius: 50%; background: var(--line-3); animation: pay-pin 2.4s infinite; }
+.pay-pin i:nth-child(2) { animation-delay: .3s; }
+.pay-pin i:nth-child(3) { animation-delay: .6s; }
+.pay-pin i:nth-child(4) { animation-delay: .9s; }
+.pay-steps { list-style: none; margin: 0; padding: 0; width: 100%; max-width: 340px; display: flex; flex-direction: column; gap: 12px; }
+.pay-steps li { display: flex; align-items: center; gap: 12px; font-size: 14.5px; color: var(--muted); }
+.pay-steps li::before { content: ""; width: 22px; height: 22px; flex-shrink: 0; box-sizing: border-box; border-radius: 50%; border: 2px solid var(--line-3); }
+.pay-steps li.cur { color: var(--ink); font-weight: 700; }
+.pay-steps li.cur::before { border-color: var(--brand-line); border-top-color: var(--brand); animation: spin .9s linear infinite; }
+.pay-steps li.done { color: var(--ink-2); }
+.pay-steps li.done::before { border: 0; background: var(--ok) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 12.5l4.5 4.5L19 7.5'/%3E%3C/svg%3E") center / 14px no-repeat; }
+.pay-elapsed { font-size: 13px; font-weight: 700; color: var(--muted); background: var(--sand-2); border-radius: 999px; padding: 4px 12px; font-variant-numeric: tabular-nums; }
+.pay-tick { width: 76px; height: 76px; }
+.pay-tick circle { fill: var(--ok-bg); stroke: var(--ok); stroke-width: 2.5; stroke-dasharray: 151; stroke-dashoffset: 151; animation: pay-draw .55s var(--ease) forwards; }
+.pay-tick path { fill: none; stroke: var(--ok); stroke-width: 4; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 36; stroke-dashoffset: 36; animation: pay-draw .35s var(--ease) .45s forwards; }
+.pay-receipt { width: 100%; margin: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 16px; padding: 14px 16px; background: var(--sand-2); border-radius: 12px; }
+.pay-receipt div { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.pay-receipt dt { font-size: 12px; color: var(--muted); }
+.pay-receipt dd { margin: 0; font-weight: 700; font-size: 14.5px; overflow-wrap: anywhere; }
+.pay-next { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.pay-next li { display: flex; align-items: center; gap: 12px; font-size: 14.5px; line-height: 1.4; }
+.pay-next svg { box-sizing: content-box; padding: 7px; border-radius: 50%; background: var(--brand-tint); color: var(--brand); flex-shrink: 0; }
+.pay-x { width: 68px; height: 68px; border-radius: 50%; background: var(--err-bg); color: var(--err); display: grid; place-items: center; }
+@keyframes pay-ring { 0% { transform: scale(.55); opacity: .95; } 100% { transform: scale(1.1); opacity: 0; } }
+@keyframes pay-pin { 0%, 15% { background: var(--line-3); } 25%, 70% { background: var(--brand); } 85%, 100% { background: var(--line-3); } }
+@keyframes pay-draw { to { stroke-dashoffset: 0; } }
+@keyframes pay-pop { from { transform: translateY(-50%) scale(.85); opacity: 0; } }
+@media (max-width: 960px) {
+  .pay-page { padding: 18px 16px 120px; }
+  .pay-cta { bottom: 76px; padding-bottom: 12px; }
+}
+@media (max-width: 420px) { .pay-total { font-size: 28px; } }
+@media (max-width: 340px) { .pay-receipt { grid-template-columns: minmax(0, 1fr); } }
+@media (prefers-reduced-motion: reduce) {
+  .pay-ring, .pay-pin i, .pay-net, .pay-steps li.cur::before { animation: none; }
+  .pay-ring-2 { display: none; }
+  .pay-tick circle, .pay-tick path { animation: none; stroke-dashoffset: 0; }
+}

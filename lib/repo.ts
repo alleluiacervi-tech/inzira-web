@@ -120,6 +120,7 @@ async function loadRequests(where?: SQL, locale: Locale = "en"): Promise<Request
       next: sm && hasPart(sm, "next") ? told(locale, sm, "next", r.next) : legacyText(locale, r.next),
       followUp: r.followUp ?? undefined,
       handover: r.handover ?? undefined,
+      checkout: r.checkout === "none" ? undefined : r.checkout,
       billing: {
         invoice: r.invoice, official: r.official, officialMode: r.officialMode ?? undefined, officialLabel: r.officialLabel, ours: r.ours, oursStandard: r.oursStandard,
         oursUnit: r.oursUnit ?? undefined, oursNote: r.oursNote ?? undefined, quote: r.quote, dueAt: iso(r.dueAt), officialReceipt: r.officialReceipt,
@@ -279,15 +280,17 @@ export async function listAgents(): Promise<Staff[]> {
   return rows.map(({ staff: p }) => ({ id: p.id, name: p.name, role: p.role, team: p.team, title: p.title, active: p.active }));
 }
 
+/** A request started at checkout and not paid yet is not work: it reaches staff queues once it is paid. */
+const notUnpaidCheckout = ne(s.requests.checkout, "open");
 /** New requests nobody has taken yet, for the triage inbox. */
-const untaken = and(isNull(s.requests.agentId), eq(s.requests.stage, "received"), isNull(s.requests.closed));
+const untaken = and(isNull(s.requests.agentId), eq(s.requests.stage, "received"), isNull(s.requests.closed), notUnpaidCheckout);
 
 /** Badges in the staff navigation: new requests waiting for an agent, and my open cases. */
 export async function getNavCounts(): Promise<{ inbox: number; mine: number; identity: number; tax: number }> {
   const me = await requireStaff();
   const d = await db();
   const count = { n: sql<number>`count(*)::int` };
-  const pendingReview = and(eq(s.requests.idRequired, true), eq(s.requests.idReview, "pending"), isNull(s.requests.closed), ne(s.requests.stage, "completed"), caseScope(me));
+  const pendingReview = and(eq(s.requests.idRequired, true), eq(s.requests.idReview, "pending"), isNull(s.requests.closed), ne(s.requests.stage, "completed"), notUnpaidCheckout, caseScope(me));
   const [[inbox], [mine], [identity]] = await Promise.all([
     canTriage(me) ? d.select(count).from(s.requests).where(untaken) : Promise.resolve([{ n: 0 }]),
     d.select(count).from(s.requests).where(and(eq(s.requests.agentId, me.id), isNull(s.requests.closed), ne(s.requests.stage, "completed"))),
@@ -305,7 +308,7 @@ export async function listIdentityReviews(): Promise<{
 }[]> {
   const me = await requireStaff("/console/identity");
   if (!me.permissions.has("reviewDocs")) return [];
-  const rows = await loadRequests(and(eq(s.requests.idRequired, true), caseScope(me)));
+  const rows = await loadRequests(and(eq(s.requests.idRequired, true), notUnpaidCheckout, caseScope(me)));
   return rows.sort(byUpdated).map((r) => ({
     ref: r.ref, name: r.name, serviceSlug: r.serviceSlug, serviceName: r.service.name, openedAt: r.openedAt, stage: r.stage,
     idReview: r.idReview ?? null, idMasked: r.profile.idMasked, profileName: r.profile.name, agentName: r.agent?.name ?? null, closed: !!r.closed,
@@ -317,10 +320,17 @@ export async function listInbox(): Promise<RequestView[]> {
   return canTriage(me) ? (await loadRequests(untaken)).sort((a, b) => Date.parse(a.openedAt) - Date.parse(b.openedAt)) : [];
 }
 
-/** Cases this person may see: everything with "View all cases", otherwise their own. */
+/** Requests started at checkout and not paid yet, newest first: people to follow up, not work to do. */
+export async function listOpenCheckouts(): Promise<RequestView[]> {
+  const me = await requireStaff("/console/inbox");
+  if (!canTriage(me)) return [];
+  return (await loadRequests(and(eq(s.requests.checkout, "open"), isNull(s.requests.closed)))).sort((a, b) => Date.parse(b.openedAt) - Date.parse(a.openedAt));
+}
+
+/** Cases this person may see: everything with "View all cases", otherwise their own. Unpaid checkouts are left out. */
 export async function listCases(): Promise<RequestView[]> {
   const me = await requireStaff("/console/requests");
-  return (await loadRequests(caseScope(me))).sort(byUpdated);
+  return (await loadRequests(and(caseScope(me), notUnpaidCheckout))).sort(byUpdated);
 }
 
 export async function getRequest(ref: string): Promise<RequestView | undefined> {
@@ -582,7 +592,7 @@ export async function getAdminOverview(rangeDays: OverviewRange = 30) {
   const inRange = (at: string | undefined) => !!at && Date.parse(at) >= since;
   const inPrev = (at: string | undefined) => !!at && Date.parse(at) >= prevSince && Date.parse(at) < since;
 
-  const [cases, accountRows, txRows, cats, services, targets, workers] = await Promise.all([
+  const [everything, accountRows, txRows, cats, services, targets, workers] = await Promise.all([
     loadRequests(),
     d.select({ since: s.accounts.since }).from(s.accounts),
     d.select().from(s.transactions),
@@ -592,7 +602,12 @@ export async function getAdminOverview(rangeDays: OverviewRange = 30) {
     listAgents(),
   ]);
   const txs = txRows.map((x) => ({ ...x, at: iso(x.at)! }));
+  // Unpaid checkouts are not cases yet; they are counted only in the checkout figures.
+  const cases = everything.filter((r) => r.checkout !== "open");
   const open = cases.filter(isOpen);
+  const checkoutsInRange = everything.filter((r) => r.checkout && inRange(r.openedAt));
+  const checkoutsPaid = checkoutsInRange.filter((r) => r.checkout === "paid").length;
+  const checkoutsWaiting = everything.filter((r) => r.checkout === "open" && !r.closed);
 
   const paidInRange = txs.filter((x) => x.status === "paid" && inRange(x.at));
   const paidPrevRange = txs.filter((x) => x.status === "paid" && inPrev(x.at));
@@ -667,6 +682,11 @@ export async function getAdminOverview(rangeDays: OverviewRange = 30) {
     opened: { value: openedInRange.length, delta: deltaStr(openedInRange.length, openedPrevRange.length) },
     completed: { value: completedInRange.length, delta: deltaStr(completedInRange.length, completedPrevRange.length) },
     onTime: { pct: completedInRange.length ? Math.round((onTime / completedInRange.length) * 100) : null, of: completedInRange.length, medianDays: turnaround === null ? null : Number(turnaround.toFixed(1)) },
+    checkout: {
+      started: checkoutsInRange.length, paid: checkoutsPaid,
+      rate: checkoutsInRange.length ? Math.round((checkoutsPaid / checkoutsInRange.length) * 100) : null,
+      waiting: checkoutsWaiting.length, waitingValue: rwfShort(checkoutsWaiting.reduce((n, r) => n + amountDue(r.billing), 0)),
+    },
     pending: { value: rwfShort(totalBalanceDue), rawAmount: totalBalanceDue, invoices: pending.length, overdue: pending.filter((r) => payStatus(r.billing, now) === "overdue").length },
     revenue: {
       ours: rwfShort(ours), rawOurs: ours, delta: revenueDelta,

@@ -190,6 +190,7 @@ async function addLaterObjects(database: Db) {
       "unread" boolean DEFAULT true NOT NULL
     )`,
     `CREATE INDEX IF NOT EXISTS "staff_notifications_staff_idx" ON "staff_notifications" ("staff_id", "unread", "at")`,
+    `ALTER TABLE "requests" ADD COLUMN IF NOT EXISTS "checkout" text DEFAULT 'none' NOT NULL`,
   ];
   for (const statement of statements) await database.execute(sql.raw(statement));
 }

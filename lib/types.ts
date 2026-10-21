@@ -149,6 +149,9 @@ export type Billing = {
   transactions: Transaction[];
 };
 
+/** Pay to submit: "open" until the checkout is paid, then "paid". "none" for a request that is checked and quoted first. */
+export type Checkout = "none" | "open" | "paid";
+
 export type Request = {
   ref: string;
   serviceSlug: string;
@@ -195,6 +198,8 @@ export type Request = {
   notes: Note[];
   followUp?: { at: string; what: string };
   handover?: { at: string; by: string; body: string };
+  /** Absent for an ordinary request. */
+  checkout?: Exclude<Checkout, "none">;
 };
 export type StaffAlert = {
   id: string; icon: string; title: string; body?: string; href: string; ref?: string; at: string; unread: boolean;

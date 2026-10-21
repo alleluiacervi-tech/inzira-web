@@ -18,13 +18,13 @@ export async function generateMetadata({ params }: { params: Promise<{ ref: stri
 export default async function RequestPage({ params }: { params: Promise<{ ref: string }> }) {
   const locale = await getPortalLocale();
   const t = (path: string, vars?: Record<string, string | number>) => text(locale, path, vars);
+  const [r, now] = await Promise.all([getMyRequest((await params).ref), getNow()]);
+  if (!r) notFound();
   const holdAction = {
     document: { href: "/portal/documents", icon: "upload", label: t("request.uploadDoc") },
     information: { href: "#messages", icon: "msg", label: t("request.reply") },
-    payment: { href: "#payments", icon: "card", label: t("request.pay") },
+    payment: { href: `/portal/requests/${r.ref}/pay`, icon: "card", label: t("request.pay") },
   };
-  const [r, now] = await Promise.all([getMyRequest((await params).ref), getNow()]);
-  if (!r) notFound();
   const title = requestTitle(r.name, r.service, locale);
   const act = !!r.hold && !r.closed;
   const banner = r.closed ? { title: r.summary.title, body: r.closed.reason } : r.hold ? { title: r.hold.title, body: r.hold.detail } : r.summary;
