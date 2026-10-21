@@ -3,7 +3,9 @@ import Link from "next/link";
 import { Fragment, useEffect, useState, type ReactNode } from "react";
 import { displayOfficial, displayOurs, displayTotal } from "@/lib/i18n/present";
 import { trError } from "@/lib/i18n/errors";
+import { rwf } from "@/lib/format";
 import { idAsk, nationalIdDigits, nationalIdError } from "@/lib/identity";
+import { checkoutPrice } from "@/lib/pricing";
 import type { Service } from "@/lib/types";
 import { requestEmailCode } from "@/app/actions/auth";
 import { submitRequest } from "@/app/actions/customer";
@@ -31,6 +33,8 @@ const isDob = (v: string) => { const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(v); if
 export default function StartForm({ service: s }: { service: Service | null }) {
   const { locale, t } = useI18n();
   const draftKey = `inzira:start:${s?.slug ?? "describe"}`;
+  // A service with a settled price is paid for right after the request is sent.
+  const price = s ? checkoutPrice(s) : null;
   // Two steps: who you are, then a short check. Documents and extra questions wait until an agent needs them.
   const keys: Key[] = ["about", "review"];
   const names: Record<Key, string> = { about: t("start.about"), review: t("start.review") };
@@ -51,6 +55,7 @@ export default function StartForm({ service: s }: { service: Service | null }) {
   const [idConsent, setIdConsent] = useState(false);
   const [portalOpened, setPortalOpened] = useState(true);
   const [phoneShared, setPhoneShared] = useState(false);
+  const [payNow, setPayNow] = useState<number | null>(null);
   const [touched, setTouched] = useState(false);
   const [restored, setRestored] = useState(false);
   const set = (k: keyof typeof EMPTY, v: string) => setF((cur) => ({ ...cur, [k]: v }));
@@ -126,6 +131,7 @@ export default function StartForm({ service: s }: { service: Service | null }) {
     setRef(r.ref);
     setPortalOpened(r.portal);
     setPhoneShared(r.phoneShared);
+    setPayNow(r.payNow);
     setPhase("done");
     window.scrollTo({ top: 0 });
     return null;
@@ -139,12 +145,19 @@ export default function StartForm({ service: s }: { service: Service | null }) {
       <section className="wrap" style={{ paddingTop: 64, paddingBottom: 96 }}>
         <div className="card stack g16" style={{ maxWidth: 560, margin: "0 auto", padding: 32, alignItems: "center", textAlign: "center" }}>
           <span style={{ width: 64, height: 64, borderRadius: "50%", background: "var(--ok-bg)", color: "var(--ok)", display: "flex", alignItems: "center", justifyContent: "center" }}><Icon name="check" size={32} /></span>
-          <h1 className="h-flow">{t("start.received")}</h1>
-          <p style={{ fontSize: 16, lineHeight: 1.55 }}>{withStrong(t("start.receivedBody", { ref: "{ref}", contact: "{contact}", what: s ? t("start.checkDocs") : t("start.readSent"), time: t("responseTime") }), {
+          <h1 className="h-flow">{payNow !== null ? t("start.payTitle") : t("start.received")}</h1>
+          {payNow !== null && (
+            <p style={{ fontSize: 16, lineHeight: 1.55 }}>{withStrong(t("start.payBody", { ref: "{ref}", total: "{total}" }), {
+              ref: <strong className="m" style={{ fontSize: 15 }} data-ref>{ref}</strong>,
+              total: <strong>{rwf(payNow)}</strong>,
+            })}</p>
+          )}
+          {payNow === null && <p style={{ fontSize: 16, lineHeight: 1.55 }}>{withStrong(t("start.receivedBody", { ref: "{ref}", contact: "{contact}", what: s ? t("start.checkDocs") : t("start.readSent"), time: t("responseTime") }), {
             ref: <strong className="m" style={{ fontSize: 15 }} data-ref>{ref}</strong>,
             contact: <strong style={{ overflowWrap: "anywhere" }}>{f.email.trim().toLowerCase()}</strong>,
-          })}</p>
-          <p className="hint">{portalOpened ? t("start.ready") : t("start.receivedTrack")}</p>
+          })}</p>}
+          {payNow !== null && portalOpened && <Link className="btn btn-p btn-lg" href={`/portal/requests/${ref}/pay`} data-pay-now>{t("start.payNow", { total: rwf(payNow) })}</Link>}
+          <p className="hint">{payNow !== null ? t("start.payLaterHint") : portalOpened ? t("start.ready") : t("start.receivedTrack")}</p>
           {phoneShared && <p className="hint">{t("start.phoneShared")}</p>}
           <div className="row g10 wrapx" style={{ justifyContent: "center" }}>
             {portalOpened ? <Link className="btn btn-d" href={`/portal/requests/${ref}`}>{t("start.see")}</Link> : <Link className="btn btn-d" href="/track">{t("start.trackIt")}</Link>}
@@ -302,6 +315,7 @@ export default function StartForm({ service: s }: { service: Service | null }) {
                 </label>
               )}
             </div>
+            {price && <p className="hint" style={{ margin: 0 }}>{t("start.payNote", { total: rwf(price.total) })}{price.direct ? ` ${t("start.payNoteDirect")}` : ""}</p>}
             <label className="check"><input type="checkbox" checked={ack} onChange={(e) => setAck(e.target.checked)} aria-describedby="ack-err" /> {t("start.ack")}</label>
             {err("ack")}
           </div>

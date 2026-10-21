@@ -10,7 +10,8 @@ import { asLocale, getLocale, rememberLocale, type Locale } from "@/lib/i18n/loc
 import { text as tr } from "@/lib/i18n/messages";
 import type en from "@/lib/i18n/en.json";
 import type { LibraryDoc } from "@/lib/types";
-import { english, msg, sms } from "@/lib/i18n/stored";
+import { english, feeVars, msg, sms } from "@/lib/i18n/stored";
+import { checkoutPrice } from "@/lib/pricing";
 import { maskNationalId, parseDob, prettyPhone, rwf } from "@/lib/format";
 import { idAsk, idPolicyOf, mentionsNationalId, nationalIdDigits, nationalIdError } from "@/lib/identity";
 import { open, seal } from "@/lib/crypto";
@@ -52,7 +53,7 @@ async function checkFile(f: File): Promise<string | null> {
 /** Sends a new request: checks the code emailed to the customer, creates their contact record if needed, stores the
  *  files and opens the request. With "portal" (the default) it also signs them in; without it they stay a contact:
  *  they can follow the request with its reference and email, and open a portal later by signing in with that email. */
-export async function submitRequest(fd: FormData): Promise<Result<{ ref: string; portal: boolean; phoneShared: boolean }>> {
+export async function submitRequest(fd: FormData): Promise<Result<{ ref: string; portal: boolean; phoneShared: boolean; payNow: number | null }>> {
   const email = normaliseEmail(text(fd, "email"));
   const phoneInput = text(fd, "phone");
   const typedPhone = phoneInput ? normalisePhone(phoneInput) : null;
@@ -66,6 +67,8 @@ export async function submitRequest(fd: FormData): Promise<Result<{ ref: string;
   const slug = text(fd, "slug") || "other-online-service";
   const service = await getService(slug);
   if (!service || (!service.visible && slug !== "other-online-service")) return refuse("service");
+  // A service whose price is settled by the catalogue asks for payment right after the request, with no quote to wait for.
+  const price = checkoutPrice(service);
   // The ID rule is the service's. A business request never asks for a personal number. An uncertain rule stays optional.
   const ask = idAsk(service, forWho);
   const policy = idPolicyOf(service);
@@ -150,7 +153,9 @@ export async function submitRequest(fd: FormData): Promise<Result<{ ref: string;
       requirementsSnapshot: service.requirements,
       invoice, official: service.official.mode ? null : service.official.amount, officialMode: service.official.mode ?? null,
       officialLabel: service.official.mode === "none" ? "Official fee" : `${service.official.label ?? "Official fee"} · ${service.channel}`,
-      ours: service.ours, oursStandard: service.ours, oursUnit: service.oursUnit ?? null, quote: "estimate",
+      ours: service.ours, oursStandard: service.ours, oursUnit: service.oursUnit ?? null, quote: price ? "confirmed" : "estimate",
+      // Fees due three days after they are fixed, as for a quote an agent sends; an unpaid request is reminded and then closed (lib/jobs.ts).
+      ...(price ? { dueAt: new Date(Date.now() + 3 * 864e5).toISOString() } : {}),
       officialReceipt: service.official.mode ? "na" : "awaiting",
     });
 
@@ -173,6 +178,7 @@ export async function submitRequest(fd: FormData): Promise<Result<{ ref: string;
     const notes = text(fd, "notes");
     if (notes) await tx.insert(s.messages).values({ ref, by: "customer", body: notes });
     await event(tx, ref, msg("ev.opened"), "customer", text(fd, "purpose") || undefined);
+    if (price) await event(tx, ref, msg("ev.feesConfirmed", { ...feeVars(service.official.mode, price.official), ours: rwf(price.ours) }), "system");
     const received = msg("nt.received", { service: service.name, serviceSlug: service.slug, ref });
     await tx.insert(s.notifications).values({ accountId: account.id, icon: "check", title: english(received), key: received.key, vars: received.vars, href: `/portal/requests/${ref}` });
     await audit(tx, { actor: account.name, role: "Customer", action: "Opened request", entity: `${ref} · ${service.name}` });
@@ -191,7 +197,7 @@ export async function submitRequest(fd: FormData): Promise<Result<{ ref: string;
     await rememberLocale(result.locale);
   }
   revalidatePath("/", "layout");
-  return { ok: true, ref: result.ref, portal, phoneShared };
+  return { ok: true, ref: result.ref, portal, phoneShared, payNow: price ? price.total : null };
 }
 
 /** Confirms the request belongs to the signed-in customer. */

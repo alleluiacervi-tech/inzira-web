@@ -253,6 +253,7 @@ await step("start", async () => {
   await p.set("#f-nid", "1 1995 8 0045123 0 17"); await p.set("#f-dob", "1995-08-12");
   await p.ev(`document.querySelector("#f-id-consent").click()`);
   await p.click("Continue"); await sleep(300);
+  check("start: the review says what is paid after sending", await p.has("you pay RWF 5,000 to start the work") && await p.has("you pay it directly to the institution"));
   await attach(p, "input[type=file]"); await sleep(300);
   check("start: a chosen file is listed", await p.has("id_photo.png"));
   check("start: review lists what was entered", await p.has("Check and send") && await p.has("Test Person") && await p.has("test.person@example.com") && await p.has("1995-08-12") && await p.has("Add a spouse after marriage"));
@@ -267,7 +268,11 @@ await step("start", async () => {
   const ref = await p.ev(`document.querySelector("[data-ref]")?.textContent ?? ""`);
   check("start: creates the request with a new reference", await p.has("Request received") && /^INZ-\d{4}-\d{5}$/.test(ref), ref);
   check("start: the draft is cleared after sending", (await p.ev(`sessionStorage.getItem("inzira:start:land-spouse-update")`)) === null);
-  await p.click("See my request"); await waitFor(p, "We married in August.");
+  check("start: a fixed-price service asks for payment straight away", await p.has("one step left") && await p.has("The price is fixed: RWF 5,000") && (await p.ev(`document.querySelector("[data-pay-now]")?.textContent ?? ""`)).includes("Pay RWF 5,000 now"),
+    (await p.ev(`document.querySelector("main")?.innerText ?? ""`)).slice(0, 300).replace(/\s+/g, " "));
+  await p.click("Pay RWF 5,000 now", "a"); await waitFor(p, "Approve and pay", 60);
+  check("start: the pay link opens the payment screen for the fixed price", (await p.ev("location.pathname")).endsWith("/pay") && await p.has("5,000") && await p.has("Approve and pay"), await p.ev("location.pathname"));
+  await p.go(`/portal/requests/${ref}`); await waitFor(p, "We married in August.");
   check("start: the new customer is signed in and sees the request", await p.has("Add or remove a spouse in the land register") && await p.has("We married in August.") && await p.has("id_photo.png"));
   check("start: a submitted ID is pending review and is not called verified", await p.has("Pending verification") && await p.has("does not verify") && !(await p.has("officially verified")));
   await p.click("Cancel this request", "summary"); await sleep(300); await p.click("Cancel request", "button"); await waitFor(p, "Cancelled by you");
@@ -287,6 +292,21 @@ await step("start", async () => {
     (await p.ev(`document.querySelector("main")?.innerText ?? ""`)).slice(0, 300).replace(/\s+/g, " "));
   await p.click("See my request"); await waitFor(p, "Cancel this request");
   await p.click("Cancel this request", "summary"); await sleep(300); await p.click("Cancel request", "button"); await waitFor(p, "Cancelled by you");
+  // A fixed price paid on the spot: the customer pays straight after sending, and the request is paid when an agent first sees it.
+  await p.go("/start/ebm-training"); await waitFor(p, "Continue");
+  await p.set("#f-name", "Pay First"); await p.set("#f-email", "pay.first@example.com");
+  await p.click("Continue"); await sleep(300);
+  check("pay first: the review says what is paid after sending", await p.has("you pay RWF 20,000 to start the work") && !(await p.has("you pay it directly to the institution")), (await p.ev(`document.querySelector("main")?.innerText ?? ""`)).slice(0, 300).replace(/\s+/g, " "));
+  await p.ev(`document.querySelector('input[aria-describedby="ack-err"]').click()`); await p.click("Send request"); await sleep(1200);
+  await waitFor(p, "Enter the code we sent you");
+  await p.set("#otp", await p.ev(`document.querySelector("[data-demo-code]").dataset.demoCode`)); await p.click("Confirm and send request"); await waitFor(p, "one step left");
+  check("pay first: the confirmation asks for the fixed price", await p.has("The price is fixed: RWF 20,000") && await p.has("Pay RWF 20,000 now"));
+  await p.click("Pay RWF 20,000 now", "a"); await waitFor(p, "Approve and pay", 60);
+  await p.ev(`document.querySelector("#pay-agree").click()`); await p.set("#mm", "788 123 456"); await p.click("Send payment prompt");
+  await waitFor(p, "Payment received", 100);
+  check("pay first: the payment goes through on the spot", await p.has("Payment received") && await p.has("RWF 20,000"), (await p.ev(`document.querySelector("main")?.innerText ?? ""`)).slice(0, 200).replace(/\s+/g, " "));
+  await p.click("Done"); await waitFor(p, "Paid RWF 20,000");
+  check("pay first: the request reads Paid", await p.has("Paid RWF 20,000") && !(await p.has("Review and pay")));
   await p.close();
 });
 

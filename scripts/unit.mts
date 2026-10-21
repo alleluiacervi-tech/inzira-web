@@ -10,6 +10,7 @@ import { idAsk, idPolicyOf, mentionsNationalId, nationalIdDigits, nationalIdErro
 import { cleanTaxRef, periodsBetween, taxPhase, weekdayOnOrBefore } from "../lib/tax-calendar.ts";
 import { providerFor } from "../lib/payments.ts";
 import { GATED_STAGES, PAYMENT_LOCK, isGated, lockMessage, paymentLock } from "../lib/payment-gate.ts";
+import { checkoutPrice } from "../lib/pricing.ts";
 import { barePath, isIndexable, languageAlternates, withLocale } from "../lib/seo.ts";
 import { customerWhatsAppUrl, defaultFollowUpAt, deskChecks, fromKigaliDateTime, handoverRequired, kigaliDateTimeParts, nextKind, nextSentence, stageTargetRows } from "../lib/desk.ts";
 import { text as i18nText } from "../lib/i18n/messages.ts";
@@ -113,6 +114,23 @@ test("amountDue: only paid payments count", () => {
 });
 test("amountDue: never negative", () => assert.equal(amountDue({ ...base, transactions: [tx("paid", 9000, 99000)] } as never), 0));
 test("amountDue: an official fee not yet known counts as nothing", () => assert.equal(amountDue({ ...base, official: null, transactions: [] } as never), 15000));
+test("pay at checkout: only a settled price skips the quote", () => {
+  const svc = (o: { amount?: number | null; mode?: "none" | "direct"; verified?: boolean; ours?: number; unit?: string; visible?: boolean }) =>
+    ({ official: { amount: o.amount ?? null, mode: o.mode, verifiedAt: o.verified ? "2026-10-01T00:00:00Z" : undefined }, ours: o.ours ?? 5000, oursUnit: o.unit, visible: o.visible ?? true }) as never;
+  // Nothing passes through us: our fee is the whole price.
+  assert.deepEqual(checkoutPrice(svc({ mode: "direct", ours: 2000 })), { official: 0, ours: 2000, total: 2000, direct: true });
+  assert.deepEqual(checkoutPrice(svc({ amount: 0, mode: "none", ours: 20000 })), { official: 0, ours: 20000, total: 20000, direct: false });
+  // A known official fee counts only once Inzira has checked it; then it is added.
+  assert.equal(checkoutPrice(svc({ amount: 12000, ours: 8000 })), null, "an unchecked official fee is quoted by an agent");
+  assert.deepEqual(checkoutPrice(svc({ amount: 12000, verified: true, ours: 8000 })), { official: 12000, ours: 8000, total: 20000, direct: false });
+  assert.equal(checkoutPrice(svc({ amount: null, verified: true, ours: 8000 })), null, "an official fee still to be confirmed is not settled");
+  // A fee that depends on a count (per year, month, property) needs an agent to count it.
+  assert.equal(checkoutPrice(svc({ mode: "direct", ours: 10000, unit: "per year" })), null);
+  assert.equal(checkoutPrice(svc({ mode: "direct", ours: 1000, unit: "per UPI, per year" })), null);
+  // No price of ours, or a hidden service: no checkout.
+  assert.equal(checkoutPrice(svc({ mode: "none", ours: 0 })), null);
+  assert.equal(checkoutPrice(svc({ mode: "direct", ours: 3000, visible: false })), null);
+});
 test("payment lock: preparing, submitting and completing wait for payment in full", () => {
   const tx = (status: "pending" | "paid" | "failed" | "refunded", official: number, ours: number) => ({ receipt: "R", at: "2026-10-01T10:00:00Z", method: "MTN MoMo" as const, official, ours, status });
   const bill = (o: { official: number | null; mode?: "none" | "direct"; ours: number; txs?: ReturnType<typeof tx>[] }) =>
