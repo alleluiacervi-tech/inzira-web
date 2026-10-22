@@ -207,6 +207,14 @@ async function addLaterObjects(database: Db) {
     )`,
     `CREATE INDEX IF NOT EXISTS "payouts_ref_idx" ON "payouts" USING btree ("ref")`,
     `CREATE UNIQUE INDEX IF NOT EXISTS "payouts_one_pending" ON "payouts" USING btree ("ref") WHERE "status" = 'pending'`,
+    `CREATE TABLE IF NOT EXISTS "catalogue_revisions" (
+      "id" text PRIMARY KEY NOT NULL,
+      "applied_at" timestamp with time zone DEFAULT now() NOT NULL
+    )`,
+    `ALTER TABLE "requests" ADD COLUMN IF NOT EXISTS "official_bill" text`,
+    `ALTER TABLE "requests" ADD COLUMN IF NOT EXISTS "answers" jsonb`,
+    `ALTER TABLE "requests" ADD COLUMN IF NOT EXISTS "deliver_via" text`,
+    `ALTER TABLE "services" ADD COLUMN IF NOT EXISTS "questions" jsonb`,
   ];
   for (const statement of statements) await database.execute(sql.raw(statement));
 }

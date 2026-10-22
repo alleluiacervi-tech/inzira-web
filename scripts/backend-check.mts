@@ -432,15 +432,16 @@ await check("refunds: sent back through RequestDeposit, recorded once confirmed,
   const { sendRefund, reconcilePayout, closeUnclearPayout, PayoutRefused } = await import("../lib/payouts.ts");
   const { createServer } = await import("node:http");
   const [{ cols }] = (await d.execute(sql.raw(`select string_agg(column_name, ', ' order by ordinal_position) cols from information_schema.columns where table_name = 'requests'`))).rows as { cols: string }[];
-  const copy = async (ref: string, payer: string) => {
-    const pick = cols.split(", ").map((c) => c === "ref" ? `'${ref}'` : c === "invoice" ? `'INV-${ref}'` : c === "closed" ? "null" : c === "hold" ? "null" : c).join(", ");
+  // "attached": the official fee was paid to the institution (its receipt is on file), so only our fee comes back.
+  const copy = async (ref: string, payer: string, officialReceipt = "attached") => {
+    const pick = cols.split(", ").map((c) => c === "ref" ? `'${ref}'` : c === "invoice" ? `'INV-${ref}'` : c === "closed" ? "null" : c === "hold" ? "null" : c === "official_receipt" ? `'${officialReceipt}'` : c).join(", ");
     await d.execute(sql.raw(`insert into requests (${cols}) select ${pick} from requests where ref = 'INZ-2026-04741'`));
     await d.insert(s.transactions).values({ ref, receipt: `R-${ref}`, method: "MTN MoMo", official: 2000, ours: 5000, status: "paid", payer, providerRef: "sim:1:788123456" });
   };
   const txStatus = async (ref: string) => (await d.select({ status: s.transactions.status }).from(s.transactions).where(eq(s.transactions.ref, ref)))[0]?.status;
   const payout = async (ref: string) => (await d.select().from(s.payouts).where(eq(s.payouts.ref, ref)).orderBy(s.payouts.id)).at(-1)!;
   const by = { id: "s-diane", name: "Diane", role: "Owner" };
-  const refs = ["INZ-T-PO-SIM", "INZ-T-PO-LOW", "INZ-T-PO-LIVE"];
+  const refs = ["INZ-T-PO-SIM", "INZ-T-PO-HELD", "INZ-T-PO-LOW", "INZ-T-PO-LIVE"];
   const prev = ["PAYMENT_PROVIDER", "INTOUCHPAY_USERNAME", "INTOUCHPAY_ACCOUNT_NO", "INTOUCHPAY_PARTNER_PASSWORD", "INTOUCHPAY_BASE_URL"].map((k) => [k, process.env[k]] as const);
   let mode: "silent" | "pending" | "sent" = "silent";
   const server = createServer((req, res) => {
@@ -460,7 +461,10 @@ await check("refunds: sent back through RequestDeposit, recorded once confirmed,
     await copy("INZ-T-PO-SIM", "788123456");
     assert.equal((await quiet(() => sendRefund("INZ-T-PO-SIM", by))).status, "sent");
     assert.equal(await txStatus("INZ-T-PO-SIM"), "refunded");
-    assert.equal((await payout("INZ-T-PO-SIM")).amount, 5000, "our fee only, not the official fee");
+    assert.equal((await payout("INZ-T-PO-SIM")).amount, 5000, "our fee only: the official fee was already paid to the institution");
+    // One payment: the official fee we took and have not paid to the institution yet goes back too.
+    await copy("INZ-T-PO-HELD", "788123456", "awaiting");
+    assert.equal((await quiet(() => sendRefund("INZ-T-PO-HELD", by))).amount, 7000, "our fee and the official fee not yet paid out");
     assert.equal(Number((await d.execute(sql.raw(`select count(*) n from notifications where key = 'nt.refund' and href = '/portal/requests/INZ-T-PO-SIM'`))).rows[0].n), 1, "the customer is told");
     await assert.rejects(() => sendRefund("INZ-T-PO-SIM", by), /Nothing to refund/, "a refunded request cannot be refunded again");
     // Refused (balance too low): nothing recorded as refunded, and staff are told why.

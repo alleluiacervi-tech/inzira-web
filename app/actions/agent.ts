@@ -151,23 +151,26 @@ export async function setStage(ref: string, stage: Stage, message: string, tell:
   return done(ref);
 }
 
-export async function markSubmitted(ref: string, channel: string, officialRef: string, override?: string): Promise<Result> {
+/** `bill`: the institution's bill number (an Irembo Bill ID starts 88), shown to the customer as proof it was filed. */
+export async function markSubmitted(ref: string, channel: string, officialRef: string, override?: string, bill?: string): Promise<Result> {
   const w = await work(ref, "updateStatus");
   if ("error" in w) return fail(w.error!);
   const { me, d, r, flow } = w;
   if (!flow.includes("institution")) return fail("This service is not submitted to an institution.");
   if (!officialRef.trim()) return fail("Add the official reference first.");
+  const billNo = (bill ?? "").replace(/\s/g, "");
+  if (billNo && !/^[A-Za-z0-9-]{4,30}$/.test(billNo)) return fail("A bill number is letters and digits only, e.g. 880012345678.");
   const again = r.stage === "institution";
   // Saving a new reference on a case that is already with the institution is not a new submission: it got there past the lock.
   const gate = again ? {} : await paymentGate(w, override);
   if ("error" in gate) return fail(gate.error);
   await d.transaction(async (tx) => {
     if (gate.override) await recordOverride(tx, w, gate.override);
-    await tx.update(s.requests).set({ stage: "institution", channel: channel || r.channel, officialRef: officialRef.trim(), hold: null, stageDates: { ...r.stageDates, institution: r.stageDates.institution ?? now() } }).where(eq(s.requests.ref, ref));
+    await tx.update(s.requests).set({ stage: "institution", channel: channel || r.channel, officialRef: officialRef.trim(), ...(billNo ? { officialBill: billNo } : {}), hold: null, stageDates: { ...r.stageDates, institution: r.stageDates.institution ?? now() } }).where(eq(s.requests.ref, ref));
     const vars = { channel: channel || r.channel, officialRef: officialRef.trim() };
     await event(tx, ref, again ? msg("ev.resubmitted", vars) : msg("ev.submitted", vars), me.id);
     await notify(tx, ref, { icon: "send", title: again ? msg("nt.resubmitted", vars) : msg("nt.submitted", vars), sms: sms("submitted", vars) });
-    await audit(tx, { actor: me.name, role: me.role, action: "Added official reference", entity: `${ref} · ${officialRef.trim()}` });
+    await audit(tx, { actor: me.name, role: me.role, action: "Added official reference", entity: `${ref} · ${officialRef.trim()}${billNo ? ` · bill ${billNo}` : ""}` });
   });
   return done(ref);
 }
@@ -309,7 +312,7 @@ export async function createIntake(input: { slug: string; name: string; phone: s
       idPolicy: idPolicyOf(service), idRequired: ask === "required", idReview: ask === "required" ? "pending" : null, requirementsSnapshot: service.requirements,
       official: service.official.mode ? null : service.official.amount, officialMode: service.official.mode ?? null,
       officialLabel: service.official.mode === "none" ? "Official fee" : `${service.official.label ?? "Official fee"} · ${service.channel}`,
-      ours: service.ours, oursStandard: service.ours, oursUnit: service.oursUnit ?? null, quote: "estimate", officialReceipt: service.official.mode ? "na" : "awaiting",
+      ours: service.ours, oursStandard: service.ours, oursUnit: service.oursUnit ?? null, quote: "estimate", officialReceipt: service.official.mode || service.official.amount === 0 ? "na" : "awaiting",
     });
     if (service.documents.length) await tx.insert(s.requestDocuments).values(service.documents.map((doc, i) => ({ id: `${ref}-d${i + 1}`, ref, position: i, name: doc.name, group: doc.group, required: doc.required, status: "required" as const })));
     await event(tx, ref, msg("ev.opened"), me.id, input.source);

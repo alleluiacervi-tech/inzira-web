@@ -27,7 +27,7 @@ export const toService = (r: ServiceRow): Service => ({
   who: r.who, requirements: r.requirements, documents: r.documents, steps: r.steps, notes: r.notes,
   official: { amount: r.officialAmount, mode: r.officialMode ?? undefined, label: r.officialLabel ?? undefined, note: r.officialNote, verifiedAt: iso(r.officialVerifiedAt) },
   ours: r.ours, oursUnit: r.oursUnit ?? undefined, time: r.time, docsShort: r.docsShort, popular: r.popular, audience: r.audience,
-  purposes: r.purposes ?? undefined, purposeLabel: r.purposeLabel ?? undefined, noId: r.idPolicy === "none" || r.noId, idPolicy: isIdPolicy(r.idPolicy) ? r.idPolicy : undefined, flow: r.flow ?? undefined, stageLabels: r.stageLabels ?? undefined, visible: r.visible,
+  purposes: r.purposes ?? undefined, purposeLabel: r.purposeLabel ?? undefined, questions: r.questions ?? undefined, noId: r.idPolicy === "none" || r.noId, idPolicy: isIdPolicy(r.idPolicy) ? r.idPolicy : undefined, flow: r.flow ?? undefined, stageLabels: r.stageLabels ?? undefined, visible: r.visible,
 });
 
 export async function listCategories(): Promise<Category[]> {
@@ -112,7 +112,8 @@ async function loadRequests(where?: SQL, locale: Locale = "en"): Promise<Request
       stage: r.stage, stageDates: r.stageDates, channel: r.channel,
       hold: r.hold ? localHold(locale, r.hold) : undefined,
       closed: r.closed ? { ...r.closed, reason: told(locale, r.closed.msg, undefined, r.closed.reason) } : undefined,
-      officialRef: r.officialRef ?? undefined, dependsOn: r.dependsOn ?? undefined, purpose: r.purpose ?? undefined,
+      officialRef: r.officialRef ?? undefined, officialBill: r.officialBill ?? undefined, dependsOn: r.dependsOn ?? undefined, purpose: r.purpose ?? undefined,
+      answers: r.answers ?? undefined, deliverVia: r.deliverVia === "email" || r.deliverVia === "whatsapp" ? r.deliverVia : undefined,
       idPolicy: isIdPolicy(r.idPolicy) ? r.idPolicy : undefined, idRequired: r.idRequired, idReview: isIdReview(r.idReview) ? r.idReview : undefined,
       idReviewNote: r.idReviewNote ?? undefined, idReviewedAt: iso(r.idReviewAt), idReviewedBy: r.idReviewBy ?? undefined, idConsent: r.idConsent,
       requirementsSnapshot: r.requirementsSnapshot ?? undefined,

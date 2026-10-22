@@ -7,8 +7,8 @@ import { trError } from "@/lib/i18n/errors";
 import { rwf } from "@/lib/format";
 import { idAsk, nationalIdDigits, nationalIdError } from "@/lib/identity";
 import { checkoutPrice, reviewFeeFor } from "@/lib/pricing";
-import type { Service } from "@/lib/types";
-import { requestEmailCode } from "@/app/actions/auth";
+import type { DeliverVia, Service } from "@/lib/types";
+import { requestCode, requestEmailCode } from "@/app/actions/auth";
 import { submitRequest } from "@/app/actions/customer";
 import { useHuman } from "./Human";
 import { useI18n } from "./I18n";
@@ -25,15 +25,18 @@ function withStrong(sentence: string, parts: Record<string, ReactNode>) {
 }
 
 type Key = "about" | "review";
-const EMPTY = { forWho: "me", name: "", subject: "", nid: "", dob: "", email: "", phone: "", purpose: "", notes: "" };
+const EMPTY = { forWho: "me", name: "", subject: "", nid: "", via: "whatsapp" as DeliverVia, email: "", phone: "", purpose: "", notes: "" };
 const isEmail = (v: string) => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v.trim());
-/** A real date, as a date field gives it ("YYYY-MM-DD"), not in the future and not before 1900. */
-const isDob = (v: string) => { const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(v); if (!m) return false; const d = new Date(Date.UTC(+m[1], +m[2] - 1, +m[3])); return d.getUTCMonth() === +m[2] - 1 && +m[1] >= 1900 && d.getTime() <= Date.now(); };
+const MAX_FILE = 10 * 1024 * 1024;
+/** The slot for files that answer no document in particular. */
+const EXTRA = "__extra";
 
-/** Starts a request. With a service it collects what that service needs; without one (`service` null)
- *  the customer describes their situation and an agent works out which procedure applies. `describeFee` is the
- *  review fee for that case (the server works it out from the catch-all service). */
-export default function StartForm({ service: s, describeFee = null }: { service: Service | null; describeFee?: number | null }) {
+/** Starts a request. With a service it asks only what that service needs: who it is for, the name and ID number, the
+ *  service's own questions, and where to send the result (WhatsApp or email). Documents are added on the check step, or
+ *  sent after paying. Without a service (`service` null) the customer describes their situation and an agent works out
+ *  which procedure applies; `describeFee` is the review fee for that case. `smsCodes`: an SMS code can reach a phone
+ *  here, so a WhatsApp number can be confirmed on its own; otherwise an email confirms the request. */
+export default function StartForm({ service: s, describeFee = null, smsCodes = false }: { service: Service | null; describeFee?: number | null; smsCodes?: boolean }) {
   const { locale, t } = useI18n();
   const draftKey = `inzira:start:${s?.slug ?? "describe"}`;
   // Pay to submit: a service with a settled price is paid for in full at the end of this form, any other with a small
@@ -41,27 +44,29 @@ export default function StartForm({ service: s, describeFee = null }: { service:
   const price = s ? checkoutPrice(s) : null;
   const reviewFee = s ? reviewFeeFor(s) : describeFee;
   const payFirst = price?.total ?? reviewFee;
-  // Two steps: who you are, then a short check. Documents and extra questions wait until an agent needs them.
-  // With a price, paying is shown as the third step; it happens on the payment screen.
+  // Two steps: who you are and where to send it, then a short check with the documents. Paying is the third.
   const keys: Key[] = ["about", "review"];
   const names: Record<Key, string> = { about: t("start.about"), review: t("start.review") };
   const stepNames = [...keys.map((k) => names[k]), ...(payFirst ? [t("start.stepPay")] : [])];
   const router = useRouter();
   const who: [string, string][] = [["me", t("start.me")], ["family", t("start.family")], ["business", t("start.myBiz")]];
   const last = keys.length - 1;
+  const questions = s?.questions ?? [];
+  const docs = s?.documents ?? [];
 
   const human = useHuman();
   const [step, setStep] = useState(0);
   const [phase, setPhase] = useState<"form" | "verify" | "done">("form");
   const [f, setF] = useState(EMPTY);
-  // Chosen files, by document name. They are sent with the request after the phone is confirmed.
-  const [files, setFiles] = useState<Record<string, File>>({});
+  const [answers, setAnswers] = useState<Record<string, string>>({});
+  // Chosen files, by document name (EXTRA for anything else). They are sent with the request after the code.
+  const [files, setFiles] = useState<Record<string, File[]>>({});
+  const [fileError, setFileError] = useState("");
   const [demoCode, setDemoCode] = useState<string>();
   const [sending, setSending] = useState(false);
   const [sendError, setSendError] = useState("");
   const [ref, setRef] = useState("");
   const [ack, setAck] = useState(false);
-  const [idConsent, setIdConsent] = useState(false);
   const [portalOpened, setPortalOpened] = useState(true);
   const [phoneShared, setPhoneShared] = useState(false);
   const [payNow, setPayNow] = useState<number | null>(null);
@@ -70,14 +75,15 @@ export default function StartForm({ service: s, describeFee = null }: { service:
   const set = (k: keyof typeof EMPTY, v: string) => setF((cur) => ({ ...cur, [k]: v }));
 
   // A refresh or an accidental back should not cost the customer what they typed.
-  // Kept in this tab only, and cleared as soon as the request is sent.
+  // Kept in this tab only, and cleared as soon as the request is sent. The ID number is never kept.
   useEffect(() => {
     try {
       const saved = JSON.parse(sessionStorage.getItem(draftKey) ?? "null");
       if (saved) {
         const savedForm = saved.f && typeof saved.f === "object" ? saved.f as Record<string, string> : {};
         const { nid: _dropped, ...rest } = savedForm;
-        setF({ ...EMPTY, ...rest, nid: "" });
+        setF({ ...EMPTY, ...rest, via: rest.via === "email" ? "email" : "whatsapp", nid: "" });
+        if (saved.answers && typeof saved.answers === "object") setAnswers(saved.answers as Record<string, string>);
         setStep(Math.min(Number(saved.step) || 0, last));
       }
     } catch { /* storage unavailable: start empty */ }
@@ -87,38 +93,45 @@ export default function StartForm({ service: s, describeFee = null }: { service:
     if (!restored || phase === "done") return;
     try {
       const { nid: _nid, ...safe } = f;
-      sessionStorage.setItem(draftKey, JSON.stringify({ step, f: safe }));
+      sessionStorage.setItem(draftKey, JSON.stringify({ step, f: safe, answers }));
     } catch { /* ignore */ }
-  }, [draftKey, restored, phase, step, f]);
+  }, [draftKey, restored, phase, step, f, answers]);
 
   const key = keys[step];
   const ask = idAsk(s, f.forWho);
   const nidDigits = nationalIdDigits(f.nid);
   const idErr = nationalIdError(nidDigits);
   const storeId = ask === "required" || (ask === "optional" && nidDigits.length > 0);
+  // WhatsApp customers confirm their number by SMS where a code can reach it; everyone else confirms an email.
+  const byPhone = f.via === "whatsapp" && smsCodes;
+  const needsEmail = !byPhone;
   const errors: Record<string, string> = {};
   if (key === "about") {
     if (!f.name.trim()) errors.name = t("start.errName");
     if (f.forWho === "family" && !f.subject.trim()) errors.subject = t("start.errPerson");
     if (f.forWho === "business" && !f.subject.trim()) errors.subject = t("start.errBiz");
     if (storeId && idErr) errors.nid = t(idErr === "long" ? "start.errIdLong" : "start.errId", { n: nidDigits.length });
-    if (storeId && !isDob(f.dob)) errors.dob = t("start.errDob");
-    if (storeId && !idConsent) errors.idConsent = t("start.errIdConsent");
-    if (!isEmail(f.email)) errors.email = t("start.errEmail");
-    if (f.phone.trim() && !isMobile(f.phone)) errors.phone = t("authErr.badPhone");
+    for (const q of questions) if (q.required && !(answers[q.key] ?? "").trim()) errors[`q-${q.key}`] = t("start.errAnswer");
+    if (f.via === "whatsapp" && !isMobile(f.phone)) errors.phone = t("start.errWhatsapp");
+    if (f.via === "email" && f.phone.trim() && !isMobile(f.phone)) errors.phone = t("authErr.badPhone");
+    if (needsEmail && !isEmail(f.email)) errors.email = t("start.errEmail");
     if (!s && f.notes.trim().length < 10) errors.notes = t("start.errNotes");
   }
   if (key === "review" && !ack) errors.ack = t("start.errAck");
   const valid = Object.keys(errors).length === 0;
 
+  const sendCode = async () => {
+    const token = await human.get();
+    return byPhone ? requestCode(f.phone, token) : requestEmailCode(f.email, token);
+  };
   const next = async () => {
     setTouched(true);
     if (!valid) return;
     setTouched(false);
     if (step < last) { setStep(step + 1); window.scrollTo({ top: 0 }); return; }
-    // Last step: email a code to confirm the address before anything is created.
+    // Last step: send a code to the number or address before anything is created.
     setSending(true); setSendError("");
-    const r = await requestEmailCode(f.email, await human.get()).catch(() => ({ ok: false as const, error: t("authErr.sendFail") }));
+    const r = await sendCode().catch(() => ({ ok: false as const, error: t("authErr.sendFail") }));
     setSending(false);
     if (!r.ok) { setSendError(trError(locale, r.error)); return; }
     setDemoCode(r.demoCode);
@@ -128,12 +141,15 @@ export default function StartForm({ service: s, describeFee = null }: { service:
   const send = async (code: string) => {
     const fd = new FormData();
     fd.set("slug", s?.slug ?? "");
-    for (const [k, v] of Object.entries(f)) fd.set(k, k === "nid" && ask === "hidden" ? "" : v);
-    fd.set("idConsent", idConsent ? "1" : "0");
+    for (const [k, v] of Object.entries(f)) fd.set(k, k === "nid" && ask === "hidden" ? "" : k === "email" && byPhone ? "" : v);
+    fd.set("codeTo", byPhone ? "phone" : "email");
+    // The one tick on the check step covers how the ID number is used.
+    fd.set("idConsent", storeId && ack ? "1" : "0");
     fd.set("code", code);
     fd.set("portal", "1");
-    if (s) s.documents.forEach((d, i) => { if (files[d.name]) fd.set(`file-${i}`, files[d.name]); });
-    else Object.values(files).forEach((file) => fd.append("file-extra", file));
+    for (const q of questions) fd.set(`answer-${q.key}`, (answers[q.key] ?? "").trim());
+    docs.forEach((d, i) => { for (const file of files[d.name] ?? []) fd.append(`file-${i}`, file); });
+    for (const file of files[EXTRA] ?? []) fd.append("file-extra", file);
     const r = await submitRequest(fd).catch(() => ({ ok: false as const, error: t("authErr.submitFail") }));
     if (!r.ok) return trError(locale, r.error);
     try { sessionStorage.removeItem(draftKey); } catch { /* ignore */ }
@@ -147,11 +163,23 @@ export default function StartForm({ service: s, describeFee = null }: { service:
     window.scrollTo({ top: 0 });
     return null;
   };
+  const addFiles = (slot: string, list: FileList | null) => {
+    const picked = [...(list ?? [])];
+    if (!picked.length) return;
+    const big = picked.find((x) => x.size > MAX_FILE);
+    if (big) { setFileError(t("start.tooBig")); return; }
+    setFileError("");
+    setFiles((cur) => ({ ...cur, [slot]: [...(cur[slot] ?? []), ...picked].slice(0, 5) }));
+  };
+  const dropFile = (slot: string, i: number) => setFiles((cur) => ({ ...cur, [slot]: (cur[slot] ?? []).filter((_, j) => j !== i) }));
+  const fileCount = Object.values(files).reduce((n, l) => n + l.length, 0);
+  const channel = f.via === "whatsapp" ? t("start.viaWhatsapp") : t("start.viaEmail");
+
   // When and what is paid, said the same way in the fee summary and beside the form.
   const payNote = price ? t("start.payUpfront", { total: rwf(price.total) }) : reviewFee ? t("start.reviewUpfront", { fee: rwf(reviewFee) }) : t("start.payAfter");
   const err = (k: string) => touched && errors[k] ? <span className="err-text" id={`${k}-err`}><Icon name="alert" size={15} /> {errors[k]}</span> : null;
   const bad = (k: string) => (touched && errors[k] ? "in-err" : "");
-  const fileName = Object.values(files)[0]?.name ?? "";
+  const contact = byPhone ? `+250 ${prettyMobile(f.phone)}` : f.email.trim().toLowerCase();
 
   if (phase === "done") {
     return (
@@ -167,7 +195,7 @@ export default function StartForm({ service: s, describeFee = null }: { service:
           )}
           {payNow === null && <p style={{ fontSize: 16, lineHeight: 1.55 }}>{withStrong(t("start.receivedBody", { ref: "{ref}", contact: "{contact}", what: s ? t("start.checkDocs") : t("start.readSent"), time: t("responseTime") }), {
             ref: <strong className="m" style={{ fontSize: 15 }} data-ref>{ref}</strong>,
-            contact: <strong style={{ overflowWrap: "anywhere" }}>{f.email.trim().toLowerCase()}</strong>,
+            contact: <strong style={{ overflowWrap: "anywhere" }}>{contact}</strong>,
           })}</p>}
           {payNow !== null && portalOpened && <Link className="btn btn-p btn-lg" href={`/portal/requests/${ref}/pay`} data-pay-now>{t("start.payNow", { total: rwf(payNow) })}</Link>}
           <p className="hint">{payNow !== null ? t("start.payLaterHint") : portalOpened ? t("start.ready") : t("start.receivedTrack")}</p>
@@ -182,15 +210,17 @@ export default function StartForm({ service: s, describeFee = null }: { service:
   }
 
   if (phase === "verify") {
+    const cta = payFirst ? t("start.confirmPay") : t("start.confirm");
+    const resend = async () => { const r = await sendCode(); return r.ok ? { demoCode: r.demoCode } : { error: r.error }; };
     return (
       <section className="wrap" style={{ paddingTop: 48, paddingBottom: 96 }}>
         <div className="stack g20" style={{ maxWidth: 460, margin: "0 auto" }}>
           {payFirst && <Steps names={stepNames} current={1} label={t("start.stepLabel", { n: 2, total: stepNames.length, name: stepNames[1] })} />}
-          <span className="eb" style={{ fontSize: 11 }}>{payFirst ? t("start.lastPay") : t("start.last")}</span>
-          <CodeEntry email={f.email.trim().toLowerCase()} demoCode={demoCode} cta={payFirst ? t("start.confirmPay") : t("start.confirm")} onBack={() => { setPhase("form"); setStep(0); }}
-            onResend={async () => { const r = await requestEmailCode(f.email, await human.get()); return r.ok ? { demoCode: r.demoCode } : { error: r.error }; }}
-            onSubmit={send} />
-          <p className="hint row g8" style={{ alignItems: "flex-start" }}><Icon name="lock" size={16} /><span>{t("start.emailUse")}</span></p>
+          <span className="eb" style={{ fontSize: 11 }}>{payFirst ? t(byPhone ? "start.lastPayPhone" : "start.lastPay") : byPhone ? t("start.last") : t("start.lastEmail")}</span>
+          {byPhone
+            ? <CodeEntry phone={f.phone} demoCode={demoCode} cta={cta} onBack={() => { setPhase("form"); setStep(0); }} onResend={resend} onSubmit={send} />
+            : <CodeEntry email={f.email.trim().toLowerCase()} demoCode={demoCode} cta={cta} onBack={() => { setPhase("form"); setStep(0); }} onResend={resend} onSubmit={send} />}
+          <p className="hint row g8" style={{ alignItems: "flex-start" }}><Icon name="lock" size={16} /><span>{byPhone ? t("start.numberUse") : t("start.emailUse")}</span></p>
         </div>
       </section>
     );
@@ -225,6 +255,8 @@ export default function StartForm({ service: s, describeFee = null }: { service:
         {key === "about" && (
           <div className="stack g20">
             <div className="stack g8"><h1 className="h-flow">{t("start.aboutTitle")}</h1><p className="mut" style={{ fontSize: 15 }}>{t("start.aboutLead")}</p></div>
+            {/* What can make the institution refuse, or a bill lapse, is said before anything is paid. */}
+            {s?.notes.filter((n) => n.kind === "warn").map((n) => <Alert key={n.title} kind="warn" title={n.title}>{n.body}</Alert>)}
             <fieldset className="stack g10" style={{ border: 0, margin: 0, padding: 0 }}>
               <legend className="label" style={{ marginBottom: 10 }}>{t("start.who")}</legend>
               <div className="grid cols-3" style={{ gap: 10 }}>
@@ -239,37 +271,25 @@ export default function StartForm({ service: s, describeFee = null }: { service:
                 {f.forWho === "family" && <span className="hint">{t("start.consent")}</span>}{err("subject")}</div>
             )}
             {ask !== "hidden" && (
-              <div className="card stack g10" style={{ padding: 16, background: "var(--bone)" }}>
-                <strong style={{ fontSize: 15 }}>{t("start.nidPrivacyTitle")}</strong>
-                <p className="hint" id="nid-privacy" style={{ fontSize: 14, lineHeight: 1.55 }}>{t("start.nidPrivacy")}</p>
-              </div>
-            )}
-            {ask !== "hidden" && (
               <div className="field">
                 <label htmlFor="f-nid">{f.forWho === "family" ? t("start.theirId") : t("start.nid")}{ask === "optional" ? <span className="mut" style={{ fontWeight: 400 }}> {t("start.optional")}</span> : null}</label>
                 <div className="row g8">
                   <input id="f-nid" className={`in grow ${bad("nid")}`} inputMode="numeric" autoComplete="off" spellCheck={false} value={f.nid} onChange={(e) => set("nid", e.target.value)} placeholder="1 1995 8 0045123 0 17" aria-describedby="nid-err nid-hint" aria-invalid={touched && !!errors.nid} />
                   <button type="button" className="btn btn-s" onClick={() => set("nid", "")} disabled={!f.nid}>{t("start.nidClear")}</button>
                 </div>
-                <span className="hint" id="nid-hint">{ask === "required" ? t("start.nidHint") : s?.idPolicy === "unsure" || !s ? t("start.nidUnsureLead") : t("start.nidOptionalLead")}</span>
+                <span className="hint" id="nid-hint">{ask === "required" ? t("start.nidWhy") : s?.idPolicy === "unsure" || !s ? t("start.nidUnsureLead") : t("start.nidOptionalLead")}</span>
                 {err("nid")}
               </div>
             )}
-            {storeId && (
-              <div className="field"><label htmlFor="f-dob">{t("start.dob")}</label><input id="f-dob" type="date" className={`in ${bad("dob")}`} value={f.dob} min="1900-01-01" max={new Date().toISOString().slice(0, 10)} onChange={(e) => set("dob", e.target.value)} autoComplete={f.forWho === "me" ? "bday" : "off"} aria-describedby="dob-err dob-hint" /><span className="hint" id="dob-hint">{t("start.dobHint")}</span>{err("dob")}</div>
-            )}
-            {storeId && (
-              <div className="stack g6">
-                <label className="check"><input id="f-id-consent" type="checkbox" checked={idConsent} onChange={(e) => setIdConsent(e.target.checked)} aria-describedby="idConsent-err" /> {t("start.nidConsent")}</label>
-                {err("idConsent")}
+            {questions.map((q) => (
+              <div className="field" key={q.key}>
+                <label htmlFor={`q-${q.key}`}>{q.label}{q.required ? null : <span className="mut" style={{ fontWeight: 400 }}> {t("start.optional")}</span>}</label>
+                <input id={`q-${q.key}`} className={`in ${bad(`q-${q.key}`)}`} value={answers[q.key] ?? ""} maxLength={200} placeholder={q.placeholder}
+                  onChange={(e) => setAnswers((cur) => ({ ...cur, [q.key]: e.target.value }))} aria-describedby={`q-${q.key}-err q-${q.key}-hint`} />
+                {q.hint && <span className="hint" id={`q-${q.key}-hint`}>{q.hint}</span>}
+                {err(`q-${q.key}`)}
               </div>
-            )}
-            <div className="field"><label htmlFor="f-email">{t("start.email")}</label>
-              <input id="f-email" type="email" className={`in ${bad("email")}`} inputMode="email" value={f.email} onChange={(e) => set("email", e.target.value)} placeholder={t("signIn.emailPh")} autoComplete="email" autoCapitalize="none" spellCheck={false} aria-describedby="email-err email-hint" />
-              <span className="hint" id="email-hint">{t("start.emailHint")}</span>{err("email")}</div>
-            <div className="field"><label htmlFor="f-phone">{t("start.phoneOpt")}</label>
-              <div className="row g8"><span className="in in-prefix" aria-hidden="true">+250</span><input id="f-phone" className={`in ${bad("phone")}`} inputMode="tel" value={f.phone} onChange={(e) => set("phone", e.target.value)} placeholder="788 123 456" autoComplete="tel-national" aria-describedby="phone-err phone-hint" /></div>
-              <span className="hint" id="phone-hint">{t("start.phoneOptHint")}</span>{err("phone")}</div>
+            ))}
             {s?.purposes && (
               <fieldset className="stack g10" style={{ border: 0, margin: 0, padding: 0 }}>
                 <legend className="label" style={{ marginBottom: 10 }}>{s.purposeLabel ?? t("start.purpose")}</legend>
@@ -278,6 +298,38 @@ export default function StartForm({ service: s, describeFee = null }: { service:
                 ))}
               </fieldset>
             )}
+
+            <fieldset className="stack g12" style={{ border: 0, margin: 0, padding: 0 }}>
+              <legend className="label" style={{ marginBottom: 4 }}>{t("start.viaTitle")}</legend>
+              <span className="hint" style={{ marginTop: -4 }}>{t("start.viaLead")}</span>
+              <div className="via-pick" role="radiogroup" aria-label={t("start.viaTitle")}>
+                {(["whatsapp", "email"] as const).map((v) => (
+                  <label key={v} className={`via-opt ${f.via === v ? "on" : ""}`} data-via={v}>
+                    <input type="radio" name="via" className="sr-only" checked={f.via === v} onChange={() => set("via", v)} />
+                    <span className={`via-ico via-ico-${v}`} aria-hidden="true"><Icon name={v === "whatsapp" ? "whatsapp" : "mail"} size={20} /></span>
+                    <span className="stack" style={{ gap: 2, minWidth: 0 }}>
+                      <strong>{v === "whatsapp" ? t("start.viaWhatsapp") : t("start.viaEmail")}</strong>
+                      <span className="hint">{v === "whatsapp" ? t("start.viaWhatsappSub") : t("start.viaEmailSub")}</span>
+                    </span>
+                    <span className="via-dot" aria-hidden="true" />
+                  </label>
+                ))}
+              </div>
+            </fieldset>
+            {f.via === "whatsapp" ? (
+              <div className="field"><label htmlFor="f-phone">{t("start.whatsappNumber")}</label>
+                <div className="row g8"><span className="in in-prefix" aria-hidden="true">+250</span><input id="f-phone" className={`in ${bad("phone")}`} inputMode="tel" value={f.phone} onChange={(e) => set("phone", e.target.value)} placeholder="788 123 456" autoComplete="tel-national" aria-describedby="phone-err phone-hint" /></div>
+                <span className="hint" id="phone-hint">{smsCodes ? t("start.whatsappHint") : t("start.whatsappHintEmail")}</span>{err("phone")}</div>
+            ) : (
+              <div className="field"><label htmlFor="f-phone">{t("start.phoneOpt")}</label>
+                <div className="row g8"><span className="in in-prefix" aria-hidden="true">+250</span><input id="f-phone" className={`in ${bad("phone")}`} inputMode="tel" value={f.phone} onChange={(e) => set("phone", e.target.value)} placeholder="788 123 456" autoComplete="tel-national" aria-describedby="phone-err phone-hint" /></div>
+                <span className="hint" id="phone-hint">{t("start.phoneOptHint")}</span>{err("phone")}</div>
+            )}
+            {needsEmail && (
+              <div className="field"><label htmlFor="f-email">{f.via === "whatsapp" ? t("start.emailForCode") : t("start.email")}</label>
+                <input id="f-email" type="email" className={`in ${bad("email")}`} inputMode="email" value={f.email} onChange={(e) => set("email", e.target.value)} placeholder={t("signIn.emailPh")} autoComplete="email" autoCapitalize="none" spellCheck={false} aria-describedby="email-err email-hint" />
+                <span className="hint" id="email-hint">{t("start.emailHint")}</span>{err("email")}</div>
+            )}
             <div className="field"><label htmlFor="f-notes">{s ? <>{t("start.notesOpt")} <span className="mut" style={{ fontWeight: 400 }}>{t("start.optional")}</span></> : t("start.situationLabel")}</label>
               <textarea id="f-notes" className={`in ${bad("notes")}`} rows={s ? 2 : 5} value={f.notes} onChange={(e) => set("notes", e.target.value)} placeholder={s ? t("start.notesPh") : t("start.situationPh")} aria-describedby="notes-err" />{err("notes")}</div>
           </div>
@@ -285,43 +337,68 @@ export default function StartForm({ service: s, describeFee = null }: { service:
 
         {key === "review" && (
           <div className="stack g20">
-            <div className="stack g8"><h1 className="h-flow">{payFirst ? t("start.checkPay") : t("start.check")}</h1><p className="mut" style={{ fontSize: 15 }}>{price ? t("start.checkPayLead", { total: rwf(price.total) }) : reviewFee ? t("start.checkReviewLead", { fee: rwf(reviewFee) }) : t("start.checkLead")}</p></div>
+            <div className="stack g8"><h1 className="h-flow">{payFirst ? t("start.checkPay") : t("start.check")}</h1><p className="mut" style={{ fontSize: 15 }}>{price ? t(byPhone ? "start.checkPayLeadPhone" : "start.checkPayLead", { total: rwf(price.total) }) : reviewFee ? t(byPhone ? "start.checkReviewLeadPhone" : "start.checkReviewLead", { fee: rwf(reviewFee) }) : t("start.checkLead")}</p></div>
             <div className="card" style={{ padding: 18 }}>
               <dl className="review">
                 <dt>{t("start.svc")}</dt><dd>{s ? s.name : t("start.unsureYet")}</dd>
                 <dt>{t("start.yourName")}</dt><dd>{f.name}</dd>
                 {f.forWho !== "me" && <><dt>{t("start.for")}</dt><dd>{f.subject}</dd></>}
                 {storeId && <><dt>{t("start.id")}</dt><dd className="m" style={{ fontSize: 14, fontWeight: 500 }}>{f.nid}</dd></>}
-                {storeId && <><dt /><dd className="hint" style={{ fontWeight: 400 }}>{t("start.idNotProof")}</dd></>}
-                {storeId && <><dt>{t("start.dobRow")}</dt><dd>{f.dob}</dd></>}
-                <dt>{t("start.emailRow")}</dt><dd style={{ overflowWrap: "anywhere" }}>{f.email.trim().toLowerCase()}</dd>
-                {f.phone.trim() && <><dt>{t("start.phoneRow")}</dt><dd>+250 {prettyMobile(f.phone)}</dd></>}
+                {questions.filter((q) => (answers[q.key] ?? "").trim()).map((q) => <Fragment key={q.key}><dt>{q.label}</dt><dd style={{ overflowWrap: "anywhere" }}>{answers[q.key]}</dd></Fragment>)}
                 {f.purpose && <><dt>{s?.noId ? t("start.attending") : t("start.purposeRow")}</dt><dd>{f.purpose}</dd></>}
+                <dt>{t("start.deliverRow")}</dt><dd style={{ overflowWrap: "anywhere" }}>{f.via === "whatsapp" ? `WhatsApp · +250 ${prettyMobile(f.phone)}` : `${t("start.viaEmail")} · ${f.email.trim().toLowerCase()}`}</dd>
+                {f.via === "email" && f.phone.trim() && <><dt>{t("start.phoneRow")}</dt><dd>+250 {prettyMobile(f.phone)}</dd></>}
+                {f.via === "whatsapp" && needsEmail && <><dt>{t("start.emailRow")}</dt><dd style={{ overflowWrap: "anywhere" }}>{f.email.trim().toLowerCase()}</dd></>}
                 {f.notes.trim() && <><dt>{s ? t("start.notes") : t("start.situationRow")}</dt><dd style={{ fontWeight: 400 }}>{f.notes}</dd></>}
-                <dt>{t("start.documents")}</dt><dd>{t("start.addedN", { n: Object.keys(files).length })}</dd>
               </dl>
               <button type="button" className="btn btn-g btn-sm" style={{ marginTop: 12 }} onClick={() => { setStep(0); setTouched(false); }}><Icon name="edit" size={16} /> {t("start.edit")}</button>
             </div>
-            <div className="stack g10">
-              <p className="hint" style={{ margin: 0 }}>{t("start.docsLead")}</p>
-              {fileName ? (
-                <div className="row between g12" style={{ padding: "10px 12px", background: "var(--bone)", borderRadius: 6 }}>
-                  <span className="row g8" style={{ fontSize: 14, minWidth: 0 }}><Icon name="file" size={17} /><span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{fileName}</span></span>
-                  <button type="button" className="btn btn-g btn-sm" onClick={() => setFiles({})}>{t("start.remove")}</button>
-                </div>
-              ) : (
-                <label className="btn btn-s" style={{ alignSelf: "flex-start" }}>
-                  <Icon name="upload" size={18} /> {t("start.choose")}
-                  <input type="file" accept="image/*,application/pdf" className="sr-only" onChange={(e) => {
-                    const file = e.target.files?.[0];
-                    if (!file) return;
-                    if (file.size > 10 * 1024 * 1024) { alert(t("start.tooBig")); return; }
-                    const slot = s?.documents[0]?.name ?? "extra";
-                    setFiles({ [slot]: file });
-                  }} />
-                </label>
-              )}
-            </div>
+
+            {docs.length > 0 ? (
+              <div className="stack g12" data-doc-list>
+                <div className="stack g4"><strong style={{ fontSize: 16 }}>{t("start.docsTitle")}</strong><span className="hint">{t("start.docsLater", { channel })}</span></div>
+                <ul className="doc-pick">
+                  {docs.map((d) => {
+                    const mine = files[d.name] ?? [];
+                    return (
+                      <li key={d.name} className={mine.length ? "has" : ""}>
+                        <span className="doc-pick-mark" aria-hidden="true"><Icon name={mine.length ? "check" : "file"} size={16} /></span>
+                        <span className="stack" style={{ gap: 2, minWidth: 0, flex: 1 }}>
+                          <span className="row g8 wrapx" style={{ alignItems: "baseline" }}><strong style={{ fontSize: 14.5 }}>{d.name}</strong>{d.required ? <span className="tag tag-warn">{t("start.needed")}</span> : <span className="mut" style={{ fontSize: 12.5 }}>{t("start.optionalTag")}</span>}</span>
+                          <span className="hint">{d.detail}</span>
+                          {mine.map((file, i) => (
+                            <span key={`${file.name}-${i}`} className="row between g8 doc-pick-file"><span className="nowrap-ellipsis">{file.name}</span><button type="button" className="btn btn-g btn-sm" onClick={() => dropFile(d.name, i)}>{t("start.remove")}</button></span>
+                          ))}
+                        </span>
+                        <label className="btn btn-s btn-sm doc-pick-add">
+                          <Icon name="upload" size={16} /> {mine.length ? t("start.addMore") : t("start.add")}
+                          <input type="file" multiple accept="image/*,application/pdf" className="sr-only" onChange={(e) => { addFiles(d.name, e.target.files); e.target.value = ""; }} />
+                        </label>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
+            ) : (
+              <div className="stack g10">
+                <p className="hint" style={{ margin: 0 }}>{s ? t("start.noDocsNeeded") : t("start.docsLead")}</p>
+                {(files[EXTRA] ?? []).map((file, i) => (
+                  <div key={`${file.name}-${i}`} className="row between g12" style={{ padding: "10px 12px", background: "var(--bone)", borderRadius: 6 }}>
+                    <span className="row g8" style={{ fontSize: 14, minWidth: 0 }}><Icon name="file" size={17} /><span className="nowrap-ellipsis">{file.name}</span></span>
+                    <button type="button" className="btn btn-g btn-sm" onClick={() => dropFile(EXTRA, i)}>{t("start.remove")}</button>
+                  </div>
+                ))}
+                {!s && (
+                  <label className="btn btn-s" style={{ alignSelf: "flex-start" }}>
+                    <Icon name="upload" size={18} /> {t("start.choose")}
+                    <input type="file" multiple accept="image/*,application/pdf" className="sr-only" onChange={(e) => { addFiles(EXTRA, e.target.files); e.target.value = ""; }} />
+                  </label>
+                )}
+              </div>
+            )}
+            {fileError && <span className="err-text" role="alert"><Icon name="alert" size={15} /> {fileError}</span>}
+            {fileCount > 0 && <p className="hint row g8" style={{ margin: 0 }}><Icon name="lock" size={15} /> {t("start.filesPrivate")}</p>}
+
             {!price && reviewFee && (
               <div className="card stack g12" style={{ padding: 16, background: "var(--bone)" }} data-checkout-total data-review-fee>
                 <div className="row between g12" style={{ alignItems: "baseline" }}>
@@ -337,20 +414,26 @@ export default function StartForm({ service: s, describeFee = null }: { service:
             )}
             {price && (
               <div className="card stack g12" style={{ padding: 16, background: "var(--bone)" }} data-checkout-total>
+                {price.official > 0 && (
+                  <dl className="stack g6" style={{ margin: 0 }}>
+                    <div className="row between g12"><dt className="hint">{s?.official.label ?? t("service.officialShort")}</dt><dd className="fig" style={{ margin: 0 }}>{rwf(price.official)}</dd></div>
+                    <div className="row between g12"><dt className="hint">{t("start.oursLine")}</dt><dd className="fig" style={{ margin: 0 }}>{rwf(price.ours)}</dd></div>
+                  </dl>
+                )}
                 <div className="row between g12" style={{ alignItems: "baseline" }}>
                   <strong style={{ fontSize: 15 }}>{t("start.toPayTotal")}</strong>
                   <strong className="d fig" style={{ fontSize: 22, color: "var(--brand)" }}>{rwf(price.total)}</strong>
                 </div>
-                <p className="hint row g8" style={{ alignItems: "flex-start", margin: 0 }}><Icon name="lock" size={16} /><span>{t("start.payNote", { total: rwf(price.total) })}{price.direct ? ` ${t("start.payNoteDirect")}` : ""}</span></p>
+                <p className="hint row g8" style={{ alignItems: "flex-start", margin: 0 }}><Icon name="lock" size={16} /><span>{t("start.payNote", { total: rwf(price.total) })}{price.direct ? ` ${t("start.payNoteDirect")}` : price.official > 0 ? ` ${t("start.payNoteOneBill")}` : ""}</span></p>
               </div>
             )}
-            <label className="check"><input type="checkbox" checked={ack} onChange={(e) => setAck(e.target.checked)} aria-describedby="ack-err" /> {t("start.ack")}</label>
+            <label className="check"><input type="checkbox" checked={ack} onChange={(e) => setAck(e.target.checked)} aria-describedby="ack-err" /> {storeId ? `${t("start.ack")} ${t("start.ackId")}` : t("start.ack")}</label>
             {err("ack")}
           </div>
         )}
 
         {sendError && <Alert kind="err" title={t("start.codeFail")} live>{sendError}</Alert>}
-        <div className="row g10" style={{ paddingTop: 8 }}>
+        <div className="row g10 start-cta" style={{ paddingTop: 8 }}>
           {step > 0 && <button type="button" className="btn btn-s btn-lg" onClick={() => { setStep(step - 1); setTouched(false); }}>{t("start.back")}</button>}
           <button type="button" className="btn btn-p btn-lg grow" onClick={next} disabled={sending}>{sending ? <><span className="spin" /> {t("start.sendingCode")}</> : key === "review" ? (payFirst ? t("start.toPayment") : t("start.send")) : t("start.continue")}</button>
         </div>

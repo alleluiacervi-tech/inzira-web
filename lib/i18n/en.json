@@ -461,7 +461,7 @@
     "feeDetails": "Fee details",
     "payAfter": "You pay only after an agent has checked your documents.",
     "aboutTitle": "A few details about you",
-    "aboutLead": "Your name and email are enough to start. We ask for an ID only when this service needs it.",
+    "aboutLead": "Your name and a WhatsApp number or an email are enough to start. We ask for an ID number only when this service needs it.",
     "who": "Who is this request for?",
     "me": "Myself",
     "family": "A family member",
@@ -565,7 +565,33 @@
     "reviewCredit": "Taken off our fee when you pay the quote.",
     "reviewRefund": "Refunded if we can’t take on your request.",
     "reviewEb": "Review fee {fee}",
-    "phoneSharedTitle": "Phone number not saved"
+    "phoneSharedTitle": "Phone number not saved",
+    "nidWhy": "This service needs it. It is stored encrypted and used only to prepare this request.",
+    "errAnswer": "Please answer this.",
+    "errWhatsapp": "Enter the Rwandan number you use on WhatsApp, e.g. 788 123 456.",
+    "viaTitle": "Where should we send your document?",
+    "viaLead": "We also use it to reach you if something is missing.",
+    "viaWhatsapp": "WhatsApp",
+    "viaEmail": "Email",
+    "viaWhatsappSub": "Updates and the document in your chat",
+    "viaEmailSub": "Updates and the document in your inbox",
+    "whatsappNumber": "Your WhatsApp number",
+    "whatsappHint": "We text a code to confirm it, then send updates and your document here.",
+    "whatsappHintEmail": "We send updates and your document here on WhatsApp.",
+    "emailForCode": "Your email, for the confirmation code",
+    "lastPayPhone": "Confirm your number · then pay",
+    "lastEmail": "Last step · confirm your email",
+    "checkPayLeadPhone": "Make sure everything is right. Next you confirm your number and pay {total}.",
+    "checkReviewLeadPhone": "Make sure everything is right. Next you confirm your number and pay the {fee} review fee.",
+    "deliverRow": "Send it on",
+    "docsLater": "Add what you have now. Missing something? Pay anyway and send it later: we’ll ask you on {channel}.",
+    "needed": "Needed",
+    "add": "Add",
+    "addMore": "Add more",
+    "noDocsNeeded": "No documents needed for this service. Your ID number is enough.",
+    "oursLine": "Inzira service fee",
+    "payNoteOneBill": "We pay the Irembo bill for you as soon as it is issued.",
+    "ackId": "My ID number is used only to prepare this request; Inzira does not look it up in a government register."
   },
   "notFound": {
     "kicker": "Page not found",
@@ -735,7 +761,8 @@
     "idSent": "We received the update. Your reference is unchanged, and the number is waiting for review. It is not verified yet.",
     "receiptTitle": "Receipt · {ref}",
     "receiptLead": "This is Inzira’s record of what you paid. Official fees and our assistance fee are shown on separate lines.",
-    "notSent": "Not sent yet: waiting for your payment"
+    "notSent": "Not sent yet: waiting for your payment",
+    "billNo": "Bill ID"
   },
   "teams": {
     "Tax & EBM": "Tax & EBM",
@@ -823,7 +850,7 @@
     "checkoutTitle": "Pay to send your request",
     "payBtn": "Pay {total}",
     "trustApprove": "Nothing is taken until you approve with your PIN",
-    "trustReceipt": "Receipt by email, with the official fee and our fee shown separately",
+    "trustReceipt": "A receipt in your portal, with the official fee and our fee shown separately",
     "later": "Not ready? Your request is saved for three days.",
     "laterLink": "Pay later",
     "sendingTitle": "Sending the prompt…",
@@ -853,7 +880,13 @@
     "alreadyPaid": "Already paid",
     "paidReviewBody": "An agent checks it within {time} and sends the exact fees to {contact}. Your {fee} review fee is taken off our fee.",
     "next2Review": "You get the exact fees to approve, minus what you paid today",
-    "payReview": "Pay review fee"
+    "payReview": "Pay review fee",
+    "networks": "Pay with",
+    "netMtn": "078 · 079",
+    "netAirtel": "072 · 073",
+    "numberFor": "Your {network} number",
+    "merchant": "Your phone will show a payment request from {name}.",
+    "refundAll": "Refunded in full, the official fee included, if we can’t submit"
   },
   "docs": {
     "filter": "Filter by status",
@@ -1355,7 +1388,10 @@
     "idLong": "Enter exactly 16 digits.",
     "idConsent": "Please confirm you understand how this National ID number will be used.",
     "idClosed": "This request is not open for an ID correction.",
-    "emailTaken": "That email address is already used by another account."
+    "emailTaken": "That email address is already used by another account.",
+    "answer": "Answer the questions this service asks: {q}.",
+    "phoneHasEmail": "This number is on an account that signs in with email. Choose Email and use that address.",
+    "tooManyFiles": "Send up to {n} files with the request. You can add more from your portal afterwards."
   },
   "fileRoute": {
     "signIn": "Sign in to see this file.",

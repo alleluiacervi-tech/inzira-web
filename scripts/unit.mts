@@ -4,13 +4,14 @@ import { base32, codeAt, fromBase32, matchStep, newRecoveryCodes, normaliseRecov
 import { open, seal, isSealed } from "../lib/crypto.ts";
 import { sniffType } from "../lib/storage.ts";
 import { safeReturnPath } from "../lib/return-path.ts";
-import { amountDue, payableNow, payStatus } from "../lib/status.ts";
+import { amountDue, payableNow, payStatus, refundSplit } from "../lib/status.ts";
 import { canDeliverEmailCodes, isReservedTestEmail, showsEmailCodeOnScreen } from "../lib/email.ts";
 import { idAsk, idPolicyOf, mentionsNationalId, nationalIdDigits, nationalIdError } from "../lib/identity.ts";
 import { cleanTaxRef, periodsBetween, taxPhase, weekdayOnOrBefore } from "../lib/tax-calendar.ts";
 import { providerFor } from "../lib/payments.ts";
 import { GATED_STAGES, PAYMENT_LOCK, isGated, lockMessage, paymentLock } from "../lib/payment-gate.ts";
 import { checkoutPrice, quoteRefusal, reviewFeeFor } from "../lib/pricing.ts";
+import { SERVICES } from "../lib/mock/catalogue.ts";
 import { barePath, isIndexable, languageAlternates, withLocale } from "../lib/seo.ts";
 import { customerWhatsAppUrl, defaultFollowUpAt, deskChecks, fromKigaliDateTime, handoverRequired, kigaliDateTimeParts, nextKind, nextSentence, stageTargetRows } from "../lib/desk.ts";
 import { text as i18nText } from "../lib/i18n/messages.ts";
@@ -20,6 +21,20 @@ const test = (name: string, fn: () => void) => { try { fn(); passed++; } catch (
 
 // ---- authenticator codes: RFC 6238 appendix B vectors (SHA-1; the last six digits of the 8-digit values)
 const rfc = base32(Buffer.from("12345678901234567890"));
+test("refunds return the official fee only while we still hold it", () => {
+  const transactions = [{ status: "paid", official: 500, ours: 2000 }, { status: "failed", official: 500, ours: 2000 }];
+  assert.deepEqual(refundSplit({ transactions, officialReceipt: "awaiting" }), { official: 500, ours: 2000, total: 2500 });
+  assert.deepEqual(refundSplit({ transactions, officialReceipt: "attached" }), { official: 0, ours: 2000, total: 2000 });
+  assert.equal(refundSplit({ transactions: [], officialReceipt: "awaiting" }).total, 0);
+});
+test("the catalogue's one-payment services carry a checked Irembo fee in the checkout total", () => {
+  const birth = SERVICES.find((s) => s.slug === "birth-certificate")!;
+  assert.deepEqual(checkoutPrice(birth), { official: 500, ours: 2000, total: 2500, direct: false });
+  const spouse = SERVICES.find((s) => s.slug === "land-spouse-update")!;
+  assert.deepEqual(checkoutPrice(spouse), { official: 0, ours: 5000, total: 5000, direct: false });
+  for (const s of SERVICES) for (const q of s.questions ?? []) assert.match(q.key, /^[a-z]+$/, `${s.slug} question key`);
+  assert.ok(!SERVICES.some((s) => s.documents.some((d) => d.required && d.name === "National ID")), "no service asks for an ID photo the number replaces");
+});
 test("totp matches the RFC 6238 vectors", () => {
   for (const [t, want] of [[59, "287082"], [1111111109, "081804"], [1111111111, "050471"], [1234567890, "005924"], [2000000000, "279037"]] as const) {
     assert.equal(codeAt(rfc, Math.floor(t / 30)), want, `t=${t}`);

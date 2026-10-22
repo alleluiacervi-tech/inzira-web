@@ -93,7 +93,7 @@
       "via": "Via RDB online registration",
       "time": "Usually 1–2 working days",
       "timeShort": "1–2 working days",
-      "docsShort": "National ID, business details",
+      "docsShort": "National ID number, business name",
       "who": [
         {
           "title": "Traders & shop owners",
@@ -109,15 +109,11 @@
         }
       ],
       "requirements": [
-        "A Rwandan national ID, or a passport and residence permit",
+        "A Rwandan National ID number, or a passport and residence permit",
         "The name and activity of your business",
         "Where the business operates (district, sector, cell)"
       ],
       "documents": [
-        {
-          "name": "National ID",
-          "detail": "Clear photo of both sides, or the passport data page"
-        },
         {
           "name": "Proof of business address",
           "detail": "Lease or a letter from the owner, if you have one"
@@ -150,7 +146,13 @@
         }
       ],
       "notes": [],
-      "officialNote": "Set by RDB. Your agent confirms the exact amount before you pay anything."
+      "officialNote": "RDB charges nothing for this. You pay our fee only.",
+      "questions": [
+        {
+          "label": "Business name and what it does",
+          "placeholder": "e.g. Keza Shop, selling clothes"
+        }
+      ]
     },
     "company-registration": {
       "name": "Company registration",
@@ -227,7 +229,7 @@
           "body": "Most new companies also need a trading licence and, if they issue invoices, an EBM. We can do both in the right order."
         }
       ],
-      "officialNote": "Set by RDB. Your agent confirms the exact amount before you pay anything."
+      "officialNote": "RDB charges nothing for this. You pay our fee only."
     },
     "business-amendment": {
       "name": "Business amendment",
@@ -306,6 +308,12 @@
         "Change of shareholders",
         "Change of activity",
         "Change of name"
+      ],
+      "questions": [
+        {
+          "label": "Company code",
+          "hint": "On your RDB certificate"
+        }
       ]
     },
     "annual-return-filing": {
@@ -377,7 +385,13 @@
           "body": "Late annual returns can bring penalties. Tell us when your company was registered and we’ll remind you each year."
         }
       ],
-      "officialNote": "Set by RDB. Your agent confirms the exact amount before you pay anything."
+      "officialNote": "Set by RDB. Your agent confirms the exact amount before you pay anything.",
+      "questions": [
+        {
+          "label": "Company code",
+          "hint": "On your RDB certificate"
+        }
+      ]
     },
     "trading-licence-registration": {
       "name": "Trading licence registration",
@@ -444,7 +458,13 @@
         }
       ],
       "notes": [],
-      "officialNote": "The trading licence tax depends on your activity and location. You pay it directly to RRA for your district; we tell you the amount first."
+      "officialNote": "The trading licence tax depends on your activity and location. You pay it directly to RRA for your district; we tell you the amount first.",
+      "questions": [
+        {
+          "label": "TIN",
+          "hint": "The 9-digit taxpayer number, on your RDB certificate or RRA letters"
+        }
+      ]
     },
     "property-tax-tin": {
       "name": "TIN for property tax",
@@ -455,7 +475,7 @@
       "via": "Via RRA",
       "time": "Usually 1–2 working days",
       "timeShort": "1–2 working days",
-      "docsShort": "National ID, UPI",
+      "docsShort": "National ID number, UPI",
       "who": [
         {
           "title": "Land owners",
@@ -474,16 +494,7 @@
         "Your national ID",
         "The UPI of each property you own"
       ],
-      "documents": [
-        {
-          "name": "National ID",
-          "detail": "Clear photo of both sides, or the passport data page"
-        },
-        {
-          "name": "UPI of each property",
-          "detail": "The number on your land title or e-title"
-        }
-      ],
+      "documents": [],
       "steps": [
         {
           "title": "You start the request",
@@ -511,7 +522,13 @@
         }
       ],
       "notes": [],
-      "officialNote": "Set by RRA. Your agent confirms the exact amount before you pay anything."
+      "officialNote": "Set by RRA. Your agent confirms the exact amount before you pay anything.",
+      "questions": [
+        {
+          "label": "UPI of each property",
+          "hint": "The number on your land title or e-title, e.g. 1/02/03/04/1234"
+        }
+      ]
     },
     "vehicle-income-tax-declaration": {
       "name": "Motor vehicle income tax declaration",
@@ -577,7 +594,13 @@
         }
       ],
       "notes": [],
-      "officialNote": "The tax depends on the vehicle. You pay it directly to RRA; we tell you the amount before the deadline."
+      "officialNote": "The tax depends on the vehicle. You pay it directly to RRA; we tell you the amount before the deadline.",
+      "questions": [
+        {
+          "label": "TIN",
+          "hint": "The 9-digit taxpayer number, on your RDB certificate or RRA letters"
+        }
+      ]
     },
     "trading-licence-declaration": {
       "name": "Trading licence declaration",
@@ -640,7 +663,13 @@
         }
       ],
       "notes": [],
-      "officialNote": "Set by your district according to activity and location. You pay it directly to RRA; we tell you the amount first."
+      "officialNote": "Set by your district according to activity and location. You pay it directly to RRA; we tell you the amount first.",
+      "questions": [
+        {
+          "label": "TIN",
+          "hint": "The 9-digit taxpayer number, on your RDB certificate or RRA letters"
+        }
+      ]
     },
     "monthly-tax-declarations": {
       "name": "Monthly business tax declarations",
@@ -713,7 +742,13 @@
           "body": "Most monthly declarations are due by the 15th of the following month. Send your records by the 10th so we have time to check them."
         }
       ],
-      "officialNote": "The taxes you owe are paid directly to RRA. We tell you each amount before the deadline."
+      "officialNote": "The taxes you owe are paid directly to RRA. We tell you each amount before the deadline.",
+      "questions": [
+        {
+          "label": "TIN",
+          "hint": "The 9-digit taxpayer number, on your RDB certificate or RRA letters"
+        }
+      ]
     },
     "property-tax-declaration": {
       "name": "Property tax declaration",
@@ -724,7 +759,7 @@
       "via": "Via RRA e-Tax · district tax",
       "time": "Filed within 2 working days of your documents",
       "timeShort": "Filed within 2 working days",
-      "docsShort": "TIN, UPI of each property",
+      "docsShort": "TIN and UPI numbers",
       "who": [
         {
           "title": "Land owners",
@@ -744,16 +779,7 @@
         "The UPI of each property",
         "What each property is used for"
       ],
-      "documents": [
-        {
-          "name": "TIN",
-          "detail": "Number or certificate"
-        },
-        {
-          "name": "UPI of each property",
-          "detail": "From the land title or e-title"
-        }
-      ],
+      "documents": [],
       "steps": [
         {
           "title": "You send your records",
@@ -777,7 +803,17 @@
         }
       ],
       "notes": [],
-      "officialNote": "Set by your district for each property. You pay it directly to RRA; we tell you the amount first."
+      "officialNote": "Set by your district for each property. You pay it directly to RRA; we tell you the amount first.",
+      "questions": [
+        {
+          "label": "TIN",
+          "hint": "The 9-digit taxpayer number, on your RDB certificate or RRA letters"
+        },
+        {
+          "label": "UPI of each property",
+          "hint": "From the land title or e-title. Separate several with commas"
+        }
+      ]
     },
     "ebm-installation": {
       "name": "EBM request and installation",
@@ -850,7 +886,13 @@
           "body": "Most businesses use the software EBM on a computer. If you need a physical EBM device, it is bought from a certified supplier — we confirm the cost with you first."
         }
       ],
-      "officialNote": "Set by RRA. Your agent confirms the exact amount before you pay anything."
+      "officialNote": "Set by RRA. Your agent confirms the exact amount before you pay anything.",
+      "questions": [
+        {
+          "label": "TIN",
+          "hint": "The 9-digit taxpayer number, on your RDB certificate or RRA letters"
+        }
+      ]
     },
     "ebm-training": {
       "name": "EBM use training",
@@ -919,7 +961,7 @@
       "via": "Via Irembo · land administration",
       "time": "Usually a few working days",
       "timeShort": "A few working days",
-      "docsShort": "Owner IDs, UPI",
+      "docsShort": "UPI, owners’ ID numbers",
       "who": [
         {
           "title": "Land owners",
@@ -940,12 +982,8 @@
       ],
       "documents": [
         {
-          "name": "National ID of each owner",
-          "detail": "Clear photo of both sides"
-        },
-        {
-          "name": "UPI or old land title",
-          "detail": "The number or a photo of the title"
+          "name": "National ID of each other owner",
+          "detail": "Only if the land has more than one owner"
         }
       ],
       "steps": [
@@ -975,7 +1013,13 @@
         }
       ],
       "notes": [],
-      "officialNote": "You pay the Irembo bill for the land administration yourself, by MoMo or Airtel Money. We tell you the amount first."
+      "officialNote": "You pay the Irembo bill for the land administration yourself, by MoMo or Airtel Money. We tell you the amount first.",
+      "questions": [
+        {
+          "label": "UPI of the land",
+          "hint": "The number on your land title, e.g. 1/02/03/04/1234"
+        }
+      ]
     },
     "land-spouse-update": {
       "name": "Add or remove a spouse in the land register",
@@ -983,8 +1027,8 @@
       "authority": "Land administration",
       "channel": "Irembo",
       "via": "Via Irembo · land administration",
-      "time": "Usually 1–2 weeks",
-      "timeShort": "1–2 weeks",
+      "time": "About 13 working days",
+      "timeShort": "About 13 working days",
       "docsShort": "IDs, marriage or other certificate, UPI",
       "who": [
         {
@@ -1059,7 +1103,7 @@
           "body": "The land office can ask both spouses to confirm the change. We tell you exactly who needs to do what before submitting."
         }
       ],
-      "officialNote": "You pay the Irembo bill for the land administration yourself. We tell you the amount first.",
+      "officialNote": "The land administration charges nothing for this. You pay our fee only.",
       "purposes": [
         "Add a spouse after marriage",
         "Remove a spouse after divorce",
@@ -1096,10 +1140,6 @@
         "The UPI of every plot"
       ],
       "documents": [
-        {
-          "name": "UPI of each plot",
-          "detail": "Or a photo of each title"
-        },
         {
           "name": "IDs of the owners",
           "detail": "Clear photos of both sides"
@@ -1145,7 +1185,13 @@
           "body": "We confirm the official fees, and whether a surveyor is needed, before you pay anything."
         }
       ],
-      "officialNote": "Set by the land administration. Your agent confirms the exact amount before you pay anything."
+      "officialNote": "Set by the land administration. Your agent confirms the exact amount before you pay anything.",
+      "questions": [
+        {
+          "label": "UPI of each plot",
+          "hint": "Separate them with commas"
+        }
+      ]
     },
     "rura-vehicle-authorisation": {
       "name": "Vehicle authorisation (RURA)",
@@ -1217,7 +1263,13 @@
         }
       ],
       "notes": [],
-      "officialNote": "Set by RURA for your vehicle type. You pay it to RURA yourself; we tell you the amount first."
+      "officialNote": "Set by RURA for your vehicle type. You pay it to RURA yourself; we tell you the amount first.",
+      "questions": [
+        {
+          "label": "Plate number",
+          "placeholder": "e.g. RAD 123 A"
+        }
+      ]
     },
     "rura-authorisation-suspension": {
       "name": "Suspension of vehicle authorisation",
@@ -1227,7 +1279,7 @@
       "via": "Via RURA online services",
       "time": "Usually 1–3 working days",
       "timeShort": "1–3 working days",
-      "docsShort": "Authorisation, yellow card",
+      "docsShort": "Authorisation or plate number",
       "who": [
         {
           "title": "Vehicles under repair",
@@ -1248,10 +1300,6 @@
         "Why and from when the vehicle stops operating"
       ],
       "documents": [
-        {
-          "name": "Current RURA authorisation",
-          "detail": "Or its number"
-        },
         {
           "name": "Vehicle registration certificate",
           "detail": "The yellow card"
@@ -1284,7 +1332,91 @@
         }
       ],
       "notes": [],
-      "officialNote": "Set by RURA. Your agent confirms the exact amount before you pay anything."
+      "officialNote": "Set by RURA. Your agent confirms the exact amount before you pay anything.",
+      "questions": [
+        {
+          "label": "RURA authorisation number, or the plate number"
+        },
+        {
+          "label": "From when the vehicle stops operating",
+          "placeholder": "e.g. 1 November"
+        }
+      ]
+    },
+    "criminal-record": {
+      "name": "Criminal record certificate",
+      "aka": "Police clearance",
+      "summary": "Request a criminal record certificate for a job, a visa or a tender. We file it on Irembo and send you the e-certificate when NPPA issues it. It is valid for 6 months.",
+      "authority": "National Public Prosecution Authority (NPPA)",
+      "channel": "Irembo",
+      "via": "Via Irembo · National Public Prosecution Authority (NPPA)",
+      "time": "About 21 days",
+      "timeShort": "About 21 days",
+      "docsShort": "National ID number",
+      "who": [
+        {
+          "title": "Job applicants",
+          "body": "An employer asked for it."
+        },
+        {
+          "title": "Visa and travel",
+          "body": "An embassy asked for it."
+        },
+        {
+          "title": "Tenders",
+          "body": "A bid needs a recent certificate."
+        }
+      ],
+      "requirements": [
+        "Your National ID number",
+        "What you need the certificate for"
+      ],
+      "documents": [
+        {
+          "name": "Passport photo",
+          "detail": "Only if you are not Rwandan, a refugee or under 16"
+        }
+      ],
+      "steps": [
+        {
+          "title": "You start the request",
+          "body": "Answer a few short questions. Takes about 3 minutes."
+        },
+        {
+          "title": "We check your documents",
+          "body": "Your agent confirms everything is correct, usually within 2 working hours."
+        },
+        {
+          "title": "You approve the fees",
+          "body": "You see the official fee and our fee separately, then pay by MoMo or Airtel Money."
+        },
+        {
+          "title": "We submit via Irembo",
+          "body": "We submit through the official channel and share the official reference number with you."
+        },
+        {
+          "title": "National Public Prosecution Authority (NPPA) processes it",
+          "body": "The institution reviews and decides. We follow up if it takes longer than usual."
+        },
+        {
+          "title": "You receive the result",
+          "body": "Delivered to your portal and WhatsApp, with official receipts."
+        }
+      ],
+      "notes": [
+        {
+          "title": "We apply. You get the document.",
+          "body": "You send the details. We submit on Irembo for you and send the document as soon as National Public Prosecution Authority (NPPA) issues it. Inzira is not National Public Prosecution Authority (NPPA) and not Irembo."
+        }
+      ],
+      "officialNote": "Irembo’s own fee. You pay it with our fee in one payment, and we pay the Irembo bill for you as soon as it is issued. If the institution refuses, it is refunded.",
+      "purposeLabel": "What is it for?",
+      "purposes": [
+        "A job",
+        "A visa",
+        "A tender",
+        "Something else"
+      ]
     },
     "driving-licence-copy": {
       "name": "Copy of a driving licence",
@@ -1293,9 +1425,9 @@
       "authority": "Rwanda National Police",
       "channel": "Irembo",
       "via": "Via Irembo · Rwanda National Police",
-      "time": "Usually a few working days",
-      "timeShort": "A few working days",
-      "docsShort": "National ID",
+      "time": "Within 21 days",
+      "timeShort": "Within 21 days",
+      "docsShort": "National ID number",
       "who": [
         {
           "title": "Lost or stolen licences",
@@ -1311,23 +1443,10 @@
         }
       ],
       "requirements": [
-        "Your national ID",
-        "The licence number, if you still have it"
+        "Your National ID number",
+        "The police station where you will collect it"
       ],
-      "documents": [
-        {
-          "name": "National ID",
-          "detail": "Clear photo of both sides, or the passport data page"
-        },
-        {
-          "name": "Current licence",
-          "detail": "A photo, if you still have the card"
-        },
-        {
-          "name": "Passport photo",
-          "detail": "A recent photo of your face"
-        }
-      ],
+      "documents": [],
       "steps": [
         {
           "title": "You start the request",
@@ -1357,10 +1476,20 @@
       "notes": [
         {
           "title": "We apply. You get the document.",
-          "body": "You send the photos and the details. We submit on Irembo for you and send the document as soon as Rwanda National Police issues it. Inzira is not Rwanda National Police and not Irembo."
+          "body": "You send the details. We submit on Irembo for you and send the document as soon as Rwanda National Police issues it. Inzira is not Rwanda National Police and not Irembo."
+        },
+        {
+          "title": "What to bring when you collect it",
+          "body": "A photocopy of your National ID, a letter to the Commissioner for Testing and Licensing saying why you need a copy, and the Irembo receipt we send you."
         }
       ],
-      "officialNote": "The fee set by Rwanda National Police is paid on Irembo, by MoMo or Airtel Money. We tell you the amount before anything is submitted. It does not pass through Inzira."
+      "officialNote": "Irembo charges Rwf 25,000 for a copy. We send you the Irembo bill to pay with MoMo or Airtel Money; it does not pass through Inzira.",
+      "questions": [
+        {
+          "label": "Police station to collect it from",
+          "placeholder": "e.g. Remera"
+        }
+      ]
     },
     "traffic-fine": {
       "name": "Pay a traffic fine",
@@ -1371,7 +1500,7 @@
       "via": "Via Irembo · Rwanda National Police",
       "time": "Usually the same day",
       "timeShort": "The same day",
-      "docsShort": "ID, ticket or plate number",
+      "docsShort": "Plate number and TIN, or the ticket",
       "who": [
         {
           "title": "Drivers",
@@ -1387,17 +1516,12 @@
         }
       ],
       "requirements": [
-        "The plate number or the fine reference",
-        "The name on the fine"
+        "The plate number and the TIN on the yellow card, or the ticket number"
       ],
       "documents": [
         {
-          "name": "National ID",
-          "detail": "Clear photo of both sides, or the passport data page"
-        },
-        {
-          "name": "Fine slip or plate number",
-          "detail": "A photo of the ticket, or the plate number"
+          "name": "Photo of the ticket",
+          "detail": "If you have it"
         }
       ],
       "steps": [
@@ -1429,15 +1553,29 @@
       "notes": [
         {
           "title": "We apply. You get the document.",
-          "body": "You send the photos and the details. We submit on Irembo for you and send the document as soon as Rwanda National Police issues it. Inzira is not Rwanda National Police and not Irembo."
+          "body": "You send the details. We submit on Irembo for you and send the document as soon as Rwanda National Police issues it. Inzira is not Rwanda National Police and not Irembo."
+        },
+        {
+          "title": "The fine is paid within the hour",
+          "body": "Irembo cancels a fine bill after one hour. We look the fine up, send you one total with our fee, and pay the bill as soon as you pay us."
         }
       ],
-      "officialNote": "The fee set by Rwanda National Police is paid on Irembo, by MoMo or Airtel Money. We tell you the amount before anything is submitted. It does not pass through Inzira.",
+      "officialNote": "Set by Rwanda National Police. Your agent confirms the exact amount before you pay anything.",
       "purposeLabel": "Whose fine is it?",
       "purposes": [
         "Mine",
         "A family member",
         "A vehicle I own"
+      ],
+      "questions": [
+        {
+          "label": "Plate number or ticket number",
+          "placeholder": "e.g. RAD 123 A"
+        },
+        {
+          "label": "TIN on the yellow card",
+          "hint": "Not needed if you gave the ticket number"
+        }
       ]
     },
     "burundi-licence-exchange": {
@@ -1508,7 +1646,7 @@
       "notes": [
         {
           "title": "We apply. You get the document.",
-          "body": "You send the photos and the details. We submit on Irembo for you and send the document as soon as Rwanda National Police issues it. Inzira is not Rwanda National Police and not Irembo."
+          "body": "You send the details. We submit on Irembo for you and send the document as soon as Rwanda National Police issues it. Inzira is not Rwanda National Police and not Irembo."
         }
       ],
       "officialNote": "The fee set by Rwanda National Police is paid on Irembo, by MoMo or Airtel Money. We tell you the amount before anything is submitted. It does not pass through Inzira."
@@ -1533,14 +1671,10 @@
         }
       ],
       "requirements": [
-        "Your national ID",
+        "Your National ID number",
         "What is wrong, and what it should say"
       ],
       "documents": [
-        {
-          "name": "National ID",
-          "detail": "Clear photo of both sides, or the passport data page"
-        },
         {
           "name": "The licence to correct",
           "detail": "Clear photo of both sides"
@@ -1579,10 +1713,16 @@
       "notes": [
         {
           "title": "We apply. You get the document.",
-          "body": "You send the photos and the details. We submit on Irembo for you and send the document as soon as Rwanda National Police issues it. Inzira is not Rwanda National Police and not Irembo."
+          "body": "You send the details. We submit on Irembo for you and send the document as soon as Rwanda National Police issues it. Inzira is not Rwanda National Police and not Irembo."
         }
       ],
-      "officialNote": "The fee set by Rwanda National Police is paid on Irembo, by MoMo or Airtel Money. We tell you the amount before anything is submitted. It does not pass through Inzira."
+      "officialNote": "The fee set by Rwanda National Police is paid on Irembo, by MoMo or Airtel Money. We tell you the amount before anything is submitted. It does not pass through Inzira.",
+      "questions": [
+        {
+          "label": "What is wrong, and what it should say",
+          "placeholder": "e.g. the name should read Mukamana Aline"
+        }
+      ]
     },
     "driving-licence-issuance": {
       "name": "Collect a driving licence you passed",
@@ -1593,7 +1733,7 @@
       "via": "Via Irembo · Rwanda National Police",
       "time": "Usually a few working days",
       "timeShort": "A few working days",
-      "docsShort": "National ID, test slip",
+      "docsShort": "National ID number",
       "who": [
         {
           "title": "New drivers",
@@ -1605,21 +1745,14 @@
         }
       ],
       "requirements": [
-        "Your national ID",
-        "The test you passed, and when"
+        "Your National ID number",
+        "The test you passed, and when",
+        "The police station where you will collect it"
       ],
       "documents": [
         {
-          "name": "National ID",
-          "detail": "Clear photo of both sides, or the passport data page"
-        },
-        {
           "name": "Test slip or provisional permit",
           "detail": "If the centre gave you one"
-        },
-        {
-          "name": "Passport photo",
-          "detail": "A recent photo of your face"
         }
       ],
       "steps": [
@@ -1651,10 +1784,16 @@
       "notes": [
         {
           "title": "We apply. You get the document.",
-          "body": "You send the photos and the details. We submit on Irembo for you and send the document as soon as Rwanda National Police issues it. Inzira is not Rwanda National Police and not Irembo."
+          "body": "You send the details. We submit on Irembo for you and send the document as soon as Rwanda National Police issues it. Inzira is not Rwanda National Police and not Irembo."
         }
       ],
-      "officialNote": "The fee set by Rwanda National Police is paid on Irembo, by MoMo or Airtel Money. We tell you the amount before anything is submitted. It does not pass through Inzira."
+      "officialNote": "The fee set by Rwanda National Police is paid on Irembo, by MoMo or Airtel Money. We tell you the amount before anything is submitted. It does not pass through Inzira.",
+      "questions": [
+        {
+          "label": "Police station to collect it from",
+          "placeholder": "e.g. Remera"
+        }
+      ]
     },
     "driving-test-results": {
       "name": "Driving test results",
@@ -1665,7 +1804,7 @@
       "via": "Via Irembo · Rwanda National Police",
       "time": "Usually 1–3 working days",
       "timeShort": "1–3 working days",
-      "docsShort": "National ID",
+      "docsShort": "National ID number",
       "who": [
         {
           "title": "Candidates waiting",
@@ -1677,14 +1816,10 @@
         }
       ],
       "requirements": [
-        "Your national ID",
+        "Your National ID number",
         "When and where you sat the test, if you know"
       ],
       "documents": [
-        {
-          "name": "National ID",
-          "detail": "Clear photo of both sides, or the passport data page"
-        },
         {
           "name": "Candidate number",
           "detail": "If the testing centre gave you one"
@@ -1719,7 +1854,7 @@
       "notes": [
         {
           "title": "We apply. You get the document.",
-          "body": "You send the photos and the details. We submit on Irembo for you and send the document as soon as Rwanda National Police issues it. Inzira is not Rwanda National Police and not Irembo."
+          "body": "You send the details. We submit on Irembo for you and send the document as soon as Rwanda National Police issues it. Inzira is not Rwanda National Police and not Irembo."
         }
       ],
       "officialNote": "The fee set by Rwanda National Police is paid on Irembo, by MoMo or Airtel Money. We tell you the amount before anything is submitted. It does not pass through Inzira."
@@ -1733,7 +1868,7 @@
       "via": "Via Irembo · Rwanda National Police",
       "time": "The date depends on the testing centre",
       "timeShort": "The date depends on the testing centre",
-      "docsShort": "National ID",
+      "docsShort": "National ID number",
       "who": [
         {
           "title": "First licence",
@@ -1745,17 +1880,14 @@
         }
       ],
       "requirements": [
-        "Your national ID",
-        "The category you want to sit"
+        "Your National ID number",
+        "The category you want to sit",
+        "For the definitive test: your physical provisional licence"
       ],
       "documents": [
         {
-          "name": "National ID",
-          "detail": "Clear photo of both sides, or the passport data page"
-        },
-        {
-          "name": "Provisional permit or current licence",
-          "detail": "If you already have one"
+          "name": "Provisional licence",
+          "detail": "For the definitive test only"
         }
       ],
       "steps": [
@@ -1787,28 +1919,38 @@
       "notes": [
         {
           "title": "We apply. You get the document.",
-          "body": "You send the photos and the details. We submit on Irembo for you and send the document as soon as Rwanda National Police issues it. Inzira is not Rwanda National Police and not Irembo."
+          "body": "You send the details. We submit on Irembo for you and send the document as soon as Rwanda National Police issues it. Inzira is not Rwanda National Police and not Irembo."
+        },
+        {
+          "title": "Pay the Irembo bill within 8 hours",
+          "body": "Irembo releases the test slot if its bill is not paid within 8 hours, and the details cannot be changed once the bill exists. We send it the moment we book: pay it straight away."
         }
       ],
-      "officialNote": "The fee set by Rwanda National Police is paid on Irembo, by MoMo or Airtel Money. We tell you the amount before anything is submitted. It does not pass through Inzira.",
+      "officialNote": "Rwf 5,000 for a provisional test and Rwf 10,000 for a definitive test (Busanza costs more). You pay the Irembo bill we send you with MoMo or Airtel Money.",
       "purposeLabel": "Which test?",
       "purposes": [
         "Category A (motorcycle)",
         "Category B (car)",
         "Another category",
         "I am not sure"
+      ],
+      "questions": [
+        {
+          "label": "Test centre and the date you would like",
+          "placeholder": "e.g. Busanza, any day next week"
+        }
       ]
     },
     "driving-licence-renewal": {
       "name": "Renew a driving licence",
       "aka": "Extend a licence that is expiring",
-      "summary": "Renew a driving licence before or after it expires. We submit the renewal and send you the new card.",
+      "summary": "Renew a driving licence in the 14 days before it expires. We submit the renewal and tell you when the new card is ready at the police station you chose.",
       "authority": "Rwanda National Police",
       "channel": "Irembo",
       "via": "Via Irembo · Rwanda National Police",
-      "time": "Usually a few working days",
-      "timeShort": "A few working days",
-      "docsShort": "National ID, current licence",
+      "time": "About 7 days",
+      "timeShort": "About 7 days",
+      "docsShort": "National ID number",
       "who": [
         {
           "title": "Licences about to expire",
@@ -1820,23 +1962,11 @@
         }
       ],
       "requirements": [
-        "Your national ID",
-        "The current licence number"
+        "Your National ID number",
+        "The police station where you will collect it",
+        "The expiry date on your licence"
       ],
-      "documents": [
-        {
-          "name": "National ID",
-          "detail": "Clear photo of both sides, or the passport data page"
-        },
-        {
-          "name": "Current driving licence",
-          "detail": "Clear photo of both sides"
-        },
-        {
-          "name": "Passport photo",
-          "detail": "A recent photo of your face"
-        }
-      ],
+      "documents": [],
       "steps": [
         {
           "title": "You start the request",
@@ -1866,10 +1996,21 @@
       "notes": [
         {
           "title": "We apply. You get the document.",
-          "body": "You send the photos and the details. We submit on Irembo for you and send the document as soon as Rwanda National Police issues it. Inzira is not Rwanda National Police and not Irembo."
+          "body": "You send the details. We submit on Irembo for you and send the document as soon as Rwanda National Police issues it. Inzira is not Rwanda National Police and not Irembo."
         }
       ],
-      "officialNote": "The fee set by Rwanda National Police is paid on Irembo, by MoMo or Airtel Money. We tell you the amount before anything is submitted. It does not pass through Inzira."
+      "officialNote": "Irembo’s own fee. You pay it with our fee in one payment, and we pay the Irembo bill for you as soon as it is issued. If the institution refuses, it is refunded.",
+      "questions": [
+        {
+          "label": "Police station to collect it from",
+          "placeholder": "e.g. Remera"
+        },
+        {
+          "label": "Expiry date on your licence",
+          "hint": "Renewal opens 14 days before it",
+          "placeholder": "e.g. 30 November 2026"
+        }
+      ]
     },
     "vehicle-inspection": {
       "name": "Vehicle inspection and emissions",
@@ -1880,7 +2021,7 @@
       "via": "Via Irembo · Rwanda National Police",
       "time": "The day you take the vehicle in, then a few days for the certificate",
       "timeShort": "The day you take the vehicle in, then a few days for the certificate",
-      "docsShort": "ID, yellow card, plate number",
+      "docsShort": "Plate number, owner’s ID number",
       "who": [
         {
           "title": "Car and moto owners",
@@ -1897,14 +2038,9 @@
       ],
       "requirements": [
         "The plate number",
-        "The yellow card",
-        "The owner’s national ID"
+        "The owner’s National ID number"
       ],
       "documents": [
-        {
-          "name": "National ID",
-          "detail": "Clear photo of both sides, or the passport data page"
-        },
         {
           "name": "Yellow card",
           "detail": "Vehicle registration certificate"
@@ -1943,99 +2079,26 @@
       "notes": [
         {
           "title": "We apply. You get the document.",
-          "body": "You send the photos and the details. We submit on Irembo for you and send the document as soon as Rwanda National Police issues it. Inzira is not Rwanda National Police and not Irembo."
-        }
-      ],
-      "officialNote": "The fee set by Rwanda National Police is paid on Irembo, by MoMo or Airtel Money. We tell you the amount before anything is submitted. It does not pass through Inzira."
-    },
-    "criminal-record": {
-      "name": "Criminal record certificate",
-      "aka": "Certificate of good conduct",
-      "summary": "Request a criminal record certificate for a job, a visa or a tender. We file it and send you the certificate when the police issue it.",
-      "authority": "Rwanda National Police",
-      "channel": "Irembo",
-      "via": "Via Irembo · Rwanda National Police",
-      "time": "Usually a few working days",
-      "timeShort": "A few working days",
-      "docsShort": "National ID, photo",
-      "who": [
-        {
-          "title": "Job applicants",
-          "body": "An employer asked for it."
-        },
-        {
-          "title": "Visa and travel",
-          "body": "An embassy asked for it."
-        },
-        {
-          "title": "Tenders",
-          "body": "A bid needs a recent certificate."
-        }
-      ],
-      "requirements": [
-        "Your national ID",
-        "What you need the certificate for"
-      ],
-      "documents": [
-        {
-          "name": "National ID",
-          "detail": "Clear photo of both sides, or the passport data page"
-        },
-        {
-          "name": "Passport photo",
-          "detail": "A recent photo of your face"
-        }
-      ],
-      "steps": [
-        {
-          "title": "You start the request",
-          "body": "Answer a few short questions. Takes about 3 minutes."
-        },
-        {
-          "title": "We check your documents",
-          "body": "Your agent confirms everything is correct, usually within 2 working hours."
-        },
-        {
-          "title": "You approve the fees",
-          "body": "You see the official fee and our fee separately, then pay by MoMo or Airtel Money."
-        },
-        {
-          "title": "We submit via Irembo",
-          "body": "We submit through the official channel and share the official reference number with you."
-        },
-        {
-          "title": "Rwanda National Police processes it",
-          "body": "The institution reviews and decides. We follow up if it takes longer than usual."
-        },
-        {
-          "title": "You receive the result",
-          "body": "Delivered to your portal and WhatsApp, with official receipts."
-        }
-      ],
-      "notes": [
-        {
-          "title": "We apply. You get the document.",
-          "body": "You send the photos and the details. We submit on Irembo for you and send the document as soon as Rwanda National Police issues it. Inzira is not Rwanda National Police and not Irembo."
+          "body": "You send the details. We submit on Irembo for you and send the document as soon as Rwanda National Police issues it. Inzira is not Rwanda National Police and not Irembo."
         }
       ],
       "officialNote": "The fee set by Rwanda National Police is paid on Irembo, by MoMo or Airtel Money. We tell you the amount before anything is submitted. It does not pass through Inzira.",
-      "purposeLabel": "What is it for?",
-      "purposes": [
-        "A job",
-        "A visa",
-        "A tender",
-        "Something else"
+      "questions": [
+        {
+          "label": "Plate number",
+          "placeholder": "e.g. RAD 123 A"
+        }
       ]
     },
     "birth-certificate": {
       "name": "Birth certificate",
-      "summary": "Request a birth certificate. We file it with the details you send and send you the certificate when it is issued.",
+      "summary": "Request a birth certificate for you or your child. We file it on Irembo and send you the e-certificate, usually the next working day.",
       "authority": "Civil registration",
       "channel": "Irembo",
       "via": "Via Irembo · Civil registration",
-      "time": "Usually a few working days",
-      "timeShort": "A few working days",
-      "docsShort": "National ID, name and date of birth",
+      "time": "Usually the next working day",
+      "timeShort": "The next working day",
+      "docsShort": "National ID number",
       "who": [
         {
           "title": "Parents",
@@ -2051,20 +2114,9 @@
         }
       ],
       "requirements": [
-        "The full name and date of birth",
-        "The place of birth, if you know it",
-        "Your national ID, or a parent’s ID for a child"
+        "The National ID number, or the child’s application number"
       ],
-      "documents": [
-        {
-          "name": "National ID",
-          "detail": "Clear photo of both sides, or the passport data page"
-        },
-        {
-          "name": "Previous certificate",
-          "detail": "A photo, if you have an old copy"
-        }
-      ],
+      "documents": [],
       "steps": [
         {
           "title": "You start the request",
@@ -2094,16 +2146,10 @@
       "notes": [
         {
           "title": "We apply. You get the document.",
-          "body": "You send the photos and the details. We submit on Irembo for you and send the document as soon as Civil registration issues it. Inzira is not Civil registration and not Irembo."
+          "body": "You send the details. We submit on Irembo for you and send the document as soon as Civil registration issues it. Inzira is not Civil registration and not Irembo."
         }
       ],
-      "officialNote": "The fee set by Civil registration is paid on Irembo, by MoMo or Airtel Money. We tell you the amount before anything is submitted. It does not pass through Inzira.",
-      "purposeLabel": "Who is it for?",
-      "purposes": [
-        "Myself",
-        "My child",
-        "Another family member"
-      ]
+      "officialNote": "Irembo’s own fee. You pay it with our fee in one payment, and we pay the Irembo bill for you as soon as it is issued. If the institution refuses, it is refunded."
     },
     "marriage-certificate": {
       "name": "Marriage certificate",
@@ -2111,9 +2157,9 @@
       "authority": "Civil registration",
       "channel": "Irembo",
       "via": "Via Irembo · Civil registration",
-      "time": "Usually a few working days",
-      "timeShort": "A few working days",
-      "docsShort": "Both spouses’ IDs",
+      "time": "Usually the next working day",
+      "timeShort": "The next working day",
+      "docsShort": "National ID number",
       "who": [
         {
           "title": "Married couples",
@@ -2125,19 +2171,9 @@
         }
       ],
       "requirements": [
-        "IDs of both spouses",
-        "When and where the marriage was registered, if you know"
+        "Your National ID number"
       ],
-      "documents": [
-        {
-          "name": "IDs of both spouses",
-          "detail": "Clear photo of both sides"
-        },
-        {
-          "name": "Previous certificate",
-          "detail": "A photo, if you have an old copy"
-        }
-      ],
+      "documents": [],
       "steps": [
         {
           "title": "You start the request",
@@ -2167,10 +2203,10 @@
       "notes": [
         {
           "title": "We apply. You get the document.",
-          "body": "You send the photos and the details. We submit on Irembo for you and send the document as soon as Civil registration issues it. Inzira is not Civil registration and not Irembo."
+          "body": "You send the details. We submit on Irembo for you and send the document as soon as Civil registration issues it. Inzira is not Civil registration and not Irembo."
         }
       ],
-      "officialNote": "The fee set by Civil registration is paid on Irembo, by MoMo or Airtel Money. We tell you the amount before anything is submitted. It does not pass through Inzira."
+      "officialNote": "Irembo’s own fee. You pay it with our fee in one payment, and we pay the Irembo bill for you as soon as it is issued. If the institution refuses, it is refunded."
     },
     "death-certificate": {
       "name": "Death certificate",
@@ -2178,9 +2214,9 @@
       "authority": "Civil registration",
       "channel": "Irembo",
       "via": "Via Irembo · Civil registration",
-      "time": "Usually a few working days",
-      "timeShort": "A few working days",
-      "docsShort": "Your ID, name of the deceased",
+      "time": "Usually the next working day",
+      "timeShort": "The next working day",
+      "docsShort": "Your ID number and theirs",
       "who": [
         {
           "title": "Families",
@@ -2192,18 +2228,13 @@
         }
       ],
       "requirements": [
-        "Your national ID",
-        "The full name of the person who died",
-        "The date and place of death, if you know them"
+        "Your National ID number",
+        "The ID number of the person who died"
       ],
       "documents": [
         {
-          "name": "National ID",
-          "detail": "Clear photo of both sides, or the passport data page"
-        },
-        {
           "name": "Burial or hospital paper",
-          "detail": "If you were given one"
+          "detail": "Only if the death has never been registered"
         }
       ],
       "steps": [
@@ -2235,10 +2266,20 @@
       "notes": [
         {
           "title": "We apply. You get the document.",
-          "body": "You send the photos and the details. We submit on Irembo for you and send the document as soon as Civil registration issues it. Inzira is not Civil registration and not Irembo."
+          "body": "You send the details. We submit on Irembo for you and send the document as soon as Civil registration issues it. Inzira is not Civil registration and not Irembo."
+        },
+        {
+          "title": "A death never registered before",
+          "body": "Irembo then also needs two witnesses and a declarant. We tell you who and what before anything is filed."
         }
       ],
-      "officialNote": "The fee set by Civil registration is paid on Irembo, by MoMo or Airtel Money. We tell you the amount before anything is submitted. It does not pass through Inzira."
+      "officialNote": "Irembo’s own fee. You pay it with our fee in one payment, and we pay the Irembo bill for you as soon as it is issued. If the institution refuses, it is refunded.",
+      "questions": [
+        {
+          "label": "ID number of the person who died",
+          "hint": "If you know it"
+        }
+      ]
     },
     "residence-certificate": {
       "name": "Certificate of residence",
@@ -2246,9 +2287,9 @@
       "authority": "Civil registration",
       "channel": "Irembo",
       "via": "Via Irembo · Civil registration",
-      "time": "Usually a few working days",
-      "timeShort": "A few working days",
-      "docsShort": "National ID, address",
+      "time": "Usually the next working day",
+      "timeShort": "The next working day",
+      "docsShort": "National ID number, address",
       "who": [
         {
           "title": "Banks and schools",
@@ -2260,15 +2301,10 @@
         }
       ],
       "requirements": [
-        "Your national ID",
-        "District, sector, cell and village"
+        "Your National ID number",
+        "Where you live now"
       ],
-      "documents": [
-        {
-          "name": "National ID",
-          "detail": "Clear photo of both sides, or the passport data page"
-        }
-      ],
+      "documents": [],
       "steps": [
         {
           "title": "You start the request",
@@ -2298,10 +2334,17 @@
       "notes": [
         {
           "title": "We apply. You get the document.",
-          "body": "You send the photos and the details. We submit on Irembo for you and send the document as soon as Civil registration issues it. Inzira is not Civil registration and not Irembo."
+          "body": "You send the details. We submit on Irembo for you and send the document as soon as Civil registration issues it. Inzira is not Civil registration and not Irembo."
         }
       ],
-      "officialNote": "The fee set by Civil registration is paid on Irembo, by MoMo or Airtel Money. We tell you the amount before anything is submitted. It does not pass through Inzira."
+      "officialNote": "Irembo’s own fee. You pay it with our fee in one payment, and we pay the Irembo bill for you as soon as it is issued. If the institution refuses, it is refunded.",
+      "questions": [
+        {
+          "label": "Where you live now",
+          "hint": "District, sector, cell and village",
+          "placeholder": "e.g. Gasabo, Remera, Rukiri I, Amahoro"
+        }
+      ]
     },
     "single-status": {
       "name": "Certificate of being single",
@@ -2309,9 +2352,9 @@
       "authority": "Civil registration",
       "channel": "Irembo",
       "via": "Via Irembo · Civil registration",
-      "time": "Usually a few working days",
-      "timeShort": "A few working days",
-      "docsShort": "National ID",
+      "time": "Usually the next working day",
+      "timeShort": "The next working day",
+      "docsShort": "National ID number",
       "who": [
         {
           "title": "People about to marry",
@@ -2323,14 +2366,10 @@
         }
       ],
       "requirements": [
-        "Your national ID"
+        "Your National ID number",
+        "NIDA must already list you as single"
       ],
-      "documents": [
-        {
-          "name": "National ID",
-          "detail": "Clear photo of both sides, or the passport data page"
-        }
-      ],
+      "documents": [],
       "steps": [
         {
           "title": "You start the request",
@@ -2360,10 +2399,14 @@
       "notes": [
         {
           "title": "We apply. You get the document.",
-          "body": "You send the photos and the details. We submit on Irembo for you and send the document as soon as Civil registration issues it. Inzira is not Civil registration and not Irembo."
+          "body": "You send the details. We submit on Irembo for you and send the document as soon as Civil registration issues it. Inzira is not Civil registration and not Irembo."
+        },
+        {
+          "title": "Only if NIDA lists you as single",
+          "body": "Irembo refuses this certificate when NIDA shows another civil status. If yours is wrong, it has to be corrected at your sector first."
         }
       ],
-      "officialNote": "The fee set by Civil registration is paid on Irembo, by MoMo or Airtel Money. We tell you the amount before anything is submitted. It does not pass through Inzira."
+      "officialNote": "Irembo’s own fee. You pay it with our fee in one payment, and we pay the Irembo bill for you as soon as it is issued. If the institution refuses, it is refunded."
     },
     "passport-application": {
       "name": "Passport application",
@@ -2372,9 +2415,9 @@
       "authority": "Immigration",
       "channel": "Irembo",
       "via": "Via Irembo · Immigration",
-      "time": "The immigration office sets the collection date",
-      "timeShort": "The immigration office sets the collection date",
-      "docsShort": "National ID, photo",
+      "time": "About 4 working days, then collection at the office you choose",
+      "timeShort": "About 4 working days, then collection at the office you choose",
+      "docsShort": "Photo, signature, ID copy",
       "who": [
         {
           "title": "First passport",
@@ -2395,16 +2438,20 @@
       ],
       "documents": [
         {
-          "name": "National ID",
-          "detail": "Clear photo of both sides, or the passport data page"
+          "name": "Passport photo",
+          "detail": "A recent photo on a white background"
+        },
+        {
+          "name": "Your signature",
+          "detail": "Sign on white paper and take a photo"
+        },
+        {
+          "name": "Copy of your National ID",
+          "detail": "Both sides"
         },
         {
           "name": "Current passport",
           "detail": "Photo of the data page, for a renewal"
-        },
-        {
-          "name": "Passport photo",
-          "detail": "A recent photo on a plain background"
         }
       ],
       "steps": [
@@ -2436,7 +2483,7 @@
       "notes": [
         {
           "title": "We apply. You get the document.",
-          "body": "You send the photos and the details. We submit on Irembo for you and send the document as soon as Immigration issues it. Inzira is not Immigration and not Irembo."
+          "body": "You send the details. We submit on Irembo for you and send the document as soon as Immigration issues it. Inzira is not Immigration and not Irembo."
         }
       ],
       "officialNote": "The fee set by Immigration is paid on Irembo, by MoMo or Airtel Money. We tell you the amount before anything is submitted. It does not pass through Inzira.",
@@ -2450,13 +2497,13 @@
     "id-card-replacement": {
       "name": "Replacement of a national ID card",
       "aka": "Lost, stolen or damaged ID card",
-      "summary": "Ask for a new national ID card when yours is lost, stolen or damaged. We file the request with the details you give us. We do not look the number up, and a 16-digit number is not proof the card exists.",
+      "summary": "Ask for a new national ID card when yours is lost, stolen or damaged. We file the request on Irembo; RIB then asks you to visit once before the card is made, and you collect it where you chose.",
       "authority": "National identification",
       "channel": "Irembo",
       "via": "Via Irembo · National identification",
-      "time": "The identification office sets the collection date",
-      "timeShort": "The identification office sets the collection date",
-      "docsShort": "What happened to the card, a photo",
+      "time": "About 30 days",
+      "timeShort": "About 30 days",
+      "docsShort": "ID number, RIB office",
       "who": [
         {
           "title": "Lost or stolen cards",
@@ -2468,18 +2515,13 @@
         }
       ],
       "requirements": [
-        "What happened to the card",
-        "The ID number if you still know it",
-        "Your date of birth and your parents’ names, as printed before"
+        "Your ID number, if you know it",
+        "The RIB office to visit and where to collect the new card"
       ],
       "documents": [
         {
           "name": "Any remaining piece of the card",
           "detail": "A photo, if you still have it"
-        },
-        {
-          "name": "Passport photo",
-          "detail": "A recent photo of your face"
         }
       ],
       "steps": [
@@ -2510,16 +2552,26 @@
       ],
       "notes": [
         {
-          "title": "We file the request. We do not look the number up.",
-          "body": "Inzira sends the application with what you tell us. We do not search a government register, and we cannot confirm that an ID number exists."
+          "title": "We apply. You get the document.",
+          "body": "You send the details. We submit on Irembo for you and send the document as soon as National identification issues it. Inzira is not National identification and not Irembo."
+        },
+        {
+          "title": "One visit to RIB",
+          "body": "RIB asks you to come once before the card is made. A temporary ID costs Rwf 3,000 more on Irembo; ask us if you need one."
         }
       ],
-      "officialNote": "The fee set by National identification is paid on Irembo, by MoMo or Airtel Money. We tell you the amount before anything is submitted. It does not pass through Inzira.",
+      "officialNote": "Irembo’s own fee. You pay it with our fee in one payment, and we pay the Irembo bill for you as soon as it is issued. If the institution refuses, it is refunded.",
       "purposeLabel": "What happened?",
       "purposes": [
         "Lost",
         "Stolen",
         "Damaged"
+      ],
+      "questions": [
+        {
+          "label": "RIB office and where to collect the new card",
+          "placeholder": "e.g. RIB Remera, collect at Remera sector"
+        }
       ]
     },
     "other-online-service": {

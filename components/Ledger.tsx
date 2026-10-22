@@ -2,7 +2,7 @@
 import { useState } from "react";
 import { refund as refundAction } from "@/app/actions/admin";
 import { billOfficial, rwf } from "@/lib/format";
-import { paidSplit, payStatus } from "@/lib/status";
+import { payStatus, refundSplit } from "@/lib/status";
 import type { RequestView } from "@/lib/types";
 import { Icon, PayBadge } from "./ui";
 import { useDialog } from "./useDialog";
@@ -17,7 +17,7 @@ export default function Ledger({ initial: rows, now, canRefund, autoRefund = fal
   const [refund, setRefund] = useState<RequestView | null>(null);
   const [done, setDone] = useState("");
   const dialog = useDialog<HTMLDivElement>(!!refund, () => setRefund(null));
-  const refundable = (r: RequestView) => paidSplit(r.billing).ours;
+  const refundable = (r: RequestView) => refundSplit(r.billing).total;
 
   return (
     <>
@@ -57,10 +57,10 @@ export default function Ledger({ initial: rows, now, canRefund, autoRefund = fal
       {refund && (
         <div className="modal-bg" onClick={(e) => e.target === e.currentTarget && setRefund(null)}>
           <div ref={dialog} className="modal" role="dialog" aria-modal="true" aria-labelledby="rf-t">
-            <div className="row between" style={{ alignItems: "flex-start" }}><h3 id="rf-t" className="d" style={{ fontSize: 20 }}>Refund the assistance fee</h3><button className="btn btn-g btn-sm btn-ico" type="button" aria-label="Close" onClick={() => setRefund(null)}><Icon name="x" size={18} /></button></div>
+            <div className="row between" style={{ alignItems: "flex-start" }}><h3 id="rf-t" className="d" style={{ fontSize: 20 }}>Refund this request</h3><button className="btn btn-g btn-sm btn-ico" type="button" aria-label="Close" onClick={() => setRefund(null)}><Icon name="x" size={18} /></button></div>
             <p style={{ fontSize: 15, lineHeight: 1.55 }}>{autoRefund ? "Send" : "Return"} <strong className="fee-ours">{rwf(refundable(refund))}</strong> to {refund.profile.name} for <span className="m">{refund.ref}</span>, to the {refund.billing.transactions[0]?.method ?? "original"} account it was paid from{autoRefund ? ", through IntouchPay. It reads as refunded once IntouchPay confirms the money was sent." : "."}</p>
             {error && <span className="err-text" role="alert"><Icon name="alert" size={15} /> {error}</span>}
-            <p className="hint">Only our assistance fee is refunded here. Official fees already paid to an institution are recovered from that institution, not from Inzira. The refund is written to the audit log.</p>
+            <p className="hint">{refundSplit(refund.billing).official ? `This includes the ${rwf(refundSplit(refund.billing).official)} official fee we collected and have not paid to the institution yet. ` : ""}Only our assistance fee, and official fees we have not paid out, are refunded here. Official fees already paid to an institution are recovered from that institution, not from Inzira. The refund is written to the audit log.</p>
             <div className="row g10" style={{ justifyContent: "flex-end" }}>
               <button className="btn btn-g" type="button" onClick={() => setRefund(null)}>Cancel</button>
               <button className="btn btn-danger" type="button" disabled={busy} onClick={async () => {
