@@ -3,6 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import PayScreen from "@/components/PayScreen";
 import { Steps } from "@/components/Steps";
 import { Alert, Icon } from "@/components/ui";
+import { prettyPhone } from "@/lib/format";
 import { text } from "@/lib/i18n/messages";
 import { reconcileForScreen } from "@/lib/billing";
 import { getMyRequest, getPortalLocale, getWaitingPayment } from "@/lib/repo";
@@ -44,7 +45,7 @@ export default async function PayPage({ params, searchParams }: { params: Promis
         ? <Steps names={steps} current={2} label={t("start.stepLabel", { n: 3, total: 3, name: steps[2] })} caption={`${t("start.stepOf", { n: 3, total: 3 })} · ${steps[2]}`} />
         : <Link href={`/portal/requests/${r.ref}`} className="lnk row g6" style={{ fontSize: 14 }}><Icon name="arrow-l" size={16} /> {t("pay.back")}</Link>}
       {phoneShared && <Alert kind="info" title={t("start.phoneSharedTitle")}>{t("start.phoneShared")}</Alert>}
-      <PayScreen reqRef={r.ref} billing={r.billing} phone={r.account.phone} serviceName={r.service.name} contact={r.account.email ?? r.account.phone}
+      <PayScreen reqRef={r.ref} billing={r.billing} phone={r.account.phone} serviceName={r.service.name} contact={r.account.email ?? prettyPhone(r.account.phone)}
         checkout={checkout} waiting={waiting ?? undefined} />
     </div>
   );

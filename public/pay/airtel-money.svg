@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" role="img" aria-label="Airtel Money">
+  <!-- Stand-in tile. Replace this file with Airtel Rwanda's official Airtel Money mark, keeping the file name. -->
+  <rect width="96" height="96" rx="20" fill="#e4002b"/>
+  <text x="48" y="44" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="19" font-weight="700" fill="#ffffff">airtel</text>
+  <text x="48" y="70" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="19" font-weight="700" fill="#ffffff">money</text>
+</svg>

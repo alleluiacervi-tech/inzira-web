@@ -879,7 +879,12 @@
     "alreadyPaid": "Ayamaze kwishyurwa",
     "paidReviewBody": "Umukozi arabusuzuma mu {time}, akoherereze amafaranga nyayo kuri {contact}. Amafaranga {fee} yo gusuzuma akurwa ku mafaranga yacu.",
     "next2Review": "Uhabwa amafaranga nyayo yo kwemeza, hakuweho ayo wishyuye uyu munsi",
-    "payReview": "Ishyura amafaranga yo gusuzuma"
+    "payReview": "Ishyura amafaranga yo gusuzuma",
+    "networks": "Ishyura ukoresheje",
+    "netMtn": "078 · 079",
+    "netAirtel": "072 · 073",
+    "numberFor": "Numero yawe ya {network}",
+    "merchant": "Telefoni yawe izakwereka icyifuzo cyo kwishyura giturutse kuri {name}."
   },
   "docs": {
     "filter": "Gushungura ku miterere yazo",

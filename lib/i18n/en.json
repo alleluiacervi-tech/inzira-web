@@ -879,7 +879,12 @@
     "alreadyPaid": "Already paid",
     "paidReviewBody": "An agent checks it within {time} and sends the exact fees to {contact}. Your {fee} review fee is taken off our fee.",
     "next2Review": "You get the exact fees to approve, minus what you paid today",
-    "payReview": "Pay review fee"
+    "payReview": "Pay review fee",
+    "networks": "Pay with",
+    "netMtn": "078 · 079",
+    "netAirtel": "072 · 073",
+    "numberFor": "Your {network} number",
+    "merchant": "Your phone will show a payment request from {name}."
   },
   "docs": {
     "filter": "Filter by status",

@@ -276,7 +276,8 @@ await step("start", async () => {
     && (await p.ev(`!!document.querySelector('[aria-label="Step 3 of 3: Pay"]')`)), `${ref} ${(await p.ev(`document.body?.innerText ?? ""`)).slice(0, 300).replace(/\s+/g, " ")}`);
   check("start: the draft is cleared after sending", (await p.ev(`sessionStorage.getItem("inzira:start:land-spouse-update")`)) === null);
   await p.set("#mm", "722 123 456"); await sleep(100);
-  check("pay: the number's network is recognised as it is typed", (await p.ev(`document.querySelector(".pay-net")?.textContent ?? ""`)) === "Airtel Money");
+  check("pay: MTN and Airtel are offered as cards, and the number's network is picked as it is typed", (await p.ev(`document.querySelectorAll(".pay-netcard").length`)) === 2
+    && (await p.ev(`document.querySelector(".pay-netcard.on")?.dataset.net ?? ""`)) === "airtel" && await p.has("Your Airtel Money number"));
   await p.go(`/portal/requests/${ref}`); await waitFor(p, "We married in August.");
   check("start: the new customer is signed in and sees the request", await p.has("Add or remove a spouse in the land register") && await p.has("We married in August.") && await p.has("id_photo.png"));
   check("start: an unpaid checkout asks the customer to pay to send it", await p.has("Pay to send your request") && await p.has("Go to payment"));
@@ -300,7 +301,8 @@ await step("start", async () => {
   check("start: a phone number that belongs to another account does not block a new email", await p.has("Pay the review fee to send your request") && await p.has("We didn’t save the phone number") && !(await p.has("already belongs to another account")),
     (await p.ev(`document.body?.innerText ?? ""`)).slice(0, 300).replace(/\s+/g, " "));
   check("review fee: the payment screen charges only the review fee", (await p.ev(`document.querySelector("[data-pay]")?.textContent ?? ""`)).includes("Pay RWF 1,000") && await p.has("Review fee"));
-  await p.ev(`document.querySelector("#pay-agree").click()`); await p.set("#mm", "788 123 456"); await p.click("Pay RWF 1,000", "button");
+  check("pay: at checkout there is no second tick to approve the amounts", (await p.ev(`document.querySelector("#pay-agree") === null`)));
+  await p.set("#mm", "788 123 456"); await p.click("Pay RWF 1,000", "button");
   await waitFor(p, "Your request is with our team", 100);
   check("review fee: paying it sends the request and says the fees come next", await p.has("sends the exact fees") && await p.has("taken off our fee") && await p.has("minus what you paid today"),
     (await p.ev(`document.body?.innerText ?? ""`)).slice(0, 300).replace(/\s+/g, " "));
@@ -316,7 +318,7 @@ await step("start", async () => {
   await p.set("#otp", await p.ev(`document.querySelector("[data-demo-code]").dataset.demoCode`)); await p.click("Confirm and go to payment");
   await waitPath(p, (path) => path.endsWith("/pay"), 120); await waitFor(p, "Pay to send your request", 60);
   check("pay first: the checkout asks for the fixed price", await p.has("Pay to send your request") && (await p.ev(`document.querySelector("[data-pay]")?.textContent ?? ""`)).includes("Pay RWF 20,000"));
-  await p.ev(`document.querySelector("#pay-agree").click()`); await p.set("#mm", "788 123 456"); await p.click("Pay RWF 20,000", "button");
+  await p.set("#mm", "788 123 456"); await p.click("Pay RWF 20,000", "button");
   await waitFor(p, "Your request is with our team", 100);
   check("pay first: paying sends the request and says what happens next", await p.has("Your request is with our team") && await p.has("RWF 20,000") && await p.has("What happens next") && await p.has("MTN MoMo"),
     (await p.ev(`document.body?.innerText ?? ""`)).slice(0, 300).replace(/\s+/g, " "));

@@ -15,6 +15,14 @@ type Stage = "review" | "sending" | "pending" | "paid" | "failed" | "slow";
 type Network = "MTN MoMo" | "Airtel Money";
 /** The network a complete Rwandan number is on: 072 and 073 are Airtel, the rest MTN (as lib/payments.ts sends it). */
 const networkOf = (v: string): Network | null => (isMobile(v) ? (/^7[23]/.test(mobile(v)) ? "Airtel Money" : "MTN MoMo") : null);
+/** The two networks, as cards on the payment step. The tiles in public/pay are stand-ins: replace them with the official
+ *  acceptance marks from MTN Rwanda and Airtel Rwanda, keeping the file names. */
+const NETWORKS: { key: Network; logo: string; hint: string }[] = [
+  { key: "MTN MoMo", logo: "/pay/mtn-momo.svg", hint: "pay.netMtn" },
+  { key: "Airtel Money", logo: "/pay/airtel-money.svg", hint: "pay.netAirtel" },
+];
+/** The name the customer's phone shows on the prompt, when we know it (set by the account with IntouchPay). */
+const MERCHANT = process.env.NEXT_PUBLIC_MOMO_MERCHANT_NAME?.trim() || "";
 const clock = (ms: number) => { const s = Math.max(0, Math.floor(ms / 1000)); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`; };
 
 /** The payment screen: what is being paid, the phone that gets the prompt, then the wait and the outcome.
@@ -42,7 +50,10 @@ export default function PayScreen({ reqRef, billing: b, phone, serviceName, cont
   const [txId, setTxId] = useState<number | null>(waiting?.txId ?? null);
   const [num, setNum] = useState(prettyMobile(waiting?.payer ?? phone));
   const [sentAmount, setSentAmount] = useState(waiting?.amount ?? due);
-  const [agree, setAgree] = useState(false);
+  // At checkout the amounts were accepted on the request form; a quote's new amounts are approved here with a tick.
+  const [agree, setAgree] = useState(checkout);
+  const [picked, setPicked] = useState<Network>("MTN MoMo");
+  const numberInput = useRef<HTMLInputElement>(null);
   const [error, setError] = useState("");
   const [receipt, setReceipt] = useState(waiting?.receipt ?? "");
   const [startedAt, setStartedAt] = useState(() => Date.now());
@@ -50,6 +61,8 @@ export default function PayScreen({ reqRef, billing: b, phone, serviceName, cont
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const heading = useRef<HTMLHeadingElement>(null);
   const network = networkOf(num);
+  // The number decides the network; a tap only says which one they mean to use before typing it.
+  const shownNet = network ?? picked;
   useEffect(() => () => { if (timer.current) clearTimeout(timer.current); }, []);
   // The waiting card counts up, so a long wait reads as progress rather than a frozen screen.
   useEffect(() => {
@@ -146,17 +159,29 @@ export default function PayScreen({ reqRef, billing: b, phone, serviceName, cont
             <h1 id="pay-h" className="d" style={{ fontSize: 24 }}>{review ? t("pay.reviewTitle") : checkout ? t("pay.checkoutTitle") : t("pay.approve")}</h1>
             <p className="mut" style={{ fontSize: 15, lineHeight: 1.5 }}>{t("pay.screenLead")}</p>
           </div>
+          <div className="pay-nets" role="radiogroup" aria-label={t("pay.networks")}>
+            {NETWORKS.map((n) => (
+              <button key={n.key} type="button" role="radio" aria-checked={shownNet === n.key} data-net={n.key === "MTN MoMo" ? "mtn" : "airtel"}
+                className={`pay-netcard ${shownNet === n.key ? "on" : ""}`} onClick={() => { setPicked(n.key); numberInput.current?.focus(); }}>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={n.logo} alt="" width={44} height={44} />
+                <span className="stack" style={{ gap: 2, minWidth: 0, textAlign: "left" }}>
+                  <strong>{t(`pay.methods.${n.key}`)}</strong>
+                  <span className="hint">{t(n.hint)}</span>
+                </span>
+              </button>
+            ))}
+          </div>
           <div className="field">
-            <label htmlFor="mm">{t("side.number")}</label>
+            <label htmlFor="mm">{t("pay.numberFor", { network: t(`pay.methods.${shownNet}`) })}</label>
             <div className="pay-phone">
               <span className="in in-prefix" aria-hidden="true">+250</span>
-              <input id="mm" className={`in ${network ? "has-net" : ""} ${error && !isMobile(num) ? "in-err" : ""}`} value={num} inputMode="tel" autoComplete="tel-national" placeholder="788 123 456"
+              <input id="mm" ref={numberInput} className={`in ${error && !isMobile(num) ? "in-err" : ""}`} value={num} inputMode="tel" autoComplete="tel-national" placeholder={shownNet === "Airtel Money" ? "722 123 456" : "788 123 456"}
                 aria-describedby="mm-hint" onChange={(e) => { setNum(e.target.value); setError(""); }} />
-              {network && <span className={`pay-net ${network === "MTN MoMo" ? "pay-net-mtn" : "pay-net-airtel"}`}>{t(`pay.methods.${network}`)}</span>}
             </div>
             <span className="hint" id="mm-hint">{t("side.pin")}</span>
           </div>
-          <label className="check"><input id="pay-agree" type="checkbox" checked={agree} onChange={(e) => { setAgree(e.target.checked); setError(""); }} /> {t("side.agree")}</label>
+          {!checkout && <label className="check"><input id="pay-agree" type="checkbox" checked={agree} onChange={(e) => { setAgree(e.target.checked); setError(""); }} /> {t("side.agree")}</label>}
           {error && <span className="err-text" role="alert"><Icon name="alert" size={15} /> {error}</span>}
           <div className="pay-cta">
             <button className="btn btn-p btn-lg pay-btn" type="button" onClick={send} data-pay>
@@ -183,6 +208,7 @@ export default function PayScreen({ reqRef, billing: b, phone, serviceName, cont
             <p style={{ fontSize: 15, lineHeight: 1.55, maxWidth: 400 }}>
               {stage === "sending" ? t("pay.sendingBody", { phone: shownNumber }) : stage === "slow" ? t("side.stillOpen") : t("side.sent", { amount: rwf(sentAmount), phone: shownNumber })}
             </p>
+            {MERCHANT && stage !== "slow" && <p className="hint" style={{ margin: 0 }} data-merchant>{t("pay.merchant", { name: MERCHANT })}</p>}
           </div>
           <ol className="pay-steps">
             <li className={stage === "sending" ? "cur" : "done"}>{stage === "sending" ? t("pay.stepSending") : t("pay.stepSent")}</li>
