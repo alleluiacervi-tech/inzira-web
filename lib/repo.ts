@@ -23,7 +23,7 @@ const DAY = 864e5;
 // ---------------- catalogue ----------------
 type ServiceRow = typeof s.services.$inferSelect;
 export const toService = (r: ServiceRow): Service => ({
-  slug: r.slug, name: r.name, aka: r.aka ?? undefined, category: r.category, authority: r.authority, channel: r.channel, via: r.via, summary: r.summary,
+  slug: r.slug, name: r.name, aka: r.aka ?? undefined, tagline: r.tagline ?? undefined, category: r.category, authority: r.authority, channel: r.channel, via: r.via, summary: r.summary,
   who: r.who, requirements: r.requirements, documents: r.documents, steps: r.steps, notes: r.notes,
   official: { amount: r.officialAmount, mode: r.officialMode ?? undefined, label: r.officialLabel ?? undefined, note: r.officialNote, verifiedAt: iso(r.officialVerifiedAt) },
   ours: r.ours, oursUnit: r.oursUnit ?? undefined, time: r.time, docsShort: r.docsShort, popular: r.popular, audience: r.audience,

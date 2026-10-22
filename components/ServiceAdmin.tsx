@@ -126,6 +126,7 @@ export default function ServiceAdmin({ services: rows, categories, demand }: { s
               <div className="field"><label htmlFor="e7">Typical processing</label><input id="e7" className="in" value={edit.time} onChange={(e) => setEdit({ ...edit, time: e.target.value })} /></div>
               <fieldset className="stack g12" style={{ border: "1px solid var(--line)", borderRadius: 8, padding: 16, margin: 0 }}>
                 <legend style={{ fontSize: 13, fontWeight: 700, padding: "0 6px" }}>What customers read</legend>
+                <div className="field"><label htmlFor="e8t">One line under the name <span className="mut" style={{ fontWeight: 400 }}>(12 words at most)</span></label><input id="e8t" className="in" maxLength={90} value={edit.tagline ?? ""} onChange={(e) => setEdit({ ...edit, tagline: e.target.value || undefined })} placeholder="e.g. For you or your child. E-certificate on WhatsApp." /></div>
                 <div className="field"><label htmlFor="e8">In simple terms</label><textarea id="e8" className="in" rows={4} value={edit.summary} onChange={(e) => setEdit({ ...edit, summary: e.target.value })} /></div>
                 <div className="field"><label htmlFor="e9">Also called <span className="mut" style={{ fontWeight: 400 }}>(other names people search for)</span></label><input id="e9" className="in" value={edit.aka ?? ""} onChange={(e) => setEdit({ ...edit, aka: e.target.value || undefined })} /></div>
                 <div className="grid cols-2" style={{ gap: 12 }}>

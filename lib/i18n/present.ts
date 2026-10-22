@@ -2,12 +2,14 @@ import type { Category, Service } from "@/lib/types";
 import { officialLabel, rwf, shortTime, totalLabel } from "@/lib/format";
 import type { Locale } from "./locale";
 import { text } from "./messages";
+import { checkoutPrice } from "@/lib/pricing";
 import en from "./catalogue-en.json";
 import rw from "./catalogue-rw.json";
 
 type SvcText = {
   name: string;
   aka?: string;
+  tagline?: string;
   summary: string;
   authority: string;
   channel: string;
@@ -58,6 +60,7 @@ export function localizeService<T extends Service>(s: T, locale: Locale): T {
     ...s,
     name: t.name || s.name,
     aka: t.aka || s.aka,
+    tagline: s.tagline && (t.tagline || s.tagline),
     summary: t.summary || s.summary,
     authority: t.authority || s.authority,
     channel: t.channel || s.channel,
@@ -134,6 +137,20 @@ export function displayTotal(s: Service, locale: Locale) {
   if (o.mode === "direct") return `${ours} + ${phrase(locale, o.label?.toLowerCase().includes("tax") ? "tax due" : "official fee")}`;
   if (o.amount === null) return `${ours} + ${phrase(locale, "official fee")}`;
   return rwf(o.amount + s.ours) + (s.oursUnit ? ` ${unitLabel(s.oursUnit, locale)}` : "");
+}
+
+/** What a customer pays, as one figure and a short qualifier, the same on every page: the whole price where it is
+ *  settled ("RWF 2,500", "all in"), or our fee and what is paid elsewhere ("RWF 2,000", "+ Irembo fee"), with the
+ *  unit for yearly and monthly work ("RWF 5,000", "per year + tax"). */
+export function displayPrice(s: Service, locale: Locale): { amount: string; note: string } {
+  const o = s.official;
+  const unit = s.oursUnit ? unitLabel(s.oursUnit, locale) : "";
+  const settled = checkoutPrice(s);
+  if (settled) return { amount: rwf(settled.total), note: o.mode === "none" ? unit : text(locale, "price.allIn") };
+  const label = `${o.label ?? ""} ${o.note}`.toLowerCase();
+  const extra = o.mode === "none" ? "" : o.mode === "direct" && label.includes("irembo") ? text(locale, "price.plusIrembo")
+    : o.mode === "direct" && /tax|district/.test(label) ? text(locale, "price.plusTax") : text(locale, "price.plusOfficial");
+  return { amount: rwf(s.ours), note: [unit, extra].filter(Boolean).join(" ") };
 }
 
 export function displayTime(s: Service, locale: Locale) {

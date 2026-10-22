@@ -152,7 +152,8 @@
           "label": "Izina ry'ubucuruzi n'icyo bukora",
           "placeholder": "urugero: Keza Shop, gucuruza imyenda"
         }
-      ]
+      ],
+      "tagline": "Ubucuruzi bwawe bwandikwa mu izina ryawe, ukabona na TIN."
     },
     "company-registration": {
       "name": "Kwandikisha kompanyi",
@@ -229,7 +230,8 @@
           "body": "Kompanyi nyinshi nshya ziba zikeneye no kwaka Patente, ndetse niba zitanga inyemezabwishyu zigakenera EBM. Tubigufashamo byose ku murongo ukwiye."
         }
       ],
-      "officialNote": "RDB ntacyo yishyuza kuri iyi serivisi. Wishyura amafaranga y'ubufasha bwacu gusa."
+      "officialNote": "RDB ntacyo yishyuza kuri iyi serivisi. Wishyura amafaranga y'ubufasha bwacu gusa.",
+      "tagline": "Kompanyi yawe (LTD) yandikwa muri RDB. Icyemezo mu minsi 1–2."
     },
     "business-amendment": {
       "name": "Guhindura amakuru y'ubucuruzi",
@@ -314,7 +316,8 @@
           "label": "Kode ya kompanyi",
           "hint": "Iri ku cyemezo cyawe cya RDB"
         }
-      ]
+      ],
+      "tagline": "Hindura aderesi, abayobozi, abanyamigabane cyangwa izina muri RDB."
     },
     "annual-return-filing": {
       "name": "Gutanga raporo y'umwaka ya kompanyi",
@@ -391,7 +394,8 @@
           "label": "Kode ya kompanyi",
           "hint": "Iri ku cyemezo cyawe cya RDB"
         }
-      ]
+      ],
+      "tagline": "Imenyekanisha ryawe rya buri mwaka muri RDB, ritangwa ku gihe."
     },
     "trading-licence-registration": {
       "name": "Kwandikisha Patente",
@@ -464,7 +468,8 @@
           "label": "TIN",
           "hint": "Numero y'umusoreshwa y'imibare 9, iri ku cyemezo cya RDB cyangwa ku mabaruwa ya RRA"
         }
-      ]
+      ],
+      "tagline": "Buri hantu ukorera handikishwa ku musoro wa patente."
     },
     "property-tax-tin": {
       "name": "Gufata TIN y'umusoro ku mutungo utimukanwa",
@@ -528,7 +533,8 @@
           "label": "UPI ya buri mutungo",
           "hint": "Numero iri ku cyangombwa cy'ubutaka cyangwa kuri e-title, urugero: 1/02/03/04/1234"
         }
-      ]
+      ],
+      "tagline": "TIN y'ubutaka cyangwa inzu yawe, ivuye muri RRA."
     },
     "vehicle-income-tax-declaration": {
       "name": "Kumenyekanisha umusoro ku musaruro w'ibinyabiziga",
@@ -536,8 +542,8 @@
       "authority": "Urwego rw'Imisoro (RRA)",
       "channel": "RRA e-Tax",
       "via": "Binyuze muri RRA e-Tax",
-      "time": "Bimenyekanishwa mu minsi 2 y'akazi uhereye igihe waduhereye inyandiko",
-      "timeShort": "Bimenyekanishwa mu minsi 2 y'akazi",
+      "time": "Bimenyekanishwa mu minsi 2 y'akazi",
+      "timeShort": "Iminsi 2 y'akazi",
       "docsShort": "TIN, ikarita y'umuhondo y'ikinyabiziga",
       "who": [
         {
@@ -600,7 +606,8 @@
           "label": "TIN",
           "hint": "Numero y'umusoreshwa y'imibare 9, iri ku cyemezo cya RDB cyangwa ku mabaruwa ya RRA"
         }
-      ]
+      ],
+      "tagline": "Umusoro wa buri mwaka ku binyabiziga bitwara abantu cyangwa ibintu, umenyekanishwa."
     },
     "trading-licence-declaration": {
       "name": "Kumenyekanisha Patente",
@@ -609,8 +616,8 @@
       "authority": "Urwego rw'Imisoro (RRA), ku karere kawe",
       "channel": "RRA e-Tax",
       "via": "Binyuze muri RRA e-Tax · umusoro w'akarere",
-      "time": "Bimenyekanishwa mu minsi 2 y'akazi uhereye igihe waduhereye inyandiko",
-      "timeShort": "Bimenyekanishwa mu minsi 2 y'akazi",
+      "time": "Bimenyekanishwa mu minsi 2 y'akazi",
+      "timeShort": "Iminsi 2 y'akazi",
       "docsShort": "TIN, aho ubucuruzi bukorera",
       "who": [
         {
@@ -669,7 +676,8 @@
           "label": "TIN",
           "hint": "Numero y'umusoreshwa y'imibare 9, iri ku cyemezo cya RDB cyangwa ku mabaruwa ya RRA"
         }
-      ]
+      ],
+      "tagline": "Patente yawe ya buri mwaka imenyekanishwa, ukamenya ayo kwishyura."
     },
     "monthly-tax-declarations": {
       "name": "Kumenyekanisha imisoro ya buri kwezi y'ubucuruzi",
@@ -748,7 +756,8 @@
           "label": "TIN",
           "hint": "Numero y'umusoreshwa y'imibare 9, iri ku cyemezo cya RDB cyangwa ku mabaruwa ya RRA"
         }
-      ]
+      ],
+      "tagline": "PAYE n'umusoro ku nyungu bimenyekanishwa mbere ya tariki 15, buri kwezi."
     },
     "property-tax-declaration": {
       "name": "Kumenyekanisha umusoro ku mutungo utimukanwa",
@@ -757,8 +766,8 @@
       "authority": "Urwego rw'Imisoro (RRA), ku karere kawe",
       "channel": "RRA e-Tax",
       "via": "Binyuze muri RRA e-Tax · umusoro w'akarere",
-      "time": "Bimenyekanishwa mu minsi 2 y'akazi uhereye igihe waduhereye inyandiko",
-      "timeShort": "Bimenyekanishwa mu minsi 2 y'akazi",
+      "time": "Bimenyekanishwa mu minsi 2 y'akazi",
+      "timeShort": "Iminsi 2 y'akazi",
       "docsShort": "TIN na numero za UPI",
       "who": [
         {
@@ -813,7 +822,8 @@
           "label": "UPI ya buri mutungo",
           "hint": "Iri ku cyangombwa cy'ubutaka cyangwa kuri e-title. Niba ari nyinshi, uzitandukanye n'akitso"
         }
-      ]
+      ],
+      "tagline": "Umusoro wa buri mwaka ku butaka n'inyubako, ikibanza ku kindi."
     },
     "ebm-installation": {
       "name": "Gusaba no gushyiraho EBM",
@@ -892,7 +902,8 @@
           "label": "TIN",
           "hint": "Numero y'umusoreshwa y'imibare 9, iri ku cyemezo cya RDB cyangwa ku mabaruwa ya RRA"
         }
-      ]
+      ],
+      "tagline": "EBM yawe isabwa, igashyirwaho, igategurwa n'ibicuruzwa byawe."
     },
     "ebm-training": {
       "name": "Amahugurwa yo gukoresha EBM",
@@ -950,7 +961,8 @@
       ],
       "stageLabels": {
         "preparing": "Ingengabihe yemejwe"
-      }
+      },
+      "tagline": "Amahugurwa ya EBM ngiro kuri wowe n'abakozi bawe."
     },
     "e-title": {
       "name": "Icyangombwa cy'ubutaka cya elegitoronike (e-title)",
@@ -1019,7 +1031,8 @@
           "label": "UPI y'ubutaka",
           "hint": "Numero iri ku cyangombwa cy'ubutaka, urugero: 1/02/03/04/1234"
         }
-      ]
+      ],
+      "tagline": "Icyangombwa cy'ubutaka bwawe nka e-title, gisabwa kuri Irembo."
     },
     "land-spouse-update": {
       "name": "Kongeramo cyangwa gukuramo uwo mwashakanye mu gitabo cy'ubutaka",
@@ -1108,7 +1121,8 @@
         "Kongeramo uwo mwashakanye nyuma yo gushyingirwa",
         "Gukuramo uwo mwashakanye nyuma yo gutandukana",
         "Gukuramo uwo mwashakanye nyuma y'uko yitabye Imana"
-      ]
+      ],
+      "tagline": "Ongeraho cyangwa ukureho uwo mwashakanye ku cyangombwa cy'ubutaka."
     },
     "land-merging": {
       "name": "Kuvanga ibibanza",
@@ -1191,7 +1205,8 @@
           "label": "UPI ya buri kibanza",
           "hint": "Uzitandukanye n'akitso"
         }
-      ]
+      ],
+      "tagline": "Ibibanza byegeranye bihurizwa kuri UPI imwe."
     },
     "rura-vehicle-authorisation": {
       "name": "Uruhushya rwo gutwara abantu n'ibintu ku kinyabiziga (RURA)",
@@ -1269,7 +1284,8 @@
           "label": "Numero ya pulake",
           "placeholder": "urugero: RAD 123 A"
         }
-      ]
+      ],
+      "tagline": "Uruhushya rwa RURA ku kinyabiziga gitwara abantu cyangwa ibintu."
     },
     "rura-authorisation-suspension": {
       "name": "Guhagarika by'agateganyo uruhushya rwa RURA rw'ikinyabiziga",
@@ -1341,7 +1357,8 @@
           "label": "Igihe ikinyabiziga kizahagarika gukora",
           "placeholder": "urugero: 1 Ugushyingo"
         }
-      ]
+      ],
+      "tagline": "Hagarika uruhushya rwa RURA igihe ikinyabiziga kidakora."
     },
     "other-online-service": {
       "name": "Izindi serivisi zo kuri interineti",
@@ -1383,7 +1400,8 @@
         }
       ],
       "notes": [],
-      "officialNote": "Ashyirwaho n'urwego rubishinzwe. Umuhagarikizi wawe akwemeza amafaranga nyayo mbere y'uko ugira icyo wishyura."
+      "officialNote": "Ashyirwaho n'urwego rubishinzwe. Umuhagarikizi wawe akwemeza amafaranga nyayo mbere y'uko ugira icyo wishyura.",
+      "tagline": "Indi serivisi yo kuri interineti? Tubanza kumvikana uko n'igiciro."
     },
     "irembo-training": {
       "name": "Amahugurwa ya Irembo",
@@ -1442,7 +1460,8 @@
       ],
       "stageLabels": {
         "preparing": "Ingengabihe yemejwe"
-      }
+      },
+      "tagline": "Iga kwikoreshereza Irembo, kuri interineti cyangwa ku biro byacu."
     },
     "driving-licence-copy": {
       "authority": "Polisi y'u Rwanda",
@@ -1515,7 +1534,8 @@
           "label": "Sitasiyo ya polisi uzayifatiraho",
           "placeholder": "urugero: Remera"
         }
-      ]
+      ],
+      "tagline": "Kopi nshya y'uruhushya rwatakaye cyangwa rwangiritse."
     },
     "traffic-fine": {
       "authority": "Polisi y'u Rwanda",
@@ -1602,7 +1622,8 @@
           "label": "TIN iri ku ikarita y'umuhondo",
           "hint": "Ntiyangombwa niba watanze numero y'itike"
         }
-      ]
+      ],
+      "tagline": "Yishyurwa mu isaha imwe. Inyemezabwishyu turayikubikira."
     },
     "burundi-licence-exchange": {
       "authority": "Polisi y'u Rwanda",
@@ -1675,7 +1696,8 @@
           "name": "Ifoto ya pasiporo",
           "detail": "Ifoto nshya y'isura yawe"
         }
-      ]
+      ],
+      "tagline": "Hindura uruhushya rw'u Burundi rube urw'u Rwanda."
     },
     "driving-licence-correction": {
       "authority": "Polisi y'u Rwanda",
@@ -1748,7 +1770,8 @@
           "label": "Ikitari cyo, n'icyo cyagombye kuvuga",
           "placeholder": "urugero: izina ryagombye kuba Mukamana Aline"
         }
-      ]
+      ],
+      "tagline": "Kosora izina, itariki cyangwa icyiciro bitari byo ku ruhushya."
     },
     "driving-licence-issuance": {
       "authority": "Polisi y'u Rwanda",
@@ -1819,7 +1842,8 @@
           "label": "Sitasiyo ya polisi uzayifatiraho",
           "placeholder": "urugero: Remera"
         }
-      ]
+      ],
+      "tagline": "Fata ikarita y'uruhushya umaze gutsinda ikizamini."
     },
     "driving-test-results": {
       "authority": "Polisi y'u Rwanda",
@@ -1883,7 +1907,8 @@
           "name": "Numero y'umunyeshuri",
           "detail": "Niba ikigo cy'ikizamini cyakuhaye"
         }
-      ]
+      ],
+      "tagline": "Igisubizo cy'ikizamini cyawe cyo gutwara, cyanditse."
     },
     "driving-test-booking": {
       "authority": "Polisi y'u Rwanda",
@@ -1929,8 +1954,8 @@
       "name": "Gufata itariki y'ikizamini cyo gutwara",
       "aka": "Kwiyandikisha gukora ikizamini cyo gutwara",
       "summary": "Iyandikishe ikizamini cyo gutwara. Turagufatira itariki kuri Irembo mu cyiciro ukeneye, tukakubwira itariki n'ahantu.",
-      "time": "Itariki iteganywa n'ikigo cy'ikizamini",
-      "timeShort": "Itariki iteganywa n'ikigo cy'ikizamini",
+      "time": "Ikigo gishyiraho itariki",
+      "timeShort": "Ikigo gishyiraho itariki",
       "docsShort": "Numero y'indangamuntu",
       "who": [
         {
@@ -1965,7 +1990,8 @@
           "label": "Aho wifuza gukorera ikizamini n'itariki",
           "placeholder": "urugero: Busanza, umunsi uwo ari wo wose w'icyumweru gitaha"
         }
-      ]
+      ],
+      "tagline": "Umwanya w'ikizamini cyo gutwara mu cyiciro cyawe."
     },
     "driving-licence-renewal": {
       "authority": "Polisi y'u Rwanda",
@@ -2036,7 +2062,8 @@
           "hint": "Kongera bitangira iminsi 14 mbere yayo",
           "placeholder": "urugero: 30 Ugushyingo 2026"
         }
-      ]
+      ],
+      "tagline": "Rwongererwa igihe mu minsi 14 mbere y'uko rurangira."
     },
     "vehicle-inspection": {
       "authority": "Polisi y'u Rwanda",
@@ -2078,8 +2105,8 @@
       "name": "Kugenzura ikinyabiziga n'umwuka",
       "aka": "Isuzuma ry'ikoranabuhanga n'umwuka",
       "summary": "Fata itariki yo kugenzura ikinyabiziga n'umwuka. Dutegura ubusabe, tukakubwira aho kizajyanwa, tukaguha icyemezo iyo gisohotse.",
-      "time": "Umunsi uzajyana ikinyabiziga, hanyuma iminsi mike y'icyemezo",
-      "timeShort": "Umunsi uzajyana ikinyabiziga, hanyuma iminsi mike y'icyemezo",
+      "time": "Iminsi mike",
+      "timeShort": "Iminsi mike",
       "docsShort": "Pulake, numero y'indangamuntu ya nyiracyo",
       "who": [
         {
@@ -2114,7 +2141,8 @@
           "label": "Numero ya pulake",
           "placeholder": "urugero: RAD 123 A"
         }
-      ]
+      ],
+      "tagline": "Igenzura n'ibyuka bisohoka bisabirwa umwanya, icyemezo ukacyohererezwa."
     },
     "criminal-record": {
       "authority": "Ubushinjacyaha Bukuru (NPPA)",
@@ -2189,7 +2217,8 @@
         "Viza",
         "Isoko",
         "Ikindi"
-      ]
+      ],
+      "tagline": "Ku kazi, viza cyangwa isoko. Kimara amezi 6."
     },
     "birth-certificate": {
       "authority": "Ibiro by'irangamimerere",
@@ -2250,7 +2279,8 @@
       "requirements": [
         "Numero y'indangamuntu, cyangwa numero y'ubusabe y'umwana"
       ],
-      "documents": []
+      "documents": [],
+      "tagline": "Icyawe cyangwa cy'umwana wawe. E-certificate kuri WhatsApp."
     },
     "marriage-certificate": {
       "authority": "Ibiro by'irangamimerere",
@@ -2307,7 +2337,8 @@
       "requirements": [
         "Numero y'indangamuntu yawe"
       ],
-      "documents": []
+      "documents": [],
+      "tagline": "Icyemezo cy'ishyingiranwa, ubusanzwe ku munsi w'akazi ukurikiyeho."
     },
     "death-certificate": {
       "authority": "Ibiro by'irangamimerere",
@@ -2380,7 +2411,8 @@
           "label": "Numero y'indangamuntu y'uwapfuye",
           "hint": "Niba uyizi"
         }
-      ]
+      ],
+      "tagline": "Ku muryango, banki cyangwa ibiro by'ubutaka."
     },
     "residence-certificate": {
       "authority": "Ibiro by'irangamimerere",
@@ -2445,7 +2477,8 @@
           "hint": "Akarere, umurenge, akagari n'umudugudu",
           "placeholder": "urugero: Gasabo, Remera, Rukiri I, Amahoro"
         }
-      ]
+      ],
+      "tagline": "Gihamya aho utuye, ku banki, ishuri cyangwa viza."
     },
     "single-status": {
       "authority": "Ibiro by'irangamimerere",
@@ -2507,7 +2540,8 @@
         "Numero y'indangamuntu yawe",
         "NIDA igomba kuba ikwanditse nk'ingaragu"
       ],
-      "documents": []
+      "documents": [],
+      "tagline": "Gihamya ko uri ingaragu, ku bushyingiranwa cyangwa viza."
     },
     "passport-application": {
       "authority": "Ibiro by'injira n'isohoka",
@@ -2549,7 +2583,7 @@
       "name": "Gusaba pasiporo",
       "aka": "Pasiporo ya mbere, kuvugurura cyangwa gusimbuza",
       "summary": "Saba pasiporo y'u Rwanda, uyivugurure cyangwa uyisimbure. Dutegura dosiye tukayohereza. Uracyajya ku gahunda ibiro by'injira n'isohoka bisaba, kandi turakubwira igihe.",
-      "time": "Nk'iminsi 4 y'akazi, hanyuma ukayifatira ku biro wahisemo",
+      "time": "Nk'iminsi 4 y'akazi",
       "timeShort": "Iminsi 4 y'akazi",
       "docsShort": "Ifoto, umukono, kopi y'indangamuntu",
       "who": [
@@ -2593,7 +2627,8 @@
         "Pasiporo ya mbere",
         "Kuvugurura",
         "Gusimbuza pasiporo yatakaye"
-      ]
+      ],
+      "tagline": "Pasiporo ya mbere, kuyongera cyangwa kuyisimbuza, tukagusabira."
     },
     "id-card-replacement": {
       "authority": "Ibiro by'irangamuntu",
@@ -2673,7 +2708,8 @@
           "label": "Ibiro bya RIB n'aho uzafatira indangamuntu nshya",
           "placeholder": "urugero: RIB Remera, nkayifatira ku murenge wa Remera"
         }
-      ]
+      ],
+      "tagline": "Indangamuntu nshya iyo yatakaye, yibwe cyangwa yangiritse."
     }
   },
   "units": {

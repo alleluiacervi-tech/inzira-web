@@ -39,7 +39,7 @@ function mockBlob(name: string): { mime: string; bytes: Uint8Array } {
 }
 
 const serviceRow = (v: (typeof SERVICES)[number], position: number) => ({
-  slug: v.slug, name: v.name, aka: v.aka, category: v.category, authority: v.authority, channel: v.channel, via: v.via, summary: v.summary,
+  slug: v.slug, name: v.name, aka: v.aka, tagline: v.tagline, category: v.category, authority: v.authority, channel: v.channel, via: v.via, summary: v.summary,
   who: v.who, requirements: v.requirements, documents: v.documents, steps: v.steps, notes: v.notes,
   officialAmount: v.official.amount, officialMode: v.official.mode, officialLabel: v.official.label, officialNote: v.official.note, officialVerifiedAt: v.official.verifiedAt,
   ours: v.ours, oursUnit: v.oursUnit, time: v.time, docsShort: v.docsShort, popular: !!v.popular, audience: v.audience,
@@ -67,7 +67,7 @@ export async function ensureCatalogue(database: Db) {
 /** Catalogue corrections a database receives once, by id. Each rewrites the named services from the catalogue above
  *  (wording, documents, questions, fees, ID rule) and keeps whether they are shown. Edits staff make afterwards stay.
  *  Add a new id for a new correction; never change one that has shipped. */
-const REVISIONS: { id: string; slugs: string[] }[] = [
+const REVISIONS: { id: string; slugs: string[]; fields?: (keyof ReturnType<typeof serviceRow>)[] }[] = [
   // 22 Oct 2026: checked against Irembo's support pages. Basic certificates need only the ID number, fixed Irembo fees
   // are paid with ours in one payment, two services are free, and each service asks its own questions.
   {
@@ -81,6 +81,8 @@ const REVISIONS: { id: string; slugs: string[] }[] = [
       "death-certificate", "residence-certificate", "single-status", "passport-application", "id-card-replacement",
     ],
   },
+  // 22 Oct 2026: a one-line tagline for every service and short time labels. Only these two fields change.
+  { id: "2026-10-short-copy", slugs: SERVICES.map((v) => v.slug), fields: ["tagline", "time"] },
 ];
 
 async function applyRevisions(database: Db) {
@@ -94,7 +96,8 @@ async function applyRevisions(database: Db) {
       for (const slug of rev.slugs) {
         const i = SERVICES.findIndex((v) => v.slug === slug);
         if (i < 0) continue;
-        const { slug: _slug, position: _position, visible: _visible, popular: _popular, ...fields } = serviceRow(SERVICES[i], i);
+        const { slug: _slug, position: _position, visible: _visible, popular: _popular, ...all } = serviceRow(SERVICES[i], i);
+        const fields = rev.fields ? Object.fromEntries(rev.fields.map((k) => [k, all[k as keyof typeof all]])) : all;
         // A field the catalogue no longer has (undefined) is cleared, not left as it was.
         const cleared = Object.fromEntries(Object.entries(fields).map(([k, v]) => [k, v === undefined ? null : v]));
         await tx.update(s.services).set({ ...cleared, updatedAt: new Date().toISOString() }).where(eq(s.services.slug, slug));

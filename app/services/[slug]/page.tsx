@@ -3,14 +3,15 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import PublicNav from "@/components/PublicNav";
 import Footer from "@/components/Footer";
-import { Alert, FeeBreakdown, Icon, Plate } from "@/components/ui";
+import { Alert, Icon, Plate } from "@/components/ui";
+import { QuickSteps } from "@/components/QuickSteps";
 import { ServiceRows } from "@/components/PriceList";
 import { officeFor } from "@/lib/institutions";
 import { fmtDate, rwf } from "@/lib/format";
 import { checkoutPrice, reviewFeeFor } from "@/lib/pricing";
 import { getLocale } from "@/lib/i18n/locale";
 import { text } from "@/lib/i18n/messages";
-import { displayOfficial, displayOurs, displayTotal, localizeCategory, localizeService, localizeServices, officeText } from "@/lib/i18n/present";
+import { displayOfficial, displayOurs, displayPrice, displayTime, displayTotal, localizeCategory, localizeService, localizeServices, officeText } from "@/lib/i18n/present";
 import { getService, listCategories, listServices } from "@/lib/repo";
 import { JsonLd } from "@/components/JsonLd";
 import { languageAlternates, withLocale } from "@/lib/seo";
@@ -47,6 +48,10 @@ export default async function ServiceDetail({ params }: { params: Promise<{ slug
   const reviewFee = reviewFeeFor(s);
   const office = officeFor(s.category);
   const officeName = office ? officeText(office.code, locale)?.name ?? office.name : catName(s.category);
+  const priceLabel = displayPrice(s, locale);
+  // The one line under the name; a service saved before taglines existed shows its summary's first sentence.
+  const tagline = s.tagline || s.summary.split(/(?<=\.)\s/)[0];
+  const shortTimeText = displayTime(s, locale);
   const related = services.filter((x) => x.slug !== s.slug).sort((a, b) => Number(b.category === s.category) - Number(a.category === s.category)).slice(0, 4);
 
   const origin = siteOrigin();
@@ -86,79 +91,70 @@ export default async function ServiceDetail({ params }: { params: Promise<{ slug
             <Link href={withLocale(locale, "/")}>{t("catalogue.home")}</Link><Icon name="right" size={14} /><Link href={withLocale(locale, "/services")}>{t("nav.services")}</Link><Icon name="right" size={14} /><Link href={withLocale(locale, `/services?category=${s.category}`)}>{officeName}</Link><Icon name="right" size={14} /><span aria-current="page">{s.name}</span>
           </nav>
         </div>
-        <section className="wrap split svc-main" style={{ ["--aside" as string]: "440px" }}>
-          <div className="stack" style={{ gap: 48 }}>
-            <div className="stack g18">
-              {office && <p className="row g12 svc-office"><Plate code={office.code} size="sm" />{training ? t("service.trainingVia", { via: s.via }) : t("service.filedWith", { office: office.code === "Irembo" ? "Irembo" : locale === "en" ? `the ${officeName}` : officeName, channel: s.channel })}</p>}
-              <h1 className="d h-1">{s.name}</h1>
-              {s.aka && <p className="mut">{t("service.also", { aka: s.aka })}</p>}
-              <p className="sec-lead">{s.summary}</p>
-              <ul className="svc-facts">
-                {!training && <li><Icon name="clock" size={18} />{s.time}*</li>}
-                {s.documents.length > 0 && <li><Icon name="file-text" size={18} />{s.documents.length} {s.documents.length === 1 ? t("service.oneDoc") : t("service.manyDocs")}</li>}
-                <li><Icon name="file" size={18} />{training ? t("service.ourFee", { fee: displayOurs(s, locale) }) : t("service.receipt")}</li>
-              </ul>
-              <dl className="fee-mini show-split">
-                <div><dt>{t("service.officialShort")}</dt><dd>{displayOfficial(s, locale)}</dd></div>
-                <div><dt>{t("service.assistShort")}</dt><dd className="fee-ours">{displayOurs(s, locale)}</dd></div>
-                <div><dt>{t("service.totalShort")}</dt><dd>{displayTotal(s, locale)}</dd></div>
-              </dl>
-            </div>
-            <div className="stack g16"><h2 className="d h-3">{t("service.who")}</h2>
-              <div className="grid cols-3" style={{ gap: 12 }}>{s.who.map((w) => <div key={w.title} className="card stack g6" style={{ padding: 18 }}><strong>{w.title}</strong><span className="hint">{w.body}</span></div>)}</div>
-            </div>
-            <div className="stack g14"><h2 className="d h-3">{t("service.need")}</h2>
-              <ul className="stack g12" style={{ listStyle: "none", margin: 0, padding: 0 }}>{s.requirements.map((r) => <li key={r} className="row g12 svc-req"><Icon name="check" size={20} stroke={2.2} color="var(--brand-2)" />{r}</li>)}</ul>
-            </div>
-            {s.documents.length > 0 && <div className="stack g14"><h2 className="d h-3">{t("service.send")}</h2>
-              <p className="hint" style={{ marginTop: -4 }}>{t("service.sendHint")}</p>
-              <ul className="doc-list">
-                {s.documents.map((d) => (
-                  <li key={d.name}>
-                    <span className="doc-ico"><Icon name="file-text" size={20} /></span>
-                    <span className="stack" style={{ gap: 3, minWidth: 0 }}><strong>{d.name}</strong><span className="hint">{d.detail}</span></span>
-                    <span className={`tag ${d.required ? "tag-ember" : ""}`}>{d.required ? t("service.required") : t("service.ifApplicable")}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>}
-            <div className="stack g18"><h2 className="d h-3">{t("service.how")}</h2>
-              <ol className="svc-steps">
-                {s.steps.map((st, i) => (
-                  <li key={st.title} className={st.you ? "is-you" : undefined}>
-                    <span className="svc-step-n" aria-hidden="true">{i + 1}</span>
-                    <div className="stack g4"><strong className="row g10 wrapx svc-step-t">{st.title}{st.you && <span className="tag tag-ember">{t("service.you")}</span>}</strong><span className="svc-step-d">{st.body}</span></div>
-                  </li>
-                ))}
-              </ol>
-            </div>
-            <div className="stack g12"><h2 className="d h-3">{t("service.notes")}</h2>
-              {!training && <Alert kind="info" title={t("service.timeTitle")}>{t("service.timeBody", { time: s.time.replace(/^\*/, "") })}</Alert>}
-              {training && s.notes.length === 0 && <Alert kind="info" title={t("service.sessionTitle")}>{t("service.sessionBody")}</Alert>}
-              {s.notes.map((n) => <Alert key={n.title} kind={n.kind} title={n.title}>{n.body}</Alert>)}
-            </div>
+        {/* The first screen holds what a customer decides on: what it is, the price, the time, what they need, and Start. */}
+        <section className="wrap svc-hero">
+          {office && <p className="row g10 svc-office"><Plate code={office.code} size="sm" />{training ? t("service.trainingVia", { via: s.via }) : t("service.filedWith", { office: office.code === "Irembo" ? "Irembo" : locale === "en" ? `the ${officeName}` : officeName, channel: s.channel })}</p>}
+          <h1 className="d h-1">{s.name}</h1>
+          <p className="svc-tag">{tagline}</p>
+          <ul className="svc-chips" aria-label={t("service.facts")}>
+            <li data-price><Icon name="card" size={18} /><span><strong className="fig">{priceLabel.amount}</strong>{priceLabel.note && <span className="svc-chip-note"> {priceLabel.note}</span>}</span></li>
+            <li><Icon name="clock" size={18} /><span>{shortTimeText}</span></li>
+            <li><Icon name="file-text" size={18} /><span>{t("service.needs", { docs: s.docsShort })}</span></li>
+          </ul>
+          <div className="svc-cta">
+            <Link className="btn btn-p btn-lg" href={withLocale(locale, `/start/${s.slug}`)} data-start>{t("service.startShort")}</Link>
+            <span className="hint">{training ? t("service.trainLine") : price ? t("service.payLine") : reviewFee ? t("service.reviewLine", { fee: rwf(reviewFee) }) : t("service.noPay")}</span>
           </div>
-          <aside className="stack g16 sticky-aside">
-            <FeeBreakdown official={displayOfficial(s, locale)} officialNote={s.official.note} ours={displayOurs(s, locale)} total={displayTotal(s, locale)}>
-              <Link className="btn btn-p btn-lg" href={withLocale(locale, `/start/${s.slug}`)}>{t("service.start")}</Link>
-              <span className="hint" style={{ textAlign: "center" }}>{price ? t("service.payUpfront", { total: rwf(price.total) }) : reviewFee ? t("service.payReview", { fee: rwf(reviewFee) }) : t("service.noPay")}</span>
-            </FeeBreakdown>
-            {s.official.verifiedAt && <p className="hint row g8" style={{ alignItems: "flex-start" }}><Icon name="calendar" size={16} /><span>{t("service.checked", { who: s.authority, date: fmtDate(s.official.verifiedAt, locale) })}</span></p>}
-            <div className="card stack g12" style={{ padding: 18 }}>
-              <div className="row g10"><Icon name="clock" size={18} /><span className="svc-side-t">{t("service.responds", { time: t("responseTime") })}</span></div>
-              <div className="row g10"><Icon name="msg" size={18} /><span className="svc-side-t">{t("service.updates")}</span></div>
-              {!training && <div className="row g10"><Icon name="refresh" size={18} /><span className="svc-side-t">{t("service.refund")}</span></div>}
-            </div>
-            <p className="hint row g8" style={{ alignItems: "flex-start" }}><Icon name="shield" size={16} /><span>{t("service.privateOffice", { who: office && office.code !== "Irembo" ? office.code : t("service.privateGov") })}</span></p>
-          </aside>
+          {/* Only what can change the decision stays open: a reason the institution may refuse, a bill that lapses. */}
+          {s.notes.filter((n) => n.kind === "warn").map((n) => <Alert key={n.title} kind="warn" title={n.title}>{n.body}</Alert>)}
         </section>
-        <section className="wrap stack g18" style={{ paddingBottom: 80 }}>
+        <section className="wrap stack g14 svc-block">
+          <h2 className="d h-3">{t("service.how")}</h2>
+          <QuickSteps locale={locale} kind={training ? "training" : price ? "paid" : "quote"} fee={reviewFee ? rwf(reviewFee) : ""} />
+        </section>
+        <section className="wrap svc-block">
+          <details className="svc-details">
+            <summary><span>{t("service.details")}</span><Icon name="down" size={20} /></summary>
+            <div className="stack g24 svc-details-body">
+              <p className="sec-lead" style={{ margin: 0 }}>{s.summary}</p>
+              {s.aka && <p className="mut" style={{ margin: 0 }}>{t("service.also", { aka: s.aka })}</p>}
+              {s.who.length > 0 && <div className="stack g10"><h3 className="svc-dh">{t("service.who")}</h3>
+                <ul className="svc-dlist">{s.who.map((w) => <li key={w.title}><strong>{w.title}</strong> · {w.body}</li>)}</ul></div>}
+              <div className="stack g10"><h3 className="svc-dh">{t("service.need")}</h3>
+                <ul className="svc-dlist">{s.requirements.map((r) => <li key={r}>{r}</li>)}</ul></div>
+              {s.documents.length > 0 && <div className="stack g10"><h3 className="svc-dh">{t("service.send")}</h3>
+                <ul className="doc-list">
+                  {s.documents.map((d) => (
+                    <li key={d.name}>
+                      <span className="doc-ico"><Icon name="file-text" size={20} /></span>
+                      <span className="stack" style={{ gap: 3, minWidth: 0 }}><strong>{d.name}</strong><span className="hint">{d.detail}</span></span>
+                      <span className={`tag ${d.required ? "tag-ember" : ""}`}>{d.required ? t("service.required") : t("service.ifApplicable")}</span>
+                    </li>
+                  ))}
+                </ul></div>}
+              <div className="stack g10"><h3 className="svc-dh">{t("service.priceTitle")}</h3>
+                <dl className="fee-mini show-split" style={{ maxWidth: 420 }}>
+                  <div><dt>{t("service.officialShort")}</dt><dd>{displayOfficial(s, locale)}</dd></div>
+                  <div><dt>{t("service.assistShort")}</dt><dd className="fee-ours">{displayOurs(s, locale)}</dd></div>
+                  <div><dt>{price ? t("service.totalFixed") : t("service.totalShort")}</dt><dd>{displayTotal(s, locale)}</dd></div>
+                </dl>
+                <p className="hint" style={{ margin: 0 }}>{s.official.note}</p>
+                {s.official.verifiedAt && <p className="hint" style={{ margin: 0 }}>{t("service.checked", { who: s.authority, date: fmtDate(s.official.verifiedAt, locale) })}</p>}</div>
+              <div className="stack g10">
+                {!training && <Alert kind="info" title={t("service.timeTitle")}>{t("service.timeBody", { time: s.time.replace(/^\*/, "") })}</Alert>}
+                {s.notes.filter((n) => n.kind !== "warn").map((n) => <Alert key={n.title} kind={n.kind} title={n.title}>{n.body}</Alert>)}
+                <p className="hint row g8" style={{ alignItems: "flex-start", margin: 0 }}><Icon name="shield" size={16} /><span>{t("service.privateOffice", { who: office && office.code !== "Irembo" ? office.code : t("service.privateGov") })}</span></p>
+              </div>
+            </div>
+          </details>
+        </section>
+        <section className="wrap stack g14" style={{ paddingBottom: 96 }}>
           <h2 className="d h-3">{t("service.together")}</h2>
           <div style={{ maxWidth: 860 }}><ServiceRows services={related} /></div>
         </section>
         <div className="startbar">
-          <span className="stack"><span className="startbar-l">{t("service.assistShort")}</span><strong className="fig startbar-v">{displayOurs(s, locale)}</strong></span>
-          <Link className="btn btn-p btn-lg" href={withLocale(locale, `/start/${s.slug}`)}>{t("service.start")}</Link>
+          <span className="stack"><strong className="fig startbar-v">{priceLabel.amount}</strong>{priceLabel.note && <span className="startbar-l">{priceLabel.note}</span>}</span>
+          <Link className="btn btn-p btn-lg" href={withLocale(locale, `/start/${s.slug}`)}>{t("service.startShort")}</Link>
         </div>
       </main>
       <Footer />

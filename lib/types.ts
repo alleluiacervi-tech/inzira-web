@@ -31,6 +31,8 @@ export type Service = {
   slug: string;
   name: string;
   aka?: string;
+  /** One line of 12 words or fewer, shown under the name: what the customer gets. The summary keeps the detail. */
+  tagline?: string;
   category: string;
   authority: string;
   channel: string;

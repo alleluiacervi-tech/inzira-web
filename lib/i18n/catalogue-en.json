@@ -87,6 +87,7 @@
     "enterprise-registration": {
       "name": "Enterprise registration",
       "aka": "Sole proprietorship · business in your own name",
+      "tagline": "Your business registered in your own name, with a TIN.",
       "summary": "Register a business in your own name (a sole proprietorship) so you can trade legally, open a business bank account and get a TIN. We check your details, complete the RDB registration for you and send you the certificate.",
       "authority": "Rwanda Development Board (RDB)",
       "channel": "RDB online registration",
@@ -157,6 +158,7 @@
     "company-registration": {
       "name": "Company registration",
       "aka": "Private limited company · LTD",
+      "tagline": "Your LTD registered with RDB. Certificate in 1–2 days.",
       "summary": "Register a private limited company so you can trade, open a business bank account and get a TIN. We check your company name, prepare the articles of association and shareholder details, and submit the registration to RDB for you.",
       "authority": "Rwanda Development Board (RDB)",
       "channel": "RDB online registration",
@@ -234,6 +236,7 @@
     "business-amendment": {
       "name": "Business amendment",
       "aka": "Change of company or enterprise details",
+      "tagline": "Change your address, directors, shareholders or name at RDB.",
       "summary": "Change the details RDB holds about your business — address, activity, directors, shareholders or name. We prepare the amendment with the right supporting documents and submit it to RDB.",
       "authority": "Rwanda Development Board (RDB)",
       "channel": "RDB online registration",
@@ -318,6 +321,7 @@
     },
     "annual-return-filing": {
       "name": "Annual return filing",
+      "tagline": "Your yearly RDB return, filed on time.",
       "summary": "Companies confirm their details to RDB once a year with an annual return. We prepare it from your records, check that directors, shareholders and address are still right, and file it for you.",
       "authority": "Rwanda Development Board (RDB)",
       "channel": "RDB online registration",
@@ -396,6 +400,7 @@
     "trading-licence-registration": {
       "name": "Trading licence registration",
       "aka": "Patente",
+      "tagline": "Each place you trade registered for the trading licence tax.",
       "summary": "Register your business for the trading licence tax that districts charge on business activity. We register each place you operate, so your business is set up correctly from the start.",
       "authority": "Rwanda Revenue Authority (RRA), for your district",
       "channel": "RRA",
@@ -469,6 +474,7 @@
     "property-tax-tin": {
       "name": "TIN for property tax",
       "aka": "Taxpayer number for land and building owners",
+      "tagline": "A TIN for your land or house, from RRA.",
       "summary": "If you own land or a building, you need a TIN to declare and pay property tax. We register you with RRA and send you your TIN.",
       "authority": "Rwanda Revenue Authority (RRA)",
       "channel": "RRA",
@@ -532,11 +538,12 @@
     },
     "vehicle-income-tax-declaration": {
       "name": "Motor vehicle income tax declaration",
+      "tagline": "Yearly tax on vehicles that carry people or goods, filed.",
       "summary": "Vehicles that carry passengers or goods for money pay a yearly income tax. We prepare and file the declaration with RRA and tell you exactly what to pay and by when.",
       "authority": "Rwanda Revenue Authority (RRA)",
       "channel": "RRA e-Tax",
       "via": "Via RRA e-Tax",
-      "time": "Filed within 2 working days of your documents",
+      "time": "Filed within 2 working days",
       "timeShort": "Filed within 2 working days",
       "docsShort": "TIN, vehicle yellow card",
       "who": [
@@ -605,11 +612,12 @@
     "trading-licence-declaration": {
       "name": "Trading licence declaration",
       "aka": "Yearly patente declaration",
+      "tagline": "Your yearly patente declared, with the amount to pay.",
       "summary": "Every year, businesses declare the trading licence tax for each place they operate. We prepare the declaration, file it with RRA and tell you the amount to pay and the deadline.",
       "authority": "Rwanda Revenue Authority (RRA), for your district",
       "channel": "RRA e-Tax",
       "via": "Via RRA e-Tax · district tax",
-      "time": "Filed within 2 working days of your documents",
+      "time": "Filed within 2 working days",
       "timeShort": "Filed within 2 working days",
       "docsShort": "TIN, business locations",
       "who": [
@@ -674,6 +682,7 @@
     "monthly-tax-declarations": {
       "name": "Monthly business tax declarations",
       "aka": "PAYE · income tax · tourism tax and related taxes",
+      "tagline": "PAYE and income tax filed by the 15th, every month.",
       "summary": "For businesses that declare taxes every month — PAYE, income tax, tourism tax and related taxes. We prepare every declaration from your records, file it with RRA on time and tell you exactly what to pay.",
       "authority": "Rwanda Revenue Authority (RRA)",
       "channel": "RRA e-Tax",
@@ -753,11 +762,12 @@
     "property-tax-declaration": {
       "name": "Property tax declaration",
       "aka": "Land and building tax",
+      "tagline": "Yearly land and building tax declared, plot by plot.",
       "summary": "Owners of land and buildings declare property tax every year, plot by plot. We prepare the declaration for each UPI, file it with RRA and tell you what to pay. Our fee is per UPI.",
       "authority": "Rwanda Revenue Authority (RRA), for your district",
       "channel": "RRA e-Tax",
       "via": "Via RRA e-Tax · district tax",
-      "time": "Filed within 2 working days of your documents",
+      "time": "Filed within 2 working days",
       "timeShort": "Filed within 2 working days",
       "docsShort": "TIN and UPI numbers",
       "who": [
@@ -818,6 +828,7 @@
     "ebm-installation": {
       "name": "EBM request and installation",
       "aka": "Electronic Billing Machine",
+      "tagline": "Your EBM requested, installed and set up with your products.",
       "summary": "Get an Electronic Billing Machine so every sale produces a valid invoice. We request the EBM from RRA, install and configure it with your products and tax codes, and check that your first invoices are right.",
       "authority": "Rwanda Revenue Authority (RRA)",
       "channel": "RRA EBM",
@@ -896,6 +907,7 @@
     },
     "ebm-training": {
       "name": "EBM use training",
+      "tagline": "Hands-on EBM training for you and your cashiers.",
       "summary": "Hands-on training for you and your staff on the EBM: issuing invoices, correcting mistakes, daily reports and the records RRA expects to see.",
       "authority": "Inzira",
       "channel": "Training by Inzira",
@@ -955,6 +967,7 @@
     "e-title": {
       "name": "E-title",
       "aka": "Electronic land title",
+      "tagline": "Your land title as an e-title, filed on Irembo.",
       "summary": "Get the electronic title for your land. We check your UPI and ownership details, apply through Irembo and send you the e-title when it is issued.",
       "authority": "Land administration",
       "channel": "Irembo",
@@ -1023,6 +1036,7 @@
     },
     "land-spouse-update": {
       "name": "Add or remove a spouse in the land register",
+      "tagline": "Add or remove a spouse on your land title.",
       "summary": "Update who is registered on a land title after a marriage, a divorce or a death. We prepare the request with the right supporting documents and submit it for you.",
       "authority": "Land administration",
       "channel": "Irembo",
@@ -1113,6 +1127,7 @@
     "land-merging": {
       "name": "Land merging",
       "aka": "Combine plots into one UPI",
+      "tagline": "Neighbouring plots joined into one UPI.",
       "summary": "Combine neighbouring plots you own into a single parcel with one UPI. We check the plots, prepare the request and follow it up until the new title is issued.",
       "authority": "Land administration",
       "channel": "Irembo",
@@ -1196,6 +1211,7 @@
     "rura-vehicle-authorisation": {
       "name": "Vehicle authorisation (RURA)",
       "aka": "Transport authorisation for passenger or goods vehicles",
+      "tagline": "RURA authorisation for a vehicle that carries people or goods.",
       "summary": "Get the RURA authorisation a vehicle needs to carry passengers or goods for money. We prepare the request, submit it to RURA and follow it up until the authorisation is issued.",
       "authority": "Rwanda Utilities Regulatory Authority (RURA)",
       "channel": "RURA online services",
@@ -1273,6 +1289,7 @@
     },
     "rura-authorisation-suspension": {
       "name": "Suspension of vehicle authorisation",
+      "tagline": "Pause a vehicle's RURA authorisation while it is off the road.",
       "summary": "Suspend a vehicle’s RURA authorisation while it is off the road — for repairs, a sale or a break in operations. We submit the request and confirm when it is done.",
       "authority": "Rwanda Utilities Regulatory Authority (RURA)",
       "channel": "RURA online services",
@@ -1346,6 +1363,7 @@
     "criminal-record": {
       "name": "Criminal record certificate",
       "aka": "Police clearance",
+      "tagline": "For a job, visa or tender. Valid 6 months.",
       "summary": "Request a criminal record certificate for a job, a visa or a tender. We file it on Irembo and send you the e-certificate when NPPA issues it. It is valid for 6 months.",
       "authority": "National Public Prosecution Authority (NPPA)",
       "channel": "Irembo",
@@ -1421,6 +1439,7 @@
     "driving-licence-copy": {
       "name": "Copy of a driving licence",
       "aka": "Duplicate of a lost or damaged licence",
+      "tagline": "A new copy of a lost or damaged licence.",
       "summary": "Ask the police for another copy of a driving licence. We fill in the Irembo application with your details and send you the copy when it is ready.",
       "authority": "Rwanda National Police",
       "channel": "Irembo",
@@ -1494,6 +1513,7 @@
     "traffic-fine": {
       "name": "Pay a traffic fine",
       "aka": "Contravention",
+      "tagline": "Paid within the hour. Receipt kept for you.",
       "summary": "Pay a traffic fine without filling in the Irembo form yourself. Send a photo of the ticket or the plate number. We submit that payment and keep the receipt. We do not search a police register.",
       "authority": "Rwanda National Police",
       "channel": "Irembo",
@@ -1581,6 +1601,7 @@
     "burundi-licence-exchange": {
       "name": "Exchange a Burundi driving licence",
       "aka": "Replace a Burundi licence with a Rwandan one",
+      "tagline": "Swap a Burundi licence for a Rwandan one.",
       "summary": "Turn a Burundi driving licence into a Rwandan one. We prepare the police application on Irembo and tell you if a test or extra paper is still required.",
       "authority": "Rwanda National Police",
       "channel": "Irembo",
@@ -1653,6 +1674,7 @@
     },
     "driving-licence-correction": {
       "name": "Correct a driving licence",
+      "tagline": "Fix a wrong name, date or category on your licence.",
       "summary": "Fix a mistake on a driving licence, such as a name, a date or a category. We submit the correction and send you the corrected card.",
       "authority": "Rwanda National Police",
       "channel": "Irembo",
@@ -1727,6 +1749,7 @@
     "driving-licence-issuance": {
       "name": "Collect a driving licence you passed",
       "aka": "Licence after a successful test",
+      "tagline": "Get the licence card after passing your test.",
       "summary": "Get the driving licence after you have passed the test. We file the request for the card and send it to you when the police issue it.",
       "authority": "Rwanda National Police",
       "channel": "Irembo",
@@ -1798,6 +1821,7 @@
     "driving-test-results": {
       "name": "Driving test results",
       "aka": "Marks from the driving exam",
+      "tagline": "Your driving test result, in writing.",
       "summary": "Get the result of a driving test. We request it with your details and send you what the police recorded. A result is not a licence.",
       "authority": "Rwanda National Police",
       "channel": "Irembo",
@@ -1862,12 +1886,13 @@
     "driving-test-booking": {
       "name": "Book a driving test",
       "aka": "Register to sit the driving exam",
+      "tagline": "A driving test slot booked in your category.",
       "summary": "Register for a driving test. We book it on Irembo in the category you need and send you the date and place.",
       "authority": "Rwanda National Police",
       "channel": "Irembo",
       "via": "Via Irembo · Rwanda National Police",
-      "time": "The date depends on the testing centre",
-      "timeShort": "The date depends on the testing centre",
+      "time": "The centre sets the date",
+      "timeShort": "The centre sets the date",
       "docsShort": "National ID number",
       "who": [
         {
@@ -1944,6 +1969,7 @@
     "driving-licence-renewal": {
       "name": "Renew a driving licence",
       "aka": "Extend a licence that is expiring",
+      "tagline": "Renewed in the 14 days before it expires.",
       "summary": "Renew a driving licence in the 14 days before it expires. We submit the renewal and tell you when the new card is ready at the police station you chose.",
       "authority": "Rwanda National Police",
       "channel": "Irembo",
@@ -2015,12 +2041,13 @@
     "vehicle-inspection": {
       "name": "Vehicle inspection and emissions",
       "aka": "Technical inspection and exhaust check",
+      "tagline": "Inspection and emissions booked, certificate sent to you.",
       "summary": "Book the technical inspection and the emissions check for a vehicle. We prepare the request, tell you where to take the vehicle, and send you the certificate when it passes.",
       "authority": "Rwanda National Police",
       "channel": "Irembo",
       "via": "Via Irembo · Rwanda National Police",
-      "time": "The day you take the vehicle in, then a few days for the certificate",
-      "timeShort": "The day you take the vehicle in, then a few days for the certificate",
+      "time": "A few days",
+      "timeShort": "A few days",
       "docsShort": "Plate number, owner’s ID number",
       "who": [
         {
@@ -2092,6 +2119,7 @@
     },
     "birth-certificate": {
       "name": "Birth certificate",
+      "tagline": "For you or your child. E-certificate on WhatsApp.",
       "summary": "Request a birth certificate for you or your child. We file it on Irembo and send you the e-certificate, usually the next working day.",
       "authority": "Civil registration",
       "channel": "Irembo",
@@ -2153,6 +2181,7 @@
     },
     "marriage-certificate": {
       "name": "Marriage certificate",
+      "tagline": "Your marriage certificate, usually the next working day.",
       "summary": "Request a marriage certificate. We file the application and send you the certificate when it is issued.",
       "authority": "Civil registration",
       "channel": "Irembo",
@@ -2210,6 +2239,7 @@
     },
     "death-certificate": {
       "name": "Death certificate",
+      "tagline": "For the family, the bank or the land office.",
       "summary": "Request a death certificate for a relative. We file it and send you the certificate so you can use it for the family, the bank or the land.",
       "authority": "Civil registration",
       "channel": "Irembo",
@@ -2283,6 +2313,7 @@
     },
     "residence-certificate": {
       "name": "Certificate of residence",
+      "tagline": "Proof of address for a bank, school or visa.",
       "summary": "Request a certificate of where you live. We file it with your address and send you the certificate.",
       "authority": "Civil registration",
       "channel": "Irembo",
@@ -2348,6 +2379,7 @@
     },
     "single-status": {
       "name": "Certificate of being single",
+      "tagline": "Proof you are single, for marriage or a visa.",
       "summary": "Request a certificate that you are not married. We file it and send you the certificate. It is not a check of any other country’s records.",
       "authority": "Civil registration",
       "channel": "Irembo",
@@ -2411,12 +2443,13 @@
     "passport-application": {
       "name": "Passport application",
       "aka": "First passport, renewal or replacement",
+      "tagline": "First passport, renewal or replacement, filed for you.",
       "summary": "Apply for a Rwandan passport, or renew or replace one. We prepare the file and submit it. You still attend any appointment the immigration office requires, and we tell you when.",
       "authority": "Immigration",
       "channel": "Irembo",
       "via": "Via Irembo · Immigration",
-      "time": "About 4 working days, then collection at the office you choose",
-      "timeShort": "About 4 working days, then collection at the office you choose",
+      "time": "About 4 working days",
+      "timeShort": "About 4 working days",
       "docsShort": "Photo, signature, ID copy",
       "who": [
         {
@@ -2497,6 +2530,7 @@
     "id-card-replacement": {
       "name": "Replacement of a national ID card",
       "aka": "Lost, stolen or damaged ID card",
+      "tagline": "A new ID card after a loss, theft or damage.",
       "summary": "Ask for a new national ID card when yours is lost, stolen or damaged. We file the request on Irembo; RIB then asks you to visit once before the card is made, and you collect it where you chose.",
       "authority": "National identification",
       "channel": "Irembo",
@@ -2577,6 +2611,7 @@
     "other-online-service": {
       "name": "Other online service",
       "aka": "Process and fee agreed with you",
+      "tagline": "Something else online? We agree the process and price first.",
       "summary": "A service that is not in our catalogue. Your agent works out which procedure applies and agrees our fee with you before anything starts.",
       "authority": "To be confirmed",
       "channel": "To be confirmed",
@@ -2619,6 +2654,7 @@
     "irembo-training": {
       "name": "Irembo training",
       "aka": "Learn to use Irembo services yourself",
+      "tagline": "Learn to use Irembo yourself, online or at our office.",
       "summary": "Learn to use Irembo confidently: find the right service, fill in applications, pay bills and follow up on results. Sessions run online or at our office, and the fee is per month.",
       "authority": "Inzira",
       "channel": "Training by Inzira",

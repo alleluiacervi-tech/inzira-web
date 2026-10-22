@@ -9,6 +9,7 @@ for (const s of SERVICES) {
   services[s.slug] = {
     name: s.name,
     ...(s.aka ? { aka: s.aka } : {}),
+    ...(s.tagline ? { tagline: s.tagline } : {}),
     summary: s.summary,
     authority: s.authority,
     channel: s.channel,

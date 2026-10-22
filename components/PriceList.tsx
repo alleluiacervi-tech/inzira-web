@@ -1,18 +1,19 @@
 "use client";
 
 import Link from "next/link";
-import { rwf } from "@/lib/format";
-import { displayTime, officeText, unitLabel } from "@/lib/i18n/present";
+import { displayPrice, displayTime, officeText } from "@/lib/i18n/present";
 import { OFFICES, officeFor } from "@/lib/institutions";
 import type { Service } from "@/lib/types";
 import { withLocale } from "@/lib/seo";
 import { useI18n } from "./I18n";
 import { Icon } from "./ui";
 
-/** One service as a line of a fee schedule: name, how long it takes, our fee. The whole row opens the service. */
+/** One service as a line of a fee schedule: name, how long it takes, what it costs (all in where the price is settled).
+ *  The whole row opens the service. */
 export function ServiceRow({ s, showOffice = false }: { s: Service; showOffice?: boolean }) {
   const { locale } = useI18n();
   const office = showOffice ? officeFor(s.category) : undefined;
+  const price = displayPrice(s, locale);
   return (
     <li>
       <Link href={withLocale(locale, `/services/${s.slug}`)} className="pl-row">
@@ -21,8 +22,8 @@ export function ServiceRow({ s, showOffice = false }: { s: Service; showOffice?:
           <span className="pl-time">{office && <span className="pl-code">{office.code}</span>}{displayTime(s, locale)}</span>
         </span>
         <span className="pl-fee">
-          <strong className="fig">{rwf(s.ours)}</strong>
-          {s.oursUnit && <span className="pl-unit">{unitLabel(s.oursUnit, locale)}</span>}
+          <strong className="fig">{price.amount}</strong>
+          {price.note && <span className="pl-unit">{price.note}</span>}
         </span>
         <Icon name="right" size={18} />
       </Link>

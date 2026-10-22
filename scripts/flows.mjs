@@ -260,7 +260,7 @@ await step("start", async () => {
   check("start: the documents are a checklist, and missing ones can follow after paying", (await p.ev(`document.querySelectorAll("[data-doc-list] li").length`)) === 5 && await p.has("Needed") && await p.has("Pay anyway and send it later"));
   await attach(p, "input[type=file]"); await sleep(300);
   check("start: a chosen file is listed", await p.has("id_photo.png"));
-  check("start: review lists what was entered", await p.has("Check, then pay") && await p.has("Test Person") && await p.has("test.person@example.com") && await p.has("Add a spouse after marriage") && await p.has("does not look it up"));
+  check("start: review lists what was entered", await p.has("Check, then pay") && await p.has("Test Person") && await p.has("test.person@example.com") && await p.has("Add a spouse after marriage") && await p.has("used only for this request"));
   await p.click("Continue to payment"); await sleep(200);
   check("start: cannot send without the acknowledgement", await p.has("Please confirm you’ve read this"));
   await p.ev(`document.querySelector('input[aria-describedby="ack-err"]').click()`); await p.click("Continue to payment"); await sleep(1200);
@@ -549,7 +549,8 @@ await step("admin", async () => {
   await p.set("#e6", "12000"); await p.click("Checked again today"); await sleep(200); await p.click("Save changes"); await waitFor(p, "Company registration updated");
   check("services: saving a price change", await p.has("Company registration updated"));
   await p.go("/services/company-registration");
-  check("services: customers see the new price straight away", await p.has("RWF 12,000") && await p.has("Official fee last checked"));
+  check("services: customers see the new price straight away, all in, with the check date under Details", (await p.ev(`document.querySelector("[data-price]")?.textContent ?? ""`)).includes("RWF 12,000")
+    && (await p.ev(`document.querySelector(".svc-details")?.textContent ?? ""`)).includes("Official fee last checked"));
   await p.go("/admin/audit");
   check("audit: the price change is logged", await p.has("Changed assistance fee") && await p.has("RWF 10,000 → RWF 12,000"));
   await p.go("/admin/payments");

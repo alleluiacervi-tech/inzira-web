@@ -5,14 +5,13 @@ import { Alert, Icon } from "@/components/ui";
 import { listCategories, listServices } from "@/lib/repo";
 import { OFFICES } from "@/lib/institutions";
 import { FilingRail } from "@/components/FilingRail";
-import { rwf } from "@/lib/format";
 import { isSet, SITE, siteOrigin } from "@/lib/site";
 import { ContactList } from "@/components/Contact";
-import { PriceList } from "@/components/PriceList";
 import { getLocale } from "@/lib/i18n/locale";
 import { text } from "@/lib/i18n/messages";
 import { JsonLd } from "@/components/JsonLd";
-import { localizeCategory, localizeServices, officeText } from "@/lib/i18n/present";
+import { displayPrice, displayTime, localizeCategory, localizeServices, officeText } from "@/lib/i18n/present";
+import { QuickSteps } from "@/components/QuickSteps";
 import { withLocale } from "@/lib/seo";
 
 type T = (path: string, vars?: Record<string, string | number>) => string;
@@ -64,8 +63,9 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ a
   const [rawServices, rawCategories] = await Promise.all([listServices(), listCategories()]);
   const services = localizeServices(rawServices, locale);
   const categories = rawCategories.map((c) => localizeCategory(c, locale));
-  const popular = services.filter((s) => s.popular).slice(0, 4);
-  const steps = [["home.s1t", "home.s1d"], ["home.s2t", "home.s2d"], ["home.s3t", "home.s3d"], ["home.s4t", "home.s4d"]];
+  // Six requests people send most, with what they cost all in, so a visitor can start in one tap.
+  const TOP = ["birth-certificate", "marriage-certificate", "criminal-record", "driving-licence-renewal", "company-registration", "trading-licence-declaration"];
+  const popular = TOP.flatMap((slug) => services.filter((s) => s.slug === slug));
   const faqs = [
     ["home.q1", t("home.a1", { legal: SITE.legalName, city: SITE.city })],
     ["home.q2", t("home.a2")],
@@ -77,7 +77,7 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ a
   // For each category, how many services it holds and the lowest fee of ours among them.
   const browse = categories.map((c) => {
     const list = services.filter((s) => s.category === c.id);
-    return { c, count: list.length, from: list.length ? Math.min(...list.map((s) => s.ours)) : null };
+    return { c, count: list.length };
   }).filter((b) => b.c.href || b.count > 0);
   const browseById = new Map(browse.map((b) => [b.c.id, b]));
   // The six places a request is filed. EBM, Irembo training and an unlisted service sit on the line under them.
@@ -135,16 +135,10 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ a
                   <button className="btn btn-p btn-lg" type="submit">{t("home.searchBtn")}</button>
                 </div>
               </form>
-              {popular.length > 0 && (
-                <div className="hero-popular">
-                  <span>{t("home.popular")}</span>
-                  <ul>{popular.map((s) => <li key={s.slug}><Link href={withLocale(locale, `/services/${s.slug}`)}>{s.name}</Link></li>)}</ul>
-                </div>
-              )}
               <ul className="top-facts">
                 <li><Icon name="clock" size={18} />{t("home.reply", { time: t("responseTime") })}</li>
-                <li><Icon name="file-text" size={18} />{t("home.receipts")}</li>
                 <li><Icon name="phone" size={18} />{t("home.momo")}</li>
+                <li><Icon name="whatsapp" size={18} />{t("home.onWhatsapp")}</li>
               </ul>
             </div>
             <CaseFile t={t} />
@@ -152,7 +146,7 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ a
           <div className="wrap">
             <FilingRail
               label={t("home.filedWith")}
-              note={t("home.filedNote")}
+              note={t("home.filedShort")}
               pause={t("home.filedPause")}
               play={t("home.filedPlay")}
               offices={OFFICES.map((o) => ({
@@ -169,6 +163,28 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ a
           </div>
         </section>
 
+        {popular.length > 0 && (
+          <section className="sec sec-tight" aria-labelledby="pop-h">
+            <div className="wrap stack g16">
+              <h2 id="pop-h" className="h-3">{t("home.popular")}</h2>
+              <ul className="pop">
+                {popular.map((s) => {
+                  const p = displayPrice(s, locale);
+                  return (
+                    <li key={s.slug}>
+                      <Link href={withLocale(locale, `/services/${s.slug}`)}>
+                        <strong className="pop-name">{s.name}</strong>
+                        <span className="pop-meta"><strong className="fig">{p.amount}</strong>{p.note && <span> {p.note}</span>}</span>
+                        <span className="pop-time"><Icon name="clock" size={14} />{displayTime(s, locale)}</span>
+                      </Link>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          </section>
+        )}
+
         <section id="services" className="sec" aria-labelledby="browse-h">
           <div className="wrap stack g32">
             <div className="sec-head">
@@ -179,7 +195,7 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ a
               <Link className="btn btn-s" href={withLocale(locale, "/services")}>{t("home.viewAll")}<Icon name="arrow" size={16} /></Link>
             </div>
             <ul className="desk">
-              {desks.map(({ c, count, from }) => {
+              {desks.map(({ c, count }) => {
                 const mark = OFFICES.find((o) => (o.cats as readonly string[]).includes(c.id))?.mark ?? null;
                 return (
                   <li key={c.id}>
@@ -188,10 +204,8 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ a
                         {mark ? <img className="desk-mark" src={mark} alt="" /> : <span className="desk-word">{t("home.filedCivil")}</span>}
                       </span>
                       <span className="desk-name">{t(`nav.cat.${c.id}`)}</span>
-                      <span className="desk-desc">{c.desc}</span>
                       <span className="desk-foot">
                         <span>{count === 1 ? t("home.oneService") : t("home.nServices", { n: count })}</span>
-                        {from !== null && <strong className="fig">{t("home.from", { amount: rwf(from) })}</strong>}
                       </span>
                     </Link>
                   </li>
@@ -206,56 +220,18 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ a
                 ))}
               </p>
             )}
+            <p className="fee-line row g8"><Icon name="shield" size={18} color="var(--ok)" /><span>{t("home.feeLine")}</span></p>
           </div>
         </section>
 
-        <section id="prices" className="sec sec-tint" aria-labelledby="two-h">
-          <div className="wrap two-fees">
-            <div className="stack g12">
-              <h2 id="two-h" className="h-2">{t("home.twoTitle")}</h2>
-              <p className="sec-lead">{t("home.twoLead")}</p>
-            </div>
-            <div className="fee-pair">
-              <div className="fee-card fee-card-official">
-                <span className="fo">{t("feeTag.official")}</span>
-                <h3>{t("home.twoOfficialT")}</h3>
-                <p>{t("home.twoOfficialD")}</p>
-              </div>
-              <div className="fee-card fee-card-ours">
-                <span className="fs">{t("feeTag.ours")}</span>
-                <h3>{t("home.twoOursT")}</h3>
-                <p>{t("home.twoOursD")}</p>
-              </div>
-            </div>
-            <details className="fee-all">
-              <summary>{t("home.feesTitle")}<span className="chev"><Icon name="down" size={20} /></span></summary>
-              <div className="stack g24" style={{ paddingTop: 8 }}>
-                <p className="sec-lead">{t("home.feesLead")}</p>
-                <PriceList services={services} />
-              </div>
-            </details>
+        <section id="how" className="sec sec-tint" aria-labelledby="how-h">
+          <div className="wrap stack g20">
+            <h2 id="how-h" className="h-2">{t("home.howTitle")}</h2>
+            <QuickSteps locale={locale} />
           </div>
         </section>
 
-        <section id="how" className="sec" aria-labelledby="how-h">
-          <div className="wrap stack g40">
-            <div className="stack g12" style={{ maxWidth: 620 }}>
-              <h2 id="how-h" className="h-2">{t("home.howTitle")}</h2>
-              <p className="sec-lead">{t("home.howLead")}</p>
-            </div>
-            <ol className="steps4">
-              {steps.map(([title, body], i) => (
-                <li key={title}>
-                  <span className="steps4-mark"><span className="steps4-n">{i + 1}</span>{i < steps.length - 1 && <span className="steps4-line" aria-hidden="true" />}</span>
-                  <h3 className="steps4-t">{t(title)}</h3>
-                  <p className="steps4-d">{t(body)}</p>
-                </li>
-              ))}
-            </ol>
-          </div>
-        </section>
-
-        <section id="help" className="sec sec-tint" aria-labelledby="faq-h">
+        <section id="help" className="sec" aria-labelledby="faq-h">
           <div className="wrap two-col">
             <div className="stack g12"><h2 id="faq-h" className="h-2">{t("home.faqTitle")}</h2><p className="sec-lead">{t("home.faqLead")} <Link href="#talk">{t("home.faqTalk")}</Link>. {t("home.faqFree")}</p></div>
             <div className="faq">
