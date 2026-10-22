@@ -761,7 +761,8 @@
     "idSent": "We received the update. Your reference is unchanged, and the number is waiting for review. It is not verified yet.",
     "receiptTitle": "Receipt · {ref}",
     "receiptLead": "This is Inzira’s record of what you paid. Official fees and our assistance fee are shown on separate lines.",
-    "notSent": "Not sent yet: waiting for your payment"
+    "notSent": "Not sent yet: waiting for your payment",
+    "billNo": "Bill ID"
   },
   "teams": {
     "Tax & EBM": "Tax & EBM",
@@ -849,7 +850,7 @@
     "checkoutTitle": "Pay to send your request",
     "payBtn": "Pay {total}",
     "trustApprove": "Nothing is taken until you approve with your PIN",
-    "trustReceipt": "Receipt by email, with the official fee and our fee shown separately",
+    "trustReceipt": "A receipt in your portal, with the official fee and our fee shown separately",
     "later": "Not ready? Your request is saved for three days.",
     "laterLink": "Pay later",
     "sendingTitle": "Sending the prompt…",
@@ -884,7 +885,8 @@
     "netMtn": "078 · 079",
     "netAirtel": "072 · 073",
     "numberFor": "Your {network} number",
-    "merchant": "Your phone will show a payment request from {name}."
+    "merchant": "Your phone will show a payment request from {name}.",
+    "refundAll": "Refunded in full, the official fee included, if we can’t submit"
   },
   "docs": {
     "filter": "Filter by status",

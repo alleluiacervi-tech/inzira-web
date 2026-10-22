@@ -761,7 +761,8 @@
     "idSent": "Twakiriye ivugurura. Nomero y'ubusabe ntizahindutse, kandi nomero irategereje isuzuma. Ntabwo isuzumwe.",
     "receiptTitle": "Inyemezabuguzi · {ref}",
     "receiptLead": "Iyi ni inyandiko y'Inzira y'icyo wishyuye. Amafaranga ya leta n'ayo twishyuza byanditswe ku mirongo itandukanye.",
-    "notSent": "Ntiburoherezwa: dutegereje ubwishyu bwawe"
+    "notSent": "Ntiburoherezwa: dutegereje ubwishyu bwawe",
+    "billNo": "Numero ya fagitire"
   },
   "teams": {
     "Tax & EBM": "Imisoro na EBM",
@@ -849,7 +850,7 @@
     "checkoutTitle": "Ishyura kugira ngo wohereze ubusabe bwawe",
     "payBtn": "Ishyura {total}",
     "trustApprove": "Nta mafaranga afatwa utabanje kwemeza ukoresheje PIN yawe",
-    "trustReceipt": "Inyemezabwishyu kuri email, igaragaza amafaranga y'urwego n'aya Inzira ukwayo",
+    "trustReceipt": "Inyemezabwishyu kuri konti yawe, igaragaza ukwayo amafaranga y'urwego n'ayacu",
     "later": "Ntiwiteguye? Ubusabe bwawe bubikwa iminsi itatu.",
     "laterLink": "Ishyura nyuma",
     "sendingTitle": "Turohereza ubutumwa…",
@@ -884,7 +885,8 @@
     "netMtn": "078 · 079",
     "netAirtel": "072 · 073",
     "numberFor": "Numero yawe ya {network}",
-    "merchant": "Telefoni yawe izakwereka icyifuzo cyo kwishyura giturutse kuri {name}."
+    "merchant": "Telefoni yawe izakwereka icyifuzo cyo kwishyura giturutse kuri {name}.",
+    "refundAll": "Usubizwa yose, n'ay'urwego arimo, iyo tudashoboye kubitanga"
   },
   "docs": {
     "filter": "Gushungura ku miterere yazo",

@@ -216,6 +216,17 @@ by every server action.
   declined or closed before it was quoted gets a "Refund due" note on the case. Quoted fees not paid a week after they were
   sent close the request (the daily job also reminds the customer once). To take a service back to quoting, mark its
   official fee as unchecked.
+- **One payment for Irembo fees.** A fixed Irembo fee checked on Irembo's own pages (birth, marriage, single status,
+  residence and death certificates, criminal record, licence renewal, ID replacement) is taken with our fee at checkout.
+  Staff file, pay the Bill ID from Inzira's mobile money as soon as it exists (traffic fine bills lapse after an hour,
+  driving test bills after 8 hours), save the Bill ID with the submission (the customer sees it) and attach the Irembo
+  receipt. Until that receipt is attached, a refund sends the Irembo fee back too. Catalogue corrections reach an existing
+  database once, by id (`REVISIONS` in lib/db/seed.ts); staff edits made afterwards are kept.
+- **WhatsApp or email.** A customer picks where the document goes. A WhatsApp number is confirmed by an SMS code and is
+  then that account's sign-in, like customers without an email; where no SMS can be sent, an email confirms it instead.
+  WhatsApp messages are still sent by staff from the request page (wa.me): there is no WhatsApp Business Platform yet.
+- **Network logos.** public/pay/mtn-momo.svg and airtel-money.svg are stand-in tiles. Replace them with the official
+  acceptance marks from MTN Rwanda and Airtel Rwanda (same file names), following their usage rules.
 - **Email.** Buy a mailbox on the business domain, put its SMTP settings in the environment and run
   `npm run check:email` from where the app runs (a VPS or cloud host can block outbound mail ports; the check says which).
   Send a real message to Gmail and Outlook and look for `spf=pass` and `dkim=pass` in its headers, or codes will land in spam.

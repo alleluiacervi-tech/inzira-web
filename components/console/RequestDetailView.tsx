@@ -22,7 +22,7 @@ import { Icon } from "@/components/ui";
 import { billOfficial, billOurs, fmtAgo, fmtMonth, fmtWhen, initials, rwf, shortName } from "@/lib/format";
 import type { Permission } from "@/lib/permissions";
 import { PAYMENT_LOCK, paymentLock } from "@/lib/payment-gate";
-import { payableNow, payStatus, stageLabel } from "@/lib/status";
+import { paidSplit, payableNow, payStatus, stageLabel } from "@/lib/status";
 import type { Closed, IdReview, RequestView, Staff, Stage } from "@/lib/types";
 import { RequestStatusBadge, PaymentStatusBadge, DocStatusBadge } from "./StatusBadge";
 import { ConfirmDialog } from "./ConfirmDialog";
@@ -83,6 +83,9 @@ export function RequestDetailView({
   const [msg, setMsg] = useState("");
   const [internalNote, setInternalNote] = useState("");
   const [officialRef, setOfficialRef] = useState(c.officialRef ?? "");
+  const [officialBill, setOfficialBill] = useState(c.officialBill ?? "");
+  // One payment: we took the institution's fee with ours and owe it to the institution until its receipt is attached.
+  const officialHeld = !c.billing.officialMode && c.billing.officialReceipt === "awaiting" ? paidSplit(c.billing).official : 0;
   const [channel, setChannel] = useState(c.channel);
   const [deliverableName, setDeliverableName] = useState("");
 
@@ -327,6 +330,15 @@ export function RequestDetailView({
           <div className="c-notice-body">
             <span className="c-notice-title">Review fee paid · {rwf(c.billing.reviewFee)}</span>
             <span>The customer paid to have this request checked. Send the fees as usual: the review fee counts toward our fee, so they are asked only for the rest. If you decline it, the fee is refunded.</span>
+          </div>
+        </div>
+      )}
+      {officialHeld > 0 && !finished && (
+        <div className="c-notice c-notice-amber" role="status" data-official-held>
+          <Icon name="card" size={18} />
+          <div className="c-notice-body">
+            <span className="c-notice-title">Pay the {c.billing.officialLabel.split(" · ")[0]} · {rwf(officialHeld)} collected</span>
+            <span>The customer paid it with our fee. File the application, pay its bill from Inzira&rsquo;s mobile money as soon as it is issued (some lapse within an hour), then attach the receipt below. Until then, a refund returns this amount too.</span>
           </div>
         </div>
       )}
@@ -578,12 +590,16 @@ export function RequestDetailView({
                   disabled={finished}
                 />
               </div>
+              <div className="console-form-group">
+                <label className="console-label" htmlFor="rq-bill">Bill number <span style={{ fontWeight: 400, color: "var(--c-text-muted)" }}>(Irembo Bill ID, optional)</span></label>
+                <input id="rq-bill" className="console-input tabular-nums" value={officialBill} onChange={(e) => setOfficialBill(e.target.value)} placeholder="e.g. 880012345678" disabled={finished} inputMode="numeric" />
+              </div>
               <button
                 type="button"
                 className="c-btn c-btn-primary c-btn-sm"
                 style={{ alignSelf: "flex-start" }}
                 disabled={finished || !officialRef.trim() || busy || !can("updateStatus")}
-                onClick={() => attempt("Marked submitted with official ref", (reason) => markSubmitted(c.ref, channel, officialRef, reason))}
+                onClick={() => attempt("Marked submitted with official ref", (reason) => markSubmitted(c.ref, channel, officialRef, reason, officialBill))}
               >
                 Save submission reference
               </button>

@@ -460,8 +460,10 @@ await step("agent", async () => {
   await p.set("#rq-msg", "Could you confirm the VAT rate for bottled water?"); await p.click("Send & wait on customer", "button"); await waitFor(p, "Waiting on customer");
   check("agent: send-and-wait puts the case on hold with the question", await p.has("Waiting on customer") && await p.has("Could you confirm the VAT rate"));
   await p.click("Overview", "button"); await sleep(200);
-  await p.set("#rq-oref", "EBM-2026-5512"); await p.click("Save submission reference", "button"); await waitGone(p, "Waiting on customer");
+  await p.set("#rq-oref", "EBM-2026-5512"); await p.set("#rq-bill", "880 0123 4567"); await p.click("Save submission reference", "button"); await waitGone(p, "Waiting on customer");
   check("agent: saving the official reference moves the case to the institution and clears the hold", !(await p.has("Waiting on customer")) && (await currentStage(p)) === "With the institution", await currentStage(p));
+  await p.go(await p.ev("location.pathname")); await waitFor(p, "Official submission");
+  check("agent: the bill number is saved with the submission", (await p.ev(`document.querySelector("#rq-bill")?.value ?? ""`)) === "88001234567");
   await p.click("Payments & Fees", "button"); await sleep(200);
   await p.set("#rq-ours", "15000"); await sleep(200);
   check("agent: an agent can't change our fee", await p.has("Only a supervisor or administrator can change our fee") && (await p.ev(`[...document.querySelectorAll("button")].find((b) => b.textContent.trim() === "Save fee adjustments")?.disabled`)) === true);

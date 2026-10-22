@@ -58,9 +58,19 @@ export const PAY_STATUS: Record<PayStatus, Label> = {
 };
 
 /** What has actually been paid, split the same way every price is shown. */
-export function paidSplit(b: Billing) {
+/** The parts of a payment record the sums below read. */
+type Paid = { transactions: { status: string; official: number; ours: number }[] };
+export function paidSplit(b: Paid) {
   const done = b.transactions.filter((t) => t.status === "paid");
   return { official: done.reduce((n, t) => n + t.official, 0), ours: done.reduce((n, t) => n + t.ours, 0) };
+}
+/** What a refund sends back: our fee, and the official fee we collected with it (one payment, lib/pricing.ts) as long as
+ *  we have not paid it to the institution yet, which an attached official receipt says we have. An official fee already
+ *  paid is recovered from the institution, not from us. */
+export function refundSplit(b: Paid & { officialReceipt: string }) {
+  const paid = paidSplit(b);
+  const official = b.officialReceipt === "attached" ? 0 : paid.official;
+  return { official, ours: paid.ours, total: official + paid.ours };
 }
 export function amountDue(b: Billing) {
   const paid = paidSplit(b);

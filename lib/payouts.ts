@@ -9,6 +9,7 @@ import { msg, sms } from "./i18n/stored";
 import { IntouchRejected, depositRefusalMessage, intouchDepositStatus, requestIntouchDeposit } from "./intouchpay";
 import { audit, event, notify } from "./mutate";
 import { newIntouchRequestId, payoutProvider } from "./payments";
+import { refundSplit } from "./status";
 
 type Staff = { id: string; name: string; role: string };
 type Tx = Parameters<Parameters<Db["transaction"]>[0]>[0];
@@ -32,15 +33,17 @@ function simulateDeposit(phone9: string) {
   return { status: "sent" as const, transactionId: `${Date.now()}`, code: "2001" };
 }
 
-/** Sends our fee on every paid payment of a request back to the number that paid it. Official fees already paid are
- *  recovered from the institution, not refunded here. "sent": IntouchPay confirmed and the request is refunded.
+/** Sends a request's paid money back to the number that paid it: our fee, and the official fee we collected but have not
+ *  paid to the institution yet (no official receipt attached). Official fees already paid are recovered from the
+ *  institution, not refunded here. "sent": IntouchPay confirmed and the request is refunded.
  *  "pending": its answer was unclear, so nothing is recorded until the payout is checked (Payments, or the daily job). */
 export async function sendRefund(ref: string, by: Staff): Promise<{ status: "sent" | "pending"; amount: number }> {
   const kind = payoutProvider();
   if (!kind) throw new PayoutRefused("Refunds are not sent automatically with this payment setup.");
   const d = await db();
   const paid = await d.select().from(s.transactions).where(and(eq(s.transactions.ref, ref), eq(s.transactions.status, "paid")));
-  const amount = paid.reduce((n, t) => n + t.ours, 0);
+  const [req] = await d.select({ officialReceipt: s.requests.officialReceipt }).from(s.requests).where(eq(s.requests.ref, ref));
+  const amount = refundSplit({ transactions: paid, officialReceipt: req?.officialReceipt ?? "na" }).total;
   if (!amount) throw new PayoutRefused("Nothing to refund on this request.");
   const payer = [...paid].reverse().find((t) => t.payer && /^7\d{8}$/.test(t.payer))?.payer;
   if (!payer) throw new PayoutRefused("This payment has no mobile money number to send the refund to. Send it by hand and record it.");
@@ -83,7 +86,7 @@ async function settlePayout(payoutId: number) {
     await event(tx, p.ref, msg("ev.refunded", { amount }), p.by);
     await notify(tx, p.ref, { icon: "refresh", title: msg("nt.refund", { amount, ref: p.ref }), sms: sms("refund", { amount }) });
     const who = await staffOf(tx, p.by);
-    await audit(tx, { actor: who.name, role: who.role, action: "Refund sent", entity: `${p.ref} · ${amount} ours · to ${prettyPhone(p.phone)} · ${parseRef(p.providerRef).reference ?? p.providerRef}`, fee: true });
+    await audit(tx, { actor: who.name, role: who.role, action: "Refund sent", entity: `${p.ref} · ${amount} · to ${prettyPhone(p.phone)} · ${parseRef(p.providerRef).reference ?? p.providerRef}`, fee: true });
   });
 }
 

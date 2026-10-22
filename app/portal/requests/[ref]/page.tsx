@@ -44,6 +44,7 @@ export default async function RequestPage({ params }: { params: Promise<{ ref: s
             <div className="row wrapx mut" style={{ fontSize: 14, gap: "4px 24px" }}>
               <span>{t("request.ourRef")} <strong className="m" style={{ color: "var(--ink)" }}>{r.ref}</strong></span>
               {r.officialRef && <span>{t("request.officialNo")} <strong className="m" style={{ color: "var(--ink)" }}>{r.officialRef}</strong></span>}
+              {r.officialBill && <span data-official-bill>{t("request.billNo")} <strong className="m" style={{ color: "var(--ink)" }}>{r.officialBill}</strong></span>}
               <span>{t("request.opened", { date: fmtDate(r.openedAt, locale) })}</span>
             </div>
           </div>

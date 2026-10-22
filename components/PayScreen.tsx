@@ -191,7 +191,7 @@ export default function PayScreen({ reqRef, billing: b, phone, serviceName, cont
           <ul className="pay-trust">
             <li><Icon name="shield" size={16} color="var(--ok)" /> {t("pay.trustApprove")}</li>
             <li><Icon name="file-text" size={16} /> {t("pay.trustReceipt")}</li>
-            <li><Icon name="check-circle" size={16} /> {review ? t("start.reviewRefund") : t("service.refund")}</li>
+            <li><Icon name="check-circle" size={16} /> {review ? t("start.reviewRefund") : b.official && !b.officialMode ? t("pay.refundAll") : t("service.refund")}</li>
           </ul>
           {checkout && <p className="hint" style={{ margin: 0 }}>{t("pay.later")} <Link className="lnk" href={`/portal/requests/${reqRef}`}>{t("pay.laterLink")}</Link></p>}
         </section>

@@ -2,6 +2,7 @@
 import { randomBytes } from "node:crypto";
 import { and, eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
+import { refundSplit } from "@/lib/status";
 import { getStaffUser, normalisePhone } from "@/lib/auth";
 import { rwf } from "@/lib/format";
 import { msg, sms } from "@/lib/i18n/stored";
@@ -74,7 +75,8 @@ export async function saveService(v: Service, isNew = false): Promise<Result> {
   return { ok: true };
 }
 
-/** Returns our assistance fee for a request. Official fees already paid are recovered from the institution, not here.
+/** Returns what a request paid: our fee, and an official fee we collected but have not paid to the institution yet
+ *  (lib/status.ts refundSplit). Official fees already paid are recovered from the institution, not here.
  *  With IntouchPay the money goes back to the number that paid (RequestDeposit, lib/payouts.ts) and the request reads as
  *  refunded once IntouchPay confirms. Without a provider that can send money, staff send it themselves and this records it. */
 export async function refund(ref: string): Promise<Result<{ outcome: "sent" | "pending" | "recorded"; amount: number }>> {
@@ -92,13 +94,15 @@ export async function refund(ref: string): Promise<Result<{ outcome: "sent" | "p
     }
   }
   const paid = await d.select().from(s.transactions).where(and(eq(s.transactions.ref, ref), eq(s.transactions.status, "paid")));
-  const ours = paid.reduce((n, t) => n + t.ours, 0);
+  const [req] = await d.select({ officialReceipt: s.requests.officialReceipt }).from(s.requests).where(eq(s.requests.ref, ref));
+  const back = refundSplit({ transactions: paid, officialReceipt: req?.officialReceipt ?? "na" });
+  const ours = back.total;
   if (!ours) return fail("Nothing to refund on this request.");
   await d.transaction(async (tx) => {
     for (const t of paid) await tx.update(s.transactions).set({ status: "refunded" }).where(eq(s.transactions.id, t.id));
     await event(tx, ref, msg("ev.refunded", { amount: rwf(ours) }), me.id);
     await notify(tx, ref, { icon: "refresh", title: msg("nt.refund", { amount: rwf(ours), ref }), sms: sms("refund", { amount: rwf(ours) }) });
-    await audit(tx, { actor: me.name, role: me.role, action: "Issued refund", entity: `${ref} · ${rwf(ours)} ours · sent by hand`, fee: true });
+    await audit(tx, { actor: me.name, role: me.role, action: "Issued refund", entity: `${ref} · ${rwf(ours)}${back.official ? ` (official ${rwf(back.official)} not yet paid out)` : ""} · sent by hand`, fee: true });
   });
   revalidatePath("/admin/payments");
   return { ok: true, outcome: "recorded", amount: ours };
