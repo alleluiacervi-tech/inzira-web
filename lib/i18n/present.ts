@@ -23,6 +23,7 @@ type SvcText = {
   officialNote: string;
   purposeLabel?: string;
   purposes?: string[];
+  questions?: { label: string; hint?: string; placeholder?: string }[];
   stageLabels?: Partial<Record<string, string>>;
 };
 type Cat = {
@@ -70,6 +71,7 @@ export function localizeService<T extends Service>(s: T, locale: Locale): T {
     notes: s.notes.map((n, i) => ({ ...n, title: t.notes[i]?.title || n.title, body: t.notes[i]?.body || n.body })),
     official: { ...s.official, note: t.officialNote || s.official.note },
     purposes: t.purposes?.length ? t.purposes : s.purposes,
+    questions: s.questions?.map((q, i) => ({ ...q, label: t.questions?.[i]?.label || q.label, hint: q.hint && (t.questions?.[i]?.hint || q.hint), placeholder: q.placeholder && (t.questions?.[i]?.placeholder || q.placeholder) })),
     purposeLabel: t.purposeLabel || s.purposeLabel,
     stageLabels: t.stageLabels ? { ...s.stageLabels, ...(t.stageLabels as Service["stageLabels"]) } : s.stageLabels,
   };

@@ -19,6 +19,13 @@ export type IdReview = "pending" | "checked" | "correction" | "unable";
 export type OfficialMode = "direct" | "none";
 export type DocGroup = "Identification" | "Business documents" | "Tax documents" | "Land documents" | "Certificates" | "Other";
 export type ServiceDocument = { name: string; detail: string; required: boolean; group: DocGroup };
+/** A short question a service asks when a request is started, such as the plate number or the pickup station.
+ *  `key` stays the same across languages; the answer reaches the agent under the English label. */
+export type ServiceQuestion = { key: string; label: string; hint?: string; placeholder?: string; required?: boolean };
+/** An answer to a ServiceQuestion, kept on the request. */
+export type ServiceAnswer = { key: string; label: string; value: string };
+/** Where a customer wants the finished document sent. */
+export type DeliverVia = "whatsapp" | "email";
 
 export type Service = {
   slug: string;
@@ -51,6 +58,8 @@ export type Service = {
   /** Choices offered when a customer starts a request, under `purposeLabel` (default "What is it for?"). */
   purposes?: string[];
   purposeLabel?: string;
+  /** The service's own questions, asked with the name and ID (0 to 3). Documents are asked for separately. */
+  questions?: ServiceQuestion[];
   /** True when we do not need the customer's national ID number to start (e.g. booking a training). Kept in step with `idPolicy === "none"`. */
   noId?: boolean;
   /** Whether this service collects a National ID number. Unset on older catalogue rows: see idPolicyOf. */

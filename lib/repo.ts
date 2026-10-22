@@ -27,7 +27,7 @@ export const toService = (r: ServiceRow): Service => ({
   who: r.who, requirements: r.requirements, documents: r.documents, steps: r.steps, notes: r.notes,
   official: { amount: r.officialAmount, mode: r.officialMode ?? undefined, label: r.officialLabel ?? undefined, note: r.officialNote, verifiedAt: iso(r.officialVerifiedAt) },
   ours: r.ours, oursUnit: r.oursUnit ?? undefined, time: r.time, docsShort: r.docsShort, popular: r.popular, audience: r.audience,
-  purposes: r.purposes ?? undefined, purposeLabel: r.purposeLabel ?? undefined, noId: r.idPolicy === "none" || r.noId, idPolicy: isIdPolicy(r.idPolicy) ? r.idPolicy : undefined, flow: r.flow ?? undefined, stageLabels: r.stageLabels ?? undefined, visible: r.visible,
+  purposes: r.purposes ?? undefined, purposeLabel: r.purposeLabel ?? undefined, questions: r.questions ?? undefined, noId: r.idPolicy === "none" || r.noId, idPolicy: isIdPolicy(r.idPolicy) ? r.idPolicy : undefined, flow: r.flow ?? undefined, stageLabels: r.stageLabels ?? undefined, visible: r.visible,
 });
 
 export async function listCategories(): Promise<Category[]> {

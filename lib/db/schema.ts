@@ -3,7 +3,7 @@
 import { sql } from "drizzle-orm";
 import { boolean, index, integer, jsonb, pgTable, primaryKey, serial, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
 import type { Locale } from "../i18n/locale";
-import type { Checkout, Closed, DocGroup, DocStatus, Hold, IdPolicy, IdReview, MsgVars, OfficialMode, Request, Service, Stage, StaffRole } from "../types";
+import type { Checkout, Closed, DeliverVia, DocGroup, DocStatus, Hold, IdPolicy, IdReview, MsgVars, OfficialMode, Request, Service, ServiceAnswer, ServiceQuestion, Stage, StaffRole } from "../types";
 
 const ts = (name: string) => timestamp(name, { withTimezone: true, mode: "string" });
 
@@ -45,6 +45,8 @@ export const services = pgTable("services", {
   audience: jsonb("audience").$type<Service["audience"]>().notNull(),
   purposes: jsonb("purposes").$type<string[]>(),
   purposeLabel: text("purpose_label"),
+  /** The service's own questions (plate number, pickup station…), asked when a request is started. */
+  questions: jsonb("questions").$type<ServiceQuestion[]>(),
   noId: boolean("no_id").notNull().default(false),
   /** required: ask for a National ID. none: do not ask. unsure: optional, and an administrator should confirm the rule. */
   idPolicy: text("id_policy").$type<IdPolicy>().notNull().default("unsure"),
@@ -136,10 +138,16 @@ export const requests = pgTable("requests", {
   closed: jsonb("closed").$type<Closed>(),
   channel: text("channel").notNull(),
   officialRef: text("official_ref"),
+  /** The institution's bill number (an Irembo Bill ID starts 88), once staff have filed and the bill exists. */
+  officialBill: text("official_bill"),
   dependsOn: text("depends_on"),
   summary: jsonb("summary").$type<Request["summary"]>().notNull(),
   next: text("next").notNull(),
   purpose: text("purpose"),
+  /** Answers to the service's own questions, as the customer gave them. */
+  answers: jsonb("answers").$type<ServiceAnswer[]>(),
+  /** Where the customer wants the finished document: "whatsapp" or "email". Null on requests sent before the choice existed. */
+  deliverVia: text("deliver_via").$type<DeliverVia>(),
   /** Copied from the service when the request was sent. */
   idPolicy: text("id_policy").$type<IdPolicy>().notNull().default("none"),
   /** True only when this application made a National ID number mandatory. */
@@ -275,6 +283,12 @@ export const payouts = pgTable("payouts", {
   // One refund being sent per request at a time, so two clicks cannot send the money twice.
   uniqueIndex("payouts_one_pending").on(t.ref).where(sql`${t.status} = 'pending'`),
 ]);
+
+/** Catalogue corrections applied to a database once (lib/db/seed.ts). Staff edits made afterwards are kept. */
+export const catalogueRevisions = pgTable("catalogue_revisions", {
+  id: text("id").primaryKey(),
+  appliedAt: ts("applied_at").notNull().defaultNow(),
+});
 
 /** Uploaded files. The bytes live in file storage (lib/storage.ts); this row says who may read them. */
 export const files = pgTable("files", {

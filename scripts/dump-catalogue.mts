@@ -24,6 +24,7 @@ for (const s of SERVICES) {
     officialNote: s.official.note,
     ...(s.purposeLabel ? { purposeLabel: s.purposeLabel } : {}),
     ...(s.purposes ? { purposes: s.purposes } : {}),
+    ...(s.questions?.length ? { questions: s.questions.map((q) => ({ label: q.label, ...(q.hint ? { hint: q.hint } : {}), ...(q.placeholder ? { placeholder: q.placeholder } : {}) })) } : {}),
     ...(s.stageLabels ? { stageLabels: s.stageLabels } : {}),
   };
 }

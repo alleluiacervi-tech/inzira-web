@@ -43,7 +43,7 @@ const serviceRow = (v: (typeof SERVICES)[number], position: number) => ({
   who: v.who, requirements: v.requirements, documents: v.documents, steps: v.steps, notes: v.notes,
   officialAmount: v.official.amount, officialMode: v.official.mode, officialLabel: v.official.label, officialNote: v.official.note, officialVerifiedAt: v.official.verifiedAt,
   ours: v.ours, oursUnit: v.oursUnit, time: v.time, docsShort: v.docsShort, popular: !!v.popular, audience: v.audience,
-  purposes: v.purposes, purposeLabel: v.purposeLabel, noId: idPolicyOf(v) === "none", idPolicy: idPolicyOf(v), flow: v.flow, stageLabels: v.stageLabels, visible: v.visible, position,
+  purposes: v.purposes, purposeLabel: v.purposeLabel, questions: v.questions, noId: idPolicyOf(v) === "none", idPolicy: idPolicyOf(v), flow: v.flow, stageLabels: v.stageLabels, visible: v.visible, position,
 });
 
 /** Adds catalogue rows a database does not have yet. Existing services keep the fees and wording already saved. */
@@ -61,6 +61,44 @@ export async function ensureCatalogue(database: Db) {
   if (missing.length) await database.insert(s.services).values(missing).onConflictDoNothing();
   // Order follows the catalogue. Fees and wording already saved on a service stay as they are.
   await Promise.all(SERVICES.map((v, i) => database.update(s.services).set({ position: i }).where(eq(s.services.slug, v.slug))));
+  await applyRevisions(database);
+}
+
+/** Catalogue corrections a database receives once, by id. Each rewrites the named services from the catalogue above
+ *  (wording, documents, questions, fees, ID rule) and keeps whether they are shown. Edits staff make afterwards stay.
+ *  Add a new id for a new correction; never change one that has shipped. */
+const REVISIONS: { id: string; slugs: string[] }[] = [
+  // 22 Oct 2026: checked against Irembo's support pages. Basic certificates need only the ID number, fixed Irembo fees
+  // are paid with ours in one payment, two services are free, and each service asks its own questions.
+  {
+    id: "2026-10-irembo-audit",
+    slugs: [
+      "enterprise-registration", "company-registration", "business-amendment", "annual-return-filing", "trading-licence-registration",
+      "property-tax-tin", "vehicle-income-tax-declaration", "trading-licence-declaration", "monthly-tax-declarations", "property-tax-declaration",
+      "ebm-installation", "e-title", "land-spouse-update", "land-merging", "rura-vehicle-authorisation", "rura-authorisation-suspension",
+      "criminal-record", "driving-licence-copy", "traffic-fine", "burundi-licence-exchange", "driving-licence-correction", "driving-licence-issuance",
+      "driving-test-results", "driving-test-booking", "driving-licence-renewal", "vehicle-inspection", "birth-certificate", "marriage-certificate",
+      "death-certificate", "residence-certificate", "single-status", "passport-application", "id-card-replacement",
+    ],
+  },
+];
+
+async function applyRevisions(database: Db) {
+  const done = new Set((await database.select({ id: s.catalogueRevisions.id }).from(s.catalogueRevisions)).map((r) => r.id));
+  for (const rev of REVISIONS) {
+    if (done.has(rev.id)) continue;
+    await database.transaction(async (tx) => {
+      // Claimed first, so two instances starting at once do not both rewrite the rows.
+      const claimed = await tx.insert(s.catalogueRevisions).values({ id: rev.id }).onConflictDoNothing().returning({ id: s.catalogueRevisions.id });
+      if (!claimed.length) return;
+      for (const slug of rev.slugs) {
+        const i = SERVICES.findIndex((v) => v.slug === slug);
+        if (i < 0) continue;
+        const { slug: _slug, position: _position, visible: _visible, popular: _popular, ...fields } = serviceRow(SERVICES[i], i);
+        await tx.update(s.services).set({ ...fields, updatedAt: new Date().toISOString() }).where(eq(s.services.slug, slug));
+      }
+    });
+  }
 }
 
 /** What every database needs: categories, the service catalogue with our prices, the default
