@@ -59,8 +59,8 @@ const iremboFee = (amount: number) => ({
   amount, label: "Irembo fee", verifiedAt: IREMBO_CHECKED,
   note: "Irembo’s own fee. You pay it with our fee in one payment, and we pay the Irembo bill for you as soon as it is issued. If the institution refuses, it is refunded.",
 });
-/** No government fee at all, though the request is still filed through the institution. */
-const free = (who: string) => ({ amount: 0, mode: "none" as const, note: `${who} charges nothing for this. You pay our fee only.` });
+/** The institution charges nothing, checked on the same date. Still filed with it, so not a "none" (our trainings). */
+const free = (who: string) => ({ amount: 0, verifiedAt: IREMBO_CHECKED, note: `${who} charges nothing for this. You pay our fee only.` });
 const filed = (over: Pick<Service, "slug" | "name" | "summary" | "who" | "requirements" | "documents" | "ours" | "time" | "docsShort"> & Partial<Service> & { office: string }): Service => ({
   questions: over.questions,
   category: over.category ?? "police",
@@ -409,7 +409,6 @@ export const SERVICES: Service[] = [
     documents: [],
     official: iremboFee(500),
     ours: 2000, time: "Usually the next working day", docsShort: "National ID number", popular: true,
-    purposeLabel: "Who is it for?", purposes: ["Myself", "My child", "Another family member"],
   }),
   filed({
     slug: "marriage-certificate", office: "Civil registration", category: "papers", name: "Marriage certificate",

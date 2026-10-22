@@ -232,10 +232,14 @@ let unpaidRef = "";
 await step("start", async () => {
   const p = await page();
   await p.go("/start/land-spouse-update");
-  check("start: a service that needs an ID asks for the National ID Number", await p.has("National ID Number") && await p.has("Please enter your 16-digit National ID number as required for this service.") && await p.has("does not look up"));
+  check("start: a service that needs an ID asks for the National ID Number, and no date of birth", await p.has("National ID Number") && await p.has("This service needs it") && (await p.ev(`document.querySelector("#f-dob") === null`)));
+  check("start: WhatsApp is offered first for the document, email beside it", await p.has("Where should we send your document?") && (await p.ev(`document.querySelector("[data-via=whatsapp]")?.classList.contains("on")`)) && (await p.ev(`document.querySelector("#f-email") === null`)));
   await p.click("Continue");
-  check("start: empty step 1 is blocked with plain errors", await p.has("Enter your full name") && await p.has("ID numbers have 16 digits") && await p.has("Enter the date of birth from the ID") && await p.has("Enter a valid email address") && !(await p.has("Enter a Rwandan mobile number")));
-  await p.set("#f-name", "Test Person"); await p.set("#f-nid", "12345"); await p.set("#f-dob", "1995-08-12"); await p.set("#f-email", "Test.Person@Example.com");
+  check("start: empty step 1 is blocked with plain errors", await p.has("Enter your full name") && await p.has("ID numbers have 16 digits") && await p.has("Enter the Rwandan number you use on WhatsApp") && !(await p.has("Enter the date of birth")));
+  await p.ev(`document.querySelector("[data-via=email] input").click()`); await sleep(100);
+  await p.click("Continue"); await sleep(200);
+  check("start: choosing email asks for the address instead", await p.has("Enter a valid email address") && !(await p.has("Enter the Rwandan number you use on WhatsApp")));
+  await p.set("#f-name", "Test Person"); await p.set("#f-nid", "12345"); await p.set("#f-email", "Test.Person@Example.com");
   await p.click("Continue"); await sleep(200);
   check("start: an incomplete ID number is rejected", await p.has("ID numbers have 16 digits"));
   await p.set("#f-nid", "12345678901234567890"); await p.click("Continue"); await sleep(200);
@@ -243,23 +247,20 @@ await step("start", async () => {
   await p.set("#f-nid", "999"); await p.click("Clear", "button");
   check("start: the ID field can be cleared", (await p.ev(`document.querySelector("#f-nid").value`)) === "");
   await p.set("#f-nid", "1 1995 8 0045123 0 17"); await p.set("#f-phone", "788 555 010");
-  await p.click("Continue"); await sleep(200);
-  check("start: the ID consent is required before the number is accepted", await p.has("Please confirm you understand"));
-  await p.ev(`document.querySelector("#f-id-consent").click()`);
   await p.click("Add a spouse after marriage", "label"); await p.set("#f-notes", "We married in August.");
   await p.click("Continue"); await sleep(300);
   check("start: the saved draft has no ID number", !(await p.ev(`(sessionStorage.getItem("inzira:start:land-spouse-update") || "").includes("0045123")`)));
   await p.go("/start/land-spouse-update"); await sleep(400);
   check("start: a refresh keeps the draft and the step", await p.has("Check, then pay"));
   await p.click("Back"); await sleep(200);
-  await p.set("#f-nid", "1 1995 8 0045123 0 17"); await p.set("#f-dob", "1995-08-12");
-  await p.ev(`document.querySelector("#f-id-consent").click()`);
+  await p.set("#f-nid", "1 1995 8 0045123 0 17");
   await p.click("Continue"); await sleep(300);
   check("start: a fixed price shows paying as the last step, with the total", (await p.ev(`!!document.querySelector('[aria-label^="Step 2 of 3"]')`)) && await p.has("3. Pay")
-    && (await p.ev(`document.querySelector("[data-checkout-total]")?.innerText ?? ""`)).includes("RWF 5,000") && await p.has("Paying sends your request to our team") && await p.has("you pay it directly to the institution"));
+    && (await p.ev(`document.querySelector("[data-checkout-total]")?.innerText ?? ""`)).includes("RWF 5,000") && await p.has("Paying sends your request to our team") && !(await p.has("you pay it directly to the institution")));
+  check("start: the documents are a checklist, and missing ones can follow after paying", (await p.ev(`document.querySelectorAll("[data-doc-list] li").length`)) === 5 && await p.has("Needed") && await p.has("Pay anyway and send it later"));
   await attach(p, "input[type=file]"); await sleep(300);
   check("start: a chosen file is listed", await p.has("id_photo.png"));
-  check("start: review lists what was entered", await p.has("Check, then pay") && await p.has("Test Person") && await p.has("test.person@example.com") && await p.has("1995-08-12") && await p.has("Add a spouse after marriage"));
+  check("start: review lists what was entered", await p.has("Check, then pay") && await p.has("Test Person") && await p.has("test.person@example.com") && await p.has("Add a spouse after marriage") && await p.has("does not look it up"));
   await p.click("Continue to payment"); await sleep(200);
   check("start: cannot send without the acknowledgement", await p.has("Please confirm you’ve read this"));
   await p.ev(`document.querySelector('input[aria-describedby="ack-err"]').click()`); await p.click("Continue to payment"); await sleep(1200);
@@ -286,8 +287,10 @@ await step("start", async () => {
   await p.go("/start/ebm-installation");
   check("ebm: an unconfirmed ID rule is not mandatory", await p.has("not confirmed") && (await p.ev(`!!document.querySelector("#f-nid")`)) === true);
   // The phone number is the one the first customer just used: another email must still be able to send a request.
-  await p.set("#f-name", "Ebm Person"); await p.set("#f-email", "ebm.person@example.com"); await p.set("#f-phone", "788 555 010");
+  await p.ev(`document.querySelector("[data-via=email] input").click()`); await p.set("#f-name", "Ebm Person"); await p.set("#f-email", "ebm.person@example.com"); await p.set("#f-phone", "788 555 010");
   await p.click("Continue"); await sleep(300);
+  check("ebm: the service's own question is required", await p.has("Please answer this") && await p.has("The 9-digit taxpayer number"));
+  await p.set("#q-tin", "102345678"); await p.click("Continue"); await sleep(300);
   check("ebm: a service that does not require an ID continues without one", await p.has("Check, then pay") && !(await p.has("ID numbers have 16 digits")));
   check("review fee: a quoted service asks for the review fee, taken off our fee", (await p.ev(`document.querySelector("[data-review-fee]")?.innerText ?? ""`)).includes("RWF 1,000") && await p.has("Taken off our fee when you pay the quote") && await p.has("Refunded if we can’t take on your request"));
   await p.ev(`document.querySelector('input[aria-describedby="ack-err"]').click()`); await p.click("Continue to payment"); await sleep(1200);
@@ -305,7 +308,7 @@ await step("start", async () => {
   check("review fee: the request shows it paid and waits for the quote", await p.has("You paid a RWF 1,000 review fee") && await p.has("Fee to be confirmed") && !(await p.has("Pay the review fee")));
   // A fixed price paid on the spot: the customer pays straight after sending, and the request is paid when an agent first sees it.
   await p.go("/start/ebm-training"); await waitFor(p, "Continue");
-  await p.set("#f-name", "Pay First"); await p.set("#f-email", "pay.first@example.com");
+  await p.ev(`document.querySelector("[data-via=email] input").click()`); await p.set("#f-name", "Pay First"); await p.set("#f-email", "pay.first@example.com");
   await p.click("Continue"); await sleep(300);
   check("pay first: the review shows the total and that paying sends it", (await p.ev(`document.querySelector("[data-checkout-total]")?.innerText ?? ""`)).includes("RWF 20,000") && !(await p.has("you pay it directly to the institution")), (await p.ev(`document.querySelector("main")?.innerText ?? ""`)).slice(0, 300).replace(/\s+/g, " "));
   await p.ev(`document.querySelector('input[aria-describedby="ack-err"]').click()`); await p.click("Continue to payment"); await sleep(1200);
@@ -539,7 +542,7 @@ await step("admin", async () => {
   check("services: unchecked official fees are flagged", await p.has("official fees not yet checked"));
   await p.click("Edit Company registration"); await sleep(400);
   check("services: the editor shows the price list fee", (await p.ev(`document.querySelector("#e6").value`)) === "10000");
-  await p.set("#e6", "12000"); await p.click("Mark as checked today"); await sleep(200); await p.click("Save changes"); await waitFor(p, "Company registration updated");
+  await p.set("#e6", "12000"); await p.click("Checked again today"); await sleep(200); await p.click("Save changes"); await waitFor(p, "Company registration updated");
   check("services: saving a price change", await p.has("Company registration updated"));
   await p.go("/services/company-registration");
   check("services: customers see the new price straight away", await p.has("RWF 12,000") && await p.has("Official fee last checked"));
@@ -747,11 +750,41 @@ await step("privacy", async () => {
   check("privacy: a deleted account can no longer sign in", await p.has("don’t have an account"));
   await p.close();
 });
+// ---------- a certificate on WhatsApp: name, ID, number, one payment ----------
+await step("whatsapp", async () => {
+  const p = await page(390);
+  await p.go("/start/birth-certificate"); await waitFor(p, "Continue");
+  check("whatsapp: a basic certificate asks no documents and no date of birth", (await p.ev(`document.querySelector("#f-dob") === null && document.querySelector("#f-email") === null`)) && await p.has("Your WhatsApp number"));
+  await p.set("#f-name", "Wa Customer"); await p.set("#f-nid", "1 1990 8 0045123 0 17"); await p.set("#f-phone", "0788 555 020");
+  await p.click("Myself", "label"); await p.click("Continue"); await sleep(300);
+  check("whatsapp: the check step says no documents are needed, and asks for none", await p.has("No documents needed for this service") && (await p.ev(`document.querySelectorAll("input[type=file]").length`)) === 0);
+  const total = await p.ev(`document.querySelector("[data-checkout-total]")?.innerText ?? ""`);
+  check("whatsapp: one total with the Irembo fee inside it", total.includes("RWF 500") && total.includes("RWF 2,000") && total.includes("RWF 2,500") && total.includes("We pay the Irembo bill"), total.replace(/\s+/g, " "));
+  check("whatsapp: the review says where it will be sent", await p.has("WhatsApp · +250 788 555 020"));
+  await p.ev(`document.querySelector('input[aria-describedby="ack-err"]').click()`); await p.click("Continue to payment"); await sleep(1200);
+  await waitFor(p, "Enter the code we sent you");
+  check("whatsapp: the code goes to the number by SMS", await p.has("+250 788 555 020") && await p.has("Confirm your number"));
+  await p.set("#otp", await p.ev(`document.querySelector("[data-demo-code]").dataset.demoCode`)); await p.click("Confirm and go to payment");
+  await waitPath(p, (path) => path.endsWith("/pay"), 120); await waitFor(p, "Pay to send your request", 60);
+  check("whatsapp: a confirmed number opens a portal and goes to payment", (await p.ev(`document.querySelector("[data-pay]")?.textContent ?? ""`)).includes("RWF 2,500"));
+  const ref = (await p.ev("location.pathname")).split("/")[3] ?? "";
+  // The number now has an account with no email: the email path cannot take it over, and phone sign-in opens it.
+  await p.go("/start/single-status"); await waitFor(p, "Continue");
+  check("whatsapp: single status warns, before anything is paid, that NIDA must list them as single", await p.has("Only if NIDA lists you as single"));
+  await p.close();
+  const o = await page();
+  await signIn(o, "788555020");
+  check("whatsapp: a number-only account signs in by SMS code", (await o.ev("location.pathname")).startsWith("/portal"));
+  await o.go(`/portal/requests/${ref}`); await waitFor(o, ref);
+  check("whatsapp: the customer signs in with the number and sees the request", await o.has("Birth certificate") && await o.has(ref));
+  await o.close();
+});
+
 // ---------- registration is optional ----------
 await step("contact", async () => {
   const p = await page();
   await p.go("/start/irembo-training");
-  await p.set("#f-name", "Guest Person"); await p.set("#f-email", "guest.person@example.com");
+  await p.ev(`document.querySelector("[data-via=email] input").click()`); await p.set("#f-name", "Guest Person"); await p.set("#f-email", "guest.person@example.com");
   await p.click("Online", "label"); await p.click("Continue"); await sleep(300);
   check("contact: sending does not ask whether to create a portal", !(await p.has("Create my portal")) && await p.has("Check, then pay") && await p.has("Online"));
   await p.ev(`document.querySelector('input[aria-describedby="ack-err"]').click()`); await p.click("Continue to payment"); await sleep(1200);
@@ -905,7 +938,7 @@ await step("authenticator", async () => {
 await step("mobile", async () => {
   const p = await page(390);
   await p.go("/start/land-spouse-update");
-  check("mobile: a service that needs an ID shows the field", await p.has("National ID Number") && await p.has("Please enter your 16-digit National ID number") && (await p.ev(`!!document.querySelector("#f-nid")`)) === true);
+  check("mobile: a service that needs an ID shows the field", await p.has("National ID Number") && await p.has("This service needs it") && (await p.ev(`!!document.querySelector("#f-nid")`)) === true);
   await p.go("/start/irembo-training");
   check("mobile: a service that does not need an ID hides the field", (await p.ev(`document.querySelector("#f-nid") === null`)) === true);
   await p.go("/");

@@ -6,6 +6,7 @@ import { getLocale } from "@/lib/i18n/locale";
 import { text } from "@/lib/i18n/messages";
 import { localizeService } from "@/lib/i18n/present";
 import { getService } from "@/lib/repo";
+import { canDeliverCodes } from "@/lib/sms";
 
 export async function generateMetadata(): Promise<Metadata> {
   return { title: text(await getLocale(), "nav.start") };
@@ -18,7 +19,7 @@ export default async function StartPage({ params }: { params: Promise<{ slug: st
   return (
     <>
       <PublicNav />
-      <main id="main"><StartForm service={localizeService(s, locale)} /></main>
+      <main id="main"><StartForm service={localizeService(s, locale)} smsCodes={canDeliverCodes()} /></main>
     </>
   );
 }

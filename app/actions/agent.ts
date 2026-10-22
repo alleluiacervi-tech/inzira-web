@@ -309,7 +309,7 @@ export async function createIntake(input: { slug: string; name: string; phone: s
       idPolicy: idPolicyOf(service), idRequired: ask === "required", idReview: ask === "required" ? "pending" : null, requirementsSnapshot: service.requirements,
       official: service.official.mode ? null : service.official.amount, officialMode: service.official.mode ?? null,
       officialLabel: service.official.mode === "none" ? "Official fee" : `${service.official.label ?? "Official fee"} · ${service.channel}`,
-      ours: service.ours, oursStandard: service.ours, oursUnit: service.oursUnit ?? null, quote: "estimate", officialReceipt: service.official.mode ? "na" : "awaiting",
+      ours: service.ours, oursStandard: service.ours, oursUnit: service.oursUnit ?? null, quote: "estimate", officialReceipt: service.official.mode || service.official.amount === 0 ? "na" : "awaiting",
     });
     if (service.documents.length) await tx.insert(s.requestDocuments).values(service.documents.map((doc, i) => ({ id: `${ref}-d${i + 1}`, ref, position: i, name: doc.name, group: doc.group, required: doc.required, status: "required" as const })));
     await event(tx, ref, msg("ev.opened"), me.id, input.source);

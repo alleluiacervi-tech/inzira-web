@@ -613,3 +613,28 @@ details[open] .chev { transform: rotate(180deg); }
   .pay-ring-2 { display: none; }
   .pay-tick circle, .pay-tick path { animation: none; stroke-dashoffset: 0; }
 }
+
+/* ---- Request form: where to send it, and the document checklist ---- */
+.via-pick { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+@media (max-width: 560px) { .via-pick { grid-template-columns: 1fr; } .via-opt { min-height: 64px; } }
+.via-opt { position: relative; display: flex; align-items: center; gap: 12px; min-height: 72px; padding: 12px 40px 12px 12px; border: 1px solid var(--line-3); border-radius: 12px; background: var(--paper); cursor: pointer; transition: border-color .15s, box-shadow .15s; }
+.via-opt:hover { border-color: var(--ink-2); }
+.via-opt.on { border: 2px solid var(--brand); padding: 11px 39px 11px 11px; box-shadow: 0 8px 18px -14px rgba(20, 40, 80, .6); }
+.via-opt:has(input:focus-visible) { outline: 3px solid var(--signal); outline-offset: 2px; }
+.via-opt strong { font-size: 15px; }
+.via-opt .hint { font-size: 12.5px; line-height: 1.35; }
+.via-ico { width: 40px; height: 40px; flex-shrink: 0; display: grid; place-items: center; border-radius: 10px; }
+.via-ico-whatsapp { background: #e4f6ea; color: #128c4a; }
+.via-ico-email { background: var(--brand-tint); color: var(--brand); }
+.via-dot { position: absolute; right: 12px; top: 50%; width: 20px; height: 20px; margin-top: -10px; border-radius: 50%; border: 2px solid var(--line-3); }
+.via-opt.on .via-dot { border: 6px solid var(--brand); }
+.doc-pick { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; border: 1px solid var(--line); border-radius: 12px; background: var(--paper); overflow: hidden; }
+.doc-pick li { display: flex; align-items: flex-start; gap: 12px; padding: 14px; }
+.doc-pick li + li { border-top: 1px solid var(--line-2); }
+.doc-pick-mark { width: 28px; height: 28px; flex-shrink: 0; display: grid; place-items: center; border-radius: 50%; background: var(--sand); color: var(--muted); }
+.doc-pick li.has .doc-pick-mark { background: var(--ok-bg); color: var(--ok); }
+.doc-pick-file { font-size: 13.5px; padding: 4px 0 0; min-width: 0; }
+.doc-pick .doc-pick-add { flex: 0 0 auto; width: auto; align-self: flex-start; min-height: 40px; }
+@media (pointer: coarse) { .doc-pick .doc-pick-add { min-height: 44px; } }
+.tag-warn { background: var(--warn-bg); color: var(--warn); height: 20px; font-size: 11.5px; }
+.nowrap-ellipsis { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

@@ -2,14 +2,14 @@
 import { randomBytes } from "node:crypto";
 import { and, eq, ne, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
-import { consumeEmailCode, endOtherSessions, endSession, getSession, issueEmailCode, normaliseEmail, normalisePhone, requireCustomerId, startSession } from "@/lib/auth";
+import { consumeCode, consumeEmailCode, endOtherSessions, endSession, getSession, issueEmailCode, normaliseEmail, normalisePhone, requireCustomerId, startSession } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { deleteAccount, finishedWithDocuments, purgeDocuments } from "@/lib/privacy";
 import { iso } from "@/lib/db";
 import { asLocale, getLocale, rememberLocale, type Locale } from "@/lib/i18n/locale";
 import { text as tr } from "@/lib/i18n/messages";
 import type en from "@/lib/i18n/en.json";
-import type { LibraryDoc } from "@/lib/types";
+import type { DeliverVia, LibraryDoc, ServiceAnswer } from "@/lib/types";
 import { english, feeVars, msg, sms } from "@/lib/i18n/stored";
 import { checkoutPrice, reviewFeeFor } from "@/lib/pricing";
 import { maskNationalId, parseDob, prettyPhone, rwf } from "@/lib/format";
@@ -50,19 +50,27 @@ async function checkFile(f: File): Promise<string | null> {
   return null;
 }
 
-/** Sends a new request: checks the code emailed to the customer, creates their contact record if needed, stores the
- *  files and opens the request. With "portal" (the default) it also signs them in; without it they stay a contact:
- *  they can follow the request with its reference and email, and open a portal later by signing in with that email. */
+/** At most this many files arrive with a new request; more can be added from the portal. */
+const MAX_START_FILES = 15;
+
+/** Sends a new request: checks the code sent to the customer, creates their contact record if needed, stores the
+ *  files and opens the request. The code goes to the WhatsApp number (by SMS, `codeTo` "phone") or to the email. A number
+ *  confirmed this way is the account's way in, as for customers who never gave an email. With "portal" (the default)
+ *  it also signs them in; without it they stay a contact and follow the request with its reference. */
 export async function submitRequest(fd: FormData): Promise<Result<{ ref: string; portal: boolean; phoneShared: boolean; payNow: number | null }>> {
-  const email = normaliseEmail(text(fd, "email"));
+  const via: DeliverVia = text(fd, "via") === "email" ? "email" : "whatsapp";
+  const byPhone = text(fd, "codeTo") === "phone";
   const phoneInput = text(fd, "phone");
   const typedPhone = phoneInput ? normalisePhone(phoneInput) : null;
+  // A number confirmed by SMS is the identity; an email typed beside it is not confirmed, so it is not kept.
+  const email = byPhone ? null : normaliseEmail(text(fd, "email"));
   let phone = typedPhone;
   const name = text(fd, "name"), subject = text(fd, "subject"), forWho = text(fd, "forWho") || "me";
   const digits = nationalIdDigits(text(fd, "nid"));
   const portal = fd.get("portal") !== "0";
-  if (!email) return refuse("badEmail");
+  if (!byPhone && !email) return refuse("badEmail");
   if (phoneInput && !typedPhone) return refuse("badPhone");
+  if ((byPhone || via === "whatsapp") && !typedPhone) return refuse("badPhone");
   if (!name) return refuse("name");
   const slug = text(fd, "slug") || "other-online-service";
   const service = await getService(slug);
@@ -85,30 +93,47 @@ export async function submitRequest(fd: FormData): Promise<Result<{ ref: string;
     if (idErr === "long") return refuse("idLong");
     if (idErr) return refuse("idShort");
     if (!consent) return refuse("idConsent");
-    if (!dob) return refuse("badDob");
   }
-  const files = service.documents.map((_, i) => fd.get(`file-${i}`)).map((f) => (f instanceof File && f.size ? f : null));
-  const extra = fd.getAll("file-extra").filter((f): f is File => f instanceof File && f.size > 0);
-  for (const f of [...files, ...extra]) { const bad = f && (await checkFile(f)); if (bad) return fail(bad); }
+  // The service's own questions. Answers keep the English label, which is what staff read.
+  const answers: ServiceAnswer[] = [];
+  for (const q of service.questions ?? []) {
+    const value = text(fd, `answer-${q.key}`).slice(0, 200);
+    if (q.required && !value) return refuse("answer", { q: q.label });
+    if (value) answers.push({ key: q.key, label: q.label, value });
+  }
+  const isFile = (f: FormDataEntryValue): f is File => f instanceof File && f.size > 0;
+  const files = service.documents.map((_, i) => fd.getAll(`file-${i}`).filter(isFile));
+  const extra = fd.getAll("file-extra").filter(isFile);
+  if (files.flat().length + extra.length > MAX_START_FILES) return refuse("tooManyFiles", { n: MAX_START_FILES });
+  for (const f of [...files.flat(), ...extra]) { const bad = await checkFile(f); if (bad) return fail(bad); }
 
   if (!(await allowIp("request"))) return refuse("tooMany");
-  const checked = await consumeEmailCode(email, text(fd, "code"));
+  const checked = byPhone ? await consumeCode(typedPhone!, text(fd, "code")) : await consumeEmailCode(email!, text(fd, "code"));
   if (!checked.ok) return checked;
 
   const d = await db();
+  // A confirmed number opens its own account, unless that account signs in with an email: then the email is the way in.
+  if (byPhone) {
+    const [owner] = await d.select({ email: s.accounts.email }).from(s.accounts).where(eq(s.accounts.phone, typedPhone!));
+    if (owner?.email) return refuse("phoneHasEmail");
+  }
   const now = new Date().toISOString();
   // A phone number belongs to one account, and someone else's account is never joined to this email just because the number
   // matches. A number already on another account is not a reason to turn the request away (families and offices share
   // phones, and the code has just been used up): the request goes through on the email, and the number is not saved.
   let phoneShared = false;
-  if (phone) {
+  if (phone && !byPhone) {
     const [owner] = await d.select({ id: s.accounts.id, email: s.accounts.email }).from(s.accounts).where(eq(s.accounts.phone, phone));
     if (owner && owner.email?.toLowerCase() !== email) { phone = null; phoneShared = true; }
   }
+  // The WhatsApp number could not be saved on the account: the agent still needs it to send the document.
+  if (phoneShared && via === "whatsapp" && typedPhone) answers.push({ key: "whatsapp", label: "WhatsApp number", value: prettyPhone(typedPhone) });
   // Files are written inside the transaction; if it fails, the ones already stored are removed so none is left behind.
   const stored: string[] = [];
   const result = await d.transaction(async (tx) => {
-    let [account] = await tx.select().from(s.accounts).where(sql`lower(${s.accounts.email}) = ${email}`);
+    let [account] = byPhone
+      ? await tx.select().from(s.accounts).where(eq(s.accounts.phone, typedPhone!))
+      : await tx.select().from(s.accounts).where(sql`lower(${s.accounts.email}) = ${email}`);
     if (!account) {
       // A new customer's portal and messages are in the language they used to send the request.
       [account] = await tx.insert(s.accounts).values({
@@ -150,14 +175,14 @@ export async function submitRequest(fd: FormData): Promise<Result<{ ref: string;
     // Pay to submit: a request with a settled price waits at checkout, out of the staff queues, until it is paid
     // (lib/billing.ts hands it over). The customer sees it in their portal as one thing to do: pay.
     const total = payFirst ? rwf(payFirst) : "";
-    const summary = price ? msg("sum.checkout", { total }) : reviewFee ? msg("sum.reviewFee", { fee: total }) : msg("sum.received", { contact: email });
+    const summary = price ? msg("sum.checkout", { total }) : reviewFee ? msg("sum.reviewFee", { fee: total }) : msg("sum.received", { contact: email ?? prettyPhone(typedPhone) });
     const checkoutHold = price ? msg("hold.checkout", { total }) : reviewFee ? msg("hold.reviewFee", { fee: total }) : null;
     await tx.insert(s.requests).values({
       ref, serviceSlug: service.slug, profileId: profile.id, agentId: null, stage: "received", stageDates: { received: now }, channel: service.channel,
       checkout: payFirst ? "open" : "none", reviewFee,
       hold: checkoutHold ? { reason: "payment", title: english(checkoutHold, "title"), detail: english(checkoutHold, "detail"), since: now, msg: checkoutHold } : null,
       summary: { title: english(summary, "title"), body: english(summary, "body"), msg: summary },
-      next: english(summary, "next"), purpose: text(fd, "purpose") || null,
+      next: english(summary, "next"), purpose: text(fd, "purpose") || null, answers: answers.length ? answers : null, deliverVia: via,
       idPolicy: policy, idRequired: ask === "required", idReview: ask === "required" ? "pending" : null, idConsent: storeId && consent,
       requirementsSnapshot: service.requirements,
       invoice, official: service.official.mode ? null : service.official.amount, officialMode: service.official.mode ?? null,
@@ -165,11 +190,12 @@ export async function submitRequest(fd: FormData): Promise<Result<{ ref: string;
       ours: service.ours, oursStandard: service.ours, oursUnit: service.oursUnit ?? null, quote: price ? "confirmed" : "estimate",
       // An unpaid checkout is reminded once and closed after three days (lib/jobs.ts).
       ...(price ? { dueAt: new Date(Date.now() + 3 * 864e5).toISOString() } : {}),
-      officialReceipt: service.official.mode ? "na" : "awaiting",
+      officialReceipt: service.official.mode || service.official.amount === 0 ? "na" : "awaiting",
     });
 
     const docs = service.documents.map((doc, i) => ({ id: `${ref}-d${i + 1}`, ref, position: i, name: doc.name, group: doc.group, required: doc.required, status: "required" as const }));
-    const uploads: { docId: string | null; file: File }[] = [...files.map((f, i) => (f ? { docId: docs[i].id, file: f } : null)).filter((x) => !!x), ...extra.map((f) => ({ docId: null, file: f }))];
+    // The first file for a document fills its slot; any more are kept beside it as extra files.
+    const uploads: { docId: string | null; file: File }[] = [...files.flatMap((list, i) => list.map((f, j) => ({ docId: j === 0 ? docs[i].id : null, file: f }))), ...extra.map((f) => ({ docId: null, file: f }))];
     for (const u of uploads) {
       const fileId = id("f");
       const bytes = new Uint8Array(await u.file.arrayBuffer());

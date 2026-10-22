@@ -181,6 +181,12 @@ export type Request = {
   dependsOn?: string;
   /** The reason the customer picked when starting, e.g. "Add a spouse after marriage". */
   purpose?: string;
+  /** Answers to the service's own questions (plate number, pickup station…). */
+  answers?: ServiceAnswer[];
+  /** Where the customer wants the finished document. Unset on requests sent before they could choose. */
+  deliverVia?: DeliverVia;
+  /** The institution's bill number (an Irembo Bill ID), once staff have filed. */
+  officialBill?: string;
   /** The service's ID rule at the moment this request was sent. Later catalogue edits do not change it. */
   idPolicy?: IdPolicy;
   /** True when this application required a National ID number. Review exists only then. */

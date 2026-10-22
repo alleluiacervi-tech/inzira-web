@@ -95,7 +95,9 @@ async function applyRevisions(database: Db) {
         const i = SERVICES.findIndex((v) => v.slug === slug);
         if (i < 0) continue;
         const { slug: _slug, position: _position, visible: _visible, popular: _popular, ...fields } = serviceRow(SERVICES[i], i);
-        await tx.update(s.services).set({ ...fields, updatedAt: new Date().toISOString() }).where(eq(s.services.slug, slug));
+        // A field the catalogue no longer has (undefined) is cleared, not left as it was.
+        const cleared = Object.fromEntries(Object.entries(fields).map(([k, v]) => [k, v === undefined ? null : v]));
+        await tx.update(s.services).set({ ...cleared, updatedAt: new Date().toISOString() }).where(eq(s.services.slug, slug));
       }
     });
   }

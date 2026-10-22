@@ -480,6 +480,15 @@ export function RequestDetailView({
                   </div>
                 )}
                 {c.purpose && <div className="row between"><span style={{ color: "var(--c-text-muted)" }}>Purpose:</span><span>{c.purpose}</span></div>}
+                {c.answers?.map((a) => (
+                  <div key={a.key} className="row between g12" data-answer={a.key}><span style={{ color: "var(--c-text-muted)" }}>{a.label}:</span><span style={{ textAlign: "right", overflowWrap: "anywhere" }}>{a.value}</span></div>
+                ))}
+                {c.deliverVia && (
+                  <div className="row between g12" data-deliver-via={c.deliverVia}>
+                    <span style={{ color: "var(--c-text-muted)" }}>Send the document on:</span>
+                    <strong>{c.deliverVia === "whatsapp" ? `WhatsApp${c.answers?.find((a) => a.key === "whatsapp")?.value ? ` · ${c.answers.find((a) => a.key === "whatsapp")!.value}` : ""}` : `Email · ${c.account.email ?? "no email on file"}`}</strong>
+                  </div>
+                )}
               </div>
               <div className="row g8">
                 <a className="c-btn c-btn-secondary c-btn-sm grow" href={`tel:+${phone}`}><Icon name="phone" size={14} /> Call</a>

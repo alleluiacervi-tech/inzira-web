@@ -2149,13 +2149,7 @@
           "body": "You send the details. We submit on Irembo for you and send the document as soon as Civil registration issues it. Inzira is not Civil registration and not Irembo."
         }
       ],
-      "officialNote": "Irembo’s own fee. You pay it with our fee in one payment, and we pay the Irembo bill for you as soon as it is issued. If the institution refuses, it is refunded.",
-      "purposeLabel": "Who is it for?",
-      "purposes": [
-        "Myself",
-        "My child",
-        "Another family member"
-      ]
+      "officialNote": "Irembo’s own fee. You pay it with our fee in one payment, and we pay the Irembo bill for you as soon as it is issued. If the institution refuses, it is refunded."
     },
     "marriage-certificate": {
       "name": "Marriage certificate",
