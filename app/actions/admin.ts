@@ -47,7 +47,7 @@ export async function saveService(v: Service, isNew = false): Promise<Result> {
   if (v.ours < 0 || (v.official.amount !== null && v.official.amount < 0)) return fail("Amounts can’t be negative.");
   const policy = idPolicyOf(v);
   const row = {
-    slug: v.slug, name: v.name.trim(), aka: v.aka ?? null, category: v.category, authority: v.authority, channel: v.channel, via: v.via || `Via ${v.channel}`, summary: v.summary,
+    slug: v.slug, name: v.name.trim(), aka: v.aka ?? null, tagline: v.tagline?.trim() || null, category: v.category, authority: v.authority, channel: v.channel, via: v.via || `Via ${v.channel}`, summary: v.summary,
     who: v.who, requirements: v.requirements.filter((x) => x.trim()), documents: v.documents.filter((x) => x.name.trim()), steps: v.steps.length ? v.steps : defaultSteps(v.channel || "the official channel", v.authority || "The institution"), notes: v.notes,
     officialAmount: v.official.mode ? (v.official.mode === "none" ? 0 : null) : v.official.amount, officialMode: v.official.mode ?? null, officialLabel: v.official.label ?? null,
     officialNote: v.official.note, officialVerifiedAt: v.official.verifiedAt ?? null, ours: v.ours, oursUnit: v.oursUnit ?? null, time: v.time, docsShort: v.docsShort,

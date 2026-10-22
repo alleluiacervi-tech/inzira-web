@@ -345,3 +345,16 @@
 
 /* In-page links (How it works, Help, Contact) land below the sticky header. */
 .home section[id] { scroll-margin-top: 84px; }
+
+/* Compact category tiles: name and count only, so the list fits on one screen of a phone. */
+.desk a { min-height: 0; }
+@media (max-width: 640px) {
+  .desk { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  .desk a { padding: 12px; gap: 4px; }
+  .desk-markslot { height: 26px; }
+  .desk-mark { height: 22px; max-width: 110px; }
+  .desk-name { font-size: var(--fs-base); }
+  .desk-foot { padding-top: 6px; }
+}
+/* On a phone the example case would push the popular services below the first screens: it shows from tablet width up. */
+@media (max-width: 640px) { .top .case { display: none; } }

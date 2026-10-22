@@ -22,6 +22,8 @@ export const services = pgTable("services", {
   slug: text("slug").primaryKey(),
   name: text("name").notNull(),
   aka: text("aka"),
+  /** One short line under the name (lib/types.ts Service.tagline). */
+  tagline: text("tagline"),
   category: text("category").notNull().references(() => categories.id),
   authority: text("authority").notNull(),
   channel: text("channel").notNull(),

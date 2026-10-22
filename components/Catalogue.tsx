@@ -3,7 +3,7 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { billingKind, rwf } from "@/lib/format";
-import { REVIEW_FEE } from "@/lib/pricing";
+import { REVIEW_FEE, checkoutPrice } from "@/lib/pricing";
 import { searchText } from "@/lib/i18n/present";
 import type { Audience, Category, Service } from "@/lib/types";
 import { withLocale } from "@/lib/seo";
@@ -64,7 +64,9 @@ export default function Catalogue({ services, categories, initialQuery, initialC
       const hay = [searchText(s), categories.find((c) => c.id === s.category)?.name].join(" ").toLowerCase();
       return term.split(/\s+/).every((t) => hay.includes(t));
     });
-    if (sort === "cost") return [...r].sort((a, b) => a.ours - b.ours);
+    // By what the customer pays: the whole price where it is settled, otherwise our fee.
+    const cost = (x: Service) => checkoutPrice(x)?.total ?? x.ours;
+    if (sort === "cost") return [...r].sort((a, b) => cost(a) - cost(b));
     if (sort === "name") return [...r].sort((a, b) => a.name.localeCompare(b.name));
     return [...r].sort((a, b) => Number(!!b.popular) - Number(!!a.popular));
   }, [services, categories, q, cat, aud, fees, sort]);

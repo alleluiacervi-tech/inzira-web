@@ -10,7 +10,7 @@ export default async function Footer() {
   const t = (path: string, vars?: Record<string, string | number>) => text(locale, path, vars);
   const cols: [string, [string, string][]][] = [
     [t("footer.services"), [[t("footer.rdb"), "/services?category=rdb"], [t("footer.tax"), "/services?category=tax"], [t("footer.land"), "/services?category=land"], [t("footer.rura"), "/services?category=rura"], [t("footer.police"), "/services?category=police"], [t("footer.papers"), "/services?category=papers"], [t("footer.irembo"), "/services?category=irembo"], [t("footer.all"), "/services"]]],
-    [t("footer.company"), [[t("footer.fees"), "/#prices"], [t("footer.how"), "/#how"], [t("footer.questions"), "/#help"], [t("footer.contact"), "/#talk"], [t("footer.about"), "/about"], [t("footer.privacy"), "/privacy"], [t("footer.terms"), "/terms"]]],
+    [t("footer.company"), [[t("footer.fees"), "/services"], [t("footer.how"), "/#how"], [t("footer.questions"), "/#help"], [t("footer.contact"), "/#talk"], [t("footer.about"), "/about"], [t("footer.privacy"), "/privacy"], [t("footer.terms"), "/terms"]]],
     [t("footer.request"), [[t("footer.start"), "/services"], [t("footer.track"), "/track"], [t("footer.signIn"), "/sign-in"], [t("footer.describe"), "/start"]]],
   ];
   const contact = [
