@@ -2,7 +2,8 @@
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { billingKind } from "@/lib/format";
+import { billingKind, rwf } from "@/lib/format";
+import { REVIEW_FEE } from "@/lib/pricing";
 import { searchText } from "@/lib/i18n/present";
 import type { Audience, Category, Service } from "@/lib/types";
 import { withLocale } from "@/lib/seo";
@@ -92,7 +93,7 @@ export default function Catalogue({ services, categories, initialQuery, initialC
       </fieldset>
       <div className="card stack g10" style={{ padding: 18 }}>
         <strong>{t("catalogue.unsure")}</strong>
-        <p className="hint">{t("catalogue.unsureBody")}</p>
+        <p className="hint">{REVIEW_FEE > 0 ? t("catalogue.unsureBodyFee", { fee: rwf(REVIEW_FEE) }) : t("catalogue.unsureBody")}</p>
         <Link className="btn btn-p btn-sm" href={withLocale(locale, "/start")}>{t("catalogue.describe")}</Link>
       </div>
     </aside>

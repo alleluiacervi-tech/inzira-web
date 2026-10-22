@@ -157,6 +157,8 @@ export const requests = pgTable("requests", {
   /** Pay to submit (lib/pricing.ts). "open": started at checkout and not paid yet, so staff do not see it in their queues;
    *  "paid": paid at checkout and handed to staff; "none": an ordinary request, checked and quoted first. */
   checkout: text("checkout").$type<Checkout>().notNull().default("none"),
+  /** The review fee a quoted request was sent with (lib/pricing.ts). Null when it was free or priced in full at checkout. */
+  reviewFee: integer("review_fee"),
   // billing — always two lines: official (institution) and ours (Inzira)
   invoice: text("invoice").notNull().unique(),
   official: integer("official"),
@@ -250,6 +252,28 @@ export const transactions = pgTable("transactions", {
   index("transactions_provider_ref_idx").on(t.providerRef.op("text_pattern_ops")),
   // One prompt waiting per request, enforced by the database, so two taps cannot send two prompts.
   uniqueIndex("transactions_one_pending").on(t.ref).where(sql`${t.status} = 'pending'`),
+]);
+
+/** Money sent back to a customer's phone (refunds), through IntouchPay RequestDeposit (lib/payouts.ts). Recorded before
+ *  the call, so one that times out can still be checked. The request is marked refunded only once it is "sent". */
+export const payouts = pgTable("payouts", {
+  id: serial("id").primaryKey(),
+  ref: text("ref").notNull().references(() => requests.ref),
+  amount: integer("amount").notNull(),
+  phone: text("phone").notNull(),
+  reason: text("reason").notNull(),
+  status: text("status").$type<"pending" | "sent" | "failed">().notNull(),
+  /** "intouch:<our id>:<their transaction id>|<their reference>", or "sim:…" in a demo. */
+  providerRef: text("provider_ref"),
+  /** The provider's last answer code, kept for staff and the audit log. */
+  code: text("code"),
+  by: text("by").notNull(),
+  at: ts("at").notNull().defaultNow(),
+  settledAt: ts("settled_at"),
+}, (t) => [
+  index("payouts_ref_idx").on(t.ref),
+  // One refund being sent per request at a time, so two clicks cannot send the money twice.
+  uniqueIndex("payouts_one_pending").on(t.ref).where(sql`${t.status} = 'pending'`),
 ]);
 
 /** Uploaded files. The bytes live in file storage (lib/storage.ts); this row says who may read them. */

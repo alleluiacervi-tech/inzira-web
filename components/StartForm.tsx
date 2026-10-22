@@ -6,7 +6,7 @@ import { displayOfficial, displayOurs, displayTotal } from "@/lib/i18n/present";
 import { trError } from "@/lib/i18n/errors";
 import { rwf } from "@/lib/format";
 import { idAsk, nationalIdDigits, nationalIdError } from "@/lib/identity";
-import { checkoutPrice } from "@/lib/pricing";
+import { checkoutPrice, reviewFeeFor } from "@/lib/pricing";
 import type { Service } from "@/lib/types";
 import { requestEmailCode } from "@/app/actions/auth";
 import { submitRequest } from "@/app/actions/customer";
@@ -31,17 +31,21 @@ const isEmail = (v: string) => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v.trim());
 const isDob = (v: string) => { const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(v); if (!m) return false; const d = new Date(Date.UTC(+m[1], +m[2] - 1, +m[3])); return d.getUTCMonth() === +m[2] - 1 && +m[1] >= 1900 && d.getTime() <= Date.now(); };
 
 /** Starts a request. With a service it collects what that service needs; without one (`service` null)
- *  the customer describes their situation and an agent works out which procedure applies. */
-export default function StartForm({ service: s }: { service: Service | null }) {
+ *  the customer describes their situation and an agent works out which procedure applies. `describeFee` is the
+ *  review fee for that case (the server works it out from the catch-all service). */
+export default function StartForm({ service: s, describeFee = null }: { service: Service | null; describeFee?: number | null }) {
   const { locale, t } = useI18n();
   const draftKey = `inzira:start:${s?.slug ?? "describe"}`;
-  // Pay to submit: a service with a settled price is paid for at the end of this form, and only then sent to our team.
+  // Pay to submit: a service with a settled price is paid for in full at the end of this form, any other with a small
+  // review fee taken off our fee later (lib/pricing.ts). The request reaches our team once that is paid.
   const price = s ? checkoutPrice(s) : null;
+  const reviewFee = s ? reviewFeeFor(s) : describeFee;
+  const payFirst = price?.total ?? reviewFee;
   // Two steps: who you are, then a short check. Documents and extra questions wait until an agent needs them.
   // With a price, paying is shown as the third step; it happens on the payment screen.
   const keys: Key[] = ["about", "review"];
   const names: Record<Key, string> = { about: t("start.about"), review: t("start.review") };
-  const stepNames = [...keys.map((k) => names[k]), ...(price ? [t("start.stepPay")] : [])];
+  const stepNames = [...keys.map((k) => names[k]), ...(payFirst ? [t("start.stepPay")] : [])];
   const router = useRouter();
   const who: [string, string][] = [["me", t("start.me")], ["family", t("start.family")], ["business", t("start.myBiz")]];
   const last = keys.length - 1;
@@ -134,7 +138,7 @@ export default function StartForm({ service: s }: { service: Service | null }) {
     if (!r.ok) return trError(locale, r.error);
     try { sessionStorage.removeItem(draftKey); } catch { /* ignore */ }
     // Signed in now: straight on to paying, which is what sends the request.
-    if (r.payNow !== null && r.portal) { router.replace(`/portal/requests/${r.ref}/pay`); return null; }
+    if (r.payNow !== null && r.portal) { router.replace(`/portal/requests/${r.ref}/pay${r.phoneShared ? "?phone=shared" : ""}`); return null; }
     setRef(r.ref);
     setPortalOpened(r.portal);
     setPhoneShared(r.phoneShared);
@@ -143,6 +147,8 @@ export default function StartForm({ service: s }: { service: Service | null }) {
     window.scrollTo({ top: 0 });
     return null;
   };
+  // When and what is paid, said the same way in the fee summary and beside the form.
+  const payNote = price ? t("start.payUpfront", { total: rwf(price.total) }) : reviewFee ? t("start.reviewUpfront", { fee: rwf(reviewFee) }) : t("start.payAfter");
   const err = (k: string) => touched && errors[k] ? <span className="err-text" id={`${k}-err`}><Icon name="alert" size={15} /> {errors[k]}</span> : null;
   const bad = (k: string) => (touched && errors[k] ? "in-err" : "");
   const fileName = Object.values(files)[0]?.name ?? "";
@@ -179,9 +185,9 @@ export default function StartForm({ service: s }: { service: Service | null }) {
     return (
       <section className="wrap" style={{ paddingTop: 48, paddingBottom: 96 }}>
         <div className="stack g20" style={{ maxWidth: 460, margin: "0 auto" }}>
-          {price && <Steps names={stepNames} current={1} label={t("start.stepLabel", { n: 2, total: stepNames.length, name: stepNames[1] })} />}
-          <span className="eb" style={{ fontSize: 11 }}>{price ? t("start.lastPay") : t("start.last")}</span>
-          <CodeEntry email={f.email.trim().toLowerCase()} demoCode={demoCode} cta={price ? t("start.confirmPay") : t("start.confirm")} onBack={() => { setPhase("form"); setStep(0); }}
+          {payFirst && <Steps names={stepNames} current={1} label={t("start.stepLabel", { n: 2, total: stepNames.length, name: stepNames[1] })} />}
+          <span className="eb" style={{ fontSize: 11 }}>{payFirst ? t("start.lastPay") : t("start.last")}</span>
+          <CodeEntry email={f.email.trim().toLowerCase()} demoCode={demoCode} cta={payFirst ? t("start.confirmPay") : t("start.confirm")} onBack={() => { setPhase("form"); setStep(0); }}
             onResend={async () => { const r = await requestEmailCode(f.email, await human.get()); return r.ok ? { demoCode: r.demoCode } : { error: r.error }; }}
             onSubmit={send} />
           <p className="hint row g8" style={{ alignItems: "flex-start" }}><Icon name="lock" size={16} /><span>{t("start.emailUse")}</span></p>
@@ -203,7 +209,7 @@ export default function StartForm({ service: s }: { service: Service | null }) {
           <details className="card fee-peek">
             <summary className="row between g12">
               <span className="stack" style={{ gap: 2, minWidth: 0 }}>
-                <span className="eb" style={{ fontSize: 10.5 }}>{t("start.pay")}</span>
+                <span className="eb" style={{ fontSize: 10.5 }}>{price || !reviewFee ? t("start.pay") : t("service.estimate")}</span>
                 <strong className="nowrap" style={{ fontSize: 15 }}>{displayTotal(s, locale)}</strong>
               </span>
               <span className="row g6 mut" style={{ fontSize: 13.5, fontWeight: 600 }}>{t("start.feeDetails")} <span className="chev"><Icon name="down" size={18} /></span></span>
@@ -211,7 +217,7 @@ export default function StartForm({ service: s }: { service: Service | null }) {
             <div className="stack g12" style={{ paddingTop: 14 }}>
               <FeeLines officialLabel={t("service.officialShort")} official={displayOfficial(s, locale)} ours={displayOurs(s, locale)} total={displayTotal(s, locale)} totalLabel={t("service.estimate")} />
               <p className="hint">{s.official.note}</p>
-              <p className="hint row g8" style={{ alignItems: "flex-start" }}><Icon name="shield" size={16} color="var(--ok)" /><span>{price ? t("start.payUpfront", { total: rwf(price.total) }) : t("start.payAfter")}</span></p>
+              <p className="hint row g8" style={{ alignItems: "flex-start" }}><Icon name="shield" size={16} color="var(--ok)" /><span>{payNote}</span></p>
             </div>
           </details>
         )}
@@ -279,7 +285,7 @@ export default function StartForm({ service: s }: { service: Service | null }) {
 
         {key === "review" && (
           <div className="stack g20">
-            <div className="stack g8"><h1 className="h-flow">{price ? t("start.checkPay") : t("start.check")}</h1><p className="mut" style={{ fontSize: 15 }}>{price ? t("start.checkPayLead", { total: rwf(price.total) }) : t("start.checkLead")}</p></div>
+            <div className="stack g8"><h1 className="h-flow">{payFirst ? t("start.checkPay") : t("start.check")}</h1><p className="mut" style={{ fontSize: 15 }}>{price ? t("start.checkPayLead", { total: rwf(price.total) }) : reviewFee ? t("start.checkReviewLead", { fee: rwf(reviewFee) }) : t("start.checkLead")}</p></div>
             <div className="card" style={{ padding: 18 }}>
               <dl className="review">
                 <dt>{t("start.svc")}</dt><dd>{s ? s.name : t("start.unsureYet")}</dd>
@@ -316,6 +322,19 @@ export default function StartForm({ service: s }: { service: Service | null }) {
                 </label>
               )}
             </div>
+            {!price && reviewFee && (
+              <div className="card stack g12" style={{ padding: 16, background: "var(--bone)" }} data-checkout-total data-review-fee>
+                <div className="row between g12" style={{ alignItems: "baseline" }}>
+                  <span className="stack" style={{ gap: 2 }}><strong style={{ fontSize: 15 }}>{t("start.toPayTotal")}</strong><span className="hint">{t("start.reviewFeeName")}</span></span>
+                  <strong className="d fig" style={{ fontSize: 22, color: "var(--brand)" }}>{rwf(reviewFee)}</strong>
+                </div>
+                <ul className="stack g8" style={{ listStyle: "none", margin: 0, padding: 0 }}>
+                  {[t("start.reviewWhat", { time: t("responseTime") }), t("start.reviewCredit"), t("start.reviewRefund")].map((line) => (
+                    <li key={line} className="hint row g8" style={{ alignItems: "flex-start", margin: 0 }}><Icon name="check" size={16} color="var(--ok)" /><span>{line}</span></li>
+                  ))}
+                </ul>
+              </div>
+            )}
             {price && (
               <div className="card stack g12" style={{ padding: 16, background: "var(--bone)" }} data-checkout-total>
                 <div className="row between g12" style={{ alignItems: "baseline" }}>
@@ -333,7 +352,7 @@ export default function StartForm({ service: s }: { service: Service | null }) {
         {sendError && <Alert kind="err" title={t("start.codeFail")} live>{sendError}</Alert>}
         <div className="row g10" style={{ paddingTop: 8 }}>
           {step > 0 && <button type="button" className="btn btn-s btn-lg" onClick={() => { setStep(step - 1); setTouched(false); }}>{t("start.back")}</button>}
-          <button type="button" className="btn btn-p btn-lg grow" onClick={next} disabled={sending}>{sending ? <><span className="spin" /> {t("start.sendingCode")}</> : key === "review" ? (price ? t("start.toPayment") : t("start.send")) : t("start.continue")}</button>
+          <button type="button" className="btn btn-p btn-lg grow" onClick={next} disabled={sending}>{sending ? <><span className="spin" /> {t("start.sendingCode")}</> : key === "review" ? (payFirst ? t("start.toPayment") : t("start.send")) : t("start.continue")}</button>
         </div>
       </div>
 
@@ -344,16 +363,16 @@ export default function StartForm({ service: s }: { service: Service | null }) {
           <span className="mut" style={{ fontSize: 13.5 }}>{s.via} · {s.time}</span>
           <FeeLines officialLabel={t("service.officialFee")} official={displayOfficial(s, locale)} ours={displayOurs(s, locale)} total={displayTotal(s, locale)} totalLabel={t("service.totalShort")} />
           <p className="hint">{s.official.note}</p>
-          <p className="hint row g8" style={{ alignItems: "flex-start" }}><Icon name="shield" size={16} color="var(--ok)" /><span>{price ? t("start.payUpfront", { total: rwf(price.total) }) : t("start.payAfter")}</span></p>
+          <p className="hint row g8" style={{ alignItems: "flex-start" }}><Icon name="shield" size={16} color="var(--ok)" /><span>{payNote}</span></p>
         </aside>
       ) : (
         <aside className="card stack g14 sticky-aside" style={{ padding: 20 }}>
-          <span className="eb" style={{ fontSize: 11 }}>{t("start.free")}</span>
+          <span className="eb" style={{ fontSize: 11 }}>{reviewFee ? t("start.reviewEb", { fee: rwf(reviewFee) }) : t("start.free")}</span>
           <strong className="d" style={{ fontSize: 20 }}>{t("start.which")}</strong>
           <ul className="stack g10" style={{ listStyle: "none", margin: 0, padding: 0, fontSize: 14.5 }}>
             <li className="row g10" style={{ alignItems: "flex-start" }}><Icon name="clock" size={18} /><span>{t("start.reply", { time: t("responseTime") })}</span></li>
             <li className="row g10" style={{ alignItems: "flex-start" }}><Icon name="card" size={18} /><span>{t("start.bothFees")}</span></li>
-            <li className="row g10" style={{ alignItems: "flex-start" }}><Icon name="shield" size={18} color="var(--ok)" /><span>{t("start.noCharge")}</span></li>
+            <li className="row g10" style={{ alignItems: "flex-start" }}><Icon name="shield" size={18} color="var(--ok)" /><span>{reviewFee ? `${t("start.reviewCredit")} ${t("start.reviewRefund")}` : t("start.noCharge")}</span></li>
           </ul>
         </aside>
       )}

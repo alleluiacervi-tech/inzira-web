@@ -94,7 +94,7 @@ Copy `.env.example` to `.env.local`. None are needed for development.
 | `UPLOAD_DIR` | Local development upload directory (default `.data/uploads`). Production requires private Blob storage. |
 | `OWNER_NAME`, `OWNER_PHONE` | Used once by `npm run db:setup`. |
 | `DOC_RETENTION_DAYS` | Days after a request finishes before the customer's uploaded documents are deleted (default 90). |
-| `TEST_PHONE`, `TEST_AIRTEL_PHONE`, `CHECK_AMOUNT` | Used only by `npm run check:providers`. |
+| `TEST_PHONE`, `TEST_AIRTEL_PHONE`, `CHECK_AMOUNT`, `CHECK_REFUND` | Used only by `npm run check:providers`. |
 
 ## Deploying
 
@@ -110,7 +110,9 @@ Copy `.env.example` to `.env.local`. None are needed for development.
    that address as `callbackurl`. Every call to it is acknowledged with 200 and a success body;
    the payment itself is then confirmed with `GetTransactionStatus`.
 6. Run `TEST_PHONE=07… npm run check:providers` against the staging environment: it sends a real SMS,
-   a mobile money prompt per provider and a storage round trip through the site's own code.
+   a mobile money prompt per provider (with the site's callback address, so IntouchPay's logs show the
+   callback delivered), reads the IntouchPay balance and does a storage round trip through the site's own
+   code. Add `CHECK_REFUND=1` to also send `CHECK_AMOUNT` back to `TEST_PHONE` through `RequestDeposit`.
 7. The owner signs in and opens **Admin › System**: every item should read Live. It sends a test SMS
    and runs the daily job on demand. Then check the official fees in Admin › Services & prices and
    invite the team in Admin › Roles & people.
@@ -191,12 +193,16 @@ by every server action.
   issues test credentials first; the guide uses the same base URL for test and production, and you
   replace the credentials when the production account is ready. A prompt is recorded before the call.
   The callback only names the prompt. Paid or failed is written after `GetTransactionStatus` says so,
-  and a second callback does not record the payment again. This integration has been tested against a
-  local stand-in of that API, not against an IntouchPay account: run `npm run check:providers` on
-  staging with real credentials and approve a prompt on a phone before taking real money. Without a
-  provider, production refuses payments. Refunds are recorded in the admin console; sending the money
-  back is done from the IntouchPay portal (the deposit API is not used). `PAYMENT_PROVIDER=direct`
-  still calls MTN MoMo and Airtel Money for an account that already has those keys.
+  and a second callback does not record the payment again. This integration has been tested against
+  IntouchPay's sandbox (`https://developer.intouchpay.co.rw/api/v1/sandbox`) and a local stand-in of
+  the API: run `npm run check:providers` on staging with real credentials and approve a prompt on a
+  phone before taking real money. Without a provider, production refuses payments.
+  Refunds (Admin › Payments) send our fee back to the number that paid, through `RequestDeposit`, from
+  the IntouchPay balance shown on that page. Each refund is recorded before the call; the request reads
+  as refunded only once IntouchPay confirms (2001), and one IntouchPay did not clearly answer stays
+  under "Refunds being sent" until its status is known, so it is never sent twice. `PAYMENT_PROVIDER=direct`
+  still calls MTN MoMo and Airtel Money for an account that already has those keys; there, refunds are
+  sent by hand and recorded.
 - **Paying.** No payment, no work: a request can be checked and quoted for free, but preparing it, submitting it to an
   institution and completing it wait until it is paid in full. A supervisor or the owner can move a case on with a written
   reason, kept on the case and in the audit log. A service with a settled price (nothing passed through us, or an official
@@ -204,9 +210,12 @@ by every server action.
   form ends on the payment screen, and the request reaches staff only once it is paid. Until then it is an unpaid checkout
   (`requests.checkout = 'open'`), listed under Inbox › Awaiting payment and nowhere else in the console; the daily job
   reminds the customer once after two hours and closes it after three days. Paying hands it to the inbox, paid requests
-  first, and staff with the console open get a live alert. Any other service is quoted by an agent first. Quoted fees not
-  paid a week after they were sent close the request (the daily job also reminds the customer once). To take a service back
-  to quoting, mark its official fee as unchecked.
+  first, and staff with the console open get a live alert. Any other service is quoted by an agent, and is also pay to
+  submit: it is sent with a review fee (`NEXT_PUBLIC_REVIEW_FEE_RWF`, RWF 1,000 by default, never more than our own fee;
+  `0` sends quoted requests free). The fee is recorded as a payment of ours, so the quote asks only for the rest. A request
+  declined or closed before it was quoted gets a "Refund due" note on the case. Quoted fees not paid a week after they were
+  sent close the request (the daily job also reminds the customer once). To take a service back to quoting, mark its
+  official fee as unchecked.
 - **Email.** Buy a mailbox on the business domain, put its SMTP settings in the environment and run
   `npm run check:email` from where the app runs (a VPS or cloud host can block outbound mail ports; the check says which).
   Send a real message to Gmail and Outlook and look for `spf=pass` and `dkim=pass` in its headers, or codes will land in spam.

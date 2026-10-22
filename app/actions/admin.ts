@@ -11,6 +11,8 @@ import { SITE } from "@/lib/site";
 import { enqueue, sendSoon } from "@/lib/outbox";
 import { sendSms } from "@/lib/sms";
 import { runAndRecord } from "@/lib/jobs";
+import { payoutProvider } from "@/lib/payments";
+import { PayoutRefused, closeUnclearPayout, reconcilePayout, sendRefund } from "@/lib/payouts";
 import { allow } from "@/lib/ratelimit";
 import { idPolicyOf } from "@/lib/identity";
 import { STAGES, type Service, type StaffRole, type Stage } from "@/lib/types";
@@ -72,11 +74,23 @@ export async function saveService(v: Service, isNew = false): Promise<Result> {
   return { ok: true };
 }
 
-/** Returns our assistance fee for a request. Official fees already paid are recovered from the institution, not here. */
-export async function refund(ref: string): Promise<Result> {
+/** Returns our assistance fee for a request. Official fees already paid are recovered from the institution, not here.
+ *  With IntouchPay the money goes back to the number that paid (RequestDeposit, lib/payouts.ts) and the request reads as
+ *  refunded once IntouchPay confirms. Without a provider that can send money, staff send it themselves and this records it. */
+export async function refund(ref: string): Promise<Result<{ outcome: "sent" | "pending" | "recorded"; amount: number }>> {
   const a = await admin("refund");
   if ("error" in a) return fail(a.error!);
   const { me, d } = a;
+  if (payoutProvider()) {
+    try {
+      const r = await sendRefund(ref, me);
+      revalidatePath("/admin/payments");
+      return { ok: true, outcome: r.status, amount: r.amount };
+    } catch (e) {
+      if (e instanceof PayoutRefused) return fail(e.message);
+      throw e;
+    }
+  }
   const paid = await d.select().from(s.transactions).where(and(eq(s.transactions.ref, ref), eq(s.transactions.status, "paid")));
   const ours = paid.reduce((n, t) => n + t.ours, 0);
   if (!ours) return fail("Nothing to refund on this request.");
@@ -84,9 +98,26 @@ export async function refund(ref: string): Promise<Result> {
     for (const t of paid) await tx.update(s.transactions).set({ status: "refunded" }).where(eq(s.transactions.id, t.id));
     await event(tx, ref, msg("ev.refunded", { amount: rwf(ours) }), me.id);
     await notify(tx, ref, { icon: "refresh", title: msg("nt.refund", { amount: rwf(ours), ref }), sms: sms("refund", { amount: rwf(ours) }) });
-    await audit(tx, { actor: me.name, role: me.role, action: "Issued refund", entity: `${ref} · ${rwf(ours)} ours`, fee: true });
+    await audit(tx, { actor: me.name, role: me.role, action: "Issued refund", entity: `${ref} · ${rwf(ours)} ours · sent by hand`, fee: true });
   });
-  // The money itself is returned through the payment provider's dashboard until refunds are automated.
+  revalidatePath("/admin/payments");
+  return { ok: true, outcome: "recorded", amount: ours };
+}
+
+/** Asks IntouchPay again about a refund it did not clearly answer. */
+export async function checkRefund(payoutId: number): Promise<Result<{ status: "sent" | "pending" | "failed" }>> {
+  const a = await admin("refund");
+  if ("error" in a) return fail(a.error!);
+  const status = await reconcilePayout(payoutId);
+  revalidatePath("/admin/payments");
+  return { ok: true, status };
+}
+
+/** Closes a refund IntouchPay never answered, once staff have seen in its portal that it was not sent. */
+export async function closeUnclearRefund(payoutId: number): Promise<Result> {
+  const a = await admin("refund");
+  if ("error" in a) return fail(a.error!);
+  if (!(await closeUnclearPayout(payoutId, a.me))) return fail("This refund can be checked with IntouchPay; use Check again.");
   revalidatePath("/admin/payments");
   return { ok: true };
 }

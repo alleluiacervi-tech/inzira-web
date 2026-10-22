@@ -178,7 +178,7 @@
     "howTitle": "Uko bikorwa",
     "howLead": "Intambwe enye zoroshye, kandi iya mbere gusa niyo igusaba kugira icyo ukora. Umukozi umwe agufasha kuva ku ntangiriro kugeza ku musozo.",
     "s1t": "Tubwire icyo ukeneye",
-    "s1d": "Hitamo serivisi, cyangwa usobanure ibyo ukeneye mu Kinyarwanda, Icyongereza cyangwa Igifaransa. Kubaza ni ubuntu.",
+    "s1d": "Hitamo serivisi, cyangwa usobanure ibyo ukeneye mu Kinyarwanda, Icyongereza cyangwa Igifaransa. Kubaza kuri WhatsApp cyangwa kuri telefoni ni ubuntu.",
     "s2t": "Dusuzuma inyandiko zawe",
     "s2d": "Tukumenyesha neza inyandiko ibura mbere y'uko ubusabe bwoherezwa. Aha ni ho haturuka kenshi kudasubizwa neza.",
     "s3t": "Tukohereza ubusabe tugakurikiranira hafi",
@@ -265,7 +265,8 @@
     "noQuery": "Nta serivisi ihuye na “{q}”",
     "noFilters": "Nta serivisi ihuye n'ibi byiciro",
     "noHint": "Sobanura icyo ukeneye maze tukubwire inzira ikwiye igufasha.",
-    "describeNeed": "Sobanura icyo nkeneye"
+    "describeNeed": "Sobanura icyo nkeneye",
+    "unsureBodyFee": "Sobanura ibyo ukeneye, umukozi akubwire inzira ikwiye n'amafaranga bisaba. Kohereza bisaba {fee} yo gusuzuma, akurwa ku mafaranga yacu niba ukomeje."
   },
   "prices": {
     "service": "Serivisi n'igihe bisanzwe bifata",
@@ -309,7 +310,9 @@
     "officialShort": "Amafaranga y'urwego",
     "estimate": "Igiteganyijwe",
     "totalShort": "Igiteranyo giteganyijwe",
-    "confirmPay": "Wemeza buri mafaranga mbere yo kwishyura. Nta kintu cyishyurwa utabanje kubyemeza."
+    "confirmPay": "Wemeza buri mafaranga mbere yo kwishyura. Nta kintu cyishyurwa utabanje kubyemeza.",
+    "payUpfront": "Wishyura {total} iyo wohereje ubusabe. Nta mafaranga afatwa utabanje kubyemeza kuri telefoni yawe.",
+    "payReview": "Wishyura {fee} yo gusuzuma iyo wohereje ubusabe. Akurwa ku mafaranga yacu iyo wemeje ibyo usabwa kwishyura."
   },
   "feeTag": {
     "official": "Urwego",
@@ -554,7 +557,15 @@
     "checkPay": "Genzura, hanyuma wishyure",
     "checkPayLead": "Reba ko byose ari byo. Hanyuma wemeza email yawe maze ukishyura {total}.",
     "toPayTotal": "Ayo kwishyura",
-    "toPayment": "Komeza ku bwishyu"
+    "toPayment": "Komeza ku bwishyu",
+    "reviewUpfront": "Wishyura {fee} yo gusuzuma iyo wohereje ubu busabe. Umukozi yemeza amafaranga nyayo, kandi ayo {fee} akurwa ku mafaranga yacu.",
+    "checkReviewLead": "Reba ko byose ari byo. Hanyuma wemeza email yawe maze ukishyura {fee} yo gusuzuma.",
+    "reviewFeeName": "Amafaranga yo gusuzuma",
+    "reviewWhat": "Umukozi asuzuma ubusabe bwawe akakoherereza amafaranga nyayo mu {time}.",
+    "reviewCredit": "Akurwa ku mafaranga yacu iyo wishyuye ibyo wemejwe.",
+    "reviewRefund": "Arasubizwa niba tudashoboye kwakira ubusabe bwawe.",
+    "reviewEb": "Gusuzuma: {fee}",
+    "phoneSharedTitle": "Nomero ya telefoni ntiyabitswe"
   },
   "notFound": {
     "kicker": "Urupapuro ntirubonetse",
@@ -836,7 +847,13 @@
     "next3": "Ukurikirana buri ntambwe hano no kuri email",
     "follow": "Kurikirana ubusabe bwawe",
     "viewReceipt": "Reba inyemezabwishyu",
-    "allPaid": "Byose byishyuwe. Murakoze."
+    "allPaid": "Byose byishyuwe. Murakoze.",
+    "reviewTitle": "Ishyura amafaranga yo gusuzuma kugira ngo wohereze ubusabe bwawe",
+    "reviewLine": "Umukozi asuzuma ubusabe bwawe akakoherereza amafaranga nyayo. Aya mafaranga akurwa ku mafaranga yacu nyuma.",
+    "alreadyPaid": "Ayamaze kwishyurwa",
+    "paidReviewBody": "Umukozi arabusuzuma mu {time}, akoherereze amafaranga nyayo kuri {contact}. Amafaranga {fee} yo gusuzuma akurwa ku mafaranga yacu.",
+    "next2Review": "Uhabwa amafaranga nyayo yo kwemeza, hakuweho ayo wishyuye uyu munsi",
+    "payReview": "Ishyura amafaranga yo gusuzuma"
   },
   "docs": {
     "filter": "Gushungura ku miterere yazo",
@@ -995,7 +1012,9 @@
     "cancelReq": "Hagarika ubu busabe",
     "cancelFree": "Nta kintu cyishyuwe, bityo guhagarika ntamafaranga bisaba.",
     "why": "Kubera iki uhagarika ubusabe?",
-    "ph": "urugero: ntacyo ngikeneye"
+    "ph": "urugero: ntacyo ngikeneye",
+    "reviewPaid": "Wishyuye {amount} yo gusuzuma. Umukozi wawe yemeza amafaranga nyayo, kandi ayo akurwa ku mafaranga yacu.",
+    "reviewDue": "Ishyura {fee} yo gusuzuma kugira ngo wohereze ubu busabe. Akurwa ku mafaranga yacu nyuma."
   },
   "stored": {
     "ev": {
@@ -1217,6 +1236,21 @@
         "title": "Bwafunzwe: ntibwishyuwe",
         "body": "Ubu busabe ntibwishyuwe mu minsi itatu, bityo bwafunzwe. Nta mafaranga wishyujwe. Ushobora kongera kubutangira igihe cyose.",
         "next": "Dosiye yafunzwe."
+      },
+      "reviewFee": {
+        "title": "Dutegereje amafaranga yo gusuzuma",
+        "body": "Ishyura {fee} yo gusuzuma kugira ngo ubu busabe bugere ku itsinda ryacu. Umukozi azabusuzuma akakubwira amafaranga nyayo.",
+        "next": "Ishyura {fee} yo gusuzuma kugira ngo bwoherezwe."
+      },
+      "reviewPaid": {
+        "title": "Twakiriye ubusabe bwawe",
+        "body": "Umukozi arabusuzuma mu masaha 2 y'akazi, akoherereze amafaranga nyayo kuri {contact}. Amafaranga {fee} yo gusuzuma wishyuye akurwa ku mafaranga yacu.",
+        "next": "Umukozi asuzuma ubusabe bwawe akakoherereza amafaranga."
+      },
+      "quoteExpiredReview": {
+        "title": "Bwafunzwe: amafaranga ntiyishyuwe",
+        "body": "Amafaranga ntiyishyuwe mu cyumweru kimwe, bityo ubu busabe bwafunzwe. Amafaranga {fee} yo gusuzuma yishyuye isuzuma ryakozwe. Ushobora kongera kubutangira igihe cyose.",
+        "next": "Dosiye yafunzwe."
       }
     },
     "hold": {
@@ -1236,6 +1270,10 @@
       "checkout": {
         "title": "Ishyura kugira ngo wohereze ubusabe bwawe",
         "detail": "Ubusabe bwawe buriteguye. Ishyura {total} buhite bugera ku itsinda ryacu. Nta mafaranga afatwa utabanje kubyemeza kuri telefoni yawe."
+      },
+      "reviewFee": {
+        "title": "Ishyura amafaranga yo gusuzuma kugira ngo wohereze ubusabe bwawe",
+        "detail": "Ubusabe bwawe buriteguye. Ishyura {fee}, umukozi abusuzume akoherereze amafaranga nyayo. Ayo {fee} akurwa ku mafaranga yacu."
       }
     },
     "closed": {

@@ -4,7 +4,9 @@ import { eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { WORKS_CASES, assignableStaff, canSeeCase } from "@/lib/access";
 import { getStaffUser, normalisePhone } from "@/lib/auth";
+import { noteReviewFeeRefund } from "@/lib/billing";
 import { rwf } from "@/lib/format";
+import { quoteRefusal } from "@/lib/pricing";
 import { audit, db, event, fail, invoiceFor, nextNumber, notify, refFor, s, type Result } from "@/lib/mutate";
 import { PERMISSIONS, type Permission } from "@/lib/permissions";
 import { asLocale, type Locale } from "@/lib/i18n/locale";
@@ -247,6 +249,8 @@ export async function sendQuote(ref: string): Promise<Result> {
   const w = await work(ref, "recordOfficial");
   if ("error" in w) return fail(w.error!);
   const { me, d, r } = w;
+  const refusal = quoteRefusal(r);
+  if (refusal) return fail(refusal);
   if (!r.officialMode && r.official === null) return fail("Record the official fee for this case first.");
   if (r.ours <= 0) return fail("Set our fee for this case first.");
   const fees = { ...feeVars(r.officialMode, r.official), ours: rwf(r.ours) };
@@ -271,6 +275,7 @@ export async function closeCase(ref: string, kind: Closed["kind"], reason: strin
   await w.d.transaction(async (tx) => {
     await tx.update(s.requests).set({ closed, hold: null, summary: { title: english(summary, "title"), body: reason.trim(), msg: summary }, next: english(summary, "next") }).where(eq(s.requests.ref, ref));
     await event(tx, ref, msg(cancelled ? "ev.cancelled" : "ev.rejected"), w.me.id, reason.trim());
+    await noteReviewFeeRefund(tx, ref, w.me);
     await notify(tx, ref, { icon: "alert", title: msg(cancelled ? "nt.cancelled" : "nt.rejected", { ref }), sms: sms(cancelled ? "cancelled" : "rejected", { reason: reason.trim() }) });
     await audit(tx, { actor: w.me.name, role: w.me.role, action: kind === "cancelled" ? "Cancelled case" : "Recorded rejection", entity: ref });
   });

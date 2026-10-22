@@ -4,7 +4,8 @@ import { and, eq, inArray } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { WORKS_CASES, assignableStaff, canSeeCase, canSeeClient, seesAllCases } from "@/lib/access";
 import { getStaffUser, normalisePhone } from "@/lib/auth";
-import { reconcilePayment } from "@/lib/billing";
+import { noteReviewFeeRefund, reconcilePayment } from "@/lib/billing";
+import { quoteRefusal } from "@/lib/pricing";
 import { open, seal } from "@/lib/crypto";
 import { maskNationalId, maskTin, rwf, shortName } from "@/lib/format";
 import { mentionsNationalId } from "@/lib/identity";
@@ -132,6 +133,7 @@ export async function declineRequest(ref: string, reason: string): Promise<Resul
     }).where(eq(s.requests.ref, ref));
 
     await event(tx, ref, msg("ev.declined"), me.id, reason.trim());
+    await noteReviewFeeRefund(tx, ref, me);
     await notify(tx, ref, { icon: "alert", title: msg("nt.declined", { ref }), sms: sms("declined", { ref, reason: reason.trim() }) });
     await audit(tx, { actor: me.name, role: me.role, action: "Declined request", entity: `${ref} · ${reason.trim()}` });
   });
@@ -147,7 +149,8 @@ export async function quoteCustomRequest(ref: string, official: number | null, o
   const { me, d, req } = a;
 
   if (req.closed || req.stage === "completed") return fail("This request is already finished.");
-  if (req.checkout !== "none") return fail("This request is priced and paid at checkout, so it has no quote to send.");
+  const refusal = quoteRefusal(req);
+  if (refusal) return fail(refusal);
   if (ours <= 0) return fail("Set our assistance fee first.");
   if (ours !== req.ours && !me.permissions.has("changeOurs")) return fail("Changing our fee needs a supervisor. Ask one to change it on this case.");
   if (official !== null && official < 0) return fail("Official fee cannot be negative.");

@@ -8,6 +8,10 @@
 // - Mobile money: with PAYMENT_PROVIDER=live (IntouchPay), sends a prompt of CHECK_AMOUNT (default 100)
 //   to TEST_PHONE and, if set, TEST_AIRTEL_PHONE, then waits up to 2 minutes. The phone owner must
 //   approve it, and on a production account the money is real. PAYMENT_PROVIDER=direct uses MTN and Airtel.
+//   With IntouchPay it also reads the account balance, sends the prompt with the site's callback address
+//   (NEXT_PUBLIC_SITE_URL, so IntouchPay's logs show whether the callback was delivered), and with CHECK_REFUND=1
+//   sends CHECK_AMOUNT back to TEST_PHONE through RequestDeposit, the way refunds are sent (real money on a
+//   production account).
 // - Storage: writes, reads back and deletes a small file (private Vercel Blob).
 //
 // Nothing is checked unless its keys are set; skipped checks say why. Exits 1 if any check failed.
@@ -68,7 +72,10 @@ async function checkPayment(name: string, to: string) {
   const amount = Number(process.env.CHECK_AMOUNT) || 100;
   try {
     const prompt = newPrompt(to);
-    const sent = await prompt.provider.requestToPay({ id: prompt.id, phone9: to, amount, reference: `CHECK-${Date.now()}` });
+    const site = process.env.NEXT_PUBLIC_SITE_URL?.startsWith("https://") ? process.env.NEXT_PUBLIC_SITE_URL.replace(/\/$/, "") : "";
+    const callbackUrl = site ? `${site}/api/payments/callback` : undefined;
+    const sent = await prompt.provider.requestToPay({ id: prompt.id, phone9: to, amount, reference: `CHECK-${Date.now()}`, callbackUrl });
+    if (callbackUrl) console.log(`        ${name}: callback to ${callbackUrl}`);
     const providerRef = sent.providerTxId ? `${prompt.providerRef}:${sent.providerTxId}` : prompt.providerRef;
     console.log(`        ${name}: prompt sent (${providerRef}), waiting for the result…`);
     for (let i = 0; i < 24; i++) {
@@ -90,6 +97,34 @@ else {
   const airtelPhone = nine(process.env.TEST_AIRTEL_PHONE);
   if (!/^7\d{8}$/.test(airtelPhone)) record("Second number", "skip", "Set TEST_AIRTEL_PHONE to check a second wallet (072/073 for Airtel).");
   else await checkPayment(process.env.PAYMENT_PROVIDER === "direct" ? "Airtel Money" : "IntouchPay (second number)", airtelPhone);
+  if (process.env.PAYMENT_PROVIDER !== "direct") await checkRefund();
+}
+
+// IntouchPay only: the balance refunds are sent from, and with CHECK_REFUND=1 one refund-style RequestDeposit.
+async function checkRefund() {
+  const ip = await import("../lib/intouchpay.ts");
+  const { newIntouchRequestId } = await import("../lib/payments.ts");
+  let before: number | null = null;
+  try { before = await ip.intouchBalance(); record("IntouchPay balance", "pass", `RWF ${before.toLocaleString("en-US")} available for refunds.`); }
+  catch (e) { record("IntouchPay balance", "fail", errorText(e)); }
+  if (process.env.CHECK_REFUND !== "1") { record("Refund (RequestDeposit)", "skip", "Set CHECK_REFUND=1 to send CHECK_AMOUNT to TEST_PHONE the way refunds are sent."); return; }
+  if (!/^7\d{8}$/.test(phone)) { record("Refund (RequestDeposit)", "skip", "Set TEST_PHONE to receive it."); return; }
+  const amount = Number(process.env.CHECK_AMOUNT) || 100;
+  const requestId = newIntouchRequestId();
+  try {
+    const sent = await ip.requestIntouchDeposit({ requestId, phone9: phone, amount, reason: "Inzira provider check" });
+    let status: string = sent.status;
+    for (let i = 0; i < 12 && status === "pending" && sent.transactionId; i++) {
+      await new Promise((r) => setTimeout(r, 5000));
+      status = await ip.intouchDepositStatus(requestId, sent.transactionId);
+    }
+    if (sent.transactionId && status === "sent") status = await ip.intouchDepositStatus(requestId, sent.transactionId);
+    const after = await ip.intouchBalance().catch(() => null);
+    if (status === "sent") record("Refund (RequestDeposit)", "pass", `RWF ${amount} sent to +250${phone} (request ${requestId}, IntouchPay ${sent.transactionId ?? "no id"}${sent.reference ? `, ref ${sent.reference}` : ""}); status confirms it${before !== null && after !== null ? `; balance ${before} → ${after}` : ""}.`);
+    else record("Refund (RequestDeposit)", "fail", `Request ${requestId} is still ${status}. Look it up in the IntouchPay portal before sending again.`);
+  } catch (e) {
+    record("Refund (RequestDeposit)", "fail", e instanceof ip.IntouchRejected ? ip.depositRefusalMessage(e.code, `RWF ${amount}`) : errorText(e));
+  }
 }
 
 // ---------------- storage ----------------

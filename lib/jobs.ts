@@ -4,11 +4,12 @@ import { retentionSweep } from "./privacy";
 import { allow } from "./ratelimit";
 import { deliverDue, enqueue, pruneOutbox, sendNow as deliverOne } from "./outbox";
 import { reconcileStalePayments } from "./billing";
+import { reconcilePendingPayouts } from "./payouts";
 import { db, iso, schema as s } from "./db";
 import { rwf } from "./format";
 import { english, feeVars, msg, sms } from "./i18n/stored";
 import { audit, event, notify } from "./mutate";
-import { amountDue } from "./status";
+import { amountDue, payableNow } from "./status";
 import { countTaxAttention } from "./tax-diary";
 import { kigaliToday } from "./tax-calendar";
 
@@ -40,23 +41,25 @@ export async function holdOverduePayments() {
   return { held };
 }
 
-/** Requests with fees sent and still unpaid, narrowed by `extra`. Ones with a prompt waiting on the customer's phone are left out. */
+/** Open requests with something to pay, narrowed by `extra`: confirmed fees not paid, or a checkout (the whole price or a
+ *  review fee) not paid. Ones with a prompt waiting on the customer's phone are left out. */
 async function unpaidRequests(extra: SQL | undefined) {
   const d = await db();
-  const rows = await d.select().from(s.requests).where(and(isNull(s.requests.closed), ne(s.requests.stage, "completed"), ne(s.requests.quote, "estimate"), isNotNull(s.requests.dueAt), extra));
+  const rows = await d.select().from(s.requests).where(and(isNull(s.requests.closed), ne(s.requests.stage, "completed"), extra));
   if (!rows.length) return [];
   const allTxs = await d.select().from(s.transactions).where(inArray(s.transactions.ref, rows.map((r) => r.ref)));
   return rows.flatMap((r) => {
     const txs = allTxs.filter((t) => t.ref === r.ref);
-    const due = amountDue({
+    const due = payableNow({
       invoice: r.invoice, official: r.official, officialMode: r.officialMode ?? undefined, officialLabel: r.officialLabel, ours: r.ours, oursStandard: r.oursStandard,
-      quote: r.quote, officialReceipt: r.officialReceipt, transactions: txs.map((t) => ({ receipt: t.receipt, at: iso(t.at)!, method: t.method, official: t.official, ours: t.ours, status: t.status })),
-    });
+      quote: r.quote, officialReceipt: r.officialReceipt, reviewFee: r.reviewFee ?? undefined,
+      transactions: txs.map((t) => ({ receipt: t.receipt, at: iso(t.at)!, method: t.method, official: t.official, ours: t.ours, status: t.status })),
+    }, r.checkout === "open").amount;
     return due > 0 && !txs.some((t) => t.status === "pending") ? [{ r, due }] : [];
   });
 }
 /** Quotes an agent sent. Unpaid checkouts have their own reminder and expiry below. */
-const unpaidQuotes = (extra: SQL | undefined) => unpaidRequests(and(ne(s.requests.checkout, "open"), extra));
+const unpaidQuotes = (extra: SQL | undefined) => unpaidRequests(and(ne(s.requests.checkout, "open"), ne(s.requests.quote, "estimate"), isNotNull(s.requests.dueAt), extra));
 /** Requests started at checkout (pay to submit) and not paid. */
 const unpaidCheckouts = (extra: SQL | undefined) => unpaidRequests(and(eq(s.requests.checkout, "open"), extra));
 
@@ -84,7 +87,8 @@ export async function expireUnpaidQuotes() {
   let expired = 0;
   for (const { r, due } of await unpaidQuotes(and(lt(s.requests.dueAt, cutoff), inArray(s.requests.stage, ["received", "checking"])))) {
     const reason = msg("closed.quoteExpired");
-    const summary = msg("sum.quoteExpired");
+    // "Nothing was charged" is not true of a request sent with a review fee: that paid for checking it.
+    const summary = r.reviewFee && r.checkout === "paid" ? msg("sum.quoteExpiredReview", { fee: rwf(r.reviewFee) }) : msg("sum.quoteExpired");
     await d.transaction(async (tx) => {
       const [closed] = await tx.update(s.requests).set({
         closed: { kind: "cancelled", at: new Date().toISOString(), reason: english(reason), msg: reason }, hold: null,
@@ -201,6 +205,7 @@ export async function staffDigest() {
 export async function runAll() {
   const tasks = {
     payments: reconcileStalePayments,
+    refunds: reconcilePendingPayouts,
     overdue: holdOverduePayments,
     quoteReminders: remindUnpaidQuotes,
     unpaidExpiry: expireUnpaidQuotes,

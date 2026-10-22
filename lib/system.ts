@@ -88,7 +88,7 @@ function payments(): Check[] {
     if (!ready) return [{ key: "pay", name: "IntouchPay", state: "missing", detail: "Credentials not set. Customers can’t pay.", fix: "Set INTOUCHPAY_USERNAME, INTOUCHPAY_ACCOUNT_NO and INTOUCHPAY_PARTNER_PASSWORD from the IntouchPay partner account." }];
     // Every callback is acknowledged with 200 and only makes us ask IntouchPay, so it needs no login. One that does send
     // the optional login below may also close a declined prompt at once.
-    const detail = `Collects MTN and Airtel through IntouchPay (${base}).${callback ? ` Callback ${callback}: every call is acknowledged, then the payment is checked with IntouchPay.` : " Set NEXT_PUBLIC_SITE_URL to the https site address so prompts include a callback."}${auth ? " A callback that sends the basic-auth login can also close a declined prompt at once." : ""}`;
+    const detail = `Collects MTN and Airtel through IntouchPay (${base}).${callback ? ` Callback ${callback}: every call is acknowledged, then the payment is checked with IntouchPay.` : " Set NEXT_PUBLIC_SITE_URL to the https site address so prompts include a callback."}${auth ? " A callback that sends the basic-auth login can also close a declined prompt at once." : ""} Refunds go back to the paying number through RequestDeposit, from the IntouchPay balance.`;
     const fix = !https ? "INTOUCHPAY_BASE_URL must be https." : undefined;
     return [{ key: "pay", name: "IntouchPay", state: !https ? "missing" : "ready", detail, fix }];
   }

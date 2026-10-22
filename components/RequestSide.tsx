@@ -5,7 +5,7 @@ import { cancelRequest, sendMessage } from "@/app/actions/customer";
 import { billOfficial, fmtDay, fmtWhen, initials, rwf } from "@/lib/format";
 import { trError } from "@/lib/i18n/errors";
 import { feeCaption, methodName, phrase, unitLabel } from "@/lib/i18n/present";
-import { amountDue, paidSplit, payStatus } from "@/lib/status";
+import { amountDue, paidSplit, payableNow, payStatus } from "@/lib/status";
 import type { Billing, Message } from "@/lib/types";
 import { useI18n } from "./I18n";
 import { FeeLines, Icon, PayBadge } from "./ui";
@@ -51,8 +51,9 @@ export function Messages({ reqRef, initial, agent, now }: { reqRef: string; init
   );
 }
 
-/** What the customer owes and has paid. The actual prompt happens on the payment screen. */
-export function PaymentPanel({ reqRef, billing: b, now }: { reqRef: string; billing: Billing; now: string; phone: string }) {
+/** What the customer owes and has paid. The actual prompt happens on the payment screen. `checkoutOpen`: the request
+ *  waits to be paid before it is sent (the whole price, or a quoted service's review fee). */
+export function PaymentPanel({ reqRef, billing: b, now, checkoutOpen = false }: { reqRef: string; billing: Billing; now: string; phone: string; checkoutOpen?: boolean }) {
   const { locale, t } = useI18n();
   const ours = rwf(b.ours) + (b.oursUnit ? ` ${unitLabel(b.oursUnit, locale)}` : "");
   const total = b.officialMode || b.official === null
@@ -62,7 +63,8 @@ export function PaymentPanel({ reqRef, billing: b, now }: { reqRef: string; bill
   const due = amountDue(b);
   const paid = paidSplit(b);
   const paidSum = paid.official + paid.ours;
-  const canPay = b.quote !== "estimate" && due > 0 && status !== "refunded" && status !== "pending";
+  const payable = payableNow(b, checkoutOpen);
+  const canPay = payable.amount > 0 && status !== "refunded" && status !== "pending";
   const shown = b.transactions.filter((tx) => tx.status !== "failed");
 
   return (
@@ -73,7 +75,7 @@ export function PaymentPanel({ reqRef, billing: b, now }: { reqRef: string; bill
       {b.oursNote && <span className="hint">{t("side.ourFee", { note: b.oursNote })}</span>}
       {b.officialMode === "direct" && <span className="hint">{t("side.direct")}</span>}
       {b.officialMode === "none" && <span className="hint">{t("side.noGov")}</span>}
-      {paidSum > 0 && due > 0 && <div className="total-row" style={{ fontSize: 14.5 }}><span>{t("side.paidSoFar", { amount: rwf(paidSum) })}</span><strong>{t("side.still", { amount: rwf(due) })}</strong></div>}
+      {paidSum > 0 && due > 0 && b.quote !== "estimate" && <div className="total-row" style={{ fontSize: 14.5 }}><span>{t("side.paidSoFar", { amount: rwf(paidSum) })}</span><strong>{t("side.still", { amount: rwf(due) })}</strong></div>}
       {shown.length > 0 && (
         <ul className="stack g8" style={{ listStyle: "none", margin: 0, padding: 0 }}>
           {shown.map((tx) => (
@@ -83,12 +85,13 @@ export function PaymentPanel({ reqRef, billing: b, now }: { reqRef: string; bill
           ))}
         </ul>
       )}
-      {b.quote === "estimate" && <p className="hint row g8" style={{ alignItems: "flex-start" }}><Icon name="info" size={16} /><span>{t("side.estimate")}</span></p>}
+      {b.quote === "estimate" && !payable.review && <p className="hint row g8" style={{ alignItems: "flex-start" }}><Icon name="info" size={16} /><span>{paidSum > 0 ? t("side.reviewPaid", { amount: rwf(paidSum) }) : t("side.estimate")}</span></p>}
+      {payable.review && <p className="hint row g8" style={{ alignItems: "flex-start" }}><Icon name="info" size={16} /><span>{t("side.reviewDue", { fee: rwf(payable.amount) })}</span></p>}
       {paidSum > 0 && <Link className="btn btn-s btn-sm" href={`/portal/requests/${reqRef}/receipt`}>{t("portal.receiptDownload")}</Link>}
       {canPay && (
         <>
-          <Link className="btn btn-p" href={`/portal/requests/${reqRef}/pay`}>{b.quote === "confirmed" ? t("pay.review") : t("pay.pay")} {rwf(due)}</Link>
-          <span className="hint">{b.dueAt ? `${t("side.due", { date: fmtDay(b.dueAt, locale) })} ` : ""}{t("side.payHint")}</span>
+          <Link className="btn btn-p" href={`/portal/requests/${reqRef}/pay`}>{payable.review ? t("pay.payReview") : b.quote === "confirmed" ? t("pay.review") : t("pay.pay")} {rwf(payable.amount)}</Link>
+          <span className="hint">{b.dueAt && !payable.review ? `${t("side.due", { date: fmtDay(b.dueAt, locale) })} ` : ""}{t("side.payHint")}</span>
         </>
       )}
     </section>

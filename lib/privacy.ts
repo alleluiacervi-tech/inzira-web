@@ -119,6 +119,7 @@ export async function deleteAccount(accountId: string, locale: Locale = "en"): P
     if (refs.length) {
       await tx.update(s.messages).set({ body: "Message deleted with the customer’s account." }).where(and(inArray(s.messages.ref, refs), eq(s.messages.by, "customer")));
       await tx.update(s.transactions).set({ payer: null }).where(inArray(s.transactions.ref, refs));
+      await tx.update(s.payouts).set({ phone: "deleted" }).where(inArray(s.payouts.ref, refs));
     }
     await tx.delete(s.notifications).where(eq(s.notifications.accountId, accountId));
     await tx.delete(s.reminders).where(eq(s.reminders.accountId, accountId));

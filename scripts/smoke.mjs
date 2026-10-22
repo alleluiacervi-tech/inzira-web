@@ -19,7 +19,7 @@ const ROUTES = [
   ["/services/company-registration", "Official government fee", "Our service / assistance fee", "Filed with the Rwanda Development Board"],
   ["/services/property-tax-declaration", "per UPI, per year", "Tax as assessed"],
   ["/services/irembo-training", "per month", "Training by Inzira"],
-  ["/start", "A few details about you", "Free to ask"],
+  ["/start", "A few details about you", "Review fee RWF 1,000"],
   ["/start/company-registration", "A few details about you", "Company registration"],
   ["/sign-in", "Sign in to your portal"],
   ["/track", "Track a request"],

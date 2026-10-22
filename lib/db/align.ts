@@ -191,6 +191,22 @@ async function addLaterObjects(database: Db) {
     )`,
     `CREATE INDEX IF NOT EXISTS "staff_notifications_staff_idx" ON "staff_notifications" ("staff_id", "unread", "at")`,
     `ALTER TABLE "requests" ADD COLUMN IF NOT EXISTS "checkout" text DEFAULT 'none' NOT NULL`,
+    `ALTER TABLE "requests" ADD COLUMN IF NOT EXISTS "review_fee" integer`,
+    `CREATE TABLE IF NOT EXISTS "payouts" (
+      "id" serial PRIMARY KEY NOT NULL,
+      "ref" text NOT NULL REFERENCES "requests"("ref"),
+      "amount" integer NOT NULL,
+      "phone" text NOT NULL,
+      "reason" text NOT NULL,
+      "status" text NOT NULL,
+      "provider_ref" text,
+      "code" text,
+      "by" text NOT NULL,
+      "at" timestamp with time zone DEFAULT now() NOT NULL,
+      "settled_at" timestamp with time zone
+    )`,
+    `CREATE INDEX IF NOT EXISTS "payouts_ref_idx" ON "payouts" USING btree ("ref")`,
+    `CREATE UNIQUE INDEX IF NOT EXISTS "payouts_one_pending" ON "payouts" USING btree ("ref") WHERE "status" = 'pending'`,
   ];
   for (const statement of statements) await database.execute(sql.raw(statement));
 }

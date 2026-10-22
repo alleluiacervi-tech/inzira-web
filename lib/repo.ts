@@ -13,7 +13,7 @@ import { channelName } from "./i18n/present";
 import { documentNote, hasPart, legacyText, say, type Part } from "./i18n/stored";
 import { PERMISSION_GROUPS, PERMISSIONS, ROLES, type Permission } from "./permissions";
 import { attentionCounts, caseTargetHours, isLate, median, sourceOf, stageClock, wasReturned, workQueue } from "./dashboard";
-import { amountDue, isOpen, payStatus, STAGE_LABEL } from "./status";
+import { amountDue, isOpen, payableNow, payStatus, STAGE_LABEL } from "./status";
 import { isIdPolicy, isIdReview } from "./identity";
 import { STAGES, type Account, type AuditEntry, type Category, type ClientDetail, type ClientSummary, type CustomerRequest, type Hold, type IdReview, type LibraryDoc, type Message, type Msg, type MsgVars, type Note, type Notification, type Profile, type Request, type RequestEvent, type RequestView, type SavedView, type Service, type Staff, type Stage, type StageTarget, type TrackResult } from "./types";
 
@@ -123,7 +123,7 @@ async function loadRequests(where?: SQL, locale: Locale = "en"): Promise<Request
       checkout: r.checkout === "none" ? undefined : r.checkout,
       billing: {
         invoice: r.invoice, official: r.official, officialMode: r.officialMode ?? undefined, officialLabel: r.officialLabel, ours: r.ours, oursStandard: r.oursStandard,
-        oursUnit: r.oursUnit ?? undefined, oursNote: r.oursNote ?? undefined, quote: r.quote, dueAt: iso(r.dueAt), officialReceipt: r.officialReceipt,
+        oursUnit: r.oursUnit ?? undefined, oursNote: r.oursNote ?? undefined, quote: r.quote, dueAt: iso(r.dueAt), officialReceipt: r.officialReceipt, reviewFee: r.reviewFee ?? undefined,
         transactions: (txBy.get(r.ref) ?? []).map((t) => ({ receipt: t.receipt, at: iso(t.at)!, method: t.method, official: t.official, ours: t.ours, status: t.status })),
       },
       documents: (docsBy.get(r.ref) ?? []).map((x) => ({
@@ -685,7 +685,7 @@ export async function getAdminOverview(rangeDays: OverviewRange = 30) {
     checkout: {
       started: checkoutsInRange.length, paid: checkoutsPaid,
       rate: checkoutsInRange.length ? Math.round((checkoutsPaid / checkoutsInRange.length) * 100) : null,
-      waiting: checkoutsWaiting.length, waitingValue: rwfShort(checkoutsWaiting.reduce((n, r) => n + amountDue(r.billing), 0)),
+      waiting: checkoutsWaiting.length, waitingValue: rwfShort(checkoutsWaiting.reduce((n, r) => n + payableNow(r.billing, true).amount, 0)),
     },
     pending: { value: rwfShort(totalBalanceDue), rawAmount: totalBalanceDue, invoices: pending.length, overdue: pending.filter((r) => payStatus(r.billing, now) === "overdue").length },
     revenue: {
