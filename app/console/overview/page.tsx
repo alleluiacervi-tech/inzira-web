@@ -10,5 +10,5 @@ export default async function OverviewPage({ searchParams }: { searchParams: Pro
   if (!hasAdminAccess(me.role, perms) || !perms.includes("viewAll")) return <NoAccess what="the operations overview" />;
 
   const days = OVERVIEW_RANGES.find((r) => String(r) === range) ?? 30;
-  return <OverviewView overview={await getAdminOverview(days)} />;
+  return <OverviewView overview={await getAdminOverview(days)} name={me.name} />;
 }

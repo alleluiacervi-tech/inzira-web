@@ -3,10 +3,10 @@ import Link from "next/link";
 import { useState } from "react";
 import { Icon } from "@/components/ui";
 import type { QueueItem, Reason } from "@/lib/dashboard";
-import { fmtAgo, fmtDay, fmtDayRel, fmtHours, fmtLong, initials, isSameDay, rwf } from "@/lib/format";
+import { dayPart, fmtAgo, fmtDay, fmtDayRel, fmtHours, fmtLong, initials, isSameDay, rwf } from "@/lib/format";
 import type { AdminOverview, OverviewRange } from "@/lib/repo";
-import { BarList, FeeTrendChart, Sparkline } from "./charts";
-import { StatCard } from "./StatCard";
+import { BarList, DailyTrend, FeeTrendChart, ShareBar } from "./charts";
+import { KpiStrip } from "./KpiStrip";
 
 type Tone = "red" | "ember" | "amber" | "blue" | "green";
 
@@ -115,37 +115,56 @@ function DoNext({ queue, unchecked, now }: { queue: QueueItem[]; unchecked: numb
   );
 }
 
-function Pipeline({ stages, now }: { stages: AdminOverview["pipeline"]; now: string }) {
+/**
+ * Where open cases stand, drawn as the path they travel: one stop per stage, the count above it, what is late or waiting
+ * below. A stop's dot grows with its share of the work, so the stage where cases pile up stands out. The last stop is
+ * what reached the end in the period.
+ */
+function RouteMap({ stages, completed, period, now }: { stages: AdminOverview["pipeline"]; completed: number; period: string; now: string }) {
   const total = stages.reduce((n, s) => n + s.count, 0);
+  const late = stages.reduce((n, s) => n + s.late, 0);
+  const most = Math.max(...stages.map((s) => s.count), 1);
   return (
-    <section className="console-panel" aria-labelledby="pipe-title">
+    <section className="console-panel c-route" aria-labelledby="pipe-title">
       <header className="console-panel-header">
-        <div className="stack" style={{ gap: 1 }}>
+        <div className="stack" style={{ gap: 2 }}>
           <h2 id="pipe-title" className="console-section-title">Open cases by stage</h2>
-          <span className="c-caption">{total} open now · where work is piling up</span>
+          <span className="c-caption">
+            {total === 0 ? "No open cases." : `${total} open${late ? `, ${late} past target time` : ", all within target time"}. Select a stop to see its cases.`}
+          </span>
         </div>
-        <Link href="/console/requests?state=open" className="c-btn c-btn-ghost c-btn-sm">All<Icon name="right" size={14} /></Link>
+        <Link href="/console/requests?state=open" className="c-btn c-btn-ghost c-btn-sm">All open cases<Icon name="right" size={14} /></Link>
       </header>
-      <ol className="c-list">
-        {stages.map((s) => (
-          <li key={s.stage}>
-            <Link href={`/console/requests?stage=${s.stage}`} className="c-attn">
-              <span className="stack grow" style={{ gap: 2, minWidth: 0 }}>
-                <span className="c-attn-label">{s.label}</span>
-                <span className="c-caption">
-                  {s.count === 0 ? "Empty" : [
-                    s.late ? `${s.late} late` : null,
-                    s.onHold ? `${s.onHold} waiting on client` : null,
-                    s.oldest ? `oldest ${fmtAgo(s.oldest.since, now).replace(/ ago$/, "")}` : null,
-                  ].filter(Boolean).join(" · ")}
-                  {s.targetHours > 0 && <> · target {fmtHours(s.targetHours)}</>}
+      <ol className="c-route-line">
+        {stages.map((s) => {
+          const size = s.count ? 12 + Math.round((s.count / most) * 10) : 12;
+          return (
+            <li key={s.stage} className={`c-stop ${s.late ? "is-late" : ""} ${s.count ? "" : "is-empty"}`}>
+              <Link href={`/console/requests?stage=${s.stage}`} className="c-stop-link" aria-label={`${s.label}: ${s.count} open${s.late ? `, ${s.late} late` : ""}`}>
+                <span className="c-stop-count tnum">{s.count}</span>
+                <span className="c-stop-pin"><span className="c-stop-dot" style={{ width: size, height: size }} /></span>
+                <span className="c-stop-name">{s.label}</span>
+                <span className="c-stop-meta">
+                  {s.late > 0 && <span className="c-stop-flag">{s.late} late</span>}
+                  {s.onHold > 0 && <span>{s.onHold} waiting on client</span>}
+                  {s.count === 0 && <span>Clear</span>}
                 </span>
-              </span>
-              <span className={`c-count ${s.late ? "c-tone-red" : s.count ? "c-tone-blue" : "c-tone-neutral"}`}>{s.count}</span>
-              <Icon name="right" size={15} style={{ color: "var(--c-text-subtle)" }} />
-            </Link>
-          </li>
-        ))}
+                <span className="c-stop-meta c-stop-quiet">
+                  {s.oldest && <span>Oldest {fmtAgo(s.oldest.since, now).replace(/ ago$/, "")}</span>}
+                  {s.targetHours > 0 && <span>Target {fmtHours(s.targetHours)}</span>}
+                </span>
+              </Link>
+            </li>
+          );
+        })}
+        <li className="c-stop is-end">
+          <Link href="/console/requests?stage=completed" className="c-stop-link" aria-label={`Completed in the ${period.toLowerCase()}: ${completed}`}>
+            <span className="c-stop-count tnum">{completed}</span>
+            <span className="c-stop-pin"><span className="c-stop-dot"><Icon name="check" size={11} stroke={3} /></span></span>
+            <span className="c-stop-name">Completed</span>
+            <span className="c-stop-meta c-stop-quiet"><span>In the {period.toLowerCase()}</span></span>
+          </Link>
+        </li>
       </ol>
     </section>
   );
@@ -167,20 +186,28 @@ function Panel({ id, title, caption, children, action }: { id: string; title: st
 }
 
 const RANGES: OverviewRange[] = [7, 30, 90];
+const METHOD_LOGO: Record<string, string> = { "MTN MoMo": "/pay/mtn-momo.svg", "Airtel Money": "/pay/airtel-money.svg" };
+const rwfShortK = (n: number) => (n >= 1e6 ? `RWF ${(n / 1e6).toFixed(1).replace(/\.0$/, "")}M` : n >= 1e4 ? `RWF ${Math.round(n / 1e3)}k` : rwf(n));
 
-export function OverviewView({ overview: o }: { overview: AdminOverview }) {
+export function OverviewView({ overview: o, name }: { overview: AdminOverview; name?: string }) {
   const [more, setMore] = useState(false);
-  const revenueTrend = o.monthly.map((m) => m.ours);
+  const [measure, setMeasure] = useState<"money" | "requests">("money");
   const late = o.needsAttention.slaBreached;
   const solo = o.team.length < 2;
+  const first = name?.split(" ")[0];
+  const days = o.daily;
+  const trend = measure === "money"
+    ? days.map((d) => ({ at: d.at, value: d.ours, prev: d.prevOurs }))
+    : days.map((d) => ({ at: d.at, value: d.opened, prev: d.prevOpened }));
+  const maxOpen = Math.max(...o.team.map((a) => a.active), 1);
 
   return (
-    <div className="stack g20">
+    <div className="stack c-overview">
       <div className="c-page-head">
-        <div className="stack g4">
-          <span className="c-eyebrow">Overview · {fmtLong(o.now)}</span>
-          <h1 className="console-page-title">Operations</h1>
-          <p className="c-caption" style={{ fontSize: 13.5 }}>
+        <div className="stack g6">
+          <span className="c-eyebrow">{fmtLong(o.now)}</span>
+          <h1 className="console-page-title">{first ? `Good ${dayPart(o.now)}, ${first}` : "Operations"}</h1>
+          <p className="c-lede">
             {o.queue.length === 0
               ? `Nothing is waiting. ${o.activeCases.value} open ${o.activeCases.value === 1 ? "case" : "cases"}.`
               : late
@@ -194,41 +221,27 @@ export function OverviewView({ overview: o }: { overview: AdminOverview }) {
         </div>
       </div>
 
+      <RouteMap stages={o.pipeline} completed={o.completed.value} period={o.period} now={o.now} />
+
       <div className="c-grid-work">
         <DoNext queue={o.queue} unchecked={o.needsAttention.uncheckedOfficial} now={o.now} />
-        <Pipeline stages={o.pipeline} now={o.now} />
-      </div>
-
-      <div className="row between g12 wrapx" style={{ marginTop: 8 }}>
-        <h2 className="console-section-title" style={{ fontSize: 16 }}>Results · {o.period.toLowerCase()}</h2>
-        <nav className="c-segmented" aria-label="Period">
-          {RANGES.map((r) => (
-            <Link key={r} href={r === 30 ? "/console/overview" : `/console/overview?range=${r}`} aria-current={o.rangeDays === r ? "page" : undefined} scroll={false}>{r} days</Link>
-          ))}
-        </nav>
-      </div>
-
-      <div className="c-grid-stats">
-        <StatCard title="Our fees earned" value={o.revenue.ours} delta={o.revenue.delta} icon="card" href="/admin/payments"
-          trend={<Sparkline values={revenueTrend} label={`Our fees, last ${revenueTrend.length} months`} />} />
-        <StatCard title="Requests opened" value={o.opened.value} delta={o.opened.delta} icon="plus" href="/console/requests" />
-        <StatCard title="Completed" value={o.completed.value} delta={o.completed.delta} icon="check" href="/console/requests?stage=completed"
-          subtext={o.onTime.pct === null ? undefined : `${o.onTime.pct}% within target`} />
-        <StatCard title="Balances due now" value={o.pending.value} icon="clock" href="/console/requests?attention=balance"
-          subtext={`${o.pending.invoices} ${o.pending.invoices === 1 ? "case" : "cases"} · ${o.pending.overdue} overdue`} tone={o.pending.overdue ? "red" : undefined} />
-      </div>
-
-      <div className="c-grid-main">
+        <div className="stack g16">
         <Panel id="money" title="Money in" caption={`Collected in the ${o.period.toLowerCase()}`}>
-          <dl className="c-money">
-            <div><dt>Collected</dt><dd>{o.revenue.gross}</dd></div>
-            <div><dt>Our fees</dt><dd className="fee-ours">{o.revenue.ours}</dd></div>
-            <div><dt>Official fees passed on</dt><dd>{o.revenue.official}</dd></div>
-            <div><dt>Refunded</dt><dd>{o.revenue.refundCount ? `${o.revenue.refunds} (${o.revenue.refundCount})` : "None"}</dd></div>
-          </dl>
+          <div className="c-money-hero">
+            <span className="c-money-total tnum">{o.revenue.gross}</span>
+            <span className="c-caption">{o.revenue.refundCount ? `${o.revenue.refunds} refunded (${o.revenue.refundCount})` : "Nothing refunded"}</span>
+          </div>
+          <ShareBar
+            label="Collected, split by fee"
+            format={rwfShortK}
+            parts={[
+              { name: "Our fees", value: o.revenue.rawOurs, color: "var(--chart-ours)" },
+              { name: "Official fees passed on", value: o.revenue.rawOfficial, color: "var(--chart-official)" },
+            ]}
+          />
           <div className="c-checkout-rate" data-checkout-rate>
             <div className="stack" style={{ gap: 2, minWidth: 0 }}>
-              <span className="c-caption" style={{ fontWeight: 600 }}>Paid at checkout</span>
+              <span className="c-caption" style={{ fontWeight: 600, color: "var(--c-text)" }}>Paid at checkout</span>
               <span className="c-caption">
                 {o.checkout.started ? `${o.checkout.paid} of ${o.checkout.started} requests paid when sent` : "No requests started at checkout yet"}
                 {o.checkout.waiting ? ` · ${o.checkout.waiting} waiting (${o.checkout.waitingValue})` : ""}
@@ -237,27 +250,92 @@ export function OverviewView({ overview: o }: { overview: AdminOverview }) {
             <Link href="/console/inbox" className="c-checkout-pct" aria-label="See unpaid checkouts in the inbox">{o.checkout.rate === null ? "—" : `${o.checkout.rate}%`}</Link>
           </div>
           {o.revenue.methods.length ? (
-            <>
-              <span className="c-caption" style={{ fontWeight: 600 }}>By payment method</span>
-              <BarList rows={o.revenue.methods} format={(n) => rwf(n)} />
-            </>
+            <div className="stack g8">
+              <span className="c-subhead">By payment method</span>
+              <ul className="c-methods">
+                {o.revenue.methods.map(([m, v]) => {
+                  const share = Math.round((v / Math.max(1, o.revenue.methods.reduce((t, [, x]) => t + x, 0))) * 100);
+                  return (
+                    <li key={m}>
+                      {METHOD_LOGO[m] ? <img src={METHOD_LOGO[m]} alt="" width={22} height={22} /> : <span className="c-method-ico"><Icon name={m === "Cash" ? "c-tax" : "card"} size={13} /></span>}
+                      <span className="c-methods-name">{m}</span>
+                      <span className="c-methods-track" aria-hidden="true"><span style={{ width: `${share}%` }} /></span>
+                      <b className="tnum">{rwf(v)}</b>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
           ) : <p className="c-caption">No payments in this period.</p>}
         </Panel>
+          <Panel id="speed" title="Speed" caption={`Cases completed in the ${o.period.toLowerCase()}`}>
+          {o.onTime.of ? (
+            <div className="stack g12">
+              <div className="c-gauge">
+                <span className={`c-gauge-value tnum ${o.onTime.pct! < 80 ? "c-text-red" : ""}`}>{o.onTime.pct}%</span>
+                <span className="c-caption">within target time</span>
+              </div>
+              <div className="c-bullet" role="img" aria-label={`${o.onTime.pct}% within target time, against a goal of 80%`}>
+                <span className="c-bullet-fill" style={{ width: `${o.onTime.pct}%` }} />
+                <span className="c-bullet-goal" style={{ left: "80%" }}><span>Goal 80%</span></span>
+              </div>
+              <dl className="c-money">
+                <div><dt>Typical time to finish</dt><dd>{o.onTime.medianDays} days</dd></div>
+                <div><dt>Completed</dt><dd>{o.onTime.of}</dd></div>
+              </dl>
+            </div>
+          ) : <p className="c-caption">No cases completed in this period.</p>}
+        </Panel>
+        </div>
+      </div>
+
+      <div className="c-results-head">
+        <div className="stack" style={{ gap: 2 }}>
+          <h2 className="console-section-title c-results-title">Results</h2>
+          <span className="c-caption">{o.period}, compared with the {o.rangeDays} days before</span>
+        </div>
+        <nav className="c-segmented" aria-label="Period">
+          {RANGES.map((r) => (
+            <Link key={r} href={r === 30 ? "/console/overview" : `/console/overview?range=${r}`} aria-current={o.rangeDays === r ? "page" : undefined} scroll={false}>{r} days</Link>
+          ))}
+        </nav>
+      </div>
+
+      <KpiStrip
+        label={`Results, ${o.period.toLowerCase()}`}
+        items={[
+          { label: "Our fees earned", value: o.revenue.ours, delta: o.revenue.delta || undefined, href: "/admin/payments", spark: days.map((d) => d.ours), icon: "card" },
+          { label: "Requests opened", value: o.opened.value, delta: o.opened.delta, href: "/console/requests", spark: days.map((d) => d.opened), icon: "inbox" },
+          { label: "Completed", value: o.completed.value, delta: o.completed.delta, href: "/console/requests?stage=completed", spark: days.map((d) => d.completed), sub: o.onTime.pct === null ? undefined : `${o.onTime.pct}% within target`, icon: "check-circle" },
+          { label: "Balances due now", value: o.pending.value, href: "/console/requests?attention=balance", alert: o.pending.overdue > 0, sub: `${o.pending.invoices} ${o.pending.invoices === 1 ? "case" : "cases"}, ${o.pending.overdue} overdue`, icon: "clock" },
+        ]}
+      />
+
+      <div className="c-grid-trend">
+        <Panel
+          id="daily"
+          title={measure === "money" ? "Our fees by day" : "New requests by day"}
+          caption={measure === "money" ? "What Inzira earned each day; the dashed line is the same days of the period before." : "Requests opened each day; the dashed line is the same days of the period before."}
+          action={
+            <div className="c-segmented c-segmented-sm" role="group" aria-label="Measure">
+              <button type="button" aria-pressed={measure === "money"} onClick={() => setMeasure("money")}>Fees</button>
+              <button type="button" aria-pressed={measure === "requests"} onClick={() => setMeasure("requests")}>Requests</button>
+            </div>
+          }
+        >
+          <DailyTrend
+            days={trend}
+            title={measure === "money" ? "Our fees by day" : "New requests by day"}
+            prevLabel={`Previous ${o.rangeDays} days`}
+            format={measure === "money" ? rwfShortK : (n) => String(Math.round(n))}
+          />
+        </Panel>
         <Panel id="trend" title="Fees by month" caption="Last 6 months. Only our fee is Inzira revenue.">
-          <FeeTrendChart data={o.monthly} />
+          <FeeTrendChart data={o.monthly} height={220} />
         </Panel>
       </div>
 
-      <div className="c-grid-3">
-        <Panel id="speed" title="Speed" caption={`Cases completed in the ${o.period.toLowerCase()}`}>
-          {o.onTime.of ? (
-            <dl className="c-money">
-              <div><dt>Within target time</dt><dd className={o.onTime.pct! < 80 ? "c-text-red" : undefined}>{o.onTime.pct}%</dd></div>
-              <div><dt>Typical time to finish</dt><dd>{o.onTime.medianDays} days</dd></div>
-              <div><dt>Completed</dt><dd>{o.onTime.of}</dd></div>
-            </dl>
-          ) : <p className="c-caption">No cases completed in this period.</p>}
-        </Panel>
+      <div className="c-grid-2">
         <Panel id="src" title="Where requests came from" caption={`New requests, ${o.period.toLowerCase()}`}>
           {o.sources.length ? <BarList rows={o.sources} unit={["request", "requests"]} /> : <p className="c-caption">No new requests in this period.</p>}
         </Panel>
@@ -266,7 +344,7 @@ export function OverviewView({ overview: o }: { overview: AdminOverview }) {
             <ol className="c-ranked">
               {o.popular.map(([name, count, cat]) => (
                 <li key={name}>
-                  <span className="stack grow" style={{ gap: 1, minWidth: 0 }}><strong className="c-list-name">{name}</strong><span className="c-caption">{cat}</span></span>
+                  <span className="stack grow" style={{ gap: 1, minWidth: 0 }}><strong className="c-list-name c-clip-1">{name}</strong><span className="c-caption">{cat}</span></span>
                   <span className="tnum c-list-name">{count}</span>
                 </li>
               ))}
@@ -326,7 +404,7 @@ export function OverviewView({ overview: o }: { overview: AdminOverview }) {
                         <span className="stack" style={{ gap: 1 }}><strong>{a.name}</strong><span className="c-caption">{a.team}</span></span>
                       </Link>
                     </td>
-                    <td className="num" data-label="Open">{a.active}</td>
+                    <td className="num" data-label="Open"><span className="c-load"><span className="c-load-track" aria-hidden="true"><span style={{ width: `${(a.active / maxOpen) * 100}%` }} /></span><span className="tnum">{a.active}</span></span></td>
                     <td className="num" data-label="Past target">{a.late ? <span className="c-sla-late">{a.late}</span> : 0}</td>
                     <td className="num" data-label="Completed">{a.completed}</td>
                     <td className="num" data-label="Typical turnaround">{a.turnaround}</td>

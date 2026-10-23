@@ -2,12 +2,12 @@
 import Link from "next/link";
 import { useState, type ReactNode } from "react";
 import { Icon } from "@/components/ui";
-import { fmtAgo, fmtDayRel, fmtHours, fmtLong, fmtWhen, isSameDay, shortName } from "@/lib/format";
+import { dayPart, fmtAgo, fmtDayRel, fmtHours, fmtLong, fmtWhen, isSameDay, shortName } from "@/lib/format";
 import { stageLabel } from "@/lib/status";
 import type { RequestView, Staff } from "@/lib/types";
 import { RequestStatusBadge } from "./StatusBadge";
 import { SidePanel } from "./SidePanel";
-import { StatCard } from "./StatCard";
+import { KpiStrip } from "./KpiStrip";
 
 export interface MyDayData {
   todayFollowUps: RequestView[];
@@ -76,14 +76,14 @@ export function MyDayView({ staff, data, now, taxes = [] }: { staff: Staff; data
   return (
     <div className="stack g24">
       <div className="c-page-head">
-        <div className="stack g4">
-          <span className="c-eyebrow">My day · {fmtLong(now)}</span>
-          <h1 className="console-page-title">Good day, {shortName(staff.name)}</h1>
-          <p className="c-caption" style={{ fontSize: 13.5 }}>
+        <div className="stack g6">
+          <span className="c-eyebrow">{fmtLong(now)}</span>
+          <h1 className="console-page-title">Good {dayPart(now)}, {shortName(staff.name)}</h1>
+          <p className="c-lede">
             {waiting === 0
               ? `Nothing is waiting on you. You have ${data.openCasesCount} open ${data.openCasesCount === 1 ? "case" : "cases"}.`
               : overdue > 0
-                ? `${overdue} ${overdue === 1 ? "case is" : "cases are"} past target time — start there.`
+                ? `${overdue} ${overdue === 1 ? "case is" : "cases are"} past target time. Start there.`
                 : `${waiting} ${waiting === 1 ? "item needs" : "items need"} you today.`}
           </p>
         </div>
@@ -93,13 +93,15 @@ export function MyDayView({ staff, data, now, taxes = [] }: { staff: Staff; data
         </div>
       </div>
 
-      <div className="c-grid-stats">
-        <StatCard title="Past or near target" value={data.slaCases.length} icon="alert" href="#sla"
-          subtext={`${overdue} overdue · ${data.slaCases.length - overdue} near limit`} tone={overdue ? "red" : undefined} />
-        <StatCard title="Client replies" value={data.clientReplies.length} icon="msg" href="#replies" subtext="Waiting for your answer" />
-        <StatCard title="Follow-ups due" value={data.todayFollowUps.length} icon="clock" href="#follow-ups" subtext={missed ? `${missed} missed on an earlier day` : "Calls and reminders for today"} tone={missed ? "red" : undefined} />
-        <StatCard title="Documents to review" value={data.pendingDocs.length} icon="file-text" href="#documents" subtext="Uploaded by clients" />
-      </div>
+      <KpiStrip
+        label="What is waiting on you"
+        items={[
+          { label: "Past or near target", value: data.slaCases.length, icon: "alert", href: "#sla", alert: overdue > 0, sub: `${overdue} overdue, ${data.slaCases.length - overdue} near limit` },
+          { label: "Client replies", value: data.clientReplies.length, icon: "msg", href: "#replies", sub: "Waiting for your answer" },
+          { label: "Follow-ups due", value: data.todayFollowUps.length, icon: "clock", href: "#follow-ups", alert: missed > 0, sub: missed ? `${missed} missed on an earlier day` : "Calls and reminders for today" },
+          { label: "Documents to review", value: data.pendingDocs.length, icon: "file-text", href: "#documents", sub: "Uploaded by clients" },
+        ]}
+      />
 
       {taxes.length > 0 && (
         <Section id="taxes" icon="calendar" tone="amber" title="Taxes before the date" caption="Pay RRA, or collect the receipt, before the working day"

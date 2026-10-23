@@ -19,6 +19,8 @@ import { STAGES, type Account, type AuditEntry, type Category, type ClientDetail
 
 export const getNow = async () => new Date().toISOString();
 const DAY = 864e5;
+/** Kigali is UTC+2 all year. */
+const KIGALI_MS = 2 * 3600e3;
 
 // ---------------- catalogue ----------------
 type ServiceRow = typeof s.services.$inferSelect;
@@ -646,6 +648,28 @@ export async function getAdminOverview(rangeDays: OverviewRange = 30) {
     return { label: monthShort(start), official: thousands(inMonth.reduce((n, x) => n + x.official, 0)), ours: thousands(inMonth.reduce((n, x) => n + x.ours, 0)) };
   });
 
+  // Day by day across the period (Kigali days), beside the same days of the period before, for the trend chart.
+  const dayStart = (ms: number) => Math.floor((ms + KIGALI_MS) / DAY) * DAY - KIGALI_MS;
+  const firstDay = dayStart(nowMs) - (rangeDays - 1) * DAY;
+  const prevFirstDay = firstDay - rangeDays * DAY;
+  const daily = Array.from({ length: rangeDays }, (_, i) => ({ at: new Date(firstDay + i * DAY).toISOString(), ours: 0, prevOurs: 0, opened: 0, prevOpened: 0, completed: 0 }));
+  const slot = (at: string | undefined, from: number) => {
+    if (!at) return -1;
+    const i = Math.floor((dayStart(Date.parse(at)) - from) / DAY);
+    return i >= 0 && i < rangeDays ? i : -1;
+  };
+  for (const x of txs) {
+    if (x.status !== "paid") continue;
+    const i = slot(x.at, firstDay), j = slot(x.at, prevFirstDay);
+    if (i >= 0) daily[i].ours += x.ours; else if (j >= 0) daily[j].prevOurs += x.ours;
+  }
+  for (const r of cases) {
+    const i = slot(r.openedAt, firstDay), j = slot(r.openedAt, prevFirstDay);
+    if (i >= 0) daily[i].opened++; else if (j >= 0) daily[j].prevOpened++;
+    const c = r.stage === "completed" ? slot(r.stageDates.completed, firstDay) : -1;
+    if (c >= 0) daily[c].completed++;
+  }
+
   const popularMap = new Map<string, { n: number; cat: string }>();
   for (const r of openedInRange) popularMap.set(r.service.name, { n: (popularMap.get(r.service.name)?.n ?? 0) + 1, cat: cats.find((c) => c.id === r.service.category)?.short ?? "" });
   const sources = new Map<string, number>();
@@ -697,6 +721,7 @@ export async function getAdminOverview(rangeDays: OverviewRange = 30) {
       methods: [...methods.entries()].sort((a, b) => b[1] - a[1]),
     },
     monthly: months,
+    daily,
     pipeline,
     byCategory: cats.filter((c) => !c.href).map((c) => [c.name, open.filter((r) => r.service.category === c.id).length] as [string, number]).filter(([, n]) => n > 0).sort((a, b) => b[1] - a[1]),
     popular: [...popularMap.entries()].sort((a, b) => b[1].n - a[1].n).slice(0, 5).map(([n, v]) => [n, v.n, v.cat] as [string, number, string]),
