@@ -50,15 +50,17 @@ export async function processPaymentCallback(input: CallbackInput): Promise<void
   if (!(await allow(`callback:tx:${txId}`, 12, 60e3))) return;
   const [t] = await d.select().from(s.transactions).where(eq(s.transactions.id, txId));
   if (!t) return;
-  if (t.providerRef && callback) {
+  // A decline is believed only from a callback that proved who it is (HTTP Basic) and names this very prompt.
+  // Without the login, a callback is only a reason to ask the provider.
+  const authenticated = callbackAuthConfigured() && callbackAuthorized(input.authorization);
+  // Binding IntouchPay's id decides which payment we ask about later, so once the callback login is set, only a callback
+  // that carries it may do that. Without the login (not configured), the request id must still match.
+  if (t.providerRef && callback && (authenticated || !callbackAuthConfigured())) {
     const next = withIntouchTransactionId(t.providerRef, callback.transactionId, callback.requestId);
     if (next && next !== t.providerRef) {
       await d.update(s.transactions).set({ providerRef: next }).where(and(eq(s.transactions.id, t.id), eq(s.transactions.status, "pending")));
     }
   }
-  // A decline is believed only from a callback that proved who it is (HTTP Basic) and names this very prompt.
-  // Without the login, a callback is only a reason to ask the provider.
-  const authenticated = callbackAuthConfigured() && callbackAuthorized(input.authorization);
   const declined = authenticated && callback?.outcome === "failed" && !!t.providerRef && parseIntouchRef(t.providerRef)?.requestId === callback.requestId;
   await reconcilePayment(t.id, { late: true, declined });
 }

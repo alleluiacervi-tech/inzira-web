@@ -167,6 +167,8 @@ const kigaliDate = (t = Date.now()) => kigaliToday(t);
  * many new requests have no agent yet. Sent at most once a day, however often the job runs.
  */
 export async function staffDigest() {
+  // The job may run every few minutes; the summary waits for the working morning in Kigali (UTC+2), never at midnight.
+  if ((new Date().getUTCHours() + 2) % 24 < 7) return { sent: 0, waiting: "before 07:00 Kigali" };
   const today = kigaliDate();
   const d = await db();
   const people = (await d.select().from(s.staff).where(eq(s.staff.active, true))).filter((p) => p.phone);

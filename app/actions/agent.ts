@@ -4,7 +4,7 @@ import { eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { WORKS_CASES, assignableStaff, canSeeCase } from "@/lib/access";
 import { getStaffUser, normalisePhone } from "@/lib/auth";
-import { noteReviewFeeRefund } from "@/lib/billing";
+import { noteRefundDue } from "@/lib/billing";
 import { rwf } from "@/lib/format";
 import { quoteRefusal } from "@/lib/pricing";
 import { audit, db, event, fail, invoiceFor, nextNumber, notify, refFor, s, type Result } from "@/lib/mutate";
@@ -96,7 +96,8 @@ export async function reviewDocument(ref: string, docId: string, decision: "appr
 
 /** A message to the customer. With `wait`, the case goes on hold until they answer. */
 export async function messageCustomer(ref: string, body: string, wait: boolean): Promise<Result> {
-  const w = await work(ref, "viewAssigned");
+  // Putting the case on hold changes its status, which read-only roles cannot do; a plain message they can send.
+  const w = await work(ref, wait ? "updateStatus" : "viewAssigned");
   if ("error" in w) return fail(w.error!);
   const { me, d } = w;
   if (!body.trim()) return fail("Write a message first.");
@@ -235,6 +236,7 @@ export async function saveFees(ref: string, official: number | null, ours: numbe
   if ("error" in w) return fail(w.error!);
   const { me, d, r } = w;
   if (ours !== r.ours && !me.permissions.has("changeOurs")) return fail("Changing our fee needs a supervisor. Ask one to change it on this case.");
+  if (!Number.isInteger(ours) || (official !== null && !Number.isInteger(official))) return fail("Enter whole amounts in RWF.");
   if (ours < 0 || (official !== null && official < 0)) return fail("Amounts can’t be negative.");
   await d.transaction(async (tx) => {
     await tx.update(s.requests).set({ official: r.officialMode ? null : official, ours }).where(eq(s.requests.ref, ref));
@@ -270,6 +272,7 @@ export async function sendQuote(ref: string): Promise<Result> {
 export async function closeCase(ref: string, kind: Closed["kind"], reason: string): Promise<Result> {
   const w = await work(ref, "complete");
   if ("error" in w) return fail(w.error!);
+  if (w.r.closed) return fail("This case is already closed.");
   if (!reason.trim()) return fail("Write the reason the customer will see.");
   const closed: Closed = { kind, at: now(), reason: reason.trim() };
   const cancelled = kind === "cancelled";
@@ -278,7 +281,7 @@ export async function closeCase(ref: string, kind: Closed["kind"], reason: strin
   await w.d.transaction(async (tx) => {
     await tx.update(s.requests).set({ closed, hold: null, summary: { title: english(summary, "title"), body: reason.trim(), msg: summary }, next: english(summary, "next") }).where(eq(s.requests.ref, ref));
     await event(tx, ref, msg(cancelled ? "ev.cancelled" : "ev.rejected"), w.me.id, reason.trim());
-    await noteReviewFeeRefund(tx, ref, w.me);
+    await noteRefundDue(tx, ref, w.me);
     await notify(tx, ref, { icon: "alert", title: msg(cancelled ? "nt.cancelled" : "nt.rejected", { ref }), sms: sms(cancelled ? "cancelled" : "rejected", { reason: reason.trim() }) });
     await audit(tx, { actor: w.me.name, role: w.me.role, action: kind === "cancelled" ? "Cancelled case" : "Recorded rejection", entity: ref });
   });

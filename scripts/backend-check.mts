@@ -81,6 +81,20 @@ await check("outbox: a failure is retried later with a pause, and given up on af
     assert.ok((await counts()).failed >= 1);
   } finally { globalThis.fetch = realFetch; delete process.env.SMS_PROVIDER; }
 });
+await check("sms: Africa's Talking answering 201 but refusing the recipient is a failure, not a send", async () => {
+  process.env.SMS_PROVIDER = "africastalking"; process.env.AT_USERNAME = "x"; process.env.AT_API_KEY = "x";
+  const { sendSms } = await import("../lib/sms.ts");
+  const realFetch = globalThis.fetch;
+  const answer = (statusCode: number, status: string) => (async () => Response.json({ SMSMessageData: { Recipients: [{ statusCode, status }] } }, { status: 201 })) as typeof fetch;
+  try {
+    globalThis.fetch = answer(405, "InsufficientBalance");
+    await assert.rejects(sendSms("788123456", "test"), /InsufficientBalance/);
+    globalThis.fetch = (async () => new Response("{}", { status: 201 })) as typeof fetch;
+    await assert.rejects(sendSms("788123456", "test"), /did not send/);
+    globalThis.fetch = answer(101, "Success");
+    await sendSms("788123456", "test");
+  } finally { globalThis.fetch = realFetch; delete process.env.SMS_PROVIDER; }
+});
 await check("outbox: two workers cannot both take the same message", async () => {
   const id = await enqueue(d, { channel: "email", to: "y@example.com", mail: { to: "y@example.com", subject: "Hi", text: "Hello" } });
   const results = await quiet(() => Promise.all([sendNow(id), sendNow(id), sendNow(id)]));
@@ -384,7 +398,7 @@ await check("pay to submit: an unpaid checkout is reminded once, closes after th
 
 await check("review fee: paying it sends a quoted request to staff, the quote counts it, and declining asks for a refund", async () => {
   const { remindOpenCheckouts, expireUnpaidQuotes } = await import("../lib/jobs.ts");
-  const { reconcilePayment, noteReviewFeeRefund } = await import("../lib/billing.ts");
+  const { reconcilePayment, noteRefundDue } = await import("../lib/billing.ts");
   const [{ cols }] = (await d.execute(sql.raw(`select string_agg(column_name, ', ' order by ordinal_position) cols from information_schema.columns where table_name = 'requests'`))).rows as { cols: string }[];
   const hold = JSON.stringify({ reason: "payment", title: "Pay the review fee to send your request", detail: "Pay RWF 1,000", since: new Date().toISOString(), msg: { key: "hold.reviewFee", vars: { fee: "RWF 1,000" } } });
   const ref = "INZ-T-RV-1";
@@ -408,13 +422,18 @@ await check("review fee: paying it sends a quoted request to staff, the quote co
     assert.ok(await count(`select count(*) n from staff_notifications where ref = '${ref}' and title = 'New request ${ref} · review fee paid'`) >= 1, "staff are told it needs a quote");
 
     const by = { id: "s-diane", name: "Diane", role: "Owner" };
-    await d.transaction((tx) => noteReviewFeeRefund(tx, ref, by));
+    await d.transaction((tx) => noteRefundDue(tx, ref, by));
     assert.equal(await count(`select count(*) n from notes where ref = '${ref}' and body like 'Refund due: the customer paid a RWF 1,000 review fee%'`), 1, "declined before a quote: staff are told to refund it");
 
     // Quoted and then not paid within a week: closed, and the customer is not told "nothing was charged".
     await d.execute(sql.raw(`update requests set quote = 'confirmed', official = 2000, due_at = now() - interval '5 days' where ref = '${ref}'`));
-    await d.transaction((tx) => noteReviewFeeRefund(tx, ref, by));
+    await d.transaction((tx) => noteRefundDue(tx, ref, by));
     assert.equal(await count(`select count(*) n from notes where ref = '${ref}' and body like 'Refund due%'`), 1, "once quoted, closing it does not ask for a refund");
+    // A paid quote closed before it was filed: everything beyond the review fee is owed back.
+    const [q] = await d.insert(s.transactions).values({ ref, receipt: `R-${ref}-2`, method: "MTN MoMo", official: 2000, ours: 7000, status: "paid", payer: "788123456", providerRef: `R-${ref}-2` }).returning({ id: s.transactions.id });
+    await d.transaction((tx) => noteRefundDue(tx, ref, by));
+    assert.equal(await count(`select count(*) n from notes where ref = '${ref}' and body like 'Refund due: the customer paid RWF 9,000 and the request was closed before it was filed%'`), 1, "a paid request closed before filing asks for the money back");
+    await d.delete(s.transactions).where(eq(s.transactions.id, q.id));
     await expireUnpaidQuotes();
     const closed = await row();
     assert.ok(closed.closed, "unpaid a week after the quote: closed");

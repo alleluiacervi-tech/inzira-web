@@ -254,6 +254,7 @@ export async function sendMessage(ref: string, body: string): Promise<Result> {
   const own = await ownRequest(ref);
   if (!own) return refuse("request");
   if (!body.trim()) return refuse("message");
+  if (!(await allowIp("portal"))) return refuse("tooMany");
   const text = body.trim().slice(0, 4000);
   await own.d.transaction(async (tx) => {
     await tx.insert(s.messages).values({ ref, by: "customer", body: text });
@@ -314,6 +315,9 @@ export async function uploadDocument(fd: FormData): Promise<Result<{ docs: Libra
   if (!doc) return refuse("document");
   const own = await ownRequest(doc.ref);
   if (!own) return refuse("document");
+  if (!(await allowIp("portal"))) return refuse("tooMany");
+  const [req] = await d.select({ closed: s.requests.closed, stage: s.requests.stage }).from(s.requests).where(eq(s.requests.ref, doc.ref));
+  if (!req || req.closed || req.stage === "completed") return refuse("finished");
   const fileId = id("f");
   const bytes = new Uint8Array(await file.arrayBuffer());
   const mime = sniffType(bytes);

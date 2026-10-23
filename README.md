@@ -246,8 +246,11 @@ by every server action.
   per number, and every public action is rate-limited per IP (`lib/ratelimit.ts`). Responses carry
   security headers, including a Content Security Policy that only allows this site's own scripts, styles,
   fonts and images.
-- **Scheduled job.** `vercel.json` runs `/api/cron` once a day (the most a Vercel Hobby plan allows).
-  On a paid plan, run it every 10–15 minutes so abandoned payment prompts settle sooner.
+- **Scheduled job.** `vercel.json` runs `/api/cron` once a day (the most a Vercel Hobby plan allows). Message retries,
+  the checkout reminder ("a couple of hours on") and abandoned payment prompts wait for it, so run it every 10–15 minutes:
+  on a paid Vercel plan in `vercel.json`, or from a free scheduler such as cron-job.org calling
+  `GET https://<site>/api/cron` with the header `Authorization: Bearer <CRON_SECRET>`. Every task is safe to repeat, and
+  the staff SMS summary still goes once a day, after 07:00 Kigali.
 - **Backups** of the Postgres database, and a retention rule for uploaded documents.
 - **Placeholders:** company details in `lib/site.ts`, the sample testimonials, and the four legal pages
   the footer links to (terms, privacy, refunds, complaints).

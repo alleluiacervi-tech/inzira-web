@@ -261,7 +261,7 @@ export async function trackRequest(ref: string, contact: string): Promise<TrackR
 
 // ---------------- staff ----------------
 /** The signed-in member of staff. */
-const plain = ({ permissions: _p, ...rest }: Staff & { permissions: Set<Permission> }): Staff => rest;
+const plain = ({ permissions: _p, needsSecondStep: _n, ...rest }: Staff & { permissions: Set<Permission>; needsSecondStep: boolean }): Staff => rest;
 export const getStaffUser = async (next = "/console"): Promise<Staff> => plain(await requireStaff(next));
 export const getAdmin = async (): Promise<Staff> => plain(await requireStaff("/admin"));
 /** What the signed-in member of staff may do, for screens that enable or hide controls. */

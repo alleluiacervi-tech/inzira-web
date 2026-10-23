@@ -53,6 +53,7 @@ export const LIMITS = {
   trackRef: { max: 10, windowMs: 15 * 60e3 },  // tries at one reference, from anywhere
   totp: { max: 6, windowMs: 15 * 60e3 },       // authenticator codes tried for one staff account
   request: { max: 10, windowMs: 60 * 60e3 },   // new requests sent
+  portal: { max: 40, windowMs: 60 * 60e3 },    // documents and messages a customer adds from the portal
   payment: { max: 10, windowMs: 60 * 60e3 },   // payment prompts
 } as const;
 

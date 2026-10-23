@@ -232,22 +232,30 @@ export async function requireCustomerId(next = "/portal"): Promise<string> {
   return session.subjectId;
 }
 
-export const getStaffUser = cache(async (): Promise<(Staff & { permissions: Set<Permission> }) | null> => {
+/** When the owner requires the authenticator step (REQUIRE_STAFF_TOTP=1), staff who have not set it up hold no permissions
+ *  and see only the page that sets it up, however they got into the console. */
+const mustSetUpSecondStep = (person: { totpEnabledAt: unknown }) => process.env.REQUIRE_STAFF_TOTP === "1" && !person.totpEnabledAt;
+export const SECOND_STEP_SETUP = "/console/security";
+
+export const getStaffUser = cache(async (): Promise<(Staff & { permissions: Set<Permission>; needsSecondStep: boolean }) | null> => {
   const session = await getSession();
   if (session?.kind !== "staff") return null;
   const d = await db();
   const [person] = await d.select().from(s.staff).where(and(eq(s.staff.id, session.subjectId), eq(s.staff.active, true)));
   if (!person) return null;
+  const base = { id: person.id, name: person.name, role: person.role, team: person.team, title: person.title, active: person.active };
+  if (mustSetUpSecondStep(person)) return { ...base, permissions: new Set<Permission>(), needsSecondStep: true };
   const rows = await d.select().from(s.rolePermissions).where(and(eq(s.rolePermissions.role, person.role), eq(s.rolePermissions.allowed, true)));
   // The owner can always do everything, whatever the matrix says.
   const all = person.role === "Owner";
   const permissions = new Set<Permission>(all ? (await d.select().from(s.rolePermissions)).map((r) => r.permission as Permission) : rows.map((r) => r.permission as Permission));
-  return { id: person.id, name: person.name, role: person.role, team: person.team, title: person.title, active: person.active, permissions };
+  return { ...base, permissions, needsSecondStep: false };
 });
 
 export async function requireStaff(next = "/console") {
   const me = await getStaffUser();
   if (!me) redirect(`/sign-in?next=${encodeURIComponent((await askedPath()) ?? safeReturnPath(next) ?? "/console")}`);
+  if (me.needsSecondStep && !((await askedPath()) ?? "").startsWith(SECOND_STEP_SETUP)) redirect(`${SECOND_STEP_SETUP}?setup=1`);
   return me;
 }
 export const can = (me: { permissions: Set<Permission> } | null, p: Permission) => !!me?.permissions.has(p);
