@@ -199,6 +199,7 @@
     "a4": "No one can. We file it complete and correct, and follow it up.",
     "q5": "What if my service isn’t listed?",
     "a5": "Tell us what you need. We agree the process and price first.",
+    "people": "A real person replies, not a bot",
     "closeTitle": "Not sure? Ask on WhatsApp. It’s free.",
     "closeLead": "We tell you the steps and the price before you commit.",
     "hours": "{hours}. Replies within {time}.",
@@ -370,7 +371,8 @@
     "totpLocked": "Too many wrong codes. Wait a few minutes and sign in again.",
     "totpOff": "The authenticator step is not set up for this account.",
     "totpDigits": "Enter the 6-digit code from the app.",
-    "totpBack": "Start again"
+    "totpBack": "Start again",
+    "aside": "Your requests, documents and receipts, all in one place."
   },
   "code": {
     "title": "Enter the code we sent you",

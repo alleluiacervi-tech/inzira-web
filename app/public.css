@@ -244,6 +244,20 @@
 .close-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 440px); gap: 40px clamp(40px, 7vw, 112px); align-items: center; }
 .close-ctas { display: flex; flex-wrap: wrap; gap: 12px; }
 @media (max-width: 900px) { .close-grid { grid-template-columns: minmax(0, 1fr); } }
+.people { display: flex; align-items: center; gap: 12px; margin: 0; font-size: var(--fs-sm); font-weight: 600; color: var(--ink-2); }
+.people-faces { display: flex; flex-shrink: 0; }
+.people-faces img { width: 48px; height: 48px; background: var(--brand-tint); border-radius: 50%; border: 3px solid var(--paper); box-shadow: 0 1px 2px rgba(20, 40, 80, .12); }
+.people-faces img + img { margin-left: -12px; }
+
+/* How it works: the steps beside an agent with a client. */
+.how-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 460px); gap: 32px clamp(40px, 6vw, 96px); align-items: center; }
+.how-grid .qsteps { grid-template-columns: minmax(0, 1fr); max-width: 520px; }
+.how-art { display: block; width: 100%; height: auto; }
+@media (max-width: 900px) {
+  .how-grid { grid-template-columns: minmax(0, 1fr); }
+  .how-art { order: -1; max-width: 300px; justify-self: center; }
+  .how-grid .qsteps { max-width: none; }
+}
 
 /* ============ motion ============ */
 /* One moment only: on load the example request steps through its route and settles on the current step. */
@@ -328,6 +342,16 @@
 /* ============ sign in and track ============ */
 .auth-main { padding-top: clamp(24px, 6vw, 64px); padding-bottom: 96px; }
 .auth-card { max-width: 520px; margin: 0 auto; padding: clamp(20px, 4vw, 36px); background: var(--paper); border: 1px solid var(--line); border-radius: var(--r-lg); box-shadow: 0 24px 48px -36px rgba(20, 40, 80, .4); }
+/* Sign in: the form beside a customer holding her finished document. The picture is left out on narrow screens. */
+.auth-art { display: none; }
+@media (min-width: 1000px) {
+  .auth-split { display: grid; grid-template-columns: minmax(0, 520px) minmax(0, 380px); justify-content: center; align-items: center; gap: clamp(56px, 7vw, 112px); }
+  .auth-split .auth-card { margin: 0; width: 100%; }
+  .auth-art { display: flex; flex-direction: column; align-items: center; gap: 24px; text-align: center; }
+  .auth-art-frame { display: flex; align-items: flex-end; justify-content: center; width: 300px; aspect-ratio: 1; border-radius: 50%; background: var(--brand-tint); overflow: hidden; }
+  .auth-art-frame img { width: auto; height: 88%; }
+  .auth-art p { margin: 0; max-width: 30ch; font-size: var(--fs-md); font-weight: 600; line-height: 1.45; color: var(--ink-2); }
+}
 
 /* Every service and our fee for it, one tap away on the home page. */
 .fee-all { grid-column: 1 / -1; background: var(--paper); border: 1px solid var(--line); border-radius: var(--r-card); }
