@@ -89,12 +89,7 @@ export function Sidebar({
         { label: "System", href: "/admin/system", icon: "settings", permission: "manageStaff", matchPrefix: "/admin/system" },
       ],
     },
-    {
-      group: "Account",
-      items: [
-        { label: "Sign-in security", href: "/console/security", icon: "lock", matchPrefix: "/console/security" },
-      ],
-    },
+    // Sign-in security lives in the profile menu (top right), so the menu fits a laptop screen without scrolling.
   ];
 
   const isItemActive = (item: NavItem) => {
@@ -131,7 +126,7 @@ export function Sidebar({
         </div>
 
         {/* Nav Groups */}
-        <nav className="stack grow" style={{ padding: "6px 0 12px", gap: 2 }} aria-label="Staff console">
+        <nav className="stack c-rail-nav" style={{ padding: "6px 0 12px", gap: 2 }} aria-label="Staff console">
           {GROUPS.map((grp) => {
             const visibleItems = grp.items.filter((it) => can(it.permission) && it.show !== false);
             if (!visibleItems.length) return null;
@@ -148,9 +143,10 @@ export function Sidebar({
                       className={`console-nav-item ${active ? "active" : ""}`}
                       onClick={onCloseMobile}
                       aria-current={active ? "page" : undefined}
+                      data-label={it.label}
                     >
                       <Icon name={it.icon} size={17} />
-                      <span>{it.label}</span>
+                      <span className="c-nav-label">{it.label}</span>
                       {it.badge !== undefined && it.badge > 0 && (
                         <span className="console-nav-badge">{it.badge}</span>
                       )}

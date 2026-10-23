@@ -77,9 +77,15 @@
   position: sticky;
   top: 0;
   height: 100vh;
+  height: 100dvh;
   z-index: 40;
-  overflow-y: auto;
+  /* The logo and the signed-in person stay put; only the menu between them scrolls. */
+  overflow: hidden;
 }
+.c-rail-nav { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: rgba(255, 255, 255, 0.18) transparent; }
+.c-rail-nav::-webkit-scrollbar { width: 6px; }
+.c-rail-nav::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.18); border-radius: 3px; }
+.c-rail-head, .c-rail-foot { flex-shrink: 0; }
 
 .console-main-area {
   flex: 1;
@@ -1029,16 +1035,6 @@ li:last-child > .c-attn { border-bottom: 0; }
 .c-stop-meta { display: flex; flex-wrap: wrap; justify-content: center; gap: 2px 8px; font-size: 12px; color: var(--c-text-muted); min-height: 18px; }
 .c-stop-quiet { color: var(--c-text-subtle); }
 .c-stop-flag { display: inline-flex; align-items: center; height: 18px; padding: 0 7px; border-radius: 999px; background: var(--c-red-bg); color: var(--c-red); font-weight: 700; }
-@media (max-width: 760px) {
-  .c-route-line { grid-template-columns: minmax(0, 1fr); padding: 8px 4px 8px; }
-  .c-route-line::before { left: 31px; right: auto; top: 30px; bottom: 30px; width: 3px; height: auto; margin: 0; background: linear-gradient(180deg, var(--brand), var(--brand-2) 75%, var(--c-green)); transform-origin: top center; animation-name: c-route-drop; }
-  .c-stop-link { display: grid; grid-template-columns: 40px minmax(0, 1fr) auto; grid-template-areas: "pin name count" "pin meta count" "pin quiet count"; align-items: center; justify-items: start; text-align: left; gap: 0 12px; padding: 10px 12px 10px 8px; }
-  .c-stop-pin { grid-area: pin; width: 40px; height: 100%; }
-  .c-stop-name { grid-area: name; margin: 0; }
-  .c-stop-meta { grid-area: meta; justify-content: flex-start; min-height: 0; }
-  .c-stop-quiet { grid-area: quiet; }
-  .c-stop-count { grid-area: count; height: auto; font-size: 26px; }
-}
 @keyframes c-route-drop { from { transform: scaleY(0); } }
 @media (prefers-reduced-motion: reduce) { .c-route-line::before { animation: none; } }
 
@@ -1150,3 +1146,57 @@ a.c-kpi:focus-visible { outline: 2px solid var(--brand-2); outline-offset: -2px;
 .c-section .c-empty .c-caption { display: none; }
 .c-grid-stats + .c-grid-2, .c-kpis { margin: 0; }
 @media (max-width: 640px) { .c-trend-x span:not(.is-first):not(.is-last):not(.is-mid) { display: none; } }
+
+/* ================= Sidebar fit and tablet rail ================= */
+/* Short laptop screens: a tighter menu, so all of it shows without scrolling on 720px and up. */
+@media (min-width: 769px) and (max-height: 820px) {
+  .c-rail-head { padding: 14px 20px 10px; }
+  .console-nav-group-title { padding: 8px 20px 2px; font-size: 11px; }
+  .console-sidebar .console-nav-item { padding-top: 4px; padding-bottom: 4px; font-size: 13px; }
+  .c-rail-foot { padding: 10px 16px; }
+  .c-rail-avatar { width: 28px; height: 28px; }
+}
+/* Very short screens: group names give way to thin dividers. */
+@media (min-width: 769px) and (max-height: 680px) {
+  .console-nav-group-title { font-size: 0; padding: 0; height: 1px; margin: 5px 20px; background: var(--c-rail-line); opacity: 1; }
+  .c-rail-nav > div:first-child .console-nav-group-title { height: 0; margin-top: 2px; }
+  .console-sidebar .console-nav-item { padding-top: 4px; padding-bottom: 4px; }
+}
+
+/* Tablets and small laptops: an icon rail, so the work keeps the width. Labels show on hover and to screen readers. */
+@media (min-width: 769px) and (max-width: 1199px) {
+  .console-sidebar { width: 76px; }
+  .c-rail-head { padding: 16px 0 12px; display: flex; justify-content: center; }
+  .c-rail-head .logo-link > span, .c-rail-sub { display: none; }
+  .console-nav-group-title { font-size: 0; padding: 0; height: 1px; margin: 6px 18px; background: var(--c-rail-line); opacity: 1; }
+  .c-rail-nav > div:first-child .console-nav-group-title { height: 0; margin-top: 4px; }
+  .console-sidebar .console-nav-item { justify-content: center; margin: 2px 12px; padding: 0; height: 36px; min-height: 36px; }
+  .console-sidebar .console-nav-item.active::before { left: -12px; }
+  .console-sidebar .c-nav-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  .console-sidebar .console-nav-badge { position: absolute; top: 3px; right: 3px; min-width: 17px; height: 17px; padding: 0 4px; font-size: 10px; background: var(--c-red); color: #fff; box-shadow: 0 0 0 2px var(--c-rail); }
+  .console-sidebar .console-nav-item.active .console-nav-badge { background: var(--signal); color: var(--c-rail); box-shadow: 0 0 0 2px var(--c-rail-active); }
+  /* The label as a tooltip beside the rail. */
+  .console-sidebar .console-nav-item[data-label]:hover::after, .console-sidebar .console-nav-item[data-label]:focus-visible::after {
+    /* Fixed with no top: it keeps its place beside the icon (centred, as the item centres its content) and is not
+       clipped by the scrolling menu. */
+    content: attr(data-label); position: fixed; left: 82px;
+    padding: 6px 10px; border-radius: 8px; background: var(--ink); color: #fff; font-size: 12.5px; font-weight: 600; white-space: nowrap;
+    box-shadow: var(--c-shadow-raise); pointer-events: none; z-index: 60;
+  }
+  .c-rail-foot { justify-content: center; padding: 12px 0; }
+  .c-rail-who, .c-rail-build { display: none; }
+}
+
+/* The route map turns vertical whenever its own panel is narrow, whatever the screen. */
+.c-route { container-type: inline-size; }
+@container (max-width: 620px) {
+  .c-route-line { grid-template-columns: minmax(0, 1fr); padding: 8px 4px 8px; }
+  .c-route-line::before { left: 31px; right: auto; top: 30px; bottom: 30px; width: 3px; height: auto; margin: 0; background: linear-gradient(180deg, var(--brand), var(--brand-2) 75%, var(--c-green)); transform-origin: top center; animation-name: c-route-drop; }
+  .c-stop-link { display: grid; grid-template-columns: 40px minmax(0, 1fr) auto; grid-template-areas: "pin name count" "pin meta count" "pin quiet count"; align-items: center; justify-items: start; text-align: left; gap: 0 12px; padding: 10px 12px 10px 8px; }
+  .c-stop-pin { grid-area: pin; width: 40px; height: 100%; }
+  .c-stop-name { grid-area: name; margin: 0; }
+  .c-stop-meta { grid-area: meta; justify-content: flex-start; min-height: 0; }
+  .c-stop-quiet { grid-area: quiet; }
+  .c-stop-count { grid-area: count; height: auto; font-size: 26px; }
+}
+@media (min-width: 769px) and (max-width: 1199px) and (pointer: coarse) { .console-sidebar .console-nav-item { height: 44px; min-height: 44px; } }
