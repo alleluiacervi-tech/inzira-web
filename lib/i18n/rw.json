@@ -199,6 +199,7 @@
     "a4": "Ntawabishobora. Tubitanga byuzuye kandi neza, tukabikurikirana.",
     "q5": "Bigenze bite se niba serivisi nkeneye itari ku rutonde?",
     "a5": "Tubwire icyo ukeneye. Tubanza kumvikana uko n'igiciro.",
+    "people": "Usubizwa n'umuntu nyawe, si imashini",
     "closeTitle": "Ntubizi neza? Baza kuri WhatsApp. Ni ubuntu.",
     "closeLead": "Tukubwira intambwe n'igiciro mbere y'uko wiyemeza.",
     "hours": "{hours}. Igisubizo kiboneka mu {time}.",
@@ -370,7 +371,8 @@
     "totpLocked": "Wanditse kode zitari zo kenshi. Tegereza iminota mike wongere winjire.",
     "totpOff": "Iyi konti nta porogaramu yo kwemeza iriho.",
     "totpDigits": "Andika kode y’imibare 6 iri muri porogaramu.",
-    "totpBack": "Tangira bundi bushya"
+    "totpBack": "Tangira bundi bushya",
+    "aside": "Ubusabe bwawe, inyandiko n'inyemezabwishyu, byose ahantu hamwe."
   },
   "code": {
     "title": "Shyiramo kode twakoherereje",

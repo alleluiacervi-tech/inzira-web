@@ -225,9 +225,12 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ a
         </section>
 
         <section id="how" className="sec sec-tint" aria-labelledby="how-h">
-          <div className="wrap stack g20">
-            <h2 id="how-h" className="h-2">{t("home.howTitle")}</h2>
-            <QuickSteps locale={locale} />
+          <div className="wrap how-grid">
+            <div className="stack g20">
+              <h2 id="how-h" className="h-2">{t("home.howTitle")}</h2>
+              <QuickSteps locale={locale} />
+            </div>
+            <img className="how-art" src="/illustrations/agent-with-client.svg" alt="" width={833} height={633} loading="lazy" decoding="async" />
           </div>
         </section>
 
@@ -248,6 +251,13 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ a
         <section id="talk" className="close" aria-labelledby="cta-h">
           <div className="wrap close-grid">
             <div className="stack g20">
+              <p className="people">
+                <span className="people-faces" aria-hidden="true">
+                  <img src="/illustrations/agent-woman.svg" alt="" width={48} height={48} loading="lazy" />
+                  <img src="/illustrations/agent-man.svg" alt="" width={48} height={48} loading="lazy" />
+                </span>
+                {t("home.people")}
+              </p>
               <h2 id="cta-h" className="h-2">{t("home.closeTitle")}</h2>
               <p className="sec-lead">{t("home.closeLead")}</p>
               <div className="close-ctas">
