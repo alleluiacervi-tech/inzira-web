@@ -42,6 +42,12 @@ export async function sendSms(phone9: string, raw: string): Promise<void> {
       body,
     });
     if (!res.ok) throw new Error(`SMS provider answered ${res.status}`);
+    // A 201 can still carry a refusal for the recipient (no credit, a blocked or invalid number). Only 100–102 are sent.
+    const answer = (await res.json().catch(() => null)) as { SMSMessageData?: { Recipients?: { statusCode?: number; status?: string }[] } } | null;
+    const recipient = answer?.SMSMessageData?.Recipients?.[0];
+    if (!recipient || !recipient.statusCode || recipient.statusCode < 100 || recipient.statusCode > 102) {
+      throw new Error(`SMS provider did not send it: ${recipient?.status ?? "no recipient in the answer"}`);
+    }
     return;
   }
   throw new Error("SMS is not configured. Set SMS_PROVIDER (see README).");

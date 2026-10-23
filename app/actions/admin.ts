@@ -44,6 +44,7 @@ export async function saveService(v: Service, isNew = false): Promise<Result> {
   if (!v.summary.trim()) return fail("Write the “In simple terms” description customers read.");
   if (!v.channel.trim() || !v.authority.trim()) return fail("Fill in the responsible authority and the official channel.");
   if (!/^[a-z0-9-]+$/.test(v.slug)) return fail("The service address can only use lowercase letters, numbers and dashes.");
+  if (!Number.isInteger(v.ours) || (v.official.amount !== null && !Number.isInteger(v.official.amount))) return fail("Enter whole amounts in RWF.");
   if (v.ours < 0 || (v.official.amount !== null && v.official.amount < 0)) return fail("Amounts can’t be negative.");
   const policy = idPolicyOf(v);
   const row = {

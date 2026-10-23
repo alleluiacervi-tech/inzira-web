@@ -4,7 +4,7 @@ import { and, eq, inArray } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { WORKS_CASES, assignableStaff, canSeeCase, canSeeClient, seesAllCases } from "@/lib/access";
 import { getStaffUser, normalisePhone } from "@/lib/auth";
-import { noteReviewFeeRefund, reconcilePayment } from "@/lib/billing";
+import { checkoutPaid, noteRefundDue, openPaidCheckout, reconcilePayment } from "@/lib/billing";
 import { quoteRefusal } from "@/lib/pricing";
 import { open, seal } from "@/lib/crypto";
 import { maskNationalId, maskTin, rwf, shortName } from "@/lib/format";
@@ -133,7 +133,7 @@ export async function declineRequest(ref: string, reason: string): Promise<Resul
     }).where(eq(s.requests.ref, ref));
 
     await event(tx, ref, msg("ev.declined"), me.id, reason.trim());
-    await noteReviewFeeRefund(tx, ref, me);
+    await noteRefundDue(tx, ref, me);
     await notify(tx, ref, { icon: "alert", title: msg("nt.declined", { ref }), sms: sms("declined", { ref, reason: reason.trim() }) });
     await audit(tx, { actor: me.name, role: me.role, action: "Declined request", entity: `${ref} · ${reason.trim()}` });
   });
@@ -151,6 +151,7 @@ export async function quoteCustomRequest(ref: string, official: number | null, o
   if (req.closed || req.stage === "completed") return fail("This request is already finished.");
   const refusal = quoteRefusal(req);
   if (refusal) return fail(refusal);
+  if (!Number.isInteger(ours) || (official !== null && !Number.isInteger(official))) return fail("Enter whole amounts in RWF.");
   if (ours <= 0) return fail("Set our assistance fee first.");
   if (ours !== req.ours && !me.permissions.has("changeOurs")) return fail("Changing our fee needs a supervisor. Ask one to change it on this case.");
   if (official !== null && official < 0) return fail("Official fee cannot be negative.");
@@ -266,12 +267,16 @@ export async function recordManualPayment(input: {
       providerRef: input.receipt.trim(),
       at: now(),
     });
-    if (req.hold?.reason === "payment") await tx.update(s.requests).set({ hold: null }).where(eq(s.requests.ref, ref));
-
     const total = input.official + input.ours;
     const paid = { method: input.method, total: rwf(total), ours: rwf(input.ours), official: rwf(input.official), receipt: input.receipt.trim(), ref };
     await event(tx, ref, msg("ev.paymentRecorded", paid), me.id);
-    await notify(tx, ref, { icon: "card", title: msg("nt.paymentRecorded", paid), sms: sms("paymentRecorded", paid) });
+    // Paid at the office for a request started online: it goes to the team as if the mobile money prompt had been approved.
+    if (req.checkout === "open" && (await checkoutPaid(tx, req))) {
+      await openPaidCheckout(tx, req, { total: paid.total, official: paid.official, ours: paid.ours, receipt: paid.receipt, method: input.method });
+    } else {
+      if (req.hold?.reason === "payment") await tx.update(s.requests).set({ hold: null }).where(eq(s.requests.ref, ref));
+      await notify(tx, ref, { icon: "card", title: msg("nt.paymentRecorded", paid), sms: sms("paymentRecorded", paid) });
+    }
     await audit(tx, {
       actor: me.name,
       role: me.role,
