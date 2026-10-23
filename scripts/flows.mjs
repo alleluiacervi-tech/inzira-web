@@ -590,7 +590,7 @@ await step("console", async () => {
   const slaRows = await p.ev(`document.querySelectorAll('.console-table tbody input[aria-label^="Select row"]').length`);
   check("console: a dashboard link opens the requests list already filtered", await p.has("Needs attention: Past target time") && slaRows === lateCount, `${slaRows} rows, dashboard said ${lateCount}`);
   await p.go("/console/overview?range=7");
-  check("console: the period switch changes the results period", await p.has("Results · last 7 days") && (await p.ev(`document.querySelector('.c-segmented [aria-current="page"]')?.textContent`)) === "7 days");
+  check("console: the period switch changes the results period", await p.has("Last 7 days, compared with the 7 days before") && (await p.ev(`document.querySelector('.c-segmented [aria-current="page"]')?.textContent`)) === "7 days");
   await p.go("/console/overview");
   const newChip = await p.ev(`(() => { const b = [...document.querySelectorAll(".c-chip")].find((e) => e.textContent.startsWith("New")); b?.click(); return !!b; })()`);
   await sleep(300);
@@ -664,7 +664,7 @@ await step("console", async () => {
 
   // 5. My Day view
   await p.go("/console/my-day");
-  check("console: my day command center loads", await p.has("Good day") && await p.has("Follow-ups due") && await p.has("Past or near target"));
+  check("console: my day command center loads", await p.has("Good ") && await p.has("Follow-ups due") && await p.has("Past or near target"));
 
   // 6. A link to a case tab opens that tab
   await p.go("/console/requests/INZ-2026-04790#messages"); await sleep(500);

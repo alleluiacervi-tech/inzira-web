@@ -2,6 +2,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Icon, Logo } from "@/components/ui";
+import { initials } from "@/lib/format";
 import { hasAdminAccess } from "@/lib/permissions";
 import type { Permission, Staff } from "@/lib/types";
 
@@ -112,12 +113,10 @@ export function Sidebar({
       )}
       <aside className={`console-sidebar ${mobileOpen ? "open" : ""}`}>
         {/* Brand Header */}
-        <div className="row between" style={{ padding: "16px 18px", borderBottom: "1px solid var(--c-border)" }}>
-          <div className="stack" style={{ gap: 2 }}>
-            <Logo href="/console" />
-            <span style={{ fontSize: 12.5, fontWeight: 600, color: "var(--c-text-muted)" }}>
-              Staff console
-            </span>
+        <div className="row between c-rail-head">
+          <div className="stack" style={{ gap: 0 }}>
+            <Logo href="/console" dark label="Inzira staff console home" />
+            <span className="c-rail-sub">Staff console</span>
           </div>
           {onCloseMobile && (
             <button
@@ -132,7 +131,7 @@ export function Sidebar({
         </div>
 
         {/* Nav Groups */}
-        <nav className="stack grow" style={{ padding: "8px 0", gap: 6 }}>
+        <nav className="stack grow" style={{ padding: "6px 0 12px", gap: 2 }} aria-label="Staff console">
           {GROUPS.map((grp) => {
             const visibleItems = grp.items.filter((it) => can(it.permission) && it.show !== false);
             if (!visibleItems.length) return null;
@@ -163,19 +162,14 @@ export function Sidebar({
           })}
         </nav>
 
-        {/* Footer Info */}
-        <div
-          className="row between g10"
-          style={{
-            padding: "12px 16px",
-            borderTop: "1px solid var(--c-border)",
-            background: "var(--c-bg)",
-            fontSize: 12,
-            color: "var(--c-text-muted)",
-          }}
-        >
-          <span>Kigali, Rwanda</span>
-          <span style={{ fontWeight: 600 }} title="The build this site is running">{process.env.NEXT_PUBLIC_BUILD}</span>
+        {/* Who is signed in, and the build this site is running. */}
+        <div className="c-rail-foot">
+          <span className="c-rail-avatar" aria-hidden="true">{initials(user.name)}</span>
+          <span className="c-rail-who">
+            <strong>{user.name}</strong>
+            <span>{user.role}</span>
+          </span>
+          <span className="c-rail-build" title="The build this site is running">{process.env.NEXT_PUBLIC_BUILD}</span>
         </div>
       </aside>
     </>
