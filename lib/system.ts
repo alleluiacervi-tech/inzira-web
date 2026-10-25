@@ -4,6 +4,7 @@ import { and, desc, eq, isNull, sql } from "drizzle-orm";
 import { db, iso, schema as s } from "./db";
 import { RETENTION_DAYS } from "./privacy";
 import { counts } from "./outbox";
+import { intouchProxyHost } from "./intouchpay";
 import { isSet, SITE } from "./site";
 import { turnstileEnabled } from "./turnstile";
 
@@ -89,8 +90,19 @@ function payments(): Check[] {
     // Every callback is acknowledged with 200 and only makes us ask IntouchPay, so it needs no login. One that does send
     // the optional login below may also close a declined prompt at once.
     const detail = `Collects MTN and Airtel through IntouchPay (${base}).${callback ? ` Callback ${callback}: every call is acknowledged, then the payment is checked with IntouchPay.` : " Set NEXT_PUBLIC_SITE_URL to the https site address so prompts include a callback."}${auth ? " A callback that sends the basic-auth login can also close a declined prompt at once." : ""} Refunds go back to the paying number through RequestDeposit, from the IntouchPay balance.`;
-    const fix = !https ? "INTOUCHPAY_BASE_URL must be https." : undefined;
-    return [{ key: "pay", name: "IntouchPay", state: !https ? "missing" : "ready", detail, fix }];
+    // The sandbox lives on developer.intouchpay.co.rw and its account numbers start with SBX. No real money moves there.
+    const sandbox = /developer\.intouchpay|sandbox/i.test(base) || /^SBX/i.test(process.env.INTOUCHPAY_ACCOUNT_NO ?? "");
+    const proxyHost = intouchProxyHost();
+    const route = proxyHost ? ` Calls to IntouchPay leave through ${proxyHost}, the fixed address IntouchPay whitelists.` : " Calls to IntouchPay leave from the host's own address, which on Vercel changes.";
+    const fix = !https
+      ? "INTOUCHPAY_BASE_URL must be https."
+      : sandbox
+        ? "Set the live INTOUCHPAY_USERNAME, INTOUCHPAY_ACCOUNT_NO and INTOUCHPAY_PARTNER_PASSWORD, and remove INTOUCHPAY_BASE_URL (the live API is the default)."
+        : !proxyHost && process.env.VERCEL
+          ? "Set INTOUCHPAY_PROXY_URL to a static-IP proxy and give IntouchPay its address, or IntouchPay may refuse the calls."
+          : undefined;
+    const state = !https ? "missing" : sandbox ? "test" : "ready";
+    return [{ key: "pay", name: "IntouchPay", state, detail: `${sandbox ? "Sandbox: test money only, nobody is charged. " : ""}${detail}${route}`, fix }];
   }
   if (mode === "direct") {
     const sandbox = (process.env.MTN_MOMO_ENVIRONMENT ?? "sandbox") === "sandbox";

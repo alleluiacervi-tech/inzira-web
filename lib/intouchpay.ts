@@ -14,6 +14,7 @@
 //
 // A callback is never proof of payment. It only identifies which prompt to ask GetTransactionStatus about.
 import { createHash, timingSafeEqual } from "node:crypto";
+import { fetch as proxiedFetch, ProxyAgent } from "undici";
 
 export class IntouchRejected extends Error {
   readonly code: string;
@@ -172,8 +173,30 @@ function credentials() {
   return { username, accountNo, partnerPassword };
 }
 
+/** The production API only answers addresses IntouchPay has whitelisted. Vercel has no fixed outbound address, so
+ *  INTOUCHPAY_PROXY_URL (http://user:pass@host:port from a static-IP proxy) sends these calls, and only these, through
+ *  one. TLS still runs end to end: the proxy only relays the encrypted connection. */
+let proxy: { url: string; agent: ProxyAgent } | undefined;
+function proxyAgent(): ProxyAgent | undefined {
+  const raw = process.env.INTOUCHPAY_PROXY_URL?.trim();
+  if (!raw) return undefined;
+  if (proxy?.url === raw) return proxy.agent;
+  let url: URL;
+  try { url = new URL(raw); } catch { throw new IntouchRejected("config", "INTOUCHPAY_PROXY_URL is not a valid URL."); }
+  if (url.protocol !== "http:" && url.protocol !== "https:") throw new IntouchRejected("config", "INTOUCHPAY_PROXY_URL must start with http:// or https://.");
+  proxy = { url: raw, agent: new ProxyAgent(raw) };
+  return proxy.agent;
+}
+
+export const intouchProxyHost = () => {
+  try { return process.env.INTOUCHPAY_PROXY_URL?.trim() ? new URL(process.env.INTOUCHPAY_PROXY_URL.trim()).host : ""; } catch { return ""; }
+};
+
 async function post(url: string, init: { headers: Record<string, string>; body: string }, timeoutMs: number): Promise<Response> {
-  return fetch(url, { method: "POST", headers: init.headers, body: init.body, signal: AbortSignal.timeout(timeoutMs) });
+  const request = { method: "POST", headers: init.headers, body: init.body, signal: AbortSignal.timeout(timeoutMs) };
+  const dispatcher = proxyAgent();
+  if (!dispatcher) return fetch(url, request);
+  return (await proxiedFetch(url, { ...request, dispatcher })) as unknown as Response;
 }
 
 async function readBody(res: Response): Promise<Record<string, unknown>> {
