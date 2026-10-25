@@ -11,7 +11,7 @@ const grouped = (secret: string) => secret.replace(/(.{4})/g, "$1 ").trim();
 export default function SecurityPanel({ enabled, recoveryLeft, required, mustSetUp }: { enabled: boolean; recoveryLeft: number; required: boolean; mustSetUp: boolean }) {
   const [on, setOn] = useState(enabled);
   const [left, setLeft] = useState(recoveryLeft);
-  const [setup, setSetup] = useState<{ secret: string; url: string } | null>(null);
+  const [setup, setSetup] = useState<{ secret: string; url: string; qr: string } | null>(null);
   const [code, setCode] = useState("");
   const [codes, setCodes] = useState<string[] | null>(null);
   const [saved, setSaved] = useState(false);
@@ -30,7 +30,6 @@ export default function SecurityPanel({ enabled, recoveryLeft, required, mustSet
 
   return (
     <div className="stack g16" style={{ maxWidth: 640 }}>
-      {mustSetUp && <Alert kind="info" title="Set up your sign-in first">Every staff account needs a password and the authenticator app. Set both on this page, then you can carry on.</Alert>}
       {error && <Alert kind="err" title="Not done" live>{error}</Alert>}
       {note && <Alert kind="ok" title="Done" live>{note}</Alert>}
 
@@ -51,7 +50,7 @@ export default function SecurityPanel({ enabled, recoveryLeft, required, mustSet
         <section className="card stack g12" style={{ padding: 20 }}>
           <h2 className="d" style={{ fontSize: 18 }}>Authenticator app</h2>
           <p className="mut" style={{ fontSize: 14.5 }}>After your password, the console asks for a 6-digit code from an app on your phone, so a stolen password or a swapped SIM is not enough to open your account. It works offline and is free (Google Authenticator, Microsoft Authenticator, Authy, 1Password).</p>
-          <button type="button" className="btn btn-p" disabled={busy} style={{ alignSelf: "flex-start" }} onClick={async () => { const r = await run(beginTotp); if (r.ok) setSetup({ secret: r.secret, url: r.url }); }}>Set up authenticator app</button>
+          <button type="button" className="btn btn-p" disabled={busy} style={{ alignSelf: "flex-start" }} onClick={async () => { const r = await run(beginTotp); if (r.ok) setSetup({ secret: r.secret, url: r.url, qr: r.qr }); }}>Set up authenticator app</button>
         </section>
       )}
 
@@ -62,11 +61,21 @@ export default function SecurityPanel({ enabled, recoveryLeft, required, mustSet
           if (r.ok) { setOn(true); setSetup(null); show(r.recovery); }
         }}>
           <h2 className="d" style={{ fontSize: 18 }}>Add Inzira to your app</h2>
-          <ol className="stack g8" style={{ paddingLeft: 20, margin: 0, fontSize: 14.5 }}>
-            <li>On this phone, <a href={setup.url}>open your authenticator app</a>, or add an account by hand with this key:</li>
-            <li><span className="m" style={{ fontSize: 17, letterSpacing: 1, overflowWrap: "anywhere" }} data-totp-secret={setup.secret}>{grouped(setup.secret)}</span></li>
-            <li>Type the 6-digit code the app shows.</li>
-          </ol>
+          <div className="totp-add">
+            <figure className="totp-qr">
+              <img src={setup.qr} width={208} height={208} alt="QR code that adds your Inzira account to an authenticator app" data-totp-qr />
+            </figure>
+            <div className="stack g10">
+              <p style={{ margin: 0, fontSize: 15, lineHeight: 1.5 }}><strong>1.</strong> In your authenticator app, tap <strong>+</strong> and scan this code.</p>
+              <a className="btn btn-s btn-sm totp-open" href={setup.url}><Icon name="lock" size={16} /> On this phone? Open in the app</a>
+              <details className="totp-key">
+                <summary>Can’t scan? Type the key instead</summary>
+                <p className="m" style={{ fontSize: 16.5, letterSpacing: 1, overflowWrap: "anywhere", margin: "8px 0 0" }} data-totp-secret={setup.secret}>{grouped(setup.secret)}</p>
+                <button type="button" className="linkish" style={{ fontSize: 13.5 }} onClick={() => navigator.clipboard?.writeText(setup.secret).then(() => setNote("Key copied."))}>Copy key</button>
+              </details>
+              <p style={{ margin: 0, fontSize: 15, lineHeight: 1.5 }}><strong>2.</strong> Type the 6-digit code the app shows.</p>
+            </div>
+          </div>
           <div className="field"><label htmlFor="sec-code">Code from the app</label>
             <input id="sec-code" className="in code-in" inputMode="numeric" autoComplete="one-time-code" maxLength={6} value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))} /></div>
           <div className="row g8"><button className="btn btn-p" type="submit" disabled={busy || code.length !== 6}>Turn on</button><button className="btn btn-g" type="button" disabled={busy} onClick={() => { setSetup(null); setCode(""); setError(""); }}>Cancel</button></div>

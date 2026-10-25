@@ -911,6 +911,8 @@ await step("authenticator", async () => {
   await p.click("Set up authenticator app", "button"); await waitFor(p, "Add Inzira to your app");
   const secret = await p.ev(`document.querySelector("[data-totp-secret]")?.dataset.totpSecret ?? ""`);
   check("authenticator: setup shows a key to add to the app", /^[A-Z2-7]{32}$/.test(secret));
+  const qr = await p.ev(`(() => { const i = document.querySelector("[data-totp-qr]"); return i ? { svg: i.src.startsWith("data:image/svg+xml;base64,"), drawn: i.complete && i.naturalWidth > 0 } : null; })()`);
+  check("authenticator: setup shows a QR code to scan", !!qr?.svg && !!qr?.drawn);
   await p.set("#sec-code", "000000"); await p.click("Turn on", "button"); await waitFor(p, "not right");
   check("authenticator: a wrong code does not turn it on", await p.has("not right") && !(await p.has("Save your recovery codes")));
   await p.set("#sec-code", totp(secret)); await p.click("Turn on", "button"); await waitFor(p, "Save your recovery codes");

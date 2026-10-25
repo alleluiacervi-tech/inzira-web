@@ -1216,3 +1216,20 @@ a.c-kpi:focus-visible { outline: 2px solid var(--brand-2); outline-offset: -2px;
   .c-stop-count { grid-area: count; height: auto; font-size: 26px; }
 }
 @media (min-width: 769px) and (max-width: 1199px) and (pointer: coarse) { .console-sidebar .console-nav-item { height: 44px; min-height: 44px; } }
+
+/* Authenticator setup: the QR code beside its steps; stacked on phones, where "Open in the app" is the quick way. */
+.totp-add { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 20px; align-items: start; }
+.totp-qr { margin: 0; padding: 10px; background: #fff; border: 1px solid var(--line); border-radius: 14px; line-height: 0; }
+.totp-qr img { display: block; width: 188px; height: 188px; image-rendering: pixelated; }
+.totp-open { align-self: flex-start; }
+.totp-key summary { cursor: pointer; font-size: 14px; font-weight: 600; color: var(--ink-2); min-height: 32px; display: flex; align-items: center; }
+@media (max-width: 600px) {
+  .totp-add { grid-template-columns: minmax(0, 1fr); justify-items: center; }
+  .totp-add > .stack { width: 100%; }
+  .totp-open { align-self: stretch; justify-content: center; min-height: 48px; }
+}
+.setup-left { margin: 8px 0 0; display: grid; gap: 6px; }
+.setup-left > span { display: flex; gap: 8px; align-items: baseline; font-weight: 600; }
+.setup-left > span::before { content: "○"; color: var(--ink-3, #6b7280); }
+.setup-left > span.done { font-weight: 400; color: var(--ink-2); }
+.setup-left > span.done::before { content: "✓"; color: #1a7f4b; }
