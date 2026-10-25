@@ -155,6 +155,10 @@ export const requests = pgTable("requests", {
   answers: jsonb("answers").$type<ServiceAnswer[]>(),
   /** Where the customer wants the finished document: "whatsapp" or "email". Null on requests sent before the choice existed. */
   deliverVia: text("deliver_via").$type<DeliverVia>(),
+  /** How to reach the person who sent a request without an account: their WhatsApp or MoMo number (9 digits) and email.
+   *  Their contact record has neither, so a number typed by someone else never joins or opens an existing account. */
+  contactPhone: text("contact_phone"),
+  contactEmail: text("contact_email"),
   /** Copied from the service when the request was sent. */
   idPolicy: text("id_policy").$type<IdPolicy>().notNull().default("none"),
   /** True only when this application made a National ID number mandatory. */
@@ -416,6 +420,20 @@ export const sessions = pgTable("sessions", {
   createdAt: ts("created_at").notNull().defaultNow(),
   expiresAt: ts("expires_at").notNull(),
 }, (t) => [index("sessions_subject_idx").on(t.subjectId), index("sessions_expires_idx").on(t.expiresAt)]);
+
+/** Private links to one request, for people who sent it without an account (lib/request-links.ts). Only the SHA-256 of
+ *  the link's secret is kept. "view" opens the request; "claim" is sent to an email and saves the request to the account
+ *  with that email, which the click proves. */
+export const requestLinks = pgTable("request_links", {
+  id: text("id").primaryKey(),
+  ref: text("ref").notNull().references(() => requests.ref),
+  kind: text("kind").$type<"view" | "claim">().notNull(),
+  email: text("email"),
+  createdAt: ts("created_at").notNull().defaultNow(),
+  expiresAt: ts("expires_at").notNull(),
+  usedAt: ts("used_at"),
+  revokedAt: ts("revoked_at"),
+}, (t) => [index("request_links_ref_idx").on(t.ref)]);
 
 /** Running numbers for request references and invoices. */
 export const counters = pgTable("counters", {

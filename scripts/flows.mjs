@@ -232,7 +232,7 @@ await step("start", async () => {
   const p = await page();
   await p.go("/start/land-spouse-update");
   check("start: a service that needs an ID asks for the National ID Number, and no date of birth", await p.has("National ID Number") && await p.has("This service needs it") && (await p.ev(`document.querySelector("#f-dob") === null`)));
-  check("start: WhatsApp is offered first for the document, email beside it", await p.has("Where should we send your document?") && (await p.ev(`document.querySelector("[data-via=whatsapp]")?.classList.contains("on")`)) && (await p.ev(`document.querySelector("#f-email") === null`)));
+  check("start: WhatsApp is offered first for the document, and an email for the receipt is optional", await p.has("Where should we send your document?") && (await p.ev(`document.querySelector("[data-via=whatsapp]")?.classList.contains("on")`)) && await p.has("Email for your receipt") && !(await p.has("confirmation code")));
   await p.click("Continue");
   check("start: empty step 1 is blocked with plain errors", await p.has("Enter your full name") && await p.has("ID numbers have 16 digits") && await p.has("Enter the Rwandan number you use on WhatsApp") && !(await p.has("Enter the date of birth")));
   await p.ev(`document.querySelector("[data-via=email] input").click()`); await sleep(100);
@@ -262,14 +262,12 @@ await step("start", async () => {
   check("start: review lists what was entered", await p.has("Check, then pay") && await p.has("Test Person") && await p.has("test.person@example.com") && await p.has("Add a spouse after marriage") && await p.has("used only for this request"));
   await p.click("Continue to payment"); await sleep(200);
   check("start: cannot send without the acknowledgement", await p.has("Please confirm you’ve read this"));
-  await p.ev(`document.querySelector('input[aria-describedby="ack-err"]').click()`); await p.click("Continue to payment"); await sleep(1200);
-  check("start: emails a code to confirm the address", await p.has("Enter the code we sent you") && await p.has("test.person@example.com") && await p.has("then pay"));
-  await p.set("#otp", "111111"); await p.click("Confirm and go to payment"); await sleep(1000);
-  check("start: a wrong code is refused", await p.has("not right"));
-  await p.set("#otp", await p.ev(`document.querySelector("[data-demo-code]").dataset.demoCode`)); await p.click("Confirm and go to payment");
-  await waitPath(p, (path) => path.endsWith("/pay"), 120); await waitFor(p, "Pay to send your request", 60);
+  await p.ev(`document.querySelector('input[aria-describedby="ack-err"]').click()`); await p.click("Continue to payment");
+  // No code and no account: sending goes straight to paying, on the request's own private page.
+  await waitPath(p, (path) => /^\/r\/INZ-\d{4}-\d{5}\/pay$/.test(path), 120); await waitFor(p, "Pay to send your request", 60);
   if (!(await p.has("Pay to send your request"))) console.log("    page says:", (await p.ev(`document.body?.innerText ?? ""`)).slice(0, 300).replace(/\s+/g, " "));
-  const ref = (await p.ev("location.pathname")).split("/")[3] ?? "";
+  const ref = (await p.ev("location.pathname")).split("/")[2] ?? "";
+  check("start: no code is asked; the request is sent and paid on its private page", !(await p.has("Enter the code we sent you")) && (await p.ev("location.pathname")).startsWith("/r/"));
   unpaidRef = ref;
   check("start: a fixed price goes straight to payment, which sends the request", /^INZ-\d{4}-\d{5}$/.test(ref) && await p.has("Pay to send your request") && await p.has("Order summary") && await p.has("RWF 5,000")
     && (await p.ev(`!!document.querySelector('[aria-label="Step 3 of 3: Pay"]')`)), `${ref} ${(await p.ev(`document.body?.innerText ?? ""`)).slice(0, 300).replace(/\s+/g, " ")}`);
@@ -277,10 +275,17 @@ await step("start", async () => {
   await p.set("#mm", "722 123 456"); await sleep(100);
   check("pay: MTN and Airtel are offered as cards, and the number's network is picked as it is typed", (await p.ev(`document.querySelectorAll(".pay-netcard").length`)) === 2
     && (await p.ev(`document.querySelector(".pay-netcard.on")?.dataset.net ?? ""`)) === "airtel" && await p.has("Your Airtel Money number"));
-  await p.go(`/portal/requests/${ref}`); await waitFor(p, "We married in August.");
-  check("start: the new customer is signed in and sees the request", await p.has("Add or remove a spouse in the land register") && await p.has("We married in August.") && await p.has("id_photo.png"));
+  await p.go(`/r/${ref}`); await waitFor(p, "We married in August.");
+  check("start: this browser opens the request without an account", await p.has("Add or remove a spouse in the land register") && await p.has("We married in August.") && await p.has("id_photo.png") && !(await p.has("This request is private")));
+  check("start: no account was made: saving to one is offered, not required", await p.has("Keep all your requests in one place") && await p.has("Optional."));
   check("start: an unpaid checkout asks the customer to pay to send it", await p.has("Pay to send your request") && await p.has("Go to payment"));
   check("start: a submitted ID is pending review and is not called verified", await p.has("Pending verification") && await p.has("does not verify") && !(await p.has("officially verified")));
+  // Saving it to an account is offered on the page and done with a link sent to the request's own email.
+  await p.click("Email me a link to save it", "button"); await waitFor(p, "Check your email");
+  const saveLink = await p.ev(`document.querySelector("[data-demo-link]")?.dataset.demoLink ?? ""`);
+  await p.go(saveLink); await waitPath(p, (path) => path === `/portal/requests/${ref}`, 120); await waitFor(p, "We married in August.");
+  check("start: the request is saved to a new account from its own page", await p.has("My requests") && await p.has("id_photo.png"));
+  await signOut(p);
   // This one is left unpaid: staff see it under Awaiting payment, not in the inbox (the console step).
   await p.go("/start/irembo-training");
   check("training: no national ID is asked for, and a quoted service ends on its review fee", (await p.ev(`document.querySelector("#f-nid") === null && !!document.querySelector('[aria-label^="Step 1 of 3"]')`)) && await p.has("review fee when you send this request"));
@@ -293,11 +298,9 @@ await step("start", async () => {
   await p.set("#q-tin", "102345678"); await p.click("Continue"); await sleep(300);
   check("ebm: a service that does not require an ID continues without one", await p.has("Check, then pay") && !(await p.has("ID numbers have 16 digits")));
   check("review fee: a quoted service asks for the review fee, taken off our fee", (await p.ev(`document.querySelector("[data-review-fee]")?.innerText ?? ""`)).includes("RWF 1,000") && await p.has("Taken off our fee when you pay the quote") && await p.has("Refunded if we can’t take on your request"));
-  await p.ev(`document.querySelector('input[aria-describedby="ack-err"]').click()`); await p.click("Continue to payment"); await sleep(1200);
-  await waitFor(p, "Enter the code we sent you");
-  await p.set("#otp", await p.ev(`document.querySelector("[data-demo-code]").dataset.demoCode`)); await p.click("Confirm and go to payment");
+  await p.ev(`document.querySelector('input[aria-describedby="ack-err"]').click()`); await p.click("Continue to payment");
   await waitPath(p, (path) => path.endsWith("/pay"), 120); await waitFor(p, "Pay the review fee to send your request", 60);
-  check("start: a phone number that belongs to another account does not block a new email", await p.has("Pay the review fee to send your request") && await p.has("We didn’t save the phone number") && !(await p.has("already belongs to another account")),
+  check("start: a phone number used before never blocks a new request, nor joins it to another account", await p.has("Pay the review fee to send your request") && !(await p.has("already belongs to another account")),
     (await p.ev(`document.body?.innerText ?? ""`)).slice(0, 300).replace(/\s+/g, " "));
   check("review fee: the payment screen charges only the review fee", (await p.ev(`document.querySelector("[data-pay]")?.textContent ?? ""`)).includes("Pay RWF 1,000") && await p.has("Review fee"));
   check("pay: at checkout there is no second tick to approve the amounts", (await p.ev(`document.querySelector("#pay-agree") === null`)));
@@ -312,9 +315,7 @@ await step("start", async () => {
   await p.ev(`document.querySelector("[data-via=email] input").click()`); await p.set("#f-name", "Pay First"); await p.set("#f-email", "pay.first@example.com");
   await p.click("Continue"); await sleep(300);
   check("pay first: the review shows the total and that paying sends it", (await p.ev(`document.querySelector("[data-checkout-total]")?.innerText ?? ""`)).includes("RWF 20,000") && !(await p.has("you pay it directly to the institution")), (await p.ev(`document.querySelector("main")?.innerText ?? ""`)).slice(0, 300).replace(/\s+/g, " "));
-  await p.ev(`document.querySelector('input[aria-describedby="ack-err"]').click()`); await p.click("Continue to payment"); await sleep(1200);
-  await waitFor(p, "Enter the code we sent you");
-  await p.set("#otp", await p.ev(`document.querySelector("[data-demo-code]").dataset.demoCode`)); await p.click("Confirm and go to payment");
+  await p.ev(`document.querySelector('input[aria-describedby="ack-err"]').click()`); await p.click("Continue to payment");
   await waitPath(p, (path) => path.endsWith("/pay"), 120); await waitFor(p, "Pay to send your request", 60);
   check("pay first: the checkout asks for the fixed price", await p.has("Pay to send your request") && (await p.ev(`document.querySelector("[data-pay]")?.textContent ?? ""`)).includes("Pay RWF 20,000"));
   await p.set("#mm", "788 123 456"); await p.click("Pay RWF 20,000", "button");
@@ -758,29 +759,42 @@ await step("privacy", async () => {
 await step("whatsapp", async () => {
   const p = await page(390);
   await p.go("/start/birth-certificate"); await waitFor(p, "Continue");
-  check("whatsapp: a basic certificate asks no documents and no date of birth", (await p.ev(`document.querySelector("#f-dob") === null && document.querySelector("#f-email") === null`)) && await p.has("Your WhatsApp number"));
+  check("whatsapp: a basic certificate asks no documents and no date of birth, and the email is optional", (await p.ev(`document.querySelector("#f-dob") === null`)) && await p.has("Your WhatsApp number") && await p.has("Email for your receipt"));
   await p.set("#f-name", "Wa Customer"); await p.set("#f-nid", "1 1990 8 0045123 0 17"); await p.set("#f-phone", "0788 555 020");
   await p.click("Myself", "label"); await p.click("Continue"); await sleep(300);
   check("whatsapp: the check step says no documents are needed, and asks for none", await p.has("No documents needed for this service") && (await p.ev(`document.querySelectorAll("input[type=file]").length`)) === 0);
   const total = await p.ev(`document.querySelector("[data-checkout-total]")?.innerText ?? ""`);
   check("whatsapp: one total with the Irembo fee inside it", total.includes("RWF 500") && total.includes("RWF 2,000") && total.includes("RWF 2,500") && total.includes("We pay the Irembo bill"), total.replace(/\s+/g, " "));
   check("whatsapp: the review says where it will be sent", await p.has("WhatsApp · +250 788 555 020"));
-  await p.ev(`document.querySelector('input[aria-describedby="ack-err"]').click()`); await p.click("Continue to payment"); await sleep(1200);
-  await waitFor(p, "Enter the code we sent you");
-  check("whatsapp: the code goes to the number by SMS", await p.has("+250 788 555 020") && await p.has("Confirm your number"));
-  await p.set("#otp", await p.ev(`document.querySelector("[data-demo-code]").dataset.demoCode`)); await p.click("Confirm and go to payment");
+  await p.ev(`document.querySelector('input[aria-describedby="ack-err"]').click()`); await p.click("Continue to payment");
   await waitPath(p, (path) => path.endsWith("/pay"), 120); await waitFor(p, "Pay to send your request", 60);
-  check("whatsapp: a confirmed number opens a portal and goes to payment", (await p.ev(`document.querySelector("[data-pay]")?.textContent ?? ""`)).includes("RWF 2,500"));
-  const ref = (await p.ev("location.pathname")).split("/")[3] ?? "";
-  // The number now has an account with no email: the email path cannot take it over, and phone sign-in opens it.
+  check("whatsapp: no code: straight to paying the one total, with the WhatsApp number ready for MoMo", (await p.ev(`document.querySelector("[data-pay]")?.textContent ?? ""`)).includes("RWF 2,500") && (await p.ev(`document.querySelector("#mm")?.value ?? ""`)).replace(/\D/g, "").endsWith("788555020"));
+  const ref = (await p.ev("location.pathname")).split("/")[2] ?? "";
+  await p.click("Pay RWF 2,500", "button"); await waitFor(p, "Your request is with our team", 100);
+  check("whatsapp: paying sends the request", await p.has("Your request is with our team"));
   await p.go("/start/single-status"); await waitFor(p, "Continue");
   check("whatsapp: single status warns, before anything is paid, that NIDA must list them as single", await p.has("Only if NIDA lists you as single"));
   await p.close();
-  const o = await page();
-  await signIn(o, "788555020");
-  check("whatsapp: a number-only account signs in by SMS code", (await o.ev("location.pathname")).startsWith("/portal"));
-  await o.go(`/portal/requests/${ref}`); await waitFor(o, ref);
-  check("whatsapp: the customer signs in with the number and sees the request", await o.has("Birth certificate") && await o.has(ref));
+  // Another phone: the request is private until its link is opened there. Tabs here share one browser, so the links this
+  // browser holds are dropped first, as if on a new device.
+  const o = await page(390);
+  await o.send("Network.deleteCookies", { name: "inzira_req", url: base });
+  await o.go(`/r/${ref}`); await waitFor(o, "This request is private");
+  check("link: another device cannot open the request without its link", await o.has("This request is private") && !(await o.has("Birth certificate")));
+  await o.go(`/r/${ref}#k=${"A".repeat(43)}`); await waitFor(o, "This link no longer works");
+  check("link: a made-up link is refused", await o.has("This link no longer works") && !(await o.has("Birth certificate")));
+  await o.go("/track"); await o.set("#tr-ref", ref); await o.set("#tr-contact", "0788 555 020"); await o.click("Check progress"); await waitFor(o, "Send me the link to this request");
+  await o.click("Send me the link to this request", "button"); await waitFor(o, "We sent the link to +250 788 555 020");
+  const demo = await o.ev(`document.querySelector("[data-demo-link]")?.dataset.demoLink ?? ""`);
+  check("link: the track page sends the link to the request's own number", await o.has("We sent the link to +250 788 555 020") && demo.includes("#k="));
+  await o.go(demo); await waitFor(o, "Birth certificate");
+  check("link: the link opens the request on the new device and leaves the address bar", await o.has("Birth certificate") && await o.has(ref) && !(await o.ev("location.hash")));
+  await o.go("/track"); await waitFor(o, "Your recent requests on this device");
+  check("link: the device lists the requests it holds", await o.has(ref));
+  await o.go(`/r/${ref}`); await waitFor(o, "Forget this request here");
+  await o.click("Not your phone? Forget this request here", "button"); await waitPath(o, (path) => path === "/track");
+  await o.go(`/r/${ref}`); await waitFor(o, "This request is private");
+  check("link: forgetting it on a device closes it there", await o.has("This request is private"));
   await o.close();
 });
 
@@ -791,25 +805,28 @@ await step("contact", async () => {
   await p.ev(`document.querySelector("[data-via=email] input").click()`); await p.set("#f-name", "Guest Person"); await p.set("#f-email", "guest.person@example.com");
   await p.click("Online", "label"); await p.click("Continue"); await sleep(300);
   check("contact: sending does not ask whether to create a portal", !(await p.has("Create my portal")) && await p.has("Check, then pay") && await p.has("Online"));
-  await p.ev(`document.querySelector('input[aria-describedby="ack-err"]').click()`); await p.click("Continue to payment"); await sleep(1200);
-  await p.set("#otp", await p.ev(`document.querySelector("[data-demo-code]").dataset.demoCode`)); await p.click("Confirm and go to payment");
+  await p.ev(`document.querySelector('input[aria-describedby="ack-err"]').click()`); await p.click("Continue to payment");
   await waitPath(p, (path) => path.endsWith("/pay"), 120);
-  const ref = (await p.ev("location.pathname")).split("/")[3] ?? "";
-  check("contact: sending opens a portal for the same reference", /^INZ-\d{4}-\d{5}$/.test(ref), ref);
-  await p.go(`/portal/requests/${ref}`);
-  // The address changes first, then the portal shell, and only then the request itself. Wait until the reference is on that page.
-  let landed = false;
-  for (let i = 0; i < 80; i++) {
-    const path = await p.ev("location.pathname");
-    const text = await p.ev("document.body.innerText");
-    if (path === "/portal/requests/" + ref && text.includes(ref) && text.includes("My requests")) { landed = true; break; }
-    await sleep(250);
-  }
-  check("contact: the customer is signed in on that request", landed,
-    `${await p.ev("location.pathname")} ${(await p.ev("document.body.innerText")).replace(/\s+/g, " ").slice(0, 280)}`);
-  await signOut(p);
+  const ref = (await p.ev("location.pathname")).split("/")[2] ?? "";
+  check("contact: sending makes no account, and the request has its own page", /^INZ-\d{4}-\d{5}$/.test(ref), ref);
   await p.go("/track"); await p.set("#tr-ref", ref); await p.set("#tr-contact", "guest.person@example.com"); await p.click("Check progress"); await waitFor(p, "Irembo training");
   check("contact: the request can be followed with its reference and email", await p.has("Irembo training"));
+  await p.go("/sign-in"); await p.set("#si-contact", "guest.person@example.com"); await p.click("Send me a code"); await waitCode(p);
+  await p.set("#otp", await p.ev(`document.querySelector("[data-demo-code]").dataset.demoCode`)); await p.click("Sign in", "button"); await sleep(1200);
+  check("contact: an email used on a request opens no account by itself", await p.has("We don’t have an account for this email"));
+  // Signing up is offered on the request page, never required: the link goes to the request's own email.
+  await p.go(`/r/${ref}`); await waitFor(p, "Keep all your requests in one place");
+  await p.click("Email me a link to save it", "button"); await waitFor(p, "Check your email");
+  const save = await p.ev(`document.querySelector("[data-demo-link]")?.dataset.demoLink ?? ""`);
+  check("contact: saving to an account sends a link to the request's email", save.includes("/save#k="));
+  await p.go(save);
+  let landed = false;
+  for (let i = 0; i < 80 && !landed; i++) { landed = (await p.ev("location.pathname")) === "/portal/requests/" + ref && await p.has(ref) && await p.has("My requests"); if (!landed) await sleep(250); }
+  check("contact: the link saves the request to a new account and signs in", landed, `${await p.ev("location.pathname")} ${(await p.ev("document.body.innerText")).replace(/\s+/g, " ").slice(0, 200)}`);
+  await p.go(save); await waitFor(p, "We couldn’t save it");
+  check("contact: a save link works once", await p.has("We couldn’t save it"));
+  await p.go("/portal"); await waitFor(p, "Sign out");
+  await signOut(p);
   await signIn(p, "guest.person@example.com");
   await p.go("/portal/requests/" + ref);
   check("contact: signing in again opens the same request", (await p.ev("location.pathname")).startsWith("/portal/requests/") && await p.has(ref));

@@ -219,6 +219,19 @@ async function addLaterObjects(database: Db) {
     `ALTER TABLE "services" ADD COLUMN IF NOT EXISTS "fee_options" jsonb`,
     `ALTER TABLE "services" ADD COLUMN IF NOT EXISTS "fee_option_label" text`,
     `ALTER TABLE "services" ADD COLUMN IF NOT EXISTS "in_person" text`,
+    `CREATE TABLE IF NOT EXISTS "request_links" (
+      "id" text PRIMARY KEY NOT NULL,
+      "ref" text NOT NULL REFERENCES "requests"("ref"),
+      "kind" text NOT NULL,
+      "email" text,
+      "created_at" timestamp with time zone DEFAULT now() NOT NULL,
+      "expires_at" timestamp with time zone NOT NULL,
+      "used_at" timestamp with time zone,
+      "revoked_at" timestamp with time zone
+    )`,
+    `CREATE INDEX IF NOT EXISTS "request_links_ref_idx" ON "request_links" USING btree ("ref")`,
+    `ALTER TABLE "requests" ADD COLUMN IF NOT EXISTS "contact_phone" text`,
+    `ALTER TABLE "requests" ADD COLUMN IF NOT EXISTS "contact_email" text`,
   ];
   for (const statement of statements) await database.execute(sql.raw(statement));
 }

@@ -5,6 +5,7 @@ import { WORKS_CASES, canSeeCase, canTriage, caseScope, seesAllCases } from "./a
 import { getSession, requireCustomerId, requireStaff } from "./auth";
 import { db, iso, schema as s } from "./db";
 import { allowFor } from "./ratelimit";
+import { hasLink } from "./request-links";
 import { timingSafeEqual } from "node:crypto";
 import { fmtDay, isOnOrBeforeDay, kigaliMonthStart, monthShort, phoneDigits, prettyPhone, shortName } from "./format";
 import type { Locale } from "./i18n/locale";
@@ -104,7 +105,8 @@ async function loadRequests(where?: SQL, locale: Locale = "en"): Promise<Request
   return rows.map((r) => {
     const profile = profs.find((p) => p.id === r.profileId)!;
     const accountRow = accs.find((a) => a.id === profile.accountId)!;
-    const account: Account = toAccount(accountRow);
+    // A request sent without an account keeps its contact on the request, not on a shared contact record.
+    const account: Account = { ...toAccount(accountRow), phone: prettyPhone(accountRow.phone ?? r.contactPhone), email: accountRow.email ?? r.contactEmail ?? undefined };
     const service = toService(svcs.find((x) => x.slug === r.serviceSlug)!);
     const agentRow = staffRows.find((x) => x.id === r.agentId);
     const name = (who?: string | null) => (who === "customer" ? account.name : !who || who === "system" ? "System" : staffRows.find((x) => x.id === who)?.name ?? "Inzira");
@@ -190,6 +192,22 @@ export async function listMyRequests(): Promise<CustomerRequest[]> {
 }
 export async function getMyRequest(ref: string): Promise<CustomerRequest | undefined> {
   return (await listMyRequests()).find((r) => r.ref === ref);
+}
+/** A request opened with its private link (lib/request-links.ts), in the language the visitor reads the site in.
+ *  Undefined when this browser holds no working link to it. */
+export async function getLinkedRequest(ref: string): Promise<CustomerRequest | undefined> {
+  if (!(await hasLink(ref))) return undefined;
+  const { getLocale } = await import("./i18n/locale");
+  const [v] = await loadRequests(eq(s.requests.ref, ref), await getLocale());
+  return v && forCustomer(v);
+}
+/** Whether the signed-in customer owns this request (their portal shows it). */
+export async function ownsRequest(ref: string): Promise<boolean> {
+  const session = await getSession();
+  if (session?.kind !== "customer") return false;
+  const [row] = await (await db()).select({ accountId: s.profiles.accountId }).from(s.requests)
+    .innerJoin(s.profiles, eq(s.profiles.id, s.requests.profileId)).where(eq(s.requests.ref, ref));
+  return row?.accountId === session.subjectId;
 }
 /** The payment prompt still waiting on a request, for its payment screen. The caller has already checked that the
  *  request is the signed-in customer's (getMyRequest). The provider's reference is not returned. */

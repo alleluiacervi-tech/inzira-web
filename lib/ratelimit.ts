@@ -55,6 +55,7 @@ export const LIMITS = {
   request: { max: 10, windowMs: 60 * 60e3 },   // new requests sent
   portal: { max: 40, windowMs: 60 * 60e3 },    // documents and messages a customer adds from the portal
   payment: { max: 10, windowMs: 60 * 60e3 },   // payment prompts
+  payPhone: { max: 3, windowMs: 60 * 60e3 },   // payment prompts to one phone number, from anywhere
 } as const;
 
 export async function allowIp(kind: keyof typeof LIMITS) {

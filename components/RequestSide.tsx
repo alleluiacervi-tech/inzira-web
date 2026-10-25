@@ -53,8 +53,9 @@ export function Messages({ reqRef, initial, agent, now }: { reqRef: string; init
 
 /** What the customer owes and has paid. The actual prompt happens on the payment screen. `checkoutOpen`: the request
  *  waits to be paid before it is sent (the whole price, or a quoted service's review fee). */
-export function PaymentPanel({ reqRef, billing: b, now, checkoutOpen = false }: { reqRef: string; billing: Billing; now: string; phone: string; checkoutOpen?: boolean }) {
+export function PaymentPanel({ reqRef, billing: b, now, checkoutOpen = false, base }: { reqRef: string; billing: Billing; now: string; phone: string; checkoutOpen?: boolean; base?: string }) {
   const { locale, t } = useI18n();
+  const page = base ?? `/portal/requests/${reqRef}`;
   const ours = rwf(b.ours) + (b.oursUnit ? ` ${unitLabel(b.oursUnit, locale)}` : "");
   const total = b.officialMode || b.official === null
     ? `${rwf(b.ours)}${b.officialMode ? "" : ` + ${phrase(locale, "official fee")}`}`
@@ -87,10 +88,10 @@ export function PaymentPanel({ reqRef, billing: b, now, checkoutOpen = false }: 
       )}
       {b.quote === "estimate" && !payable.review && <p className="hint row g8" style={{ alignItems: "flex-start" }}><Icon name="info" size={16} /><span>{paidSum > 0 ? t("side.reviewPaid", { amount: rwf(paidSum) }) : t("side.estimate")}</span></p>}
       {payable.review && <p className="hint row g8" style={{ alignItems: "flex-start" }}><Icon name="info" size={16} /><span>{t("side.reviewDue", { fee: rwf(payable.amount) })}</span></p>}
-      {paidSum > 0 && <Link className="btn btn-s btn-sm" href={`/portal/requests/${reqRef}/receipt`}>{t("portal.receiptDownload")}</Link>}
+      {paidSum > 0 && <Link className="btn btn-s btn-sm" href={`${page}/receipt`}>{t("portal.receiptDownload")}</Link>}
       {canPay && (
         <>
-          <Link className="btn btn-p" href={`/portal/requests/${reqRef}/pay`}>{payable.review ? t("pay.payReview") : b.quote === "confirmed" ? t("pay.review") : t("pay.pay")} {rwf(payable.amount)}</Link>
+          <Link className="btn btn-p" href={`${page}/pay`}>{payable.review ? t("pay.payReview") : b.quote === "confirmed" ? t("pay.review") : t("pay.pay")} {rwf(payable.amount)}</Link>
           <span className="hint">{b.dueAt && !payable.review ? `${t("side.due", { date: fmtDay(b.dueAt, locale) })} ` : ""}{t("side.payHint")}</span>
         </>
       )}

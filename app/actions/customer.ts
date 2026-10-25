@@ -27,7 +27,9 @@ import { SITE } from "@/lib/site";
 import { payableNow } from "@/lib/status";
 import { getService, listMyDocuments } from "@/lib/repo";
 import { notifyStaff } from "@/lib/staff-alerts";
-import { TOO_MANY, allowIp } from "@/lib/ratelimit";
+import { TOO_MANY, allowFor, allowIp, clientIp } from "@/lib/ratelimit";
+import { hasLink, issueLink, keepLink } from "@/lib/request-links";
+import { verifyHuman } from "@/lib/turnstile";
 import { ALLOWED, MAX_BYTES, checkUpload, deleteFile, humanSize, putFile, sniffType } from "@/lib/storage";
 
 /** A file whose content is not what it claimed to be. */
@@ -55,24 +57,25 @@ async function checkFile(f: File): Promise<string | null> {
 /** At most this many files arrive with a new request; more can be added from the portal. */
 const MAX_START_FILES = 15;
 
-/** Sends a new request: checks the code sent to the customer, creates their contact record if needed, stores the
- *  files and opens the request. The code goes to the WhatsApp number (by SMS, `codeTo` "phone") or to the email. A number
- *  confirmed this way is the account's way in, as for customers who never gave an email. With "portal" (the default)
- *  it also signs them in; without it they stay a contact and follow the request with its reference. */
-export async function submitRequest(fd: FormData): Promise<Result<{ ref: string; portal: boolean; phoneShared: boolean; payNow: number | null }>> {
+/** Sends a new request, with no account and no code: the way most people use Irembo. The mobile money PIN that pays it
+ *  is what proves the number. A signed-in customer's request joins their account. Anyone else's gets a contact record of
+ *  its own and keeps the WhatsApp number and email on the request, so a number or address typed here never joins or
+ *  opens an existing account. Its private link (lib/request-links.ts) is kept in this browser and arrives with the
+ *  receipt, so they can follow it, add documents and answer us without signing in. */
+export async function submitRequest(fd: FormData): Promise<Result<{ ref: string; signedIn: boolean; payNow: number | null }>> {
+  const session = await getSession();
+  const signedIn = session?.kind === "customer" ? session.subjectId : null;
   const via: DeliverVia = text(fd, "via") === "email" ? "email" : "whatsapp";
-  const byPhone = text(fd, "codeTo") === "phone";
   const phoneInput = text(fd, "phone");
   const typedPhone = phoneInput ? normalisePhone(phoneInput) : null;
-  // A number confirmed by SMS is the identity; an email typed beside it is not confirmed, so it is not kept.
-  const email = byPhone ? null : normaliseEmail(text(fd, "email"));
-  let phone = typedPhone;
+  const emailInput = text(fd, "email");
+  const email = emailInput ? normaliseEmail(emailInput) : null;
   const name = text(fd, "name"), subject = text(fd, "subject"), forWho = text(fd, "forWho") || "me";
   const digits = nationalIdDigits(text(fd, "nid"));
-  const portal = fd.get("portal") !== "0";
-  if (!byPhone && !email) return refuse("badEmail");
+  if (emailInput && !email) return refuse("badEmail");
+  if (via === "email" && !email) return refuse("badEmail");
   if (phoneInput && !typedPhone) return refuse("badPhone");
-  if ((byPhone || via === "whatsapp") && !typedPhone) return refuse("badPhone");
+  if (via === "whatsapp" && !typedPhone) return refuse("badPhone");
   if (!name) return refuse("name");
   const slug = text(fd, "slug") || "other-online-service";
   const service = await getService(slug);
@@ -123,42 +126,21 @@ export async function submitRequest(fd: FormData): Promise<Result<{ ref: string;
   for (const f of [...files.flat(), ...extra]) { const bad = await checkFile(f); if (bad) return fail(bad); }
 
   if (!(await allowIp("request"))) return refuse("tooMany");
-  const checked = byPhone ? await consumeCode(typedPhone!, text(fd, "code")) : await consumeEmailCode(email!, text(fd, "code"));
-  if (!checked.ok) return checked;
+  // No code, so bots are stopped here: Turnstile for everyone who is not signed in.
+  if (!signedIn && !(await verifyHuman(text(fd, "human"), await clientIp()))) return refuse("notHuman");
 
   const d = await db();
-  // A confirmed number opens its own account, unless that account signs in with an email: then the email is the way in.
-  if (byPhone) {
-    const [owner] = await d.select({ email: s.accounts.email }).from(s.accounts).where(eq(s.accounts.phone, typedPhone!));
-    if (owner?.email) return refuse("phoneHasEmail");
-  }
   const now = new Date().toISOString();
-  // A phone number belongs to one account, and someone else's account is never joined to this email just because the number
-  // matches. A number already on another account is not a reason to turn the request away (families and offices share
-  // phones, and the code has just been used up): the request goes through on the email, and the number is not saved.
-  let phoneShared = false;
-  if (phone && !byPhone) {
-    const [owner] = await d.select({ id: s.accounts.id, email: s.accounts.email }).from(s.accounts).where(eq(s.accounts.phone, phone));
-    if (owner && owner.email?.toLowerCase() !== email) { phone = null; phoneShared = true; }
-  }
-  // The WhatsApp number could not be saved on the account: the agent still needs it to send the document.
-  if (phoneShared && via === "whatsapp" && typedPhone) answers.push({ key: "whatsapp", label: "WhatsApp number", value: prettyPhone(typedPhone) });
   // Files are written inside the transaction; if it fails, the ones already stored are removed so none is left behind.
   const stored: string[] = [];
   const result = await d.transaction(async (tx) => {
-    let [account] = byPhone
-      ? await tx.select().from(s.accounts).where(eq(s.accounts.phone, typedPhone!))
-      : await tx.select().from(s.accounts).where(sql`lower(${s.accounts.email}) = ${email}`);
+    // Signed in: their own account. Otherwise a contact record of its own, with no phone or email on it (those stay on
+    // the request), in the language they used to send it.
+    let [account] = signedIn ? await tx.select().from(s.accounts).where(eq(s.accounts.id, signedIn)) : [];
     if (!account) {
-      // A new customer's portal and messages are in the language they used to send the request.
       [account] = await tx.insert(s.accounts).values({
-        id: id("acc"), name, first: name.split(" ")[0], phone, email, languages: [], locale: await getLocale(), registeredAt: portal ? now : null,
+        id: id("acc"), name, first: name.split(" ")[0], phone: null, email: null, languages: [], locale: await getLocale(), registeredAt: null,
       }).returning();
-    } else {
-      const set: Partial<typeof s.accounts.$inferInsert> = {};
-      if (portal && !account.registeredAt) set.registeredAt = now;
-      if (phone && !account.phone) set.phone = phone;
-      if (Object.keys(set).length) [account] = await tx.update(s.accounts).set(set).where(eq(s.accounts.id, account.id)).returning();
     }
     const profiles = await tx.select().from(s.profiles).where(eq(s.profiles.accountId, account.id));
     let profile =
@@ -198,6 +180,7 @@ export async function submitRequest(fd: FormData): Promise<Result<{ ref: string;
       hold: checkoutHold ? { reason: "payment", title: english(checkoutHold, "title"), detail: english(checkoutHold, "detail"), since: now, msg: checkoutHold } : null,
       summary: { title: english(summary, "title"), body: english(summary, "body"), msg: summary },
       next: english(summary, "next"), purpose: purpose || null, answers: answers.length ? answers : null, deliverVia: via,
+      contactPhone: typedPhone, contactEmail: email,
       idPolicy: policy, idRequired: ask === "required", idReview: ask === "required" ? "pending" : null, idConsent: storeId && consent,
       requirementsSnapshot: service.requirements,
       invoice, official: priced.official.mode ? null : priced.official.amount, officialMode: priced.official.mode ?? null,
@@ -238,7 +221,9 @@ export async function submitRequest(fd: FormData): Promise<Result<{ ref: string;
       await audit(tx, { actor: account.name, role: "Customer", action: "Opened request", entity: `${ref} · ${service.name}` });
       await notifyStaff(tx, ref, { kind: "new", icon: "inbox", title: `New request ${ref}`, body: `${account.name} · ${service.name}` });
     }
-    return { ref, accountId: account.id, locale: asLocale(account.locale) };
+    // Someone without an account follows it with its private link, kept in this browser from now on.
+    const token = signedIn ? null : await issueLink(tx, ref);
+    return { ref, token };
   }).catch(async (e) => {
     await Promise.all(stored.map((key) => deleteFile(key).catch(() => {})));
     if (e instanceof BadFile) return null;
@@ -246,24 +231,25 @@ export async function submitRequest(fd: FormData): Promise<Result<{ ref: string;
   });
   if (!result) return refuse("fileType", { name: "your file" });
 
-  if (portal) {
-    await startSession("customer", result.accountId);
-    // A returning customer's account may be in the other language; the whole site follows it, as on sign-in.
-    await rememberLocale(result.locale);
-  }
+  if (result.token) await keepLink(result.ref, result.token);
   revalidatePath("/", "layout");
-  return { ok: true, ref: result.ref, portal, phoneShared, payNow: payFirst };
+  return { ok: true, ref: result.ref, signedIn: !!signedIn, payNow: payFirst };
 }
 
-/** Confirms the request belongs to the signed-in customer. */
+/** Who may act on a request: the signed-in customer whose request it is, or a browser holding its private link. */
 async function ownRequest(ref: string) {
-  const accountId = await requireCustomerId();
   const d = await db();
-  const [row] = await d.select({ ref: s.requests.ref, accountId: s.profiles.accountId, name: s.accounts.name, email: s.accounts.email })
+  const [row] = await d.select({ ref: s.requests.ref, accountId: s.profiles.accountId, name: s.accounts.name, email: s.accounts.email, contactEmail: s.requests.contactEmail })
     .from(s.requests).innerJoin(s.profiles, eq(s.profiles.id, s.requests.profileId)).innerJoin(s.accounts, eq(s.accounts.id, s.profiles.accountId))
     .where(eq(s.requests.ref, ref));
-  return row && row.accountId === accountId ? { d, name: row.name, email: row.email } : null;
+  if (!row) return null;
+  const session = await getSession();
+  const signedIn = session?.kind === "customer" && session.subjectId === row.accountId;
+  if (!signedIn && !(await hasLink(ref))) return null;
+  return { d, name: row.name, email: row.email ?? row.contactEmail, signedIn };
 }
+/** Refreshes both places a request is shown to its owner. */
+const refreshRequest = (ref: string) => { revalidatePath(`/portal/requests/${ref}`); revalidatePath(`/r/${ref}`); };
 
 export async function sendMessage(ref: string, body: string): Promise<Result> {
   const own = await ownRequest(ref);
@@ -275,7 +261,7 @@ export async function sendMessage(ref: string, body: string): Promise<Result> {
     await tx.insert(s.messages).values({ ref, by: "customer", body: text });
     await notifyStaff(tx, ref, { kind: "reply", icon: "msg", title: `${own.name} replied on ${ref}`, body: text.slice(0, 160) });
   });
-  revalidatePath(`/portal/requests/${ref}`);
+  refreshRequest(ref);
   revalidatePath("/console", "layout");
   return { ok: true };
 }
@@ -313,7 +299,7 @@ export async function correctSubmittedId(fd: FormData): Promise<Result> {
     await notify(tx, ref, { icon: "check", title: msg("nt.idUpdated", { ref }), sms: sms("idUpdated", { ref }) });
     await audit(tx, { actor: own.name, role: "Customer", action: "Corrected national ID", entity: ref });
   });
-  revalidatePath(`/portal/requests/${ref}`);
+  refreshRequest(ref);
   revalidatePath("/console", "layout");
   return { ok: true };
 }
@@ -347,7 +333,8 @@ export async function uploadDocument(fd: FormData): Promise<Result<{ docs: Libra
     await notifyStaff(tx, doc.ref, { kind: "upload", icon: "file", title: `${own.name} uploaded ${doc.name}`, body: doc.ref });
   }); } catch (e) { await deleteFile(`${doc.ref}/${fileId}`).catch(() => {}); throw e; }
   revalidatePath("/portal", "layout");
-  return { ok: true, docs: await listMyDocuments() };
+  revalidatePath(`/r/${doc.ref}`);
+  return { ok: true, docs: own.signedIn ? await listMyDocuments() : [] };
 }
 
 /** Approves the quote and sends a mobile money prompt for what is still due. */
@@ -362,7 +349,8 @@ export async function startPayment(ref: string, phoneInput: string): Promise<Res
   // A quoted request waiting at checkout pays its review fee; any other pays confirmed fees.
   const reviewing = r.checkout === "open" && !!r.reviewFee;
   if (r.quote === "estimate" && !reviewing) return refuse("notConfirmed");
-  if (!(await allowIp("payment"))) return refuse("tooMany");
+  // Prompts go to a phone: a few an hour per number, so nobody can flood a stranger's phone with them.
+  if (!(await allowIp("payment")) || !(await allowFor("payPhone", phone))) return refuse("tooMany");
   let txs = await d.select().from(s.transactions).where(eq(s.transactions.ref, ref));
   // A prompt left open (a closed tab, a missed callback) would block the customer until the daily job. Ask the provider
   // first: it may have been paid, or it may be old enough to close, and only a prompt still within its time stays.
@@ -425,7 +413,7 @@ export async function checkPayment(txId: number): Promise<Result<{ status: "pend
   const own = await ownRequest(t.ref);
   if (!own) return refuse("payment");
   const status = (await reconcileForScreen(txId)) ?? "failed";
-  if (status !== "pending") revalidatePath(`/portal/requests/${t.ref}`);
+  if (status !== "pending") refreshRequest(t.ref);
   return { ok: true, status };
 }
 
@@ -457,6 +445,7 @@ export async function cancelRequest(ref: string, reason: string): Promise<Result
     await audit(tx, { actor: own.name, role: "Customer", action: "Cancelled request", entity: ref });
   });
   revalidatePath("/portal", "layout");
+  revalidatePath(`/r/${ref}`);
   return { ok: true };
 }
 

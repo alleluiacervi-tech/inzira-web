@@ -343,6 +343,19 @@
 .auth-main { padding-top: clamp(24px, 6vw, 64px); padding-bottom: 96px; }
 .auth-card { max-width: 520px; margin: 0 auto; padding: clamp(20px, 4vw, 36px); background: var(--paper); border: 1px solid var(--line); border-radius: var(--r-lg); box-shadow: 0 24px 48px -36px rgba(20, 40, 80, .4); }
 /* Sign in: the form beside a customer holding her finished document. The picture is left out on narrow screens. */
+/* A request opened with its private link (/r/…): one column on a phone, the side panel beside it on a wide screen. */
+.rq { padding-top: clamp(20px, 4vw, 40px); padding-bottom: 72px; }
+.rq-head { padding-bottom: 20px; }
+.rq-title { margin: 0; font-size: clamp(24px, 6vw, 34px); line-height: 1.15; }
+.rq-meta { margin: 0; font-size: 14px; display: flex; flex-wrap: wrap; gap: 4px 16px; }
+.rq-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; }
+.rq-grid > * { min-width: 0; }
+.rq-inperson { align-items: flex-start; font-size: 14.5px; line-height: 1.5; color: var(--ink-2); }
+.rq-inperson svg { margin-top: 1px; color: var(--brand); }
+.rq-pay { padding-top: 24px; padding-bottom: 72px; max-width: 640px; }
+.link-card { display: flex; flex-direction: column; align-items: flex-start; gap: 12px; }
+.link-card[role="status"] { flex-direction: row; align-items: center; color: var(--muted); }
+@media (min-width: 960px) { .rq-grid { grid-template-columns: minmax(0, 1fr) 360px; align-items: start; gap: 24px; } }
 .svc-inperson { margin: -4px 0 0; max-width: 60ch; font-size: var(--fs-sm); color: var(--ink-2); }
 .fee-options { margin-top: 4px; }
 .choice-priced { display: flex; align-items: center; gap: 12px; }

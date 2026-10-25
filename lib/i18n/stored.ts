@@ -110,7 +110,8 @@ export function documentNote(locale: Locale, note: string | undefined): string |
   if (!m) return legacyText(locale, note);
   const days = /^(\d+) days after the request finished$/.exec(m[1]);
   const key = m[1] === "at the customer’s request" || m[1] === "at the customer's request" ? "docNote.deletedCustomer"
-    : days ? "docNote.deletedRetention" : m[1] === "when the customer deleted their account" ? "docNote.deletedAccount" : null;
+    : days ? "docNote.deletedRetention" : m[1] === "when the customer deleted their account" ? "docNote.deletedAccount"
+    : m[1] === "when the unpaid request was closed" ? "docNote.deletedUnpaid" : null;
   return key ? say(locale, { key, vars: { date: fmtDate(`${m[2]}T12:00:00Z`, locale), days: days?.[1] ?? "" } }) ?? note : note;
 }
 

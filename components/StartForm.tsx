@@ -9,11 +9,10 @@ import { idAsk, nationalIdDigits, nationalIdError } from "@/lib/identity";
 import { answerError, answerInput, cleanAnswer, isAsked } from "@/lib/identifiers";
 import { checkoutPrice, optionRange, reviewFeeFor, withOption } from "@/lib/pricing";
 import type { DeliverVia, Service } from "@/lib/types";
-import { requestCode, requestEmailCode } from "@/app/actions/auth";
 import { submitRequest } from "@/app/actions/customer";
 import { useHuman } from "./Human";
 import { useI18n } from "./I18n";
-import { CodeEntry, isMobile, prettyMobile } from "./PhoneCode";
+import { isMobile, prettyMobile } from "./PhoneCode";
 import { Steps } from "./Steps";
 import { Alert, FeeLines, Icon } from "./ui";
 
@@ -35,9 +34,9 @@ const EXTRA = "__extra";
 /** Starts a request. With a service it asks only what that service needs: who it is for, the name and ID number, the
  *  service's own questions, and where to send the result (WhatsApp or email). Documents are added on the check step, or
  *  sent after paying. Without a service (`service` null) the customer describes their situation and an agent works out
- *  which procedure applies; `describeFee` is the review fee for that case. `smsCodes`: an SMS code can reach a phone
- *  here, so a WhatsApp number can be confirmed on its own; otherwise an email confirms the request. */
-export default function StartForm({ service: s, describeFee = null, smsCodes = false }: { service: Service | null; describeFee?: number | null; smsCodes?: boolean }) {
+ *  which procedure applies; `describeFee` is the review fee for that case. Nothing is confirmed with a code: the
+ *  mobile money PIN that pays the request proves the number. */
+export default function StartForm({ service: s, describeFee = null }: { service: Service | null; describeFee?: number | null }) {
   const { locale, t } = useI18n();
   const draftKey = `inzira:start:${s?.slug ?? "describe"}`;
   // Pay to submit: a service with a settled price is paid for in full at the end of this form, any other with a small
@@ -55,19 +54,17 @@ export default function StartForm({ service: s, describeFee = null, smsCodes = f
 
   const human = useHuman();
   const [step, setStep] = useState(0);
-  const [phase, setPhase] = useState<"form" | "verify" | "done">("form");
+  const [phase, setPhase] = useState<"form" | "done">("form");
   const [f, setF] = useState(EMPTY);
   const [answers, setAnswers] = useState<Record<string, string>>({});
   // Chosen files, by document name (EXTRA for anything else). They are sent with the request after the code.
   const [files, setFiles] = useState<Record<string, File[]>>({});
   const [fileError, setFileError] = useState("");
-  const [demoCode, setDemoCode] = useState<string>();
   const [sending, setSending] = useState(false);
   const [sendError, setSendError] = useState("");
   const [ref, setRef] = useState("");
   const [ack, setAck] = useState(false);
   const [portalOpened, setPortalOpened] = useState(true);
-  const [phoneShared, setPhoneShared] = useState(false);
   const [payNow, setPayNow] = useState<number | null>(null);
   const [touched, setTouched] = useState(false);
   const [restored, setRestored] = useState(false);
@@ -109,9 +106,9 @@ export default function StartForm({ service: s, describeFee = null, smsCodes = f
   const nidDigits = nationalIdDigits(f.nid);
   const idErr = nationalIdError(nidDigits);
   const storeId = ask === "required" || (ask === "optional" && nidDigits.length > 0);
-  // WhatsApp customers confirm their number by SMS where a code can reach it; everyone else confirms an email.
-  const byPhone = f.via === "whatsapp" && smsCodes;
-  const needsEmail = !byPhone;
+  // No code: the MoMo PIN that pays the request proves the number. WhatsApp customers may add an email for the receipt.
+  const byPhone = f.via === "whatsapp";
+  const needsEmail = f.via === "email";
   const errors: Record<string, string> = {};
   if (key === "about") {
     if (!f.name.trim()) errors.name = t("start.errName");
@@ -126,51 +123,40 @@ export default function StartForm({ service: s, describeFee = null, smsCodes = f
     }
     if (f.via === "whatsapp" && !isMobile(f.phone)) errors.phone = t("start.errWhatsapp");
     if (f.via === "email" && f.phone.trim() && !isMobile(f.phone)) errors.phone = t("authErr.badPhone");
-    if (needsEmail && !isEmail(f.email)) errors.email = t("start.errEmail");
+    if ((needsEmail || f.email.trim()) && !isEmail(f.email)) errors.email = t("start.errEmail");
     if (!s && f.notes.trim().length < 10) errors.notes = t("start.errNotes");
   }
   if (key === "review" && !ack) errors.ack = t("start.errAck");
   const valid = Object.keys(errors).length === 0;
 
-  const sendCode = async () => {
-    const token = await human.get();
-    return byPhone ? requestCode(f.phone, token) : requestEmailCode(f.email, token);
-  };
   const next = async () => {
     setTouched(true);
     if (!valid) return;
     setTouched(false);
     if (step < last) { setStep(step + 1); window.scrollTo({ top: 0 }); return; }
-    // Last step: send a code to the number or address before anything is created.
+    // Last step: send it. Paying comes next and is what hands it to our team.
     setSending(true); setSendError("");
-    const r = await sendCode().catch(() => ({ ok: false as const, error: t("authErr.sendFail") }));
-    setSending(false);
-    if (!r.ok) { setSendError(trError(locale, r.error)); return; }
-    setDemoCode(r.demoCode);
-    setPhase("verify");
-    window.scrollTo({ top: 0 });
+    const error = await send().catch(() => t("authErr.submitFail"));
+    if (error) { setSending(false); setSendError(error); }
   };
-  const send = async (code: string) => {
+  const send = async (): Promise<string | null> => {
     const fd = new FormData();
     fd.set("slug", s?.slug ?? "");
-    for (const [k, v] of Object.entries(f)) fd.set(k, k === "nid" && ask === "hidden" ? "" : k === "email" && byPhone ? "" : v);
-    fd.set("codeTo", byPhone ? "phone" : "email");
+    for (const [k, v] of Object.entries(f)) fd.set(k, k === "nid" && ask === "hidden" ? "" : v);
     // The one tick on the check step covers how the ID number is used.
     fd.set("idConsent", storeId && ack ? "1" : "0");
-    fd.set("code", code);
-    fd.set("portal", "1");
-    fd.set("option", f.option);
+    fd.set("human", (await human.get()) ?? "");
     for (const q of asked) fd.set(`answer-${q.key}`, cleanAnswer(q.kind, answers[q.key] ?? "") ?? "");
     docs.forEach((d, i) => { for (const file of files[d.name] ?? []) fd.append(`file-${i}`, file); });
     for (const file of files[EXTRA] ?? []) fd.append("file-extra", file);
     const r = await submitRequest(fd).catch(() => ({ ok: false as const, error: t("authErr.submitFail") }));
     if (!r.ok) return trError(locale, r.error);
     try { sessionStorage.removeItem(draftKey); } catch { /* ignore */ }
-    // Signed in now: straight on to paying, which is what sends the request.
-    if (r.payNow !== null && r.portal) { router.replace(`/portal/requests/${r.ref}/pay${r.phoneShared ? "?phone=shared" : ""}`); return null; }
+    // Straight on to paying, which is what sends the request: in the portal when signed in, else on its own page.
+    const page = r.signedIn ? `/portal/requests/${r.ref}` : `/r/${r.ref}`;
+    if (r.payNow !== null) { router.replace(`${page}/pay`); return null; }
     setRef(r.ref);
-    setPortalOpened(r.portal);
-    setPhoneShared(r.phoneShared);
+    setPortalOpened(r.signedIn);
     setPayNow(r.payNow);
     setPhase("done");
     window.scrollTo({ top: 0 });
@@ -194,6 +180,7 @@ export default function StartForm({ service: s, describeFee = null, smsCodes = f
   const bad = (k: string) => (touched && errors[k] ? "in-err" : "");
   const contact = byPhone ? `+250 ${prettyMobile(f.phone)}` : f.email.trim().toLowerCase();
 
+  const page = portalOpened ? `/portal/requests/${ref}` : `/r/${ref}`;
   if (phase === "done") {
     return (
       <section className="wrap" style={{ paddingTop: 64, paddingBottom: 96 }}>
@@ -210,30 +197,12 @@ export default function StartForm({ service: s, describeFee = null, smsCodes = f
             ref: <strong className="m" style={{ fontSize: 15 }} data-ref>{ref}</strong>,
             contact: <strong style={{ overflowWrap: "anywhere" }}>{contact}</strong>,
           })}</p>}
-          {payNow !== null && portalOpened && <Link className="btn btn-p btn-lg" href={`/portal/requests/${ref}/pay`} data-pay-now>{t("start.payNow", { total: rwf(payNow) })}</Link>}
-          <p className="hint">{payNow !== null ? t("start.payLaterHint") : portalOpened ? t("start.ready") : t("start.receivedTrack")}</p>
-          {phoneShared && <p className="hint">{t("start.phoneShared")}</p>}
+          {payNow !== null && <Link className="btn btn-p btn-lg" href={`${page}/pay`} data-pay-now>{t("start.payNow", { total: rwf(payNow) })}</Link>}
+          <p className="hint">{payNow !== null ? t("start.payLaterHint") : portalOpened ? t("start.receivedTrack") : t("start.ready")}</p>
           <div className="row g10 wrapx" style={{ justifyContent: "center" }}>
-            {portalOpened ? <Link className="btn btn-d" href={`/portal/requests/${ref}`}>{t("start.see")}</Link> : <Link className="btn btn-d" href="/track">{t("start.trackIt")}</Link>}
+            <Link className="btn btn-d" href={page} data-request-page>{t("start.see")}</Link>
             <Link className="btn btn-s" href="/services">{t("start.more")}</Link>
           </div>
-        </div>
-      </section>
-    );
-  }
-
-  if (phase === "verify") {
-    const cta = payFirst ? t("start.confirmPay") : t("start.confirm");
-    const resend = async () => { const r = await sendCode(); return r.ok ? { demoCode: r.demoCode } : { error: r.error }; };
-    return (
-      <section className="wrap" style={{ paddingTop: 48, paddingBottom: 96 }}>
-        <div className="stack g20" style={{ maxWidth: 460, margin: "0 auto" }}>
-          {payFirst && <Steps names={stepNames} current={1} label={t("start.stepLabel", { n: 2, total: stepNames.length, name: stepNames[1] })} />}
-          <span className="eb" style={{ fontSize: 11 }}>{payFirst ? t(byPhone ? "start.lastPayPhone" : "start.lastPay") : byPhone ? t("start.last") : t("start.lastEmail")}</span>
-          {byPhone
-            ? <CodeEntry phone={f.phone} demoCode={demoCode} cta={cta} onBack={() => { setPhase("form"); setStep(0); }} onResend={resend} onSubmit={send} />
-            : <CodeEntry email={f.email.trim().toLowerCase()} demoCode={demoCode} cta={cta} onBack={() => { setPhase("form"); setStep(0); }} onResend={resend} onSubmit={send} />}
-          <p className="hint row g8" style={{ alignItems: "flex-start" }}><Icon name="lock" size={16} /><span>{byPhone ? t("start.numberUse") : t("start.emailUse")}</span></p>
         </div>
       </section>
     );
@@ -353,14 +322,14 @@ export default function StartForm({ service: s, describeFee = null, smsCodes = f
             {f.via === "whatsapp" ? (
               <div className="field"><label htmlFor="f-phone">{t("start.whatsappNumber")}</label>
                 <div className="row g8"><span className="in in-prefix" aria-hidden="true">+250</span><input id="f-phone" className={`in ${bad("phone")}`} inputMode="tel" value={f.phone} onChange={(e) => set("phone", e.target.value)} placeholder="788 123 456" autoComplete="tel-national" aria-describedby="phone-err phone-hint" /></div>
-                <span className="hint" id="phone-hint">{smsCodes ? t("start.whatsappHint") : t("start.whatsappHintEmail")}</span>{err("phone")}</div>
+                <span className="hint" id="phone-hint">{t("start.whatsappHint")}</span>{err("phone")}</div>
             ) : (
               <div className="field"><label htmlFor="f-phone">{t("start.phoneOpt")}</label>
                 <div className="row g8"><span className="in in-prefix" aria-hidden="true">+250</span><input id="f-phone" className={`in ${bad("phone")}`} inputMode="tel" value={f.phone} onChange={(e) => set("phone", e.target.value)} placeholder="788 123 456" autoComplete="tel-national" aria-describedby="phone-err phone-hint" /></div>
                 <span className="hint" id="phone-hint">{t("start.phoneOptHint")}</span>{err("phone")}</div>
             )}
-            {needsEmail && (
-              <div className="field"><label htmlFor="f-email">{f.via === "whatsapp" ? t("start.emailForCode") : t("start.email")}</label>
+            {(
+              <div className="field"><label htmlFor="f-email">{f.via === "whatsapp" ? <>{t("start.emailForCode")} <span className="mut" style={{ fontWeight: 400 }}>{t("start.optional")}</span></> : t("start.email")}</label>
                 <input id="f-email" type="email" className={`in ${bad("email")}`} inputMode="email" value={f.email} onChange={(e) => set("email", e.target.value)} placeholder={t("signIn.emailPh")} autoComplete="email" autoCapitalize="none" spellCheck={false} aria-describedby="email-err email-hint" />
                 <span className="hint" id="email-hint">{t("start.emailHint")}</span>{err("email")}</div>
             )}
@@ -383,7 +352,7 @@ export default function StartForm({ service: s, describeFee = null, smsCodes = f
                 {asked.filter((q) => (answers[q.key] ?? "").trim()).map((q) => <Fragment key={q.key}><dt>{q.label}</dt><dd style={{ overflowWrap: "anywhere" }}>{cleanAnswer(q.kind, answers[q.key]) ?? answers[q.key]}</dd></Fragment>)}
                 <dt>{t("start.deliverRow")}</dt><dd style={{ overflowWrap: "anywhere" }}>{f.via === "whatsapp" ? `WhatsApp · +250 ${prettyMobile(f.phone)}` : `${t("start.viaEmail")} · ${f.email.trim().toLowerCase()}`}</dd>
                 {f.via === "email" && f.phone.trim() && <><dt>{t("start.phoneRow")}</dt><dd>+250 {prettyMobile(f.phone)}</dd></>}
-                {f.via === "whatsapp" && needsEmail && <><dt>{t("start.emailRow")}</dt><dd style={{ overflowWrap: "anywhere" }}>{f.email.trim().toLowerCase()}</dd></>}
+                {f.via === "whatsapp" && f.email.trim() && <><dt>{t("start.emailRow")}</dt><dd style={{ overflowWrap: "anywhere" }}>{f.email.trim().toLowerCase()}</dd></>}
                 {f.notes.trim() && <><dt>{s ? t("start.notes") : t("start.situationRow")}</dt><dd style={{ fontWeight: 400 }}>{f.notes}</dd></>}
               </dl>
               <button type="button" className="btn btn-g btn-sm" style={{ marginTop: 12 }} onClick={() => { setStep(0); setTouched(false); }}><Icon name="edit" size={16} /> {t("start.edit")}</button>
