@@ -1,4 +1,5 @@
 "use client";
+import { withStepUp } from "./console/StepUp";
 import { useState } from "react";
 import { checkRefund, closeUnclearRefund } from "@/app/actions/admin";
 import { fmtAgo, rwf } from "@/lib/format";
@@ -15,7 +16,7 @@ export default function PendingRefunds({ initial, now }: { initial: Pending[]; n
   if (!rows.length) return null;
   const act = async (id: number, run: () => Promise<{ ok: true; status?: string } | { ok: false; error: string }>) => {
     setBusy(id); setNote("");
-    const r = await run().catch(() => ({ ok: false as const, error: "Not checked. Check your connection and try again." }));
+    const r = await withStepUp(run).catch(() => ({ ok: false as const, error: "Not checked. Check your connection and try again." }));
     setBusy(null);
     if (!r.ok) { setNote(r.error); return; }
     if (!("status" in r) || r.status !== "pending") setRows((xs) => xs.filter((x) => x.id !== id));

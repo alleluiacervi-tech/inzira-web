@@ -3,7 +3,7 @@
 import { sql } from "drizzle-orm";
 import { boolean, index, integer, jsonb, pgTable, primaryKey, serial, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
 import type { Locale } from "../i18n/locale";
-import type { Checkout, Closed, DeliverVia, DocGroup, DocStatus, Hold, IdPolicy, IdReview, MsgVars, OfficialMode, Request, Service, ServiceAnswer, ServiceQuestion, Stage, StaffRole } from "../types";
+import type { Checkout, Closed, DeliverVia, DocGroup, DocStatus, Hold, IdPolicy, IdReview, FeeOption, MsgVars, OfficialMode, Request, Service, ServiceAnswer, ServiceQuestion, Stage, StaffRole } from "../types";
 
 const ts = (name: string) => timestamp(name, { withTimezone: true, mode: "string" });
 
@@ -49,6 +49,11 @@ export const services = pgTable("services", {
   purposeLabel: text("purpose_label"),
   /** The service's own questions (plate number, pickup station…), asked when a request is started. */
   questions: jsonb("questions").$type<ServiceQuestion[]>(),
+  /** Priced choices (passport type, test type) and their heading; see lib/types.ts Service.feeOptions. */
+  feeOptions: jsonb("fee_options").$type<FeeOption[]>(),
+  feeOptionLabel: text("fee_option_label"),
+  /** The one in-person step, said before paying. */
+  inPerson: text("in_person"),
   noId: boolean("no_id").notNull().default(false),
   /** required: ask for a National ID. none: do not ask. unsure: optional, and an administrator should confirm the rule. */
   idPolicy: text("id_policy").$type<IdPolicy>().notNull().default("unsure"),
@@ -117,7 +122,35 @@ export const staff = pgTable("staff", {
   totpLastStep: integer("totp_last_step"),
   /** SHA-256 hashes of the unused recovery codes. */
   totpRecovery: jsonb("totp_recovery").$type<string[]>(),
-}, (t) => [uniqueIndex("staff_email_unique").on(sql`lower(${t.email})`)]);
+  /** Sign-in name, lower case. The work email also signs in. */
+  username: text("username"),
+  /** scrypt hash of the password (lib/password.ts). Empty until the person sets one from their invite. */
+  passwordHash: text("password_hash"),
+  passwordSetAt: ts("password_set_at"),
+  /** Wrong passwords in a row, and until when sign-in is paused after five. */
+  failedLogins: integer("failed_logins").notNull().default(0),
+  lockedUntil: ts("locked_until"),
+}, (t) => [uniqueIndex("staff_email_unique").on(sql`lower(${t.email})`), uniqueIndex("staff_username_unique").on(sql`lower(${t.username})`)]);
+
+/** One-time links for staff to set a password: an invite from the owner, or a reset. Only the SHA-256 is kept. */
+export const staffTokens = pgTable("staff_tokens", {
+  id: text("id").primaryKey(),
+  staffId: text("staff_id").notNull().references(() => staff.id),
+  kind: text("kind").$type<"invite" | "reset">().notNull(),
+  createdAt: ts("created_at").notNull().defaultNow(),
+  expiresAt: ts("expires_at").notNull(),
+  usedAt: ts("used_at"),
+});
+
+/** Browsers a member of staff has signed in from, so a new one can be announced by email. */
+export const staffDevices = pgTable("staff_devices", {
+  staffId: text("staff_id").notNull().references(() => staff.id),
+  /** SHA-256 of the device cookie. */
+  device: text("device").notNull(),
+  label: text("label").notNull(),
+  firstSeen: ts("first_seen").notNull().defaultNow(),
+  lastSeen: ts("last_seen").notNull().defaultNow(),
+}, (t) => [primaryKey({ columns: [t.staffId, t.device] })]);
 
 /** One row per role and permission; `allowed` is what the roles matrix in the admin console edits. */
 export const rolePermissions = pgTable("role_permissions", {
@@ -150,6 +183,10 @@ export const requests = pgTable("requests", {
   answers: jsonb("answers").$type<ServiceAnswer[]>(),
   /** Where the customer wants the finished document: "whatsapp" or "email". Null on requests sent before the choice existed. */
   deliverVia: text("deliver_via").$type<DeliverVia>(),
+  /** How to reach the person who sent a request without an account: their WhatsApp or MoMo number (9 digits) and email.
+   *  Their contact record has neither, so a number typed by someone else never joins or opens an existing account. */
+  contactPhone: text("contact_phone"),
+  contactEmail: text("contact_email"),
   /** Copied from the service when the request was sent. */
   idPolicy: text("id_policy").$type<IdPolicy>().notNull().default("none"),
   /** True only when this application made a National ID number mandatory. */
@@ -410,7 +447,28 @@ export const sessions = pgTable("sessions", {
   subjectId: text("subject_id").notNull(),
   createdAt: ts("created_at").notNull().defaultNow(),
   expiresAt: ts("expires_at").notNull(),
+  /** Staff: last request seen (the console locks after an hour without one), the last authenticator code (money and ID
+   *  actions want one from the last 12 hours), whether the person chose to stay signed in for 30 days, and the device. */
+  lastSeenAt: ts("last_seen_at"),
+  stepUpAt: ts("step_up_at"),
+  trusted: boolean("trusted").notNull().default(false),
+  device: text("device"),
+  label: text("label"),
 }, (t) => [index("sessions_subject_idx").on(t.subjectId), index("sessions_expires_idx").on(t.expiresAt)]);
+
+/** Private links to one request, for people who sent it without an account (lib/request-links.ts). Only the SHA-256 of
+ *  the link's secret is kept. "view" opens the request; "claim" is sent to an email and saves the request to the account
+ *  with that email, which the click proves. */
+export const requestLinks = pgTable("request_links", {
+  id: text("id").primaryKey(),
+  ref: text("ref").notNull().references(() => requests.ref),
+  kind: text("kind").$type<"view" | "claim">().notNull(),
+  email: text("email"),
+  createdAt: ts("created_at").notNull().defaultNow(),
+  expiresAt: ts("expires_at").notNull(),
+  usedAt: ts("used_at"),
+  revokedAt: ts("revoked_at"),
+}, (t) => [index("request_links_ref_idx").on(t.ref)]);
 
 /** Running numbers for request references and invoices. */
 export const counters = pgTable("counters", {

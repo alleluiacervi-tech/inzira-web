@@ -616,6 +616,22 @@
   overflow: hidden;
 }
 
+/* Signed-in devices (AccountSecurity.tsx) */
+.dev-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.dev-list li { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 0; border-top: 1px solid var(--c-border-subtle); }
+.dev-list li:first-child { border-top: 0; }
+
+/* Confirm it's you (StepUp.tsx) */
+.stepup { padding: 24px; display: flex; flex-direction: column; gap: 10px; max-width: 400px; }
+.stepup h2 { margin: 0; font-size: 18px; }
+.stepup p { margin: 0; color: var(--c-text-muted); font-size: 14px; line-height: 1.5; }
+.stepup label { font-weight: 600; font-size: 13.5px; margin-top: 6px; }
+.stepup-code { font-size: 22px; letter-spacing: .3em; text-align: center; min-height: 48px; }
+.stepup-err { color: var(--c-red) !important; }
+.stepup-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 6px; }
+.stepup-actions .c-btn { min-height: 44px; }
+.stepup-switch { align-self: flex-start; background: none; border: 0; padding: 4px 0; color: var(--c-text-muted); font-size: 13px; text-decoration: underline; cursor: pointer; }
+
 /* Toast */
 .console-toast-container {
   position: fixed;

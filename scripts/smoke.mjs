@@ -21,7 +21,7 @@ const ROUTES = [
   ["/services/irembo-training", "per month", "Training by Inzira"],
   ["/start", "A few details about you", "Review fee RWF 1,000"],
   ["/start/company-registration", "A few details about you", "Company registration"],
-  ["/sign-in", "Sign in to your portal"],
+  ["/sign-in", "Email or phone number"],
   ["/track", "Track a request"],
 ];
 /** Signed-in areas: without a session they must send people to sign in. */
@@ -98,7 +98,9 @@ if (!failures.length) {
   for (const path of PRIVATE) {
     const res = await fetch(base + path, { redirect: "manual" });
     const to = res.headers.get("location") ?? "";
-    if (!(res.status >= 300 && res.status < 400 && to.includes("/sign-in"))) fail(path, `expected a redirect to sign-in, got ${res.status} ${to}`);
+    // Staff pages go to the staff sign-in (/staff), the portal to the customer's (/sign-in).
+    const want = path.startsWith("/console") || path.startsWith("/admin") ? "/staff" : "/sign-in";
+    if (!(res.status >= 300 && res.status < 400 && to.includes(want))) fail(path, `expected a redirect to ${want}, got ${res.status} ${to}`);
     else console.log(`  ok   ${path} (asks to sign in)`);
   }
   const health = await fetch(base + "/api/health");

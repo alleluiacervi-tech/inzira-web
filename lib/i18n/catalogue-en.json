@@ -315,7 +315,8 @@
       "questions": [
         {
           "label": "Company code",
-          "hint": "On your RDB certificate"
+          "hint": "The 9 digits on your RDB certificate",
+          "placeholder": "e.g. 108 123 456"
         }
       ]
     },
@@ -393,7 +394,8 @@
       "questions": [
         {
           "label": "Company code",
-          "hint": "On your RDB certificate"
+          "hint": "The 9 digits on your RDB certificate",
+          "placeholder": "e.g. 108 123 456"
         }
       ]
     },
@@ -467,7 +469,8 @@
       "questions": [
         {
           "label": "TIN",
-          "hint": "The 9-digit taxpayer number, on your RDB certificate or RRA letters"
+          "hint": "The 9-digit taxpayer number, on your RDB certificate or RRA letters",
+          "placeholder": "e.g. 123 456 789"
         }
       ]
     },
@@ -532,7 +535,8 @@
       "questions": [
         {
           "label": "UPI of each property",
-          "hint": "The number on your land title or e-title, e.g. 1/02/03/04/1234"
+          "hint": "The number on your land title or e-title. Separate several with commas",
+          "placeholder": "e.g. 1/02/03/04/1234"
         }
       ]
     },
@@ -605,7 +609,8 @@
       "questions": [
         {
           "label": "TIN",
-          "hint": "The 9-digit taxpayer number, on your RDB certificate or RRA letters"
+          "hint": "The 9-digit taxpayer number, on your RDB certificate or RRA letters",
+          "placeholder": "e.g. 123 456 789"
         }
       ]
     },
@@ -675,7 +680,8 @@
       "questions": [
         {
           "label": "TIN",
-          "hint": "The 9-digit taxpayer number, on your RDB certificate or RRA letters"
+          "hint": "The 9-digit taxpayer number, on your RDB certificate or RRA letters",
+          "placeholder": "e.g. 123 456 789"
         }
       ]
     },
@@ -755,7 +761,8 @@
       "questions": [
         {
           "label": "TIN",
-          "hint": "The 9-digit taxpayer number, on your RDB certificate or RRA letters"
+          "hint": "The 9-digit taxpayer number, on your RDB certificate or RRA letters",
+          "placeholder": "e.g. 123 456 789"
         }
       ]
     },
@@ -817,11 +824,13 @@
       "questions": [
         {
           "label": "TIN",
-          "hint": "The 9-digit taxpayer number, on your RDB certificate or RRA letters"
+          "hint": "The 9-digit taxpayer number, on your RDB certificate or RRA letters",
+          "placeholder": "e.g. 123 456 789"
         },
         {
           "label": "UPI of each property",
-          "hint": "From the land title or e-title. Separate several with commas"
+          "hint": "From the land title or e-title. Separate several with commas",
+          "placeholder": "e.g. 1/02/03/04/1234"
         }
       ]
     },
@@ -901,7 +910,8 @@
       "questions": [
         {
           "label": "TIN",
-          "hint": "The 9-digit taxpayer number, on your RDB certificate or RRA letters"
+          "hint": "The 9-digit taxpayer number, on your RDB certificate or RRA letters",
+          "placeholder": "e.g. 123 456 789"
         }
       ]
     },
@@ -1030,7 +1040,8 @@
       "questions": [
         {
           "label": "UPI of the land",
-          "hint": "The number on your land title, e.g. 1/02/03/04/1234"
+          "hint": "The number on your land title",
+          "placeholder": "e.g. 1/02/03/04/1234"
         }
       ]
     },
@@ -1204,7 +1215,8 @@
       "questions": [
         {
           "label": "UPI of each plot",
-          "hint": "Separate them with commas"
+          "hint": "Separate them with commas",
+          "placeholder": "e.g. 1/02/03/04/1234, 1/02/03/04/1235"
         }
       ]
     },
@@ -1216,8 +1228,8 @@
       "authority": "Rwanda Utilities Regulatory Authority (RURA)",
       "channel": "RURA online services",
       "via": "Via RURA online services",
-      "time": "Usually a few working days",
-      "timeShort": "A few working days",
+      "time": "About 15 days",
+      "timeShort": "About 15 days",
       "docsShort": "Yellow card, owner ID",
       "who": [
         {
@@ -1279,7 +1291,7 @@
         }
       ],
       "notes": [],
-      "officialNote": "Set by RURA for your vehicle type. You pay it to RURA yourself; we tell you the amount first.",
+      "officialNote": "For goods vehicles, RURA charges Rwf 50,000 to apply the first time, then Rwf 20,000 to 100,000 by the vehicle’s load. You pay RURA yourself; we tell you the exact amount first.",
       "questions": [
         {
           "label": "Plate number",
@@ -1355,8 +1367,7 @@
           "label": "RURA authorisation number, or the plate number"
         },
         {
-          "label": "From when the vehicle stops operating",
-          "placeholder": "e.g. 1 November"
+          "label": "From when the vehicle stops operating"
         }
       ]
     },
@@ -1444,8 +1455,8 @@
       "authority": "Rwanda National Police",
       "channel": "Irembo",
       "via": "Via Irembo · Rwanda National Police",
-      "time": "Within 21 days",
-      "timeShort": "Within 21 days",
+      "time": "7 to 21 days",
+      "timeShort": "7 to 21 days",
       "docsShort": "National ID number",
       "who": [
         {
@@ -1502,19 +1513,20 @@
           "body": "A photocopy of your National ID, a letter to the Commissioner for Testing and Licensing saying why you need a copy, and the Irembo receipt we send you."
         }
       ],
-      "officialNote": "Irembo charges Rwf 25,000 for a copy. We send you the Irembo bill to pay with MoMo or Airtel Money; it does not pass through Inzira.",
+      "officialNote": "Irembo’s own fee. You pay it with our fee in one payment, and we pay the Irembo bill for you as soon as it is issued. If the institution refuses, it is refunded.",
       "questions": [
         {
           "label": "Police station to collect it from",
           "placeholder": "e.g. Remera"
         }
-      ]
+      ],
+      "inPerson": "You collect the new card at the station you chose, with the letter we prepare for you."
     },
     "traffic-fine": {
       "name": "Pay a traffic fine",
       "aka": "Contravention",
       "tagline": "Paid within the hour. Receipt kept for you.",
-      "summary": "Pay a traffic fine without filling in the Irembo form yourself. Send a photo of the ticket or the plate number. We submit that payment and keep the receipt. We do not search a police register.",
+      "summary": "Pay a traffic fine without filling in the Irembo form yourself. Give us the ticket number, or the plate number with the TIN on the yellow card. We find the fine on Irembo, pay it and keep the receipt for you.",
       "authority": "Rwanda National Police",
       "channel": "Irembo",
       "via": "Via Irembo · Rwanda National Police",
@@ -1536,7 +1548,7 @@
         }
       ],
       "requirements": [
-        "The plate number and the TIN on the yellow card, or the ticket number"
+        "The ticket number, or the plate number and the TIN on the yellow card (carte jaune)"
       ],
       "documents": [
         {
@@ -1578,23 +1590,32 @@
         {
           "title": "The fine is paid within the hour",
           "body": "Irembo cancels a fine bill after one hour. We look the fine up, send you one total with our fee, and pay the bill as soon as you pay us."
+        },
+        {
+          "title": "Late fines cost more",
+          "body": "A fine paid after its deadline carries a Rwf 10,000 late fee, billed separately on Irembo. We include it in the total if it applies."
         }
       ],
       "officialNote": "Set by Rwanda National Police. Your agent confirms the exact amount before you pay anything.",
-      "purposeLabel": "Whose fine is it?",
+      "purposeLabel": "How should we find the fine?",
       "purposes": [
-        "Mine",
-        "A family member",
-        "A vehicle I own"
+        "With the ticket number",
+        "With the plate number and TIN"
       ],
       "questions": [
         {
-          "label": "Plate number or ticket number",
+          "label": "Ticket number",
+          "hint": "As printed on the ticket",
+          "placeholder": "e.g. 2026-0123456"
+        },
+        {
+          "label": "Plate number",
           "placeholder": "e.g. RAD 123 A"
         },
         {
           "label": "TIN on the yellow card",
-          "hint": "Not needed if you gave the ticket number"
+          "hint": "The 9 digits on the vehicle’s carte jaune",
+          "placeholder": "e.g. 123 456 789"
         }
       ]
     },
@@ -1670,7 +1691,8 @@
           "body": "You send the details. We submit on Irembo for you and send the document as soon as Rwanda National Police issues it. Inzira is not Rwanda National Police and not Irembo."
         }
       ],
-      "officialNote": "The fee set by Rwanda National Police is paid on Irembo, by MoMo or Airtel Money. We tell you the amount before anything is submitted. It does not pass through Inzira."
+      "officialNote": "The fee set by Rwanda National Police is paid on Irembo, by MoMo or Airtel Money. We tell you the amount before anything is submitted. It does not pass through Inzira.",
+      "inPerson": "You hand in the Burundi licence at the police and collect the Rwandan one there."
     },
     "driving-licence-correction": {
       "name": "Correct a driving licence",
@@ -1754,8 +1776,8 @@
       "authority": "Rwanda National Police",
       "channel": "Irembo",
       "via": "Via Irembo · Rwanda National Police",
-      "time": "Usually a few working days",
-      "timeShort": "A few working days",
+      "time": "Within 14 days",
+      "timeShort": "Within 14 days",
       "docsShort": "National ID number",
       "who": [
         {
@@ -1810,13 +1832,14 @@
           "body": "You send the details. We submit on Irembo for you and send the document as soon as Rwanda National Police issues it. Inzira is not Rwanda National Police and not Irembo."
         }
       ],
-      "officialNote": "The fee set by Rwanda National Police is paid on Irembo, by MoMo or Airtel Money. We tell you the amount before anything is submitted. It does not pass through Inzira.",
+      "officialNote": "Irembo’s own fee. You pay it with our fee in one payment, and we pay the Irembo bill for you as soon as it is issued. If the institution refuses, it is refunded.",
       "questions": [
         {
           "label": "Police station to collect it from",
           "placeholder": "e.g. Remera"
         }
-      ]
+      ],
+      "inPerson": "You collect the card at the police station you chose."
     },
     "driving-test-results": {
       "name": "Driving test results",
@@ -1906,7 +1929,7 @@
       ],
       "requirements": [
         "Your National ID number",
-        "The category you want to sit",
+        "The test and category you want to sit",
         "For the definitive test: your physical provisional licence"
       ],
       "documents": [
@@ -1947,30 +1970,36 @@
           "body": "You send the details. We submit on Irembo for you and send the document as soon as Rwanda National Police issues it. Inzira is not Rwanda National Police and not Irembo."
         },
         {
-          "title": "Pay the Irembo bill within 8 hours",
-          "body": "Irembo releases the test slot if its bill is not paid within 8 hours, and the details cannot be changed once the bill exists. We send it the moment we book: pay it straight away."
+          "title": "The slot is kept for 8 hours",
+          "body": "Irembo releases a test slot if its bill is not paid within 8 hours. You pay us first, so we pay the bill the moment we book."
         }
       ],
-      "officialNote": "Rwf 5,000 for a provisional test and Rwf 10,000 for a definitive test (Busanza costs more). You pay the Irembo bill we send you with MoMo or Airtel Money.",
-      "purposeLabel": "Which test?",
-      "purposes": [
-        "Category A (motorcycle)",
-        "Category B (car)",
-        "Another category",
-        "I am not sure"
-      ],
+      "officialNote": "Set by Rwanda National Police for the option you choose. You pay it with our fee in one payment, and we pay the Irembo bill for you as soon as it is issued. If the institution refuses, it is refunded.",
       "questions": [
+        {
+          "label": "Licence category",
+          "hint": "A for a motorcycle, B for a car",
+          "placeholder": "e.g. B"
+        },
         {
           "label": "Test centre and the date you would like",
           "placeholder": "e.g. Busanza, any day next week"
         }
-      ]
+      ],
+      "feeOptionLabel": "Which test?",
+      "feeOptions": [
+        "Provisional (theory) test",
+        "Definitive (driving) test",
+        "Busanza automated test, category A",
+        "Busanza automated test, category B"
+      ],
+      "inPerson": "You sit the test at the centre, on the date we book."
     },
     "driving-licence-renewal": {
       "name": "Renew a driving licence",
-      "aka": "Extend a licence that is expiring",
-      "tagline": "Renewed in the 14 days before it expires.",
-      "summary": "Renew a driving licence in the 14 days before it expires. We submit the renewal and tell you when the new card is ready at the police station you chose.",
+      "aka": "Renew an expired licence",
+      "tagline": "Renewed once it expires. New card at your station.",
+      "summary": "Renew a definitive driving licence once it has expired. We submit the renewal on Irembo and tell you when the new card is ready at the police station you chose.",
       "authority": "Rwanda National Police",
       "channel": "Irembo",
       "via": "Via Irembo · Rwanda National Police",
@@ -1979,12 +2008,12 @@
       "docsShort": "National ID number",
       "who": [
         {
-          "title": "Licences about to expire",
-          "body": "Renew before the date on the card."
+          "title": "Expired licences",
+          "body": "The date on the card has passed."
         },
         {
-          "title": "Licences already expired",
-          "body": "We tell you if a test is required again."
+          "title": "Licences expiring soon",
+          "body": "Send it now; we file it the day it expires."
         }
       ],
       "requirements": [
@@ -2033,10 +2062,10 @@
         },
         {
           "label": "Expiry date on your licence",
-          "hint": "Renewal opens 14 days before it",
-          "placeholder": "e.g. 30 November 2026"
+          "hint": "Irembo renews a licence from this date"
         }
-      ]
+      ],
+      "inPerson": "You collect the new card at the police station you chose."
     },
     "vehicle-inspection": {
       "name": "Vehicle inspection and emissions",
@@ -2109,13 +2138,20 @@
           "body": "You send the details. We submit on Irembo for you and send the document as soon as Rwanda National Police issues it. Inzira is not Rwanda National Police and not Irembo."
         }
       ],
-      "officialNote": "The fee set by Rwanda National Police is paid on Irembo, by MoMo or Airtel Money. We tell you the amount before anything is submitted. It does not pass through Inzira.",
+      "officialNote": "Set by vehicle type on Irembo. The emissions test alone is Rwf 16,638 for a motorcycle and Rwf 34,940 for a car up to 8 seats (July 2025). We tell you the total before you pay the Irembo bill.",
+      "purposeLabel": "What vehicle is it?",
+      "purposes": [
+        "Motorcycle",
+        "Car or van, up to 8 seats",
+        "Bus, truck or other"
+      ],
       "questions": [
         {
           "label": "Plate number",
           "placeholder": "e.g. RAD 123 A"
         }
-      ]
+      ],
+      "inPerson": "You bring the vehicle to the inspection centre on the date we book."
     },
     "birth-certificate": {
       "name": "Birth certificate",
@@ -2444,12 +2480,12 @@
       "name": "Passport application",
       "aka": "First passport, renewal or replacement",
       "tagline": "First passport, renewal or replacement, filed for you.",
-      "summary": "Apply for a Rwandan passport, or renew or replace one. We prepare the file and submit it. You still attend any appointment the immigration office requires, and we tell you when.",
+      "summary": "Apply for a Rwandan passport, or renew or replace one. We prepare the file and apply online on Irembo. DGIE then sends a date for your fingerprints and photo; you go once, then collect the passport.",
       "authority": "Immigration",
       "channel": "Irembo",
       "via": "Via Irembo · Immigration",
-      "time": "About 4 working days",
-      "timeShort": "About 4 working days",
+      "time": "About 4 working days, then biometrics",
+      "timeShort": "About 4 working days, then biometrics",
       "docsShort": "Photo, signature, ID copy",
       "who": [
         {
@@ -2485,6 +2521,10 @@
         {
           "name": "Current passport",
           "detail": "Photo of the data page, for a renewal"
+        },
+        {
+          "name": "Parents’ IDs and birth certificate",
+          "detail": "For a child’s passport"
         }
       ],
       "steps": [
@@ -2517,15 +2557,26 @@
         {
           "title": "We apply. You get the document.",
           "body": "You send the details. We submit on Irembo for you and send the document as soon as Immigration issues it. Inzira is not Immigration and not Irembo."
+        },
+        {
+          "title": "A lost passport",
+          "body": "DGIE may add a fee for a lost passport. We confirm it before filing."
         }
       ],
-      "officialNote": "The fee set by Immigration is paid on Irembo, by MoMo or Airtel Money. We tell you the amount before anything is submitted. It does not pass through Inzira.",
+      "officialNote": "Set by DGIE for the option you choose. You pay it with our fee in one payment, and we pay the Irembo bill for you as soon as it is issued. If the institution refuses, it is refunded.",
       "purposeLabel": "Which application?",
       "purposes": [
         "First passport",
         "Renewal",
         "Replacement of a lost passport"
-      ]
+      ],
+      "feeOptionLabel": "Which passport?",
+      "feeOptions": [
+        "Adult, valid 5 years",
+        "Adult, valid 10 years",
+        "Under 18"
+      ],
+      "inPerson": "We apply online. You go once to DGIE for your fingerprints and photo, on the date they send, then collect the passport."
     },
     "id-card-replacement": {
       "name": "Replacement of a national ID card",
@@ -2590,11 +2641,11 @@
           "body": "You send the details. We submit on Irembo for you and send the document as soon as National identification issues it. Inzira is not National identification and not Irembo."
         },
         {
-          "title": "One visit to RIB",
-          "body": "RIB asks you to come once before the card is made. A temporary ID costs Rwf 3,000 more on Irembo; ask us if you need one."
+          "title": "RIB checks first",
+          "body": "Irembo bills the new card only after RIB approves the report. If RIB refuses, you are refunded."
         }
       ],
-      "officialNote": "Irembo’s own fee. You pay it with our fee in one payment, and we pay the Irembo bill for you as soon as it is issued. If the institution refuses, it is refunded.",
+      "officialNote": "Set by NIDA for the option you choose. You pay it with our fee in one payment, and we pay the Irembo bill for you as soon as it is issued. If the institution refuses, it is refunded.",
       "purposeLabel": "What happened?",
       "purposes": [
         "Lost",
@@ -2606,7 +2657,13 @@
           "label": "RIB office and where to collect the new card",
           "placeholder": "e.g. RIB Remera, collect at Remera sector"
         }
-      ]
+      ],
+      "feeOptionLabel": "What do you need?",
+      "feeOptions": [
+        "The new card",
+        "The new card and a temporary ID (valid 60 days)"
+      ],
+      "inPerson": "You go once to RIB before the card is made. We tell you where and when."
     },
     "other-online-service": {
       "name": "Other online service",

@@ -36,12 +36,13 @@ async function storedDocuments(tx: Tx | Db, refs: string[]) {
  * the checklist (which keeps its review status, so the history still reads correctly).
  * Returns how many files were removed.
  */
-export type PurgeReason = "customer" | "retention" | "account";
+export type PurgeReason = "customer" | "retention" | "account" | "unpaid";
 // The checklist note is English for the staff screens; i18n/stored.documentNote translates it for customers.
 const NOTE_REASON: Record<PurgeReason, string> = {
   customer: "at the customer’s request",
   retention: `${RETENTION_DAYS} days after the request finished`,
   account: "when the customer deleted their account",
+  unpaid: "when the unpaid request was closed",
 };
 export async function purgeDocuments(refs: string[], why: PurgeReason): Promise<number> {
   const reason = NOTE_REASON[why];
@@ -55,7 +56,7 @@ export async function purgeDocuments(refs: string[], why: PurgeReason): Promise<
     await tx.delete(s.files).where(inArray(s.files.id, docs.map((x) => x.fileId)));
     for (const ref of new Set(docs.map((x) => x.ref))) {
       const n = docs.filter((x) => x.ref === ref).length;
-      await event(tx, ref, why === "customer" ? msg("ev.docsDeletedCustomer", { n }) : why === "account" ? msg("ev.docsDeletedAccount", { n }) : msg("ev.docsDeletedRetention", { n, days: RETENTION_DAYS }), "system");
+      await event(tx, ref, why === "customer" ? msg("ev.docsDeletedCustomer", { n }) : why === "account" ? msg("ev.docsDeletedAccount", { n }) : why === "unpaid" ? msg("ev.docsDeletedUnpaid", { n }) : msg("ev.docsDeletedRetention", { n, days: RETENTION_DAYS }), "system");
     }
   });
   // Bytes go after the database: a failed delete leaves an orphan file, never a row pointing at nothing.

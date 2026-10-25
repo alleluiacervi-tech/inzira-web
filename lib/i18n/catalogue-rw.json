@@ -314,7 +314,8 @@
       "questions": [
         {
           "label": "Kode ya kompanyi",
-          "hint": "Iri ku cyemezo cyawe cya RDB"
+          "hint": "Imibare 9 iri ku cyemezo cyawe cya RDB",
+          "placeholder": "urugero: 108 123 456"
         }
       ],
       "tagline": "Hindura aderesi, abayobozi, abanyamigabane cyangwa izina muri RDB."
@@ -392,7 +393,8 @@
       "questions": [
         {
           "label": "Kode ya kompanyi",
-          "hint": "Iri ku cyemezo cyawe cya RDB"
+          "hint": "Imibare 9 iri ku cyemezo cyawe cya RDB",
+          "placeholder": "urugero: 108 123 456"
         }
       ],
       "tagline": "Imenyekanisha ryawe rya buri mwaka muri RDB, ritangwa ku gihe."
@@ -466,7 +468,8 @@
       "questions": [
         {
           "label": "TIN",
-          "hint": "Numero y'umusoreshwa y'imibare 9, iri ku cyemezo cya RDB cyangwa ku mabaruwa ya RRA"
+          "hint": "Numero y'umusoreshwa y'imibare 9, iri ku cyemezo cya RDB cyangwa ku mabaruwa ya RRA",
+          "placeholder": "urugero: 123 456 789"
         }
       ],
       "tagline": "Buri hantu ukorera handikishwa ku musoro wa patente."
@@ -531,7 +534,8 @@
       "questions": [
         {
           "label": "UPI ya buri mutungo",
-          "hint": "Numero iri ku cyangombwa cy'ubutaka cyangwa kuri e-title, urugero: 1/02/03/04/1234"
+          "hint": "Numero iri ku cyangombwa cy'ubutaka cyangwa kuri e-title. Niba ari nyinshi, uzitandukanye n'akitso",
+          "placeholder": "urugero: 1/02/03/04/1234"
         }
       ],
       "tagline": "TIN y'ubutaka cyangwa inzu yawe, ivuye muri RRA."
@@ -604,7 +608,8 @@
       "questions": [
         {
           "label": "TIN",
-          "hint": "Numero y'umusoreshwa y'imibare 9, iri ku cyemezo cya RDB cyangwa ku mabaruwa ya RRA"
+          "hint": "Numero y'umusoreshwa y'imibare 9, iri ku cyemezo cya RDB cyangwa ku mabaruwa ya RRA",
+          "placeholder": "urugero: 123 456 789"
         }
       ],
       "tagline": "Umusoro wa buri mwaka ku binyabiziga bitwara abantu cyangwa ibintu, umenyekanishwa."
@@ -674,7 +679,8 @@
       "questions": [
         {
           "label": "TIN",
-          "hint": "Numero y'umusoreshwa y'imibare 9, iri ku cyemezo cya RDB cyangwa ku mabaruwa ya RRA"
+          "hint": "Numero y'umusoreshwa y'imibare 9, iri ku cyemezo cya RDB cyangwa ku mabaruwa ya RRA",
+          "placeholder": "urugero: 123 456 789"
         }
       ],
       "tagline": "Patente yawe ya buri mwaka imenyekanishwa, ukamenya ayo kwishyura."
@@ -754,7 +760,8 @@
       "questions": [
         {
           "label": "TIN",
-          "hint": "Numero y'umusoreshwa y'imibare 9, iri ku cyemezo cya RDB cyangwa ku mabaruwa ya RRA"
+          "hint": "Numero y'umusoreshwa y'imibare 9, iri ku cyemezo cya RDB cyangwa ku mabaruwa ya RRA",
+          "placeholder": "urugero: 123 456 789"
         }
       ],
       "tagline": "PAYE n'umusoro ku nyungu bimenyekanishwa mbere ya tariki 15, buri kwezi."
@@ -816,11 +823,13 @@
       "questions": [
         {
           "label": "TIN",
-          "hint": "Numero y'umusoreshwa y'imibare 9, iri ku cyemezo cya RDB cyangwa ku mabaruwa ya RRA"
+          "hint": "Numero y'umusoreshwa y'imibare 9, iri ku cyemezo cya RDB cyangwa ku mabaruwa ya RRA",
+          "placeholder": "urugero: 123 456 789"
         },
         {
           "label": "UPI ya buri mutungo",
-          "hint": "Iri ku cyangombwa cy'ubutaka cyangwa kuri e-title. Niba ari nyinshi, uzitandukanye n'akitso"
+          "hint": "Iri ku cyangombwa cy'ubutaka cyangwa kuri e-title. Niba ari nyinshi, uzitandukanye n'akitso",
+          "placeholder": "urugero: 1/02/03/04/1234"
         }
       ],
       "tagline": "Umusoro wa buri mwaka ku butaka n'inyubako, ikibanza ku kindi."
@@ -900,7 +909,8 @@
       "questions": [
         {
           "label": "TIN",
-          "hint": "Numero y'umusoreshwa y'imibare 9, iri ku cyemezo cya RDB cyangwa ku mabaruwa ya RRA"
+          "hint": "Numero y'umusoreshwa y'imibare 9, iri ku cyemezo cya RDB cyangwa ku mabaruwa ya RRA",
+          "placeholder": "urugero: 123 456 789"
         }
       ],
       "tagline": "EBM yawe isabwa, igashyirwaho, igategurwa n'ibicuruzwa byawe."
@@ -1029,7 +1039,8 @@
       "questions": [
         {
           "label": "UPI y'ubutaka",
-          "hint": "Numero iri ku cyangombwa cy'ubutaka, urugero: 1/02/03/04/1234"
+          "hint": "Numero iri ku cyangombwa cy'ubutaka",
+          "placeholder": "urugero: 1/02/03/04/1234"
         }
       ],
       "tagline": "Icyangombwa cy'ubutaka bwawe nka e-title, gisabwa kuri Irembo."
@@ -1203,7 +1214,8 @@
       "questions": [
         {
           "label": "UPI ya buri kibanza",
-          "hint": "Uzitandukanye n'akitso"
+          "hint": "Uzitandukanye n'akitso",
+          "placeholder": "urugero: 1/02/03/04/1234, 1/02/03/04/1235"
         }
       ],
       "tagline": "Ibibanza byegeranye bihurizwa kuri UPI imwe."
@@ -1215,8 +1227,8 @@
       "authority": "Ikigo cy'igihugu gishinzwe amabwiriza (RURA)",
       "channel": "Serivisi zo kuri interineti za RURA",
       "via": "Binyuze muri serivisi zo kuri interineti za RURA",
-      "time": "Bikunze gufata iminsi mike y'akazi",
-      "timeShort": "Iminsi mike y'akazi",
+      "time": "Nk'iminsi 15",
+      "timeShort": "Iminsi 15",
       "docsShort": "Ikarita y'umuhondo, indangamuntu ya nyiracyo",
       "who": [
         {
@@ -1278,7 +1290,7 @@
         }
       ],
       "notes": [],
-      "officialNote": "Ashyirwaho na RURA hagendewe ku bwoko bw'ikinyabiziga cyawe. Uyishyura wowe ubwawe kuri RURA; tubanza kukumenyesha umubare wayo mbere.",
+      "officialNote": "Ku binyabiziga bitwara imizigo, RURA yishyuza Rwf 50,000 ku busabe bwa mbere, hanyuma Rwf 20,000 kugeza 100,000 hakurikijwe uburemere ikinyabiziga gitwara. Uyishyura wowe ubwawe kuri RURA; tubanza kukumenyesha umubare nyawo.",
       "questions": [
         {
           "label": "Numero ya pulake",
@@ -1354,8 +1366,7 @@
           "label": "Numero y'uruhushya rwa RURA, cyangwa numero ya pulake"
         },
         {
-          "label": "Igihe ikinyabiziga kizahagarika gukora",
-          "placeholder": "urugero: 1 Ugushyingo"
+          "label": "Igihe ikinyabiziga kizahagarika gukora"
         }
       ],
       "tagline": "Hagarika uruhushya rwa RURA igihe ikinyabiziga kidakora."
@@ -1503,12 +1514,12 @@
           "body": "Fotokopi y'indangamuntu yawe, ibaruwa wandikiye Komiseri ushinzwe ibizamini n'impushya isobanura impamvu ukeneye kopi, n'inyemezabwishyu ya Irembo tukoherereza."
         }
       ],
-      "officialNote": "Irembo yishyuza Rwf 25,000 kuri kopi. Tukoherereza fagitire ya Irembo ukayishyura na MoMo cyangwa Airtel Money; ntinyura muri Inzira.",
+      "officialNote": "Ni amafaranga ya Irembo ubwayo. Uyishyura hamwe n'ay'ubufasha bwacu inshuro imwe, natwe tukishyura fagitire ya Irembo ikimara gusohoka. Iyo urwego rwanze, urayasubizwa.",
       "name": "Kopi y'uruhushya rwo gutwara",
       "aka": "Ikindi ruhushya iyo urwatakaje cyangwa rwononekaye",
       "summary": "Saba polisi indi kopi y'uruhushya rwo gutwara. Duzuza ubusabe kuri Irembo ukoresheje amakuru uduha, tukaguha kopi iyo ibonetse.",
-      "time": "Mu minsi 21",
-      "timeShort": "Iminsi 21",
+      "time": "Iminsi 7 kugeza 21",
+      "timeShort": "Iminsi 7–21",
       "docsShort": "Numero y'indangamuntu",
       "who": [
         {
@@ -1535,7 +1546,8 @@
           "placeholder": "urugero: Remera"
         }
       ],
-      "tagline": "Kopi nshya y'uruhushya rwatakaye cyangwa rwangiritse."
+      "tagline": "Kopi nshya y'uruhushya rwatakaye cyangwa rwangiritse.",
+      "inPerson": "Ufatira ikarita nshya kuri sitasiyo wahisemo, witwaje ibaruwa tugutegurira."
     },
     "traffic-fine": {
       "authority": "Polisi y'u Rwanda",
@@ -1575,12 +1587,16 @@
         {
           "title": "Ihazabu yishyurwa mu isaha imwe",
           "body": "Irembo isiba fagitire y'ihazabu nyuma y'isaha imwe. Turayishakisha, tukakoherereza igiteranyo kimwe hamwe n'ay'ubufasha bwacu, tukishyura fagitire ukimara kutwishyura."
+        },
+        {
+          "title": "Ihazabu itinze irahenda",
+          "body": "Ihazabu yishyuwe nyuma y'igihe ntarengwa yongerwaho Rwf 10,000, ishyurwa ukwayo kuri Irembo. Tuyishyira mu giteranyo iyo ikureba."
         }
       ],
       "officialNote": "Ashyirwaho na Polisi y'u Rwanda. Umuhagarikizi wawe akwemeza amafaranga nyayo mbere y'uko ugira icyo wishyura.",
       "name": "Kwishyura ihazabu y'umuhanda",
       "aka": "Ihazabu",
-      "summary": "Ishyura ihazabu y'umuhanda utuzuza urupapuro rwa Irembo ubwawe. Twohereza ifoto y'itike cyangwa numero ya purake. Tubyohereza tukabika inyemezabwishyu. Ntidushakisha muri ibitabo bya polisi.",
+      "summary": "Ishyura ihazabu y'umuhanda utujuje ifishi ya Irembo wowe ubwawe. Duhe numero y'itike, cyangwa numero ya pulake na TIN iri ku ikarita y'umuhondo. Tuyishakira kuri Irembo, tukayishyura, tukakubikira inyemezabwishyu.",
       "time": "Bikunze kuba uwo munsi",
       "timeShort": "Uwo munsi",
       "docsShort": "Pulake na TIN, cyangwa itike",
@@ -1599,7 +1615,7 @@
         }
       ],
       "requirements": [
-        "Numero ya pulake na TIN iri ku ikarita y'umuhondo, cyangwa numero y'itike"
+        "Numero y'itike, cyangwa numero ya pulake na TIN iri ku ikarita y'umuhondo (carte jaune)"
       ],
       "documents": [
         {
@@ -1607,20 +1623,25 @@
           "detail": "Niba uyifite"
         }
       ],
-      "purposeLabel": "Ihazabu ni iyande?",
+      "purposeLabel": "Ihazabu tuyishakishe dute?",
       "purposes": [
-        "Iyange",
-        "Iy'umuryango",
-        "Iy'ikinyabiziga cyanjye"
+        "Na numero y'itike",
+        "Na numero ya pulake na TIN"
       ],
       "questions": [
         {
-          "label": "Numero ya pulake cyangwa y'itike",
+          "label": "Numero y'itike",
+          "hint": "Nk'uko yanditse ku itike",
+          "placeholder": "urugero: 2026-0123456"
+        },
+        {
+          "label": "Numero ya pulake",
           "placeholder": "urugero: RAD 123 A"
         },
         {
           "label": "TIN iri ku ikarita y'umuhondo",
-          "hint": "Ntiyangombwa niba watanze numero y'itike"
+          "hint": "Imibare 9 iri kuri carte jaune y'ikinyabiziga",
+          "placeholder": "urugero: 123 456 789"
         }
       ],
       "tagline": "Yishyurwa mu isaha imwe. Inyemezabwishyu turayikubikira."
@@ -1697,7 +1718,8 @@
           "detail": "Ifoto nshya y'isura yawe"
         }
       ],
-      "tagline": "Hindura uruhushya rw'u Burundi rube urw'u Rwanda."
+      "tagline": "Hindura uruhushya rw'u Burundi rube urw'u Rwanda.",
+      "inPerson": "Utanga uruhushya rwa Burundi kuri polisi, ukahafatira urw'u Rwanda."
     },
     "driving-licence-correction": {
       "authority": "Polisi y'u Rwanda",
@@ -1809,12 +1831,12 @@
           "body": "Utwoherereza amakuru. Tubitanga kuri Irembo mu izina ryawe, tukakoherereza inyandiko Polisi y'u Rwanda ikimara kuyitanga. Inzira si Polisi y'u Rwanda kandi si Irembo."
         }
       ],
-      "officialNote": "Amafaranga ateganywa na Polisi y'u Rwanda ayishyurwa kuri Irembo, ukoresheje MoMo cyangwa Airtel Money. Tubanza kukumenyesha umubare wayo mbere yo kohereza ubusabe. Ntayanyura muri Inzira.",
+      "officialNote": "Ni amafaranga ya Irembo ubwayo. Uyishyura hamwe n'ay'ubufasha bwacu inshuro imwe, natwe tukishyura fagitire ya Irembo ikimara gusohoka. Iyo urwego rwanze, urayasubizwa.",
       "name": "Kwakira uruhushya rwo gutwara watsinze",
       "aka": "Uruhushya nyuma y'ikizamini watsinze",
       "summary": "Bona uruhushya rwo gutwara nyuma yo gutsinda ikizamini. Durasaba ikarita tukaguha iyo polisi imaze kuyitanga.",
-      "time": "Bikunze gufata iminsi mike y'akazi",
-      "timeShort": "Iminsi mike y'akazi",
+      "time": "Mu minsi 14",
+      "timeShort": "Iminsi 14",
       "docsShort": "Numero y'indangamuntu",
       "who": [
         {
@@ -1843,7 +1865,8 @@
           "placeholder": "urugero: Remera"
         }
       ],
-      "tagline": "Fata ikarita y'uruhushya umaze gutsinda ikizamini."
+      "tagline": "Fata ikarita y'uruhushya umaze gutsinda ikizamini.",
+      "inPerson": "Ufatira ikarita kuri sitasiyo ya polisi wahisemo."
     },
     "driving-test-results": {
       "authority": "Polisi y'u Rwanda",
@@ -1946,11 +1969,11 @@
           "body": "Utwoherereza amakuru. Tubitanga kuri Irembo mu izina ryawe, tukakoherereza inyandiko Polisi y'u Rwanda ikimara kuyitanga. Inzira si Polisi y'u Rwanda kandi si Irembo."
         },
         {
-          "title": "Ishyura fagitire ya Irembo mu masaha 8",
-          "body": "Irembo itanga umwanya wawe ku wundi iyo fagitire itishyuwe mu masaha 8, kandi amakuru ntashobora guhinduka fagitire imaze kubaho. Tukoherereza ako kanya tumaze kwiyandikisha: uyishyure ako kanya."
+          "title": "Umwanya ubikwa amasaha 8",
+          "body": "Irembo itanga umwanya ku wundi iyo fagitire itishyuwe mu masaha 8. Utwishyura mbere, bityo tukishyura fagitire tukimara kwiyandikisha."
         }
       ],
-      "officialNote": "Rwf 5,000 ku kizamini cy'agateganyo na Rwf 10,000 ku cya burundu (i Busanza birahenze kurushaho). Wishyura fagitire ya Irembo tukoherereza ukoresheje MoMo cyangwa Airtel Money.",
+      "officialNote": "Bishyirwaho na Polisi y'u Rwanda hakurikijwe ikizamini wahisemo. Uyishyura hamwe n'ay'ubufasha bwacu inshuro imwe, natwe tukishyura fagitire ya Irembo ikimara gusohoka. Iyo urwego rwanze, urayasubizwa.",
       "name": "Gufata itariki y'ikizamini cyo gutwara",
       "aka": "Kwiyandikisha gukora ikizamini cyo gutwara",
       "summary": "Iyandikishe ikizamini cyo gutwara. Turagufatira itariki kuri Irembo mu cyiciro ukeneye, tukakubwira itariki n'ahantu.",
@@ -1969,7 +1992,7 @@
       ],
       "requirements": [
         "Numero y'indangamuntu yawe",
-        "Icyiciro ushaka gukorera",
+        "Ikizamini n'icyiciro ushaka gukorera",
         "Ku kizamini cya burundu: uruhushya rwawe rw'agateganyo rufatika"
       ],
       "documents": [
@@ -1978,20 +2001,26 @@
           "detail": "Ku kizamini cya burundu gusa"
         }
       ],
-      "purposeLabel": "Ni ikihe kizamini?",
-      "purposes": [
-        "Icyiciro A (moto)",
-        "Icyiciro B (imodoka)",
-        "Ikindi cyiciro",
-        "Simbizi neza"
-      ],
       "questions": [
+        {
+          "label": "Icyiciro cy'uruhushya",
+          "hint": "A ku moto, B ku modoka",
+          "placeholder": "urugero: B"
+        },
         {
           "label": "Aho wifuza gukorera ikizamini n'itariki",
           "placeholder": "urugero: Busanza, umunsi uwo ari wo wose w'icyumweru gitaha"
         }
       ],
-      "tagline": "Umwanya w'ikizamini cyo gutwara mu cyiciro cyawe."
+      "tagline": "Umwanya w'ikizamini cyo gutwara mu cyiciro cyawe.",
+      "feeOptionLabel": "Ni ikihe kizamini?",
+      "feeOptions": [
+        "Ikizamini cy'agateganyo (amategeko)",
+        "Ikizamini cya burundu (gutwara)",
+        "Ikizamini gikoreshwa imashini i Busanza, icyiciro A",
+        "Ikizamini gikoreshwa imashini i Busanza, icyiciro B"
+      ],
+      "inPerson": "Ukorera ikizamini ku kigo, ku itariki tugufatiye."
     },
     "driving-licence-renewal": {
       "authority": "Polisi y'u Rwanda",
@@ -2031,19 +2060,19 @@
       ],
       "officialNote": "Ni amafaranga ya Irembo ubwayo. Uyishyura hamwe n'ay'ubufasha bwacu inshuro imwe, natwe tukishyura fagitire ya Irembo ikimara gusohoka. Iyo urwego rwanze, urayasubizwa.",
       "name": "Kuvugurura uruhushya rwo gutwara",
-      "aka": "Kongera igihe cy'uruhushya rugiye kurangira",
-      "summary": "Ongera igihe cy'uruhushya rwo gutwara mu minsi 14 mbere y'uko rurangira. Tubisaba, tukakumenyesha igihe ikarita nshya izaba yiteguye kuri sitasiyo ya polisi wahisemo.",
+      "aka": "Kongera igihe cy'uruhushya rwarangiye",
+      "summary": "Ongera igihe cy'uruhushya rwa burundu iyo rumaze kurangira. Tubisaba kuri Irembo, tukakumenyesha igihe ikarita nshya izaba yiteguye kuri sitasiyo ya polisi wahisemo.",
       "time": "Nk'iminsi 7",
       "timeShort": "Iminsi 7",
       "docsShort": "Numero y'indangamuntu",
       "who": [
         {
-          "title": "Uruhushya rugiye kurangira",
-          "body": "Ruvugurure mbere y'itariki iri ku karita."
+          "title": "Uruhushya rwarangiye",
+          "body": "Itariki iri ku karita yararenze."
         },
         {
-          "title": "Uruhushya rwarangiye",
-          "body": "Turakubwira niba ikizamini gikenewe bundi bushya."
+          "title": "Uruhushya rugiye kurangira",
+          "body": "Twohereze ubu; tuzabisaba ku munsi rurangiriraho."
         }
       ],
       "requirements": [
@@ -2059,11 +2088,11 @@
         },
         {
           "label": "Itariki uruhushya rwawe rurangiriraho",
-          "hint": "Kongera bitangira iminsi 14 mbere yayo",
-          "placeholder": "urugero: 30 Ugushyingo 2026"
+          "hint": "Irembo yongera uruhushya guhera kuri iyi tariki"
         }
       ],
-      "tagline": "Rwongererwa igihe mu minsi 14 mbere y'uko rurangira."
+      "tagline": "Rwongererwa iyo rurangiye. Ikarita nshya kuri sitasiyo yawe.",
+      "inPerson": "Ufatira ikarita nshya kuri sitasiyo ya polisi wahisemo."
     },
     "vehicle-inspection": {
       "authority": "Polisi y'u Rwanda",
@@ -2101,7 +2130,7 @@
           "body": "Utwoherereza amakuru. Tubitanga kuri Irembo mu izina ryawe, tukakoherereza inyandiko Polisi y'u Rwanda ikimara kuyitanga. Inzira si Polisi y'u Rwanda kandi si Irembo."
         }
       ],
-      "officialNote": "Amafaranga ateganywa na Polisi y'u Rwanda ayishyurwa kuri Irembo, ukoresheje MoMo cyangwa Airtel Money. Tubanza kukumenyesha umubare wayo mbere yo kohereza ubusabe. Ntayanyura muri Inzira.",
+      "officialNote": "Bishyirwaho kuri Irembo hakurikijwe ubwoko bw'ikinyabiziga. Isuzuma ry'ibyuka ryonyine ni Rwf 16,638 kuri moto na Rwf 34,940 ku modoka y'imyanya igera kuri 8 (Nyakanga 2025). Tukubwira igiteranyo mbere y'uko wishyura fagitire ya Irembo.",
       "name": "Kugenzura ikinyabiziga n'umwuka",
       "aka": "Isuzuma ry'ikoranabuhanga n'umwuka",
       "summary": "Fata itariki yo kugenzura ikinyabiziga n'umwuka. Dutegura ubusabe, tukakubwira aho kizajyanwa, tukaguha icyemezo iyo gisohotse.",
@@ -2142,7 +2171,14 @@
           "placeholder": "urugero: RAD 123 A"
         }
       ],
-      "tagline": "Igenzura n'ibyuka bisohoka bisabirwa umwanya, icyemezo ukacyohererezwa."
+      "tagline": "Igenzura n'ibyuka bisohoka bisabirwa umwanya, icyemezo ukacyohererezwa.",
+      "purposeLabel": "Ni ikihe kinyabiziga?",
+      "purposes": [
+        "Moto",
+        "Imodoka cyangwa minibisi, imyanya igera kuri 8",
+        "Bisi, ikamyo cyangwa ikindi"
+      ],
+      "inPerson": "Uzana ikinyabiziga ku kigo cy'isuzuma ku itariki tugufatiye."
     },
     "criminal-record": {
       "authority": "Ubushinjacyaha Bukuru (NPPA)",
@@ -2577,13 +2613,17 @@
         {
           "title": "Turasaba. Wowe uhabwa inyandiko.",
           "body": "Utwoherereza amakuru. Tubitanga kuri Irembo mu izina ryawe, tukakoherereza inyandiko Ibiro by'injira n'isohoka ikimara kuyitanga. Inzira si Ibiro by'injira n'isohoka kandi si Irembo."
+        },
+        {
+          "title": "Pasiporo yatakaye",
+          "body": "Ibiro by'injira n'isohoka bishobora kongeraho amafaranga ku pasiporo yatakaye. Tubikwemeza mbere yo kohereza ubusabe."
         }
       ],
-      "officialNote": "Amafaranga ateganywa na Ibiro by'injira n'isohoka ayishyurwa kuri Irembo, ukoresheje MoMo cyangwa Airtel Money. Tubanza kukumenyesha umubare wayo mbere yo kohereza ubusabe. Ntayanyura muri Inzira.",
+      "officialNote": "Bishyirwaho n'Ibiro by'injira n'isohoka hakurikijwe pasiporo wahisemo. Uyishyura hamwe n'ay'ubufasha bwacu inshuro imwe, natwe tukishyura fagitire ya Irembo ikimara gusohoka. Iyo urwego rwanze, urayasubizwa.",
       "name": "Gusaba pasiporo",
       "aka": "Pasiporo ya mbere, kuvugurura cyangwa gusimbuza",
-      "summary": "Saba pasiporo y'u Rwanda, uyivugurure cyangwa uyisimbure. Dutegura dosiye tukayohereza. Uracyajya ku gahunda ibiro by'injira n'isohoka bisaba, kandi turakubwira igihe.",
-      "time": "Nk'iminsi 4 y'akazi",
+      "summary": "Saba pasiporo y'u Rwanda, uyivugurure cyangwa uyisimbure. Dutegura dosiye tukayisaba kuri Irembo. Ibiro by'injira n'isohoka bikoherereza itariki yo gufata ibikumwe n'ifoto; ujyayo rimwe, hanyuma ugafata pasiporo.",
+      "time": "Nk'iminsi 4 y'akazi, hanyuma ibikumwe",
       "timeShort": "Iminsi 4 y'akazi",
       "docsShort": "Ifoto, umukono, kopi y'indangamuntu",
       "who": [
@@ -2620,6 +2660,10 @@
         {
           "name": "Pasiporo uri kugira",
           "detail": "Ifoto y'urupapuro rw'amakuru, iyo uvugurura"
+        },
+        {
+          "name": "Indangamuntu z'ababyeyi n'icyemezo cy'amavuko",
+          "detail": "Kuri pasiporo y'umwana"
         }
       ],
       "purposeLabel": "Ni ubuhe busabe?",
@@ -2628,7 +2672,14 @@
         "Kuvugurura",
         "Gusimbuza pasiporo yatakaye"
       ],
-      "tagline": "Pasiporo ya mbere, kuyongera cyangwa kuyisimbuza, tukagusabira."
+      "tagline": "Pasiporo ya mbere, kuyongera cyangwa kuyisimbuza, tukagusabira.",
+      "feeOptionLabel": "Ni iyihe pasiporo?",
+      "feeOptions": [
+        "Umuntu mukuru, imyaka 5",
+        "Umuntu mukuru, imyaka 10",
+        "Uri munsi y'imyaka 18"
+      ],
+      "inPerson": "Tuyisaba kuri interineti. Ujya rimwe ku Biro by'injira n'isohoka gufata ibikumwe n'ifoto, ku itariki bakoherereza, hanyuma ugafata pasiporo."
     },
     "id-card-replacement": {
       "authority": "Ibiro by'irangamuntu",
@@ -2666,11 +2717,11 @@
           "body": "Utwoherereza amakuru. Tubitanga kuri Irembo mu izina ryawe, tukakoherereza inyandiko Ibiro by'irangamuntu ikimara kuyitanga. Inzira si Ibiro by'irangamuntu kandi si Irembo."
         },
         {
-          "title": "Gusura RIB rimwe",
-          "body": "RIB igusaba kuza rimwe mbere y'uko ikarita ikorwa. Indangamuntu y'agateganyo yongeraho Rwf 3,000 kuri Irembo; tubwire niba uyikeneye."
+          "title": "RIB ibanza kugenzura",
+          "body": "Irembo ikwishyuza ikarita nshya ari uko RIB yemeje raporo. Iyo RIB yanze, urasubizwa amafaranga."
         }
       ],
-      "officialNote": "Ni amafaranga ya Irembo ubwayo. Uyishyura hamwe n'ay'ubufasha bwacu inshuro imwe, natwe tukishyura fagitire ya Irembo ikimara gusohoka. Iyo urwego rwanze, urayasubizwa.",
+      "officialNote": "Bishyirwaho n'Ibiro by'irangamuntu hakurikijwe icyo wahisemo. Uyishyura hamwe n'ay'ubufasha bwacu inshuro imwe, natwe tukishyura fagitire ya Irembo ikimara gusohoka. Iyo urwego rwanze, urayasubizwa.",
       "name": "Gusimbuza indangamuntu",
       "aka": "Indangamuntu yatakaye, yibwe cyangwa yononekaye",
       "summary": "Saba indangamuntu nshya iyo iyawe yatakaye, yibwe cyangwa yangiritse. Tubisaba kuri Irembo; RIB ikagusaba kuyisura rimwe mbere y'uko ikorwa, ukayifatira aho wahisemo.",
@@ -2709,7 +2760,13 @@
           "placeholder": "urugero: RIB Remera, nkayifatira ku murenge wa Remera"
         }
       ],
-      "tagline": "Indangamuntu nshya iyo yatakaye, yibwe cyangwa yangiritse."
+      "tagline": "Indangamuntu nshya iyo yatakaye, yibwe cyangwa yangiritse.",
+      "feeOptionLabel": "Ukeneye iki?",
+      "feeOptions": [
+        "Ikarita nshya",
+        "Ikarita nshya n'indangamuntu y'agateganyo (iminsi 60)"
+      ],
+      "inPerson": "Ujya rimwe kuri RIB mbere y'uko ikarita ikorwa. Tukubwira aho n'igihe."
     }
   },
   "units": {

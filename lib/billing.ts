@@ -111,7 +111,7 @@ export async function openPaidCheckout(tx: Tx, r: RequestRow, paid: { total: str
   const [who] = await tx.select({ name: s.accounts.name, email: s.accounts.email, phone: s.accounts.phone }).from(s.profiles)
     .innerJoin(s.accounts, eq(s.accounts.id, s.profiles.accountId)).where(eq(s.profiles.id, r.profileId));
   const [svc] = await tx.select({ name: s.services.name }).from(s.services).where(eq(s.services.slug, r.serviceSlug));
-  const contact = who?.email ?? prettyPhone(who?.phone);
+  const contact = who?.email ?? r.contactEmail ?? prettyPhone(who?.phone ?? r.contactPhone);
   const summary = r.reviewFee ? msg("sum.reviewPaid", { contact, fee: rwf(r.reviewFee) }) : msg("sum.received", { contact });
   await tx.update(s.requests).set({
     checkout: "paid", hold: null, closed: null, stageDates: { ...r.stageDates, received: new Date().toISOString() },
@@ -119,7 +119,8 @@ export async function openPaidCheckout(tx: Tx, r: RequestRow, paid: { total: str
   }).where(eq(s.requests.ref, r.ref));
   await event(tx, r.ref, msg("ev.sentToTeam"), "system");
   const { method: _method, ...vars } = paid;
-  await notify(tx, r.ref, { icon: "check", title: msg("nt.checkoutPaid", { total: paid.total, ref: r.ref }), sms: sms("checkoutPaid", vars) });
+  // The receipt. Someone who sent it without an account gets the private link and, by email, the offer to save it.
+  await notify(tx, r.ref, { icon: "check", title: msg("nt.checkoutPaid", { total: paid.total, ref: r.ref }), sms: sms("checkoutPaid", vars), claim: true });
   await notifyStaff(tx, r.ref, r.reviewFee
     ? { kind: "new", icon: "card", title: `New request ${r.ref} · review fee paid`, body: `${who?.name ?? "Customer"} · ${svc?.name ?? r.serviceSlug} · ${paid.total} by ${paid.method}. Check it and send the quote.` }
     : { kind: "new", icon: "card", title: `New paid request ${r.ref}`, body: `${who?.name ?? "Customer"} · ${svc?.name ?? r.serviceSlug} · ${paid.total} paid by ${paid.method}` });

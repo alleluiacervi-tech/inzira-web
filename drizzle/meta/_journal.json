@@ -120,6 +120,27 @@
       "when": 1792677608655,
       "tag": "0016_tagline",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1792933718426,
+      "tag": "0017_service_options",
+      "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1792934755260,
+      "tag": "0018_guest_requests",
+      "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1792937979276,
+      "tag": "0019_staff_passwords",
+      "breakpoints": true
     }
   ]
 }

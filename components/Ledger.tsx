@@ -1,4 +1,5 @@
 "use client";
+import { withStepUp } from "./console/StepUp";
 import { useState } from "react";
 import { refund as refundAction } from "@/app/actions/admin";
 import { billOfficial, rwf } from "@/lib/format";
@@ -65,7 +66,7 @@ export default function Ledger({ initial: rows, now, canRefund, autoRefund = fal
               <button className="btn btn-g" type="button" onClick={() => setRefund(null)}>Cancel</button>
               <button className="btn btn-danger" type="button" disabled={busy} onClick={async () => {
                 setBusy(true); setError("");
-                const r = await refundAction(refund.ref).catch(() => ({ ok: false as const, error: "Not sent. Check your connection, then look under Refunds being sent before trying again." }));
+                const r = await withStepUp(() => refundAction(refund.ref)).catch(() => ({ ok: false as const, error: "Not sent. Check your connection, then look under Refunds being sent before trying again." }));
                 setBusy(false);
                 if (!r.ok) { setError(r.error); return; }
                 const who = `${refund.profile.name} · ${refund.billing.invoice}`;

@@ -43,7 +43,7 @@ const serviceRow = (v: (typeof SERVICES)[number], position: number) => ({
   who: v.who, requirements: v.requirements, documents: v.documents, steps: v.steps, notes: v.notes,
   officialAmount: v.official.amount, officialMode: v.official.mode, officialLabel: v.official.label, officialNote: v.official.note, officialVerifiedAt: v.official.verifiedAt,
   ours: v.ours, oursUnit: v.oursUnit, time: v.time, docsShort: v.docsShort, popular: !!v.popular, audience: v.audience,
-  purposes: v.purposes, purposeLabel: v.purposeLabel, questions: v.questions, noId: idPolicyOf(v) === "none", idPolicy: idPolicyOf(v), flow: v.flow, stageLabels: v.stageLabels, visible: v.visible, position,
+  purposes: v.purposes, purposeLabel: v.purposeLabel, questions: v.questions, feeOptions: v.feeOptions, feeOptionLabel: v.feeOptionLabel, inPerson: v.inPerson, noId: idPolicyOf(v) === "none", idPolicy: idPolicyOf(v), flow: v.flow, stageLabels: v.stageLabels, visible: v.visible, position,
 });
 
 /** Adds catalogue rows a database does not have yet. Existing services keep the fees and wording already saved. */
@@ -83,6 +83,30 @@ const REVISIONS: { id: string; slugs: string[]; fields?: (keyof ReturnType<typeo
   },
   // 22 Oct 2026: a one-line tagline for every service and short time labels. Only these two fields change.
   { id: "2026-10-short-copy", slugs: SERVICES.map((v) => v.slug), fields: ["tagline", "time"] },
+  // 25 Oct 2026: plate numbers, TINs, company codes, UPIs and dates are checked as they are typed.
+  {
+    id: "2026-10-answer-formats",
+    slugs: [
+      "business-amendment", "annual-return-filing", "trading-licence-registration", "property-tax-tin", "vehicle-income-tax-declaration",
+      "trading-licence-declaration", "monthly-tax-declarations", "property-tax-declaration", "ebm-installation", "e-title", "land-merging",
+      "rura-authorisation-suspension",
+    ],
+    fields: ["questions"],
+  },
+  // 25 Oct 2026: fees and conditions checked on Irembo's help centre and RURA's licensing site: licence copy, issuance and
+  // renewal, test and passport prices by option, ID replacement via RIB, traffic fines by ticket or plate and TIN, and the
+  // one step done in person. Our fee is left as staff set it.
+  {
+    id: "2026-10-checked-fees",
+    slugs: [
+      "traffic-fine", "driving-licence-copy", "burundi-licence-exchange", "driving-licence-issuance", "driving-test-booking", "driving-licence-renewal",
+      "vehicle-inspection", "passport-application", "id-card-replacement", "rura-vehicle-authorisation",
+    ],
+    fields: [
+      "tagline", "aka", "summary", "who", "requirements", "documents", "notes", "officialAmount", "officialMode", "officialLabel", "officialNote",
+      "officialVerifiedAt", "time", "docsShort", "purposes", "purposeLabel", "questions", "feeOptions", "feeOptionLabel", "inPerson",
+    ],
+  },
 ];
 
 async function applyRevisions(database: Db) {

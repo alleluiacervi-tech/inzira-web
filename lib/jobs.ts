@@ -1,6 +1,6 @@
 // Scheduled work, run by /api/cron (see vercel.json). Every task is safe to run twice.
 import { and, eq, gt, inArray, isNotNull, isNull, lt, ne, type SQL } from "drizzle-orm";
-import { retentionSweep } from "./privacy";
+import { purgeDocuments, retentionSweep } from "./privacy";
 import { allow } from "./ratelimit";
 import { deliverDue, enqueue, pruneOutbox, sendNow as deliverOne } from "./outbox";
 import { reconcileStalePayments } from "./billing";
@@ -126,6 +126,7 @@ export async function remindOpenCheckouts() {
 export async function expireOpenCheckouts() {
   const d = await db();
   let expired = 0;
+  const closedRefs: string[] = [];
   for (const { r, due } of await unpaidCheckouts(lt(s.requests.openedAt, new Date(Date.now() - CHECKOUT_DAYS * 864e5).toISOString()))) {
     const reason = msg("closed.checkoutExpired");
     const summary = msg("sum.checkoutExpired");
@@ -141,8 +142,11 @@ export async function expireOpenCheckouts() {
       await audit(tx, { actor: "System", role: "—", action: "Closed an unpaid checkout", entity: `${r.ref} · ${rwf(due)} not paid within three days` });
     });
     expired++;
+    closedRefs.push(r.ref);
   }
-  return { expired };
+  // It never reached staff and was never paid for: the ID photos and papers sent with it are not kept.
+  const deleted = closedRefs.length ? await purgeDocuments(closedRefs, "unpaid") : 0;
+  return { expired, deleted };
 }
 
 /** Removes expired sign-in codes, sessions, old rate-limit counters and delivered messages. */

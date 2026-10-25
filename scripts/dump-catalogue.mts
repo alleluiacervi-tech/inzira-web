@@ -27,6 +27,9 @@ for (const s of SERVICES) {
     ...(s.purposes ? { purposes: s.purposes } : {}),
     ...(s.questions?.length ? { questions: s.questions.map((q) => ({ label: q.label, ...(q.hint ? { hint: q.hint } : {}), ...(q.placeholder ? { placeholder: q.placeholder } : {}) })) } : {}),
     ...(s.stageLabels ? { stageLabels: s.stageLabels } : {}),
+    ...(s.feeOptionLabel ? { feeOptionLabel: s.feeOptionLabel } : {}),
+    ...(s.feeOptions?.length ? { feeOptions: s.feeOptions.map((o) => o.label) } : {}),
+    ...(s.inPerson ? { inPerson: s.inPerson } : {}),
   };
 }
 

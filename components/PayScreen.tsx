@@ -28,8 +28,10 @@ const clock = (ms: number) => { const s = Math.max(0, Math.floor(ms / 1000)); re
 /** The payment screen: what is being paid, the phone that gets the prompt, then the wait and the outcome.
  *  With `checkout`, the request is waiting to be paid before it is sent to staff, and paying sends it: the whole price,
  *  or for a quoted service its review fee (lib/pricing.ts). */
-export default function PayScreen({ reqRef, billing: b, phone, serviceName, contact, checkout: startedAtCheckout = false, waiting }: {
+export default function PayScreen({ reqRef, billing: b, phone, serviceName, contact, checkout: startedAtCheckout = false, waiting, base }: {
   reqRef: string; billing: Billing; phone: string; serviceName: string;
+  /** The request's page: the portal's for a signed-in customer (the default), its private page (/r/…) for anyone else. */
+  base?: string;
   /** Where the agent will reach the customer, for the confirmation. */
   contact: string;
   checkout?: boolean;
@@ -37,6 +39,7 @@ export default function PayScreen({ reqRef, billing: b, phone, serviceName, cont
   waiting?: { txId: number; receipt: string; amount: number; payer: string | null };
 }) {
   const { locale, t } = useI18n();
+  const page = base ?? `/portal/requests/${reqRef}`;
   // Fixed when the screen opens: once paid, the server says the checkout is over, but this screen still finishes it.
   const [checkout] = useState(startedAtCheckout);
   const review = checkout && !!b.reviewFee;
@@ -143,7 +146,7 @@ export default function PayScreen({ reqRef, billing: b, phone, serviceName, cont
         <div className="card stack g10" style={{ padding: 20 }}>
           <h1 className="d" style={{ fontSize: 22 }}>{settled ? t("pay.received") : t("pay.approve")}</h1>
           <p style={{ fontSize: 15, lineHeight: 1.55 }}>{settled ? t("pay.allPaid") : t("pay.notYet")}</p>
-          <Link className="btn btn-s" href={`/portal/requests/${reqRef}`} style={{ alignSelf: "flex-start" }}>{t("pay.back")}</Link>
+          <Link className="btn btn-s" href={page} style={{ alignSelf: "flex-start" }}>{t("pay.back")}</Link>
         </div>
       </div>
     );
@@ -193,7 +196,7 @@ export default function PayScreen({ reqRef, billing: b, phone, serviceName, cont
             <li><Icon name="file-text" size={16} /> {t("pay.trustReceipt")}</li>
             <li><Icon name="check-circle" size={16} /> {review ? t("start.reviewRefund") : b.official && !b.officialMode ? t("pay.refundAll") : t("service.refund")}</li>
           </ul>
-          {checkout && <p className="hint" style={{ margin: 0 }}>{t("pay.later")} <Link className="lnk" href={`/portal/requests/${reqRef}`}>{t("pay.laterLink")}</Link></p>}
+          {checkout && <p className="hint" style={{ margin: 0 }}>{t("pay.later")} <Link className="lnk" href={page}>{t("pay.laterLink")}</Link></p>}
         </section>
       )}
 
@@ -249,8 +252,8 @@ export default function PayScreen({ reqRef, billing: b, phone, serviceName, cont
             </div>
           )}
           <div className="stack g10" style={{ width: "100%" }}>
-            <Link className="btn btn-p btn-lg" href={`/portal/requests/${reqRef}`} style={{ justifyContent: "center" }}>{checkout ? t("pay.follow") : t("side.done")}</Link>
-            <Link className="btn btn-s" href={`/portal/requests/${reqRef}/receipt`} style={{ justifyContent: "center" }}><Icon name="file-text" size={17} /> {t("pay.viewReceipt")}</Link>
+            <Link className="btn btn-p btn-lg" href={page} style={{ justifyContent: "center" }}>{checkout ? t("pay.follow") : t("side.done")}</Link>
+            <Link className="btn btn-s" href={`${page}/receipt`} style={{ justifyContent: "center" }}><Icon name="file-text" size={17} /> {t("pay.viewReceipt")}</Link>
           </div>
         </section>
       )}

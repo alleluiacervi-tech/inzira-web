@@ -1,4 +1,5 @@
 "use client";
+import { withStepUp } from "./StepUp";
 import { useEffect, useState, useTransition } from "react";
 import { recordManualPayment } from "@/app/actions/console";
 import { Icon } from "@/components/ui";
@@ -53,7 +54,7 @@ export function RecordPaymentModal({
 
     start(async () => {
       setError("");
-      const res = await recordManualPayment({
+      const res = await withStepUp(() => recordManualPayment({
         ref: ref.trim(),
         method,
         official: officialVal,
@@ -61,7 +62,7 @@ export function RecordPaymentModal({
         receipt: receipt.trim(),
         payer: payer.trim() || undefined,
         notes: notes.trim() || undefined,
-      });
+      }));
 
       if (!res.ok) {
         setError(res.error);

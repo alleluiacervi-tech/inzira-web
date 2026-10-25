@@ -325,38 +325,26 @@
     "trainLine": "MoMo or Airtel. Dates agreed with you.",
     "details": "Details",
     "priceTitle": "Price",
-    "totalFixed": "Total"
+    "totalFixed": "Total",
+    "inPerson": "1 visit in person"
   },
   "feeTag": {
     "official": "Official",
     "ours": "Inzira"
   },
   "signIn": {
-    "title": "Sign in to your portal",
-    "demo": "Demo: no text is sent. Choose a sample number, then use the code shown on the next screen.",
+    "title": "Sign in",
     "live": "Use the phone number you gave us. We’ll send a code by SMS. There’s no password.",
     "aline": "Aline · customer",
     "eric": "Eric · agent",
     "diane": "Diane · owner",
     "admin": "Admin dashboard",
-    "phone": "Phone number",
     "sending": "Sending…",
     "send": "Send me a code",
     "cta": "Sign in",
-    "new": "New here?",
     "start": "Start a service",
-    "newRest": "— your portal is created when you send your first request.",
-    "only": "Only want to check progress?",
     "track": "Track a request",
-    "onlyRest": "with its reference.",
-    "staff": "Inzira staff sign in with their work number.",
-    "demoEmail": "Demo: no email is sent. Choose a sample, then use the code shown on the next screen. Admin dashboard: admin@inzira.test.",
-    "liveEmail": "Enter your email address. We’ll send you a code. There’s no password.",
-    "email": "Email address",
     "emailPh": "you@example.com",
-    "viaPhone": "Staff, or no email on your account yet? Sign in with a phone number",
-    "viaEmail": "Sign in with your email instead",
-    "livePhone": "Use the phone number on your account. We’ll send a code by SMS. There’s no password.",
     "totpTitle": "One more step",
     "totpIntro": "Open your authenticator app and type the 6-digit code for Inzira.",
     "totpLabel": "Authenticator code",
@@ -372,7 +360,12 @@
     "totpOff": "The authenticator step is not set up for this account.",
     "totpDigits": "Enter the 6-digit code from the app.",
     "totpBack": "Start again",
-    "aside": "Your requests, documents and receipts, all in one place."
+    "aside": "Your requests, documents and receipts, all in one place.",
+    "lead": "We’ll send you a one-time code.",
+    "demoLead": "Demo: no message is sent. Pick a sample, then use the code shown next.",
+    "contact": "Email or phone number",
+    "contactPh": "you@example.com",
+    "more": "More options"
   },
   "code": {
     "title": "Enter the code we sent you",
@@ -411,8 +404,9 @@
     "wrongEmail": "That code is not right. Check the email and try again.",
     "email": "We couldn’t send the email. Please try again in a minute.",
     "noAccountEmail": "We don’t have an account for this email yet. Start a service and your portal is created with your first request.",
-    "useEmail": "Customers sign in with their email address. Use the email option.",
-    "human": "We couldn’t confirm you are not a robot. Reload the page and try again."
+    "useEmail": "Customers sign in with their email address. Type your email instead.",
+    "human": "We couldn’t confirm you are not a robot. Reload the page and try again.",
+    "badContact": "Enter an email address, or a phone number like 788 123 456."
   },
   "track": {
     "title": "Track a request",
@@ -456,11 +450,11 @@
     "receivedBody": "Your reference is {ref}. An agent will {what} and contact you at {contact} within {time}.",
     "checkDocs": "check your documents",
     "readSent": "read what you sent",
-    "ready": "Your number is confirmed, so your portal is ready. You won’t be charged until you approve the fees.",
+    "ready": "This browser keeps a private link to your request. No account needed.",
     "payTitle": "Request received · one step left",
     "payBody": "Your reference is {ref}. The price is fixed: {total}. We start the work as soon as your payment is confirmed.",
     "payNow": "Pay {total} now",
-    "payLaterHint": "You can also pay later from your portal. A request that is not paid within a week is closed, and you can start it again any time.",
+    "payLaterHint": "You can also pay later from your request page. A request that is not paid within 3 days is closed, and you can start it again any time.",
     "payNote": "Paying sends your request to our team. Nothing is taken until you approve it on your phone.",
     "payNoteDirect": "The official fee is not included: you pay it directly to the institution.",
     "see": "See my request",
@@ -538,7 +532,7 @@
     "ack": "I understand Inzira is a private company, not a government office.",
     "codeFail": "We couldn’t send the code",
     "back": "Back",
-    "sendingCode": "Sending the code…",
+    "sendingCode": "Sending…",
     "send": "Send request",
     "skip": "Skip for now",
     "continue": "Continue",
@@ -549,7 +543,7 @@
     "bothFees": "You see the official fee and our fee separately before you commit",
     "noCharge": "Nothing is charged for asking",
     "email": "Your email",
-    "emailHint": "We send the confirmation code and updates about your request here.",
+    "emailHint": "We send your receipt and a private link to follow your request. No account needed.",
     "errEmail": "Enter a valid email address.",
     "dob": "Date of birth as on the ID",
     "dobHint": "Type it exactly as it appears on the ID.",
@@ -561,7 +555,7 @@
     "emailUse": "We use this email for the confirmation code and for updates about your request, nothing else.",
     "emailRow": "Email",
     "dobRow": "Date of birth",
-    "receivedTrack": "Follow it any time on the Track page with the reference and your email.",
+    "receivedTrack": "Follow it any time on the Track page with the reference and your phone number.",
     "phoneShared": "We didn’t save the phone number you gave, because another account already uses it. We will send updates to your email.",
     "trackIt": "Track this request",
     "stepPay": "Pay",
@@ -569,11 +563,11 @@
     "confirmPay": "Confirm and go to payment",
     "payUpfront": "You pay {total} at the end, and your request goes to our team as soon as it is paid. Nothing is taken until you approve it on your phone.",
     "checkPay": "Check, then pay",
-    "checkPayLead": "Make sure everything is right. Next you confirm your email and pay {total}.",
+    "checkPayLead": "Make sure everything is right. Next you pay {total} with MoMo or Airtel Money.",
     "toPayTotal": "To pay",
     "toPayment": "Continue to payment",
     "reviewUpfront": "You pay a {fee} review fee when you send this request. An agent then confirms the exact amounts, and the {fee} is taken off our fee.",
-    "checkReviewLead": "Make sure everything is right. Next you confirm your email and pay the {fee} review fee.",
+    "checkReviewLead": "Make sure everything is right. Next you pay the {fee} review fee with MoMo or Airtel Money.",
     "reviewFeeName": "Review fee",
     "reviewWhat": "An agent checks your request and sends you the exact fees within {time}.",
     "reviewCredit": "Taken off our fee when you pay the quote.",
@@ -590,13 +584,13 @@
     "viaWhatsappSub": "Updates and the document in your chat",
     "viaEmailSub": "Updates and the document in your inbox",
     "whatsappNumber": "Your WhatsApp number",
-    "whatsappHint": "We text a code to confirm it, then send updates and your document here.",
+    "whatsappHint": "We send updates and your document here on WhatsApp.",
     "whatsappHintEmail": "We send updates and your document here on WhatsApp.",
-    "emailForCode": "Your email, for the confirmation code",
+    "emailForCode": "Email for your receipt",
     "lastPayPhone": "Confirm your number · then pay",
     "lastEmail": "Last step · confirm your email",
-    "checkPayLeadPhone": "Make sure everything is right. Next you confirm your number and pay {total}.",
-    "checkReviewLeadPhone": "Make sure everything is right. Next you confirm your number and pay the {fee} review fee.",
+    "checkPayLeadPhone": "Make sure everything is right. Next you pay {total} with MoMo or Airtel Money.",
+    "checkReviewLeadPhone": "Make sure everything is right. Next you pay the {fee} review fee with MoMo or Airtel Money.",
     "deliverRow": "Send it on",
     "docsLater": "Add what you have now. Missing something? Pay anyway and send it later: we’ll ask you on {channel}.",
     "needed": "Needed",
@@ -605,7 +599,16 @@
     "noDocsNeeded": "No documents needed for this service. Your ID number is enough.",
     "oursLine": "Inzira service fee",
     "payNoteOneBill": "We pay the Irembo bill for you as soon as it is issued.",
-    "ackId": "My ID number is used only for this request."
+    "ackId": "My ID number is used only for this request.",
+    "option": "Which one?",
+    "errOption": "Choose one of these.",
+    "errPlate": "Enter the plate as on the vehicle, e.g. RAD 123 A.",
+    "errTin": "A TIN has 9 digits.",
+    "errCode9": "A company code has 9 digits.",
+    "errUpi": "Write each UPI like 1/02/03/04/1234.",
+    "errTicket": "Enter the ticket number as printed.",
+    "errDate": "Choose a date.",
+    "inPersonTitle": "One step in person"
   },
   "notFound": {
     "kicker": "Page not found",
@@ -1201,6 +1204,10 @@
       },
       "checkoutExpired": {
         "title": "Not paid in time · request closed"
+      },
+      "docsDeletedUnpaid": {
+        "title": "Customer documents deleted",
+        "body": "{n} file(s), when the unpaid request was closed"
       }
     },
     "nt": {
@@ -1337,7 +1344,8 @@
     "docNote": {
       "deletedCustomer": "File deleted at your request on {date}.",
       "deletedRetention": "File deleted {days} days after the request finished, on {date}.",
-      "deletedAccount": "File deleted when the account was deleted, on {date}."
+      "deletedAccount": "File deleted when the account was deleted, on {date}.",
+      "deletedUnpaid": "File deleted when the unpaid request was closed, on {date}."
     }
   },
   "sms": {
@@ -1345,28 +1353,29 @@
     "opened": "Inzira: your request {ref} ({service}) is open. Track it or sign in with this number at {url}.",
     "ownWords": "{text}",
     "docsApproved": "your documents are approved. We are carrying on with your request.",
-    "newCopy": "we need a new copy of {doc}: {reason} Upload it in your portal.",
+    "newCopy": "we need a new copy of {doc}: {reason} Upload it on your request page.",
     "question": "{agent} needs something from you: {question}",
     "moved": "your request moved to: {stage}.",
-    "completed": "your request is completed. See your portal.",
+    "completed": "your request is completed. See your request page.",
     "submitted": "submitted via {channel}. Official reference {officialRef}.",
-    "fees": "fees confirmed: {officialText} + our fee {ours}. Approve and pay in your portal.",
-    "taken": "{agent} is handling your request {ref}. See progress in your portal.",
+    "fees": "fees confirmed: {officialText} + our fee {ours}. Approve and pay on your request page.",
+    "taken": "{agent} is handling your request {ref}. See progress on your request page.",
     "declined": "your request {ref} was declined: {reason}",
     "cancelled": "cancelled: {reason}",
     "quoteExpired": "your request was closed because the fees were not paid within a week. You can start again at any time.",
     "rejected": "rejected by the institution: {reason}",
-    "delivered": "{doc} is ready. Download it from your portal.",
+    "delivered": "{doc} is ready. Download it from your request page.",
     "paymentRecorded": "we received your payment of {total} for {ref}. Official receipt: {receipt}.",
     "paymentReceived": "we received {total}. Receipt {receipt}.",
-    "overdue": "payment of {amount} is overdue. Pay in your portal and we carry on straight away.",
+    "overdue": "payment of {amount} is overdue. Pay on your request page and we carry on straight away.",
     "refund": "we refunded {amount} to the number you paid from.",
     "idChecked": "staff checked the details you sent for {ref}. This is not a government ID check.",
-    "idCorrection": "{ref} needs a correction to the ID details. Sign in to update them. We never text the number itself.",
+    "idCorrection": "{ref} needs a correction to the ID details. Open your request to update them. We never text the number itself.",
     "idUnable": "we could not confirm the ID details on {ref} from the documents sent.",
     "idUpdated": "we received the updated details for {ref}.",
     "checkoutPaid": "we received {total}. Receipt {receipt}. Your request is now with our team.",
-    "checkoutReminder": "your request is not sent yet. Pay {total} in your portal and it goes straight to our team."
+    "checkoutReminder": "your request is not sent yet. Pay {total} on your request page and it goes straight to our team.",
+    "linkAgain": "here is the private link to follow your request {ref}."
   },
   "custErr": {
     "badPhone": "Enter a Rwandan mobile number.",
@@ -1405,7 +1414,10 @@
     "emailTaken": "That email address is already used by another account.",
     "answer": "Answer the questions this service asks: {q}.",
     "phoneHasEmail": "This number is on an account that signs in with email. Choose Email and use that address.",
-    "tooManyFiles": "Send up to {n} files with the request. You can add more from your portal afterwards."
+    "tooManyFiles": "Send up to {n} files with the request. You can add more from your portal afterwards.",
+    "option": "Choose which one you need.",
+    "answerFormat": "Check “{q}”: it is not in the expected format.",
+    "notHuman": "We couldn’t confirm you are not a robot. Reload the page and try again."
   },
   "fileRoute": {
     "signIn": "Sign in to see this file.",
@@ -1419,7 +1431,9 @@
     "confirmIntro": "Use this code to confirm your email address with Inzira. It expires in 10 minutes.",
     "codeFooter": "If you didn’t ask for this, ignore this email: nobody can sign in without the code. Never share it with anyone, including Inzira staff.",
     "updateSubject": "Update on your Inzira request {ref}",
-    "updateFooter": "You are getting this because you have a request with Inzira. Reply to this email if you need help."
+    "updateFooter": "You are getting this because you have a request with Inzira. Reply to this email if you need help.",
+    "saveToAccount": "Save this request to your Inzira account, so all your requests are in one place: {url}",
+    "saveSubject": "Save your Inzira request {ref} to an account"
   },
   "portalBanner": {
     "title": "Add your email to keep your portal",
@@ -1430,7 +1444,8 @@
     "allIn": "all in",
     "plusIrembo": "+ Irembo fee",
     "plusTax": "+ tax",
-    "plusOfficial": "+ official fee"
+    "plusOfficial": "+ official fee",
+    "from": "From"
   },
   "steps": {
     "payT": "Send and pay",
@@ -1450,5 +1465,35 @@
     "datesD": "Online or at our office",
     "learnT": "You learn hands-on",
     "learnD": "On real examples"
+  },
+  "link": {
+    "opening": "Opening your request…",
+    "privateTitle": "This request is private",
+    "privateBody": "Open it with the link in your receipt, or find it with its reference and your phone number.",
+    "badTitle": "This link no longer works",
+    "badBody": "It may be old or already replaced. Find your request with its reference and your phone number, and we send you a new link.",
+    "findIt": "Find my request",
+    "signIn": "Sign in",
+    "saving": "Saving it to your account…",
+    "claimTitle": "We couldn’t save it",
+    "claimMissing": "This page needs the link from your email.",
+    "claimBad": "The link has been used or is too old. Open your request and send a new one.",
+    "openRequest": "Open my request",
+    "saveTitle": "Keep all your requests in one place",
+    "saveBody": "Optional. We email a link to {email}. Open it to save this request to a free account and see every request you send, on any device.",
+    "saveButton": "Email me a link to save it",
+    "saveSent": "Check your email",
+    "saveSentBody": "We sent a link to {email}. Open it to save this request to your account.",
+    "saveFailed": "We couldn’t send it. Try again in a few minutes.",
+    "forget": "Not your phone? Forget this request here",
+    "privateNote": "Only someone with your link can open this page. Don’t share it.",
+    "docsNeeded": "Documents we still need",
+    "noDocs": "Nothing to send for now.",
+    "result": "Your document",
+    "resultWait": "It appears here, and on {via}, as soon as it is issued.",
+    "sendLink": "Send me the link to this request",
+    "sentLink": "We sent the link to {to}.",
+    "recent": "Your recent requests on this device",
+    "demo": "Demo: no message is sent. The link:"
   }
 }

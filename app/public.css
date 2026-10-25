@@ -343,10 +343,53 @@
 .auth-main { padding-top: clamp(24px, 6vw, 64px); padding-bottom: 96px; }
 .auth-card { max-width: 520px; margin: 0 auto; padding: clamp(20px, 4vw, 36px); background: var(--paper); border: 1px solid var(--line); border-radius: var(--r-lg); box-shadow: 0 24px 48px -36px rgba(20, 40, 80, .4); }
 /* Sign in: the form beside a customer holding her finished document. The picture is left out on narrow screens. */
+/* A request opened with its private link (/r/…): one column on a phone, the side panel beside it on a wide screen. */
+.rq { padding-top: clamp(20px, 4vw, 40px); padding-bottom: 72px; }
+.rq-head { padding-bottom: 20px; }
+.rq-title { margin: 0; font-size: clamp(24px, 6vw, 34px); line-height: 1.15; }
+.rq-meta { margin: 0; font-size: 14px; display: flex; flex-wrap: wrap; gap: 4px 16px; }
+.rq-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; }
+.rq-grid > * { min-width: 0; }
+.rq-inperson { align-items: flex-start; font-size: 14.5px; line-height: 1.5; color: var(--ink-2); }
+.rq-inperson svg { margin-top: 1px; color: var(--brand); }
+.rq-pay { padding-top: 24px; padding-bottom: 72px; max-width: 640px; }
+.link-card { display: flex; flex-direction: column; align-items: flex-start; gap: 12px; }
+.link-card[role="status"] { flex-direction: row; align-items: center; color: var(--muted); }
+@media (min-width: 960px) { .rq-grid { grid-template-columns: minmax(0, 1fr) 360px; align-items: start; gap: 24px; } }
+/* Staff sign-in, unlock and set-password: the same calm column as the customer sign-in. */
+.auth-staff .auth-card { max-width: 440px; }
+.pw-wrap { position: relative; }
+.pw-wrap .in { padding-right: 52px; width: 100%; }
+.pw-toggle { position: absolute; right: 4px; top: 50%; transform: translateY(-50%); width: 44px; height: 44px; display: grid; place-items: center; border: 0; background: none; color: var(--muted); border-radius: 8px; cursor: pointer; }
+.pw-toggle[aria-pressed="true"] { color: var(--brand); }
+.pw-meter { height: 4px; border-radius: 4px; background: var(--line-2); overflow: hidden; margin-top: -12px; }
+.pw-meter span { display: block; height: 100%; background: var(--warn, #c9962e); transition: width .2s; }
+.pw-meter span.ok { background: var(--ok); }
+.unlock-ico { width: 52px; height: 52px; margin: 0 auto 6px; border-radius: 50%; display: grid; place-items: center; background: var(--brand-tint); color: var(--brand); }
+.svc-inperson { margin: -4px 0 0; max-width: 60ch; font-size: var(--fs-sm); color: var(--ink-2); }
+.fee-options { margin-top: 4px; }
+.choice-priced { display: flex; align-items: center; gap: 12px; }
+.choice-priced strong { font-size: 14.5px; color: var(--ink); }
 .auth-art { display: none; }
+/* Phones and tablets: the illustration sits small above the form, and the card loses its frame so the page reads as one calm column. */
+.auth-mark { display: flex; align-items: flex-end; justify-content: center; width: 112px; aspect-ratio: 1; margin: 0 auto 24px; border-radius: 50%; background: var(--brand-tint); overflow: hidden; }
+.auth-mark img { width: auto; height: 86%; }
+.auth-head { display: flex; flex-direction: column; gap: 6px; text-align: center; }
+.auth-head h1 { margin: 0; font-size: clamp(26px, 6.5vw, 32px); line-height: 1.15; letter-spacing: -.01em; color: var(--ink); }
+.auth-head p { margin: 0; font-size: 15px; color: var(--muted); }
+.auth-links { display: flex; justify-content: center; align-items: center; gap: 12px; padding-top: 4px; font-size: 14.5px; font-weight: 600; }
+.auth-links a { display: inline-flex; align-items: center; min-height: 44px; padding: 0 4px; color: var(--brand); text-decoration: none; }
+.auth-links a:hover { text-decoration: underline; text-underline-offset: 3px; }
+.auth-links span { color: var(--muted); }
+.auth-links .linkish { display: inline-flex; align-items: center; min-height: 44px; padding: 0 4px; font: inherit; font-weight: 600; color: var(--brand); text-decoration: none; }
+@media (max-width: 999px) {
+  .auth-split { padding-top: clamp(20px, 6vw, 48px); }
+  .auth-split .auth-card { max-width: 420px; padding: 0; background: none; border: 0; box-shadow: none; }
+}
 @media (min-width: 1000px) {
   .auth-split { display: grid; grid-template-columns: minmax(0, 520px) minmax(0, 380px); justify-content: center; align-items: center; gap: clamp(56px, 7vw, 112px); }
   .auth-split .auth-card { margin: 0; width: 100%; }
+  .auth-mark { display: none; }
   .auth-art { display: flex; flex-direction: column; align-items: center; gap: 24px; text-align: center; }
   .auth-art-frame { display: flex; align-items: flex-end; justify-content: center; width: 300px; aspect-ratio: 1; border-radius: 50%; background: var(--brand-tint); overflow: hidden; }
   .auth-art-frame img { width: auto; height: 88%; }

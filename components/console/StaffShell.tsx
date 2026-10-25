@@ -1,4 +1,5 @@
 "use client";
+import { StepUpHost } from "./StepUp";
 import { useState, type ReactNode } from "react";
 import type { Permission, Staff } from "@/lib/types";
 import { Sidebar } from "./Sidebar";
@@ -33,6 +34,7 @@ export default function StaffShell({
 
   return (
     <div className="console-root">
+      <StepUpHost />
       <div className="console-layout">
         <Sidebar
           user={user}

@@ -1,9 +1,10 @@
 "use server";
+import { STEP_UP } from "@/lib/step-up";
 import { randomBytes } from "node:crypto";
 import { and, eq, inArray } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { WORKS_CASES, assignableStaff, canSeeCase, canSeeClient, seesAllCases } from "@/lib/access";
-import { getStaffUser, normalisePhone } from "@/lib/auth";
+import { getStaffUser, normalisePhone, peekStaffUser } from "@/lib/auth";
 import { checkoutPaid, noteRefundDue, openPaidCheckout, reconcilePayment } from "@/lib/billing";
 import { quoteRefusal } from "@/lib/pricing";
 import { open, seal } from "@/lib/crypto";
@@ -65,9 +66,10 @@ export async function searchConsole(q: string) {
 }
 
 export async function listMyStaffAlerts(): Promise<{ alerts: StaffAlert[]; unread: number }> {
-  const a = await staffAction();
-  if ("error" in a) return { alerts: [], unread: 0 };
-  const [alerts, unread] = await Promise.all([listStaffAlerts(a.me.id), unreadStaffAlertCount(a.me.id)]);
+  // A background check: it must not keep an unattended console from locking.
+  const me = await peekStaffUser();
+  if (!me) return { alerts: [], unread: 0 };
+  const [alerts, unread] = await Promise.all([listStaffAlerts(me.id), unreadStaffAlertCount(me.id)]);
   return { alerts, unread };
 }
 
@@ -234,6 +236,7 @@ export async function recordManualPayment(input: {
   const ref = input.ref.trim().toUpperCase();
   const a = await caseAction(ref, "recordOfficial");
   if ("error" in a) return fail(a.error!);
+  if (!a.me.stepUpFresh) return fail(STEP_UP);
   const { me, d, req } = a;
 
   if (req.closed) return fail("This request is closed.");
@@ -294,6 +297,7 @@ export async function recordManualPayment(input: {
 export async function revealNationalId(profileId: string): Promise<Result<{ nationalId: string }>> {
   const a = await clientAction(profileId, "viewIdentity");
   if ("error" in a) return fail(a.error!);
+  if (!a.me.stepUpFresh) return fail(STEP_UP);
   const { me, d, profile: prof } = a;
 
   await audit(d, {
@@ -309,6 +313,7 @@ export async function revealNationalId(profileId: string): Promise<Result<{ nati
 export async function revealTin(profileId: string): Promise<Result<{ tin: string }>> {
   const a = await clientAction(profileId, "viewIdentity");
   if ("error" in a) return fail(a.error!);
+  if (!a.me.stepUpFresh) return fail(STEP_UP);
   const { me, d, profile: prof } = a;
 
   await audit(d, {

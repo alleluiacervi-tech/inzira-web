@@ -1,6 +1,10 @@
 "use server";
+import { STEP_UP } from "@/lib/step-up";
+import { issueStaffToken, staffTokenUrl } from "@/lib/staff-tokens";
+import { showsEmailCodeOnScreen } from "@/lib/email";
+import { showsCodeOnScreen } from "@/lib/sms";
 import { randomBytes } from "node:crypto";
-import { and, eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { refundSplit } from "@/lib/status";
 import { getStaffUser, normalisePhone } from "@/lib/auth";
@@ -83,6 +87,7 @@ export async function saveService(v: Service, isNew = false): Promise<Result> {
 export async function refund(ref: string): Promise<Result<{ outcome: "sent" | "pending" | "recorded"; amount: number }>> {
   const a = await admin("refund");
   if ("error" in a) return fail(a.error!);
+  if (!a.me.stepUpFresh) return fail(STEP_UP);
   const { me, d } = a;
   if (payoutProvider()) {
     try {
@@ -122,6 +127,7 @@ export async function checkRefund(payoutId: number): Promise<Result<{ status: "s
 export async function closeUnclearRefund(payoutId: number): Promise<Result> {
   const a = await admin("refund");
   if ("error" in a) return fail(a.error!);
+  if (!a.me.stepUpFresh) return fail(STEP_UP);
   if (!(await closeUnclearPayout(payoutId, a.me))) return fail("This refund can be checked with IntouchPay; use Check again.");
   revalidatePath("/admin/payments");
   return { ok: true };
@@ -135,6 +141,7 @@ const needsOwner = (role: string | undefined) => role === "Owner" || role === "A
 export async function savePermissions(matrix: Record<string, boolean[]>): Promise<Result> {
   const a = await admin("manageStaff");
   if ("error" in a) return fail(a.error!);
+  if (!a.me.stepUpFresh) return fail(STEP_UP);
   const { me, d } = a;
   if (me.role !== "Owner") return fail(OWNER_ONLY);
   await d.transaction(async (tx) => {
@@ -151,30 +158,72 @@ export async function savePermissions(matrix: Record<string, boolean[]>): Promis
   return { ok: true };
 }
 
-export async function inviteStaff(name: string, phoneInput: string, role: StaffRole): Promise<Result> {
+/** Adds a colleague and sends them a 48-hour link to set their password: by email when one is given, else by SMS. */
+export async function inviteStaff(name: string, phoneInput: string, role: StaffRole, emailInput = ""): Promise<Result<{ demoUrl?: string }>> {
   const a = await admin("manageStaff");
   if ("error" in a) return fail(a.error!);
+  if (!a.me.stepUpFresh) return fail(STEP_UP);
   const { me, d } = a;
   const phone = normalisePhone(phoneInput);
   if (!name.trim()) return fail("Enter their full name.");
   if (!phone) return fail("Enter their Rwandan mobile number.");
   if (role === "Owner") return fail("There is only one owner.");
   if (needsOwner(role) && me.role !== "Owner") return fail(OWNER_ONLY);
+  const email = emailInput.trim().toLowerCase();
+  if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) return fail("Enter a valid work email, or leave it empty.");
   const [taken] = await d.select().from(s.staff).where(eq(s.staff.phone, phone));
   if (taken) return fail(`${taken.name} already uses that number.`);
-  const queued = await d.transaction(async (tx) => {
-    await tx.insert(s.staff).values({ id: `s-${randomBytes(5).toString("hex")}`, name: name.trim(), phone, role, team: "—", title: role, active: true });
+  if (email) {
+    const [used] = await d.select().from(s.staff).where(sql`lower(${s.staff.email}) = ${email}`);
+    if (used) return fail(`${used.name} already uses that email.`);
+  }
+  const staffId = `s-${randomBytes(5).toString("hex")}`;
+  await d.transaction(async (tx) => {
+    await tx.insert(s.staff).values({ id: staffId, name: name.trim(), phone, email: email || null, role, team: "—", title: role, active: true });
     await audit(tx, { actor: me.name, role: me.role, action: "Granted role", entity: `${name.trim()} → ${role}` });
-    return enqueue(tx, { channel: "sms", to: phone, message: `Inzira: ${me.name} added you as ${role}. Sign in with this number at ${SITE.url}/sign-in` });
   });
-  sendSoon([queued]);
+  const sent = await sendSetPasswordLink(staffId, "invite", me.name);
   revalidatePath("/admin/roles");
-  return { ok: true };
+  return { ok: true, ...(sent.demoUrl ? { demoUrl: sent.demoUrl } : {}) };
+}
+
+/** Sends a set-password link to a colleague by email, or SMS when they have no email. An invite lasts 48 hours. */
+async function sendSetPasswordLink(staffId: string, kind: "invite", from: string): Promise<{ demoUrl?: string }> {
+  const d = await db();
+  const [person] = await d.select().from(s.staff).where(eq(s.staff.id, staffId));
+  if (!person) return {};
+  const url = staffTokenUrl(await issueStaffToken(staffId, kind));
+  const line = person.passwordHash ? `${from} sent you a link to set a new password for the Inzira console.` : `${from} added you to the Inzira console as ${person.role}.`;
+  if (person.email) {
+    sendSoon([await enqueue(d, { channel: "email", to: person.email, mail: { to: person.email, subject: "Set your Inzira console password", text: `${line}\n\nSet your password within 48 hours:\n${url}\n\nThen sign in at ${SITE.url}/staff with your username and password, and turn on the authenticator app under Security.`, footer: "Sent to Inzira staff when the owner invites them or resets their password." } })]);
+    return showsEmailCodeOnScreen() ? { demoUrl: url } : {};
+  }
+  if (person.phone) {
+    sendSoon([await enqueue(d, { channel: "sms", to: person.phone, message: `Inzira: ${line} Set your password within 48 hours: ${url}` })]);
+    return showsCodeOnScreen() ? { demoUrl: url } : {};
+  }
+  return {};
+}
+
+/** The owner or an administrator sends a colleague a new set-password link (a lost password, or an invite that lapsed). */
+export async function sendPasswordLink(id: string): Promise<Result<{ demoUrl?: string; to: string }>> {
+  const a = await admin("manageStaff");
+  if ("error" in a) return fail(a.error!);
+  if (!a.me.stepUpFresh) return fail(STEP_UP);
+  const { me, d } = a;
+  const [person] = await d.select().from(s.staff).where(eq(s.staff.id, id));
+  if (!person || !person.active) return fail("Not found.");
+  if (person.role === "Owner" && me.id !== person.id) return fail(OWNER_ONLY);
+  if (!person.email && !person.phone) return fail(`${person.name} has no email or phone to send it to.`);
+  const sent = await sendSetPasswordLink(id, "invite", me.name);
+  await audit(d, { actor: me.name, role: me.role, action: "Sent a password link", entity: person.name });
+  return { ok: true, to: person.email ?? `+250 ${person.phone}`, ...(sent.demoUrl ? { demoUrl: sent.demoUrl } : {}) };
 }
 
 export async function updateStaff(id: string, change: { role?: StaffRole; active?: boolean }): Promise<Result> {
   const a = await admin("manageStaff");
   if ("error" in a) return fail(a.error!);
+  if (!a.me.stepUpFresh) return fail(STEP_UP);
   const { me, d } = a;
   const [person] = await d.select().from(s.staff).where(eq(s.staff.id, id));
   if (!person) return fail("Person not found.");
@@ -195,6 +244,7 @@ export async function updateStaff(id: string, change: { role?: StaffRole; active
 export async function resetStaffTotp(id: string): Promise<Result> {
   const a = await admin("manageStaff");
   if ("error" in a) return fail(a.error!);
+  if (!a.me.stepUpFresh) return fail(STEP_UP);
   const { me, d } = a;
   if (me.role !== "Owner") return fail(OWNER_ONLY);
   const [person] = await d.select().from(s.staff).where(eq(s.staff.id, id));

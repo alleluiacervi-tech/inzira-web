@@ -10,7 +10,11 @@ import { idAsk, idPolicyOf, mentionsNationalId, nationalIdDigits, nationalIdErro
 import { cleanTaxRef, periodsBetween, taxPhase, weekdayOnOrBefore } from "../lib/tax-calendar.ts";
 import { providerFor } from "../lib/payments.ts";
 import { GATED_STAGES, PAYMENT_LOCK, isGated, lockMessage, paymentLock } from "../lib/payment-gate.ts";
-import { checkoutPrice, quoteRefusal, reviewFeeFor } from "../lib/pricing.ts";
+import { checkoutPrice, optionRange, quoteRefusal, reviewFeeFor, withOption } from "../lib/pricing.ts";
+import { cleanAnswer, isAsked } from "../lib/identifiers.ts";
+import { hashPassword, passwordProblem, verifyPassword } from "../lib/password.ts";
+import catalogueEn from "../lib/i18n/catalogue-en.json" with { type: "json" };
+import catalogueRw from "../lib/i18n/catalogue-rw.json" with { type: "json" };
 import { SERVICES } from "../lib/mock/catalogue.ts";
 import { barePath, isIndexable, languageAlternates, withLocale } from "../lib/seo.ts";
 import { customerWhatsAppUrl, defaultFollowUpAt, deskChecks, fromKigaliDateTime, handoverRequired, kigaliDateTimeParts, nextKind, nextSentence, stageTargetRows } from "../lib/desk.ts";
@@ -601,5 +605,72 @@ test("english pages live under /en and private pages stay put", () => {
   assert.equal(alt.languages?.rw, "https://example.rw/services/criminal-record");
   assert.equal(alt.languages?.["x-default"], "https://example.rw/services/criminal-record");
 });
+
+test("plate numbers, TINs, UPIs and tickets are cleaned into one format", () => {
+  assert.equal(cleanAnswer("plate", "rad123a"), "RAD 123 A");
+  assert.equal(cleanAnswer("plate", " RC 456 B "), "RC 456 B");
+  assert.equal(cleanAnswer("plate", "GR 1234"), "GR 1234");
+  assert.equal(cleanAnswer("plate", "123"), null);
+  assert.equal(cleanAnswer("tin", "123 456 789"), "123456789");
+  assert.equal(cleanAnswer("tin", "12345678"), null);
+  assert.equal(cleanAnswer("code9", "108-123-456"), "108123456");
+  assert.equal(cleanAnswer("upi", "1/2/3/4/1234"), "1/02/03/04/1234");
+  assert.equal(cleanAnswer("upi", "1/02/03/04"), null);
+  assert.equal(cleanAnswer("upis", "1/02/03/04/1234, 1/02/03/04/1235"), "1/02/03/04/1234, 1/02/03/04/1235");
+  assert.equal(cleanAnswer("upis", "1/02/03/04/1234, nope"), null);
+  assert.equal(cleanAnswer("ticket", "2026-0123456"), "2026-0123456");
+  assert.equal(cleanAnswer("date", "2026-02-30"), null);
+  assert.equal(cleanAnswer("date", "2026-11-30"), "2026-11-30");
+  assert.equal(cleanAnswer(undefined, "  Remera  "), "Remera");
+  assert.equal(cleanAnswer("text", "   "), null);
+});
+test("a traffic fine asks for the ticket, or for the plate and TIN, by the purpose picked", () => {
+  const fine = SERVICES.find((s) => s.slug === "traffic-fine")!;
+  const asked = (i: number) => (fine.questions ?? []).filter((q) => isAsked(q, i)).map((q) => q.key);
+  assert.deepEqual(asked(0), ["ticket"]);
+  assert.deepEqual(asked(1), ["plate", "tin"]);
+  assert.deepEqual(asked(-1), []);
+});
+test("a service priced by option is paid in full once an option is picked, never with a review fee", () => {
+  const passport = SERVICES.find((s) => s.slug === "passport-application")!;
+  assert.equal(checkoutPrice(passport), null);
+  assert.equal(reviewFeeFor(passport), null);
+  assert.deepEqual(optionRange(passport), { from: 25000 + passport.ours, to: 100000 + passport.ours });
+  assert.deepEqual(checkoutPrice(withOption(passport, 1)!), { official: 100000, ours: passport.ours, total: 100000 + passport.ours, direct: false });
+  assert.equal(withOption(passport, 9), null);
+  assert.equal(withOption(passport, null), null);
+  const birth = SERVICES.find((s) => s.slug === "birth-certificate")!;
+  assert.equal(withOption(birth, null), birth);
+  for (const s of SERVICES) if (s.feeOptions?.length) assert.ok(optionRange(s), `${s.slug} has checked fees for every option`);
+});
+test("every Kinyarwanda catalogue entry lines up with the English one", () => {
+  const en = catalogueEn.services as Record<string, Record<string, unknown>>, rw = catalogueRw.services as Record<string, Record<string, unknown>>;
+  for (const s of SERVICES) {
+    assert.ok(rw[s.slug], `${s.slug} has a Kinyarwanda entry`);
+    for (const f of ["who", "documents", "notes", "questions", "purposes", "feeOptions", "requirements", "steps"]) {
+      const a = (en[s.slug]?.[f] as unknown[] | undefined)?.length ?? 0, b = (rw[s.slug][f] as unknown[] | undefined)?.length ?? 0;
+      assert.equal(b, a, `${s.slug}.${f}`);
+    }
+    for (const f of ["inPerson", "feeOptionLabel", "purposeLabel"]) assert.equal(!!rw[s.slug][f], !!en[s.slug]?.[f], `${s.slug}.${f}`);
+  }
+});
+
+// ---- staff passwords (async, so checked here rather than in test())
+{
+  const hash = await hashPassword("green mango river 47");
+  try {
+    assert.match(hash, /^scrypt\$15\$8\$1\$/);
+    assert.equal(await verifyPassword("green mango river 47", hash), true);
+    assert.equal(await verifyPassword("green mango river 48", hash), false);
+    assert.equal(await verifyPassword("anything", null), false, "no stored password never matches");
+    assert.notEqual(await hashPassword("green mango river 47"), hash, "each hash has its own salt");
+    assert.match((await passwordProblem("short one")) ?? "", /at least 15/);
+    assert.match((await passwordProblem("aaaaaaaaaaaaaaaaaaaa")) ?? "", /too few/);
+    assert.match((await passwordProblem("password12345678")) ?? "", /too common/);
+    assert.match((await passwordProblem("diane goes to the market", ["Diane Uwera"])) ?? "", /name/);
+    assert.equal(await passwordProblem("green mango river 47", ["Diane Uwera", "diane", "admin@inzira.test"]), null);
+    passed++;
+  } catch (e) { console.error("FAIL staff passwords are hashed with scrypt and checked against simple rules\n", e); process.exitCode = 1; }
+}
 
 console.log(process.exitCode ? "unit tests FAILED" : `unit tests ok (${passed})`);
