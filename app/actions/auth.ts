@@ -56,7 +56,7 @@ export async function signIn(phone: string, code: string, next?: string) {
   const [account] = await d.select().from(s.accounts).where(eq(s.accounts.phone, checked.phone));
   if (!account) return { ok: false as const, error: "We don’t have an account for this number yet. Start a service and your portal is created with your first request." };
   // Once a customer has an email, the email is the way in; the phone stays a contact number.
-  if (account.email || !customerPhoneSignIn()) return { ok: false as const, error: "Customers sign in with their email address. Use the email option." };
+  if (account.email || !customerPhoneSignIn()) return { ok: false as const, error: "Customers sign in with their email address. Type your email instead." };
   return openPortal(account, next);
 }
 

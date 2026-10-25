@@ -20,7 +20,7 @@ const KNOWN: Record<string, string> = {
   "That code is not right. Check the email and try again.": "authErr.wrongEmail",
   "We couldn’t send the email. Please try again in a minute.": "authErr.email",
   "We don’t have an account for this email yet. Start a service and your portal is created with your first request.": "authErr.noAccountEmail",
-  "Customers sign in with their email address. Use the email option.": "authErr.useEmail",
+  "Customers sign in with their email address. Type your email instead.": "authErr.useEmail",
   "We’ve sent several codes to this number. Try again in an hour.": "authErr.numberLimit",
   "We couldn’t send the code. Check your connection and try again.": "authErr.sendFail",
   "We couldn’t send your request. Check your connection and try again.": "authErr.submitFail",

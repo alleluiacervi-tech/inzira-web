@@ -21,7 +21,7 @@ const ROUTES = [
   ["/services/irembo-training", "per month", "Training by Inzira"],
   ["/start", "A few details about you", "Review fee RWF 1,000"],
   ["/start/company-registration", "A few details about you", "Company registration"],
-  ["/sign-in", "Sign in to your portal"],
+  ["/sign-in", "Email or phone number"],
   ["/track", "Track a request"],
 ];
 /** Signed-in areas: without a session they must send people to sign in. */

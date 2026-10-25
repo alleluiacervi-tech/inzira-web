@@ -100,14 +100,13 @@ async function page(width = 1280) {
  *  the language of their account (Kinyarwanda for the demo customers); the checks read English, so
  *  it is switched unless `language` says otherwise. */
 async function signIn(p, who, { language = "en" } = {}) {
-  const byEmail = who.includes("@");
-  const url = byEmail ? "/sign-in" : "/sign-in?method=phone";
+  const url = "/sign-in";
   // A signed-out visit already put the page they wanted in ?next=. Keep it.
   const search = await p.ev("location.search").catch(() => "");
   const path = await p.ev("location.pathname").catch(() => "");
   if (!(path === "/sign-in" && String(search).includes("next="))) await p.go(url);
   if ((await p.ev("location.pathname")) !== "/sign-in") { await signOut(p); await p.go(url); }
-  await p.set(byEmail ? "#si-email" : "#si-phone", who); await p.click("Send me a code"); await waitCode(p);
+  await p.set("#si-contact", who); await p.click("Send me a code"); await waitCode(p);
   const code = await p.ev(`document.querySelector("[data-demo-code]")?.dataset.demoCode ?? ""`);
   if (!code) throw new Error("no demo code shown (start the app with INZIRA_DEMO=1)");
   await p.set("#otp", code); await p.click("Sign in", "button"); await waitPath(p, (path) => path !== "/sign-in"); await sleep(500); await p.help();
@@ -202,22 +201,22 @@ await step("private areas", async () => {
   await p.go("/admin");
   check("private: the admin console asks you to sign in", (await p.ev("location.pathname")) === "/sign-in");
   await p.go("/sign-in");
-  check("sign-in: customers see the email form first", await p.ev(`!!document.querySelector("#si-email") && !document.querySelector("#si-phone")`));
-  await p.set("#si-email", "not an email"); await p.click("Send me a code"); await sleep(300);
-  check("sign-in: a bad email is refused before anything is sent", await p.has("Enter a valid email address"));
-  await p.set("#si-email", "nobody@example.com"); await p.click("Send me a code"); await waitCode(p);
+  check("sign-in: one field takes an email or a phone number", await p.ev(`!!document.querySelector("#si-contact")`));
+  await p.set("#si-contact", "not an email"); await p.click("Send me a code"); await sleep(300);
+  check("sign-in: a bad email or number is refused before anything is sent", await p.has("Enter an email address, or a phone number"));
+  await p.set("#si-contact", "nobody@example.com"); await p.click("Send me a code"); await waitCode(p);
   await p.set("#otp", await p.ev(`document.querySelector("[data-demo-code]").dataset.demoCode`)); await p.click("Sign in", "button"); await sleep(1500);
   check("sign-in: an unknown email is told to start a service", await p.has("We don’t have an account for this email"));
   await p.set("#otp", "000000"); await p.click("Sign in", "button"); await sleep(1000);
   check("sign-in: a used or wrong code is refused", await p.has("expired") || await p.has("not right"));
-  await p.go("/sign-in?method=phone"); await p.set("#si-phone", "788 123 456"); await p.click("Send me a code"); await waitCode(p);
+  await p.go("/sign-in"); await p.set("#si-contact", "788 123 456"); await p.click("Send me a code"); await waitCode(p);
   await p.set("#otp", await p.ev(`document.querySelector("[data-demo-code]").dataset.demoCode`)); await p.click("Sign in", "button"); await sleep(1500);
   check("sign-in: a customer with an email cannot sign in by phone", await p.has("Customers sign in with their email address"));
   await p.go("/portal/requests");
-  check("sign-in: staff pages open the phone form", await (async () => { await p.go("/console"); return p.ev(`!!document.querySelector("#si-phone")`); })());
+  check("sign-in: staff pages open the sign-in form", await (async () => { await p.go("/console"); return p.ev(`!!document.querySelector("#si-contact")`); })());
   await p.go("/sign-in");
   await p.click("Admin dashboard");
-  check("sign-in: the admin demo email is filled in", (await p.ev(`document.querySelector("#si-email")?.value`)) === "admin@inzira.test");
+  check("sign-in: the admin demo email is filled in", (await p.ev(`document.querySelector("#si-contact")?.value`)) === "admin@inzira.test");
   await p.click("Send me a code"); await waitCode(p);
   await p.set("#otp", await p.ev(`document.querySelector("[data-demo-code]").dataset.demoCode`));
   await p.click("Sign in", "button");
@@ -750,7 +749,7 @@ await step("privacy", async () => {
   await p.click("Delete account", "button"); await sleep(300);
   await p.set("#del-confirm", "DELETE"); await p.click("Delete my account", "button"); await waitPath(p, (path) => path === "/"); await waitFor(p, "Your account is deleted");
   check("privacy: a customer can delete their account", await p.has("Your account is deleted"));
-  await p.go("/sign-in"); await p.set("#si-email", "test.person@example.com"); await p.click("Send me a code"); await waitCode(p);
+  await p.go("/sign-in"); await p.set("#si-contact", "test.person@example.com"); await p.click("Send me a code"); await waitCode(p);
   await p.set("#otp", await p.ev(`document.querySelector("[data-demo-code]")?.dataset.demoCode ?? ""`)); await p.click("Sign in", "button"); await waitFor(p, "don’t have an account");
   check("privacy: a deleted account can no longer sign in", await p.has("don’t have an account"));
   await p.close();
@@ -830,7 +829,7 @@ await step("add email", async () => {
   check("add email: the confirmed address is saved", await p.has("Your email is saved") && await p.has("walkin.customer@example.com"));
   await signIn(p, "walkin.customer@example.com");
   check("add email: and signs the customer in", (await p.ev("location.pathname")).startsWith("/portal") && !(await p.has("Add your email to keep your portal")));
-  await p.go("/sign-in?method=phone");
+  await p.go("/sign-in");
   await p.close();
 });
 await step("system", async () => {
@@ -861,9 +860,9 @@ function totp(secret, ahead = 0) {
 }
 /** Staff phone sign-in up to the code step; returns the page, signed in as far as the SMS code. */
 async function phoneCode(p, phone) {
-  await p.go("/sign-in?method=phone");
-  if ((await p.ev("location.pathname")) !== "/sign-in") { await signOut(p); await p.go("/sign-in?method=phone"); }
-  await p.set("#si-phone", phone); await p.click("Send me a code"); await waitCode(p);
+  await p.go("/sign-in");
+  if ((await p.ev("location.pathname")) !== "/sign-in") { await signOut(p); await p.go("/sign-in"); }
+  await p.set("#si-contact", phone); await p.click("Send me a code"); await waitCode(p);
   const code = await p.ev(`document.querySelector("[data-demo-code]")?.dataset.demoCode ?? ""`);
   await p.set("#otp", code); await p.click("Sign in", "button"); await sleep(1500); await p.help();
 }

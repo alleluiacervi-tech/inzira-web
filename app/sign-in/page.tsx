@@ -13,8 +13,8 @@ export async function generateMetadata(): Promise<Metadata> {
   return { title: text(await getLocale(), "meta.signInTitle") };
 }
 
-export default async function SignInPage({ searchParams }: { searchParams: Promise<{ next?: string; method?: string }> }) {
-  const [{ next, method }, session, locale] = await Promise.all([searchParams, getSession(), getLocale()]);
+export default async function SignInPage({ searchParams }: { searchParams: Promise<{ next?: string }> }) {
+  const [{ next }, session, locale] = await Promise.all([searchParams, getSession(), getLocale()]);
   const back = safeReturnPath(next);
   if (session) {
     if (session.kind === "staff") redirect(back && (back.startsWith("/console") || back.startsWith("/admin")) && back !== "/console" && back !== "/admin" ? back : "/console");
@@ -24,7 +24,10 @@ export default async function SignInPage({ searchParams }: { searchParams: Promi
     <>
       <PublicNav />
       <main id="main" className="wrap auth-main auth-split">
-        <div className="auth-card"><SignIn next={back ?? undefined} demo={{ email: showsEmailCodeOnScreen(), phone: showsCodeOnScreen() }} method={method === "phone" || back?.startsWith("/console") || back?.startsWith("/admin") ? "phone" : "email"} /></div>
+        <div className="auth-card">
+          <span className="auth-mark" aria-hidden="true"><img src="/illustrations/document-ready.svg" alt="" width={466} height={757} decoding="async" /></span>
+          <SignIn next={back ?? undefined} demo={{ email: showsEmailCodeOnScreen(), phone: showsCodeOnScreen() }} />
+        </div>
         <aside className="auth-art" aria-hidden="true">
           <span className="auth-art-frame"><img src="/illustrations/document-ready.svg" alt="" width={466} height={757} decoding="async" /></span>
           <p>{text(locale, "signIn.aside")}</p>

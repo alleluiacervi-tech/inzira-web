@@ -37,8 +37,8 @@ a live site without a real provider refuses to send a code instead.
 
 A live site never shows a code on screen, sample addresses included: anyone could type `admin@inzira.test`, and that account opens the whole staff console. Email sign-in waits for `SMTP_HOST`, and any session a sample account still has open is ended when the server starts.
 
-Staff sign in with their phone number: open `/sign-in?method=phone` (links to `/console` and `/admin` open it
-automatically). Customers sign in with their email; a customer who only has a phone number (entered by staff, or
+The sign-in page has one field: an email gets the code by email, a mobile number by SMS. Staff sign in with their phone
+number or work email. Customers sign in with their email; a customer who only has a phone number (entered by staff, or
 registered before email sign-in) can still use the phone until they add an email in Portal › Account.
 
 Anyone else starts a request from the catalogue. They confirm their **email** with a code. Registration is optional:

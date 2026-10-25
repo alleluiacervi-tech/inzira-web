@@ -42,83 +42,65 @@ function SecondStep({ next, onRestart }: { next?: string; onRestart: () => void 
 
 const isEmail = (v: string) => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v.trim());
 
-/** Sign-in is a one-time code: no password to remember. Customers use their email. Staff, and customers who have not
- *  added an email yet, use a phone number and an SMS. `method` chooses which form opens first. */
-export default function SignIn({ next, demo: demoModes = { email: false, phone: false }, method = "email" }: { next?: string; demo?: { email: boolean; phone: boolean }; method?: "email" | "phone" }) {
+/** Sign-in is a one-time code: no password to remember. One field takes an email (customers) or a phone number (staff,
+ *  and customers who have not added an email yet): an "@" sends the code by email, a mobile number by SMS. */
+export default function SignIn({ next, demo: demoModes = { email: false, phone: false } }: { next?: string; demo?: { email: boolean; phone: boolean } }) {
   const { locale, t } = useI18n();
-  const [mode, setMode] = useState<"email" | "phone">(method);
-  const [email, setEmail] = useState("");
-  const [phone, setPhone] = useState("");
-  const [sent, setSent] = useState(false);
+  const [contact, setContact] = useState("");
+  const [sent, setSent] = useState<"email" | "phone" | null>(null);
   const [second, setSecond] = useState(false);
   const human = useHuman();
   const [demoCode, setDemoCode] = useState<string>();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  const byEmail = mode === "email";
-  // Demo helpers (sample sign-ins, the code on screen) only appear where that channel has no real provider.
-  const demo = byEmail ? demoModes.email : demoModes.phone;
+  const email = contact.trim().toLowerCase();
+  // Demo helpers (sample sign-ins, the code on screen) only appear where a channel has no real provider.
+  const demos: [string, string][] = [
+    ...(demoModes.email ? [["aline.uwase@example.com", t("signIn.aline")], ["admin@inzira.test", t("signIn.admin")]] as [string, string][] : []),
+    ...(demoModes.phone ? [["780000001", t("signIn.eric")], ["780000008", t("signIn.diane")]] as [string, string][] : []),
+  ];
 
-  const demos: [string, string][] = byEmail
-    ? [["aline.uwase@example.com", t("signIn.aline")], ["admin@inzira.test", t("signIn.admin")]]
-    : [["780000001", t("signIn.eric")], ["780000008", t("signIn.diane")]];
-  const pick = (v: string) => {
-    if (v.includes("@")) { setMode("email"); setEmail(v); }
-    else { setMode("phone"); setPhone(v); }
-    setError("");
-  };
-
-  if (second) return <SecondStep next={next} onRestart={() => { setSecond(false); setSent(false); setDemoCode(undefined); }} />;
-  if (sent) {
-    return byEmail
-      ? <CodeEntry email={email.trim().toLowerCase()} demoCode={demoCode} cta={t("signIn.cta")} onBack={() => setSent(false)}
-          onResend={async () => { const r = await requestEmailCode(email, await human.get()); return r.ok ? { demoCode: r.demoCode } : { error: r.error }; }}
-          onSubmit={async (code) => {
-            const r = await signInWithEmail(email, code, next);
-            if (r && r.ok) { setSecond(true); return null; }
-            return r && !r.ok ? r.error : null;
-          }} />
-      : <CodeEntry phone={phone} demoCode={demoCode} cta={t("signIn.cta")} onBack={() => setSent(false)}
-          onResend={async () => { const r = await requestCode(phone, await human.get()); return r.ok ? { demoCode: r.demoCode } : { error: r.error }; }}
-          onSubmit={async (code) => {
-            const r = await signIn(phone, code, next);
-            // Staff with an authenticator app have one more step before they are signed in.
-            if (r && r.ok) { setSecond(true); return null; }
-            return r && !r.ok ? r.error : null;
-          }} />;
+  if (second) return <SecondStep next={next} onRestart={() => { setSecond(false); setSent(null); setDemoCode(undefined); }} />;
+  if (sent === "email") {
+    return <CodeEntry email={email} demoCode={demoCode} cta={t("signIn.cta")} onBack={() => setSent(null)}
+      onResend={async () => { const r = await requestEmailCode(email, await human.get()); return r.ok ? { demoCode: r.demoCode } : { error: r.error }; }}
+      onSubmit={async (code) => {
+        const r = await signInWithEmail(email, code, next);
+        if (r && r.ok) { setSecond(true); return null; }
+        return r && !r.ok ? r.error : null;
+      }} />;
+  }
+  if (sent === "phone") {
+    return <CodeEntry phone={contact} demoCode={demoCode} cta={t("signIn.cta")} onBack={() => setSent(null)}
+      onResend={async () => { const r = await requestCode(contact, await human.get()); return r.ok ? { demoCode: r.demoCode } : { error: r.error }; }}
+      onSubmit={async (code) => {
+        const r = await signIn(contact, code, next);
+        // Staff with an authenticator app have one more step before they are signed in.
+        if (r && r.ok) { setSecond(true); return null; }
+        return r && !r.ok ? r.error : null;
+      }} />;
   }
   return (
     <form className="stack g20" noValidate onSubmit={async (e) => {
       e.preventDefault();
-      if (byEmail ? !isEmail(email) : !isMobile(phone)) { setError(t(byEmail ? "authErr.badEmail" : "authErr.badPhone")); return; }
+      const byEmail = contact.includes("@");
+      if (byEmail ? !isEmail(contact) : !isMobile(contact)) { setError(t("authErr.badContact")); return; }
       setBusy(true);
       const token = await human.get();
-      const r = await (byEmail ? requestEmailCode(email, token) : requestCode(phone, token)).catch(() => ({ ok: false as const, error: t("authErr.sendFail") }));
+      const r = await (byEmail ? requestEmailCode(email, token) : requestCode(contact, token)).catch(() => ({ ok: false as const, error: t("authErr.sendFail") }));
       setBusy(false);
       if (!r.ok) { setError(trError(locale, r.error)); return; }
       setDemoCode(r.demoCode);
-      setSent(true);
+      setSent(byEmail ? "email" : "phone");
     }}>
-      <div className="stack g8"><h1 className="h-flow">{t("signIn.title")}</h1><p className="mut" style={{ fontSize: 15 }}>{demo ? t(byEmail ? "signIn.demoEmail" : "signIn.demo") : t(byEmail ? "signIn.liveEmail" : "signIn.livePhone")}</p></div>
-      {demo && <div className="row g8 wrapx">{demos.map(([value, label]) => <button key={value} type="button" className="btn btn-s btn-sm" onClick={() => pick(value)}>{label}</button>)}</div>}
-      {byEmail ? (
-        <div className="field"><label htmlFor="si-email">{t("signIn.email")}</label>
-          <input id="si-email" type="email" className={`in ${error ? "in-err" : ""}`} inputMode="email" autoComplete="email" autoCapitalize="none" spellCheck={false} placeholder={t("signIn.emailPh")} value={email} autoFocus onChange={(e) => { setEmail(e.target.value); setError(""); }} aria-describedby="si-err" />
-          {error && <span className="err-text" id="si-err" role="alert"><Icon name="alert" size={15} /> {error}</span>}
-        </div>
-      ) : (
-        <div className="field"><label htmlFor="si-phone">{t("signIn.phone")}</label>
-          <div className="row g8"><span className="in in-prefix" aria-hidden="true">+250</span><input id="si-phone" className={`in ${error ? "in-err" : ""}`} inputMode="tel" autoComplete="tel-national" placeholder="788 123 456" value={phone} autoFocus onChange={(e) => { setPhone(e.target.value); setError(""); }} aria-describedby="si-err" /></div>
-          {error && <span className="err-text" id="si-err" role="alert"><Icon name="alert" size={15} /> {error}</span>}
-        </div>
-      )}
-      <button className="btn btn-p btn-lg" type="submit" disabled={busy}>{busy ? <><span className="spin" /> {t("signIn.sending")}</> : t("signIn.send")}</button>
-      <button type="button" className="linkish" style={{ alignSelf: "flex-start", textAlign: "left" }} onClick={() => { setMode(byEmail ? "phone" : "email"); setError(""); }}>{t(byEmail ? "signIn.viaPhone" : "signIn.viaEmail")}</button>
-      <div className="stack g8" style={{ paddingTop: 12, borderTop: "1px solid var(--line)", fontSize: 14.5 }}>
-        <span>{t("signIn.new")} <Link href="/services">{t("signIn.start")}</Link> {t("signIn.newRest")}</span>
-        <span>{t("signIn.only")} <Link href="/track">{t("signIn.track")}</Link> {t("signIn.onlyRest")}</span>
-        <span className="mut">{t("signIn.staff")}</span>
+      <div className="auth-head"><h1>{t("signIn.title")}</h1><p>{t(demos.length ? "signIn.demoLead" : "signIn.lead")}</p></div>
+      {demos.length > 0 && <div className="row g8 wrapx">{demos.map(([value, label]) => <button key={value} type="button" className="btn btn-s btn-sm" onClick={() => { setContact(value); setError(""); }}>{label}</button>)}</div>}
+      <div className="field"><label htmlFor="si-contact">{t("signIn.contact")}</label>
+        <input id="si-contact" type="text" className={`in ${error ? "in-err" : ""}`} inputMode="email" autoComplete="username" autoCapitalize="none" spellCheck={false} placeholder={t("signIn.contactPh")} value={contact} autoFocus onChange={(e) => { setContact(e.target.value); setError(""); }} aria-describedby="si-err" />
+        {error && <span className="err-text" id="si-err" role="alert"><Icon name="alert" size={15} /> {error}</span>}
       </div>
+      <button className="btn btn-p btn-lg" type="submit" disabled={busy}>{busy ? <><span className="spin" /> {t("signIn.sending")}</> : t("signIn.send")}</button>
+      <nav className="auth-links" aria-label={t("signIn.more")}><Link href="/track">{t("signIn.track")}</Link><span aria-hidden="true">·</span><Link href="/services">{t("signIn.start")}</Link></nav>
     </form>
   );
 }

@@ -332,31 +332,18 @@
     "ours": "Inzira"
   },
   "signIn": {
-    "title": "Injira muri konti yawe",
-    "demo": "Icyitegererezo: nta butumwa bugufi bwoherezwa. Hitamo imwe muri izi nomero, maze ukoreshe kode igaragara ku rupapuro rukurikira.",
+    "title": "Injira",
     "live": "Koresha nomero ya telefoni waduhaye. Turakoherereza kode kuri SMS. Nta jambo ry'ibanga rikenewe.",
     "aline": "Aline · umukiriya",
     "eric": "Eric · umukozi",
     "diane": "Diane · nyir'ikigo",
     "admin": "Imbonerahamwe y'abayobozi",
-    "phone": "Nomero ya telefoni",
     "sending": "Biracyoherezwa…",
     "send": "Nyoherereza kode",
     "cta": "Injira",
-    "new": "Ni ubwa mbere uhageze?",
     "start": "Saba serivisi",
-    "newRest": "— konti yawe ifungurwa igihe wohereje ubusabe bwawe bwa mbere.",
-    "only": "Ushaka gusa kureba aho ubusabe bugeze?",
     "track": "Kurikirana ubusabe",
-    "onlyRest": "ukoresheje nomero yabwo.",
-    "staff": "Abakozi ba Inzira binjirana nomero yabo y'akazi.",
-    "demoEmail": "Igerageza: nta imeri yoherezwa. Hitamo urugero, maze ukoreshe kode igaragara ku rupapuro rukurikira. Imbonerahamwe y'abayobozi: admin@inzira.test.",
-    "liveEmail": "Andika imeri yawe. Turakoherereza kode. Nta jambo ry'ibanga rikenewe.",
-    "email": "Imeri",
     "emailPh": "wowe@example.com",
-    "viaPhone": "Umukozi, cyangwa nta imeri ufite kuri konti? Injira ukoresheje nomero ya telefoni",
-    "viaEmail": "Injira ukoresheje imeri",
-    "livePhone": "Koresha nomero ya telefoni iri kuri konti yawe. Turakoherereza kode kuri SMS. Nta jambo ry'ibanga rikenewe.",
     "totpTitle": "Intambwe imwe ya nyuma",
     "totpIntro": "Fungura porogaramu yawe yo kwemeza (authenticator) wandike kode y’imibare 6 ya Inzira.",
     "totpLabel": "Kode ya porogaramu",
@@ -372,7 +359,12 @@
     "totpOff": "Iyi konti nta porogaramu yo kwemeza iriho.",
     "totpDigits": "Andika kode y’imibare 6 iri muri porogaramu.",
     "totpBack": "Tangira bundi bushya",
-    "aside": "Ubusabe bwawe, inyandiko n'inyemezabwishyu, byose ahantu hamwe."
+    "aside": "Ubusabe bwawe, inyandiko n'inyemezabwishyu, byose ahantu hamwe.",
+    "lead": "Turakoherereza kode yo kwinjira.",
+    "demoLead": "Igerageza: nta butumwa bwoherezwa. Hitamo urugero, maze ukoreshe kode igaragara ku rupapuro rukurikira.",
+    "contact": "Imeri cyangwa nomero ya telefoni",
+    "contactPh": "wowe@example.com",
+    "more": "Andi mahitamo"
   },
   "code": {
     "title": "Shyiramo kode twakoherereje",
@@ -411,8 +403,9 @@
     "wrongEmail": "Iyo kode si yo. Reba imeri wongere ugerageze.",
     "email": "Ntitwabashije kohereza imeri. Ongera ugerageze nyuma y'umunota.",
     "noAccountEmail": "Nta konti dufite kuri iyi imeri. Tangira serivisi, konti yawe izafungurwa n'ubusabe bwa mbere.",
-    "useEmail": "Abakiriya binjirana imeri yabo. Koresha uburyo bwa imeri.",
-    "human": "Ntitwabashije kwemeza ko atari robo. Ongera ufungure urupapuro ugerageze."
+    "useEmail": "Abakiriya binjirana imeri yabo. Andika imeri yawe.",
+    "human": "Ntitwabashije kwemeza ko atari robo. Ongera ufungure urupapuro ugerageze.",
+    "badContact": "Andika imeri, cyangwa nomero ya telefoni nka 788 123 456."
   },
   "track": {
     "title": "Kurikirana ubusabe",
