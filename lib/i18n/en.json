@@ -325,7 +325,8 @@
     "trainLine": "MoMo or Airtel. Dates agreed with you.",
     "details": "Details",
     "priceTitle": "Price",
-    "totalFixed": "Total"
+    "totalFixed": "Total",
+    "inPerson": "1 visit in person"
   },
   "feeTag": {
     "official": "Official",
@@ -598,7 +599,16 @@
     "noDocsNeeded": "No documents needed for this service. Your ID number is enough.",
     "oursLine": "Inzira service fee",
     "payNoteOneBill": "We pay the Irembo bill for you as soon as it is issued.",
-    "ackId": "My ID number is used only for this request."
+    "ackId": "My ID number is used only for this request.",
+    "option": "Which one?",
+    "errOption": "Choose one of these.",
+    "errPlate": "Enter the plate as on the vehicle, e.g. RAD 123 A.",
+    "errTin": "A TIN has 9 digits.",
+    "errCode9": "A company code has 9 digits.",
+    "errUpi": "Write each UPI like 1/02/03/04/1234.",
+    "errTicket": "Enter the ticket number as printed.",
+    "errDate": "Choose a date.",
+    "inPersonTitle": "One step in person"
   },
   "notFound": {
     "kicker": "Page not found",
@@ -1398,7 +1408,9 @@
     "emailTaken": "That email address is already used by another account.",
     "answer": "Answer the questions this service asks: {q}.",
     "phoneHasEmail": "This number is on an account that signs in with email. Choose Email and use that address.",
-    "tooManyFiles": "Send up to {n} files with the request. You can add more from your portal afterwards."
+    "tooManyFiles": "Send up to {n} files with the request. You can add more from your portal afterwards.",
+    "option": "Choose which one you need.",
+    "answerFormat": "Check “{q}”: it is not in the expected format."
   },
   "fileRoute": {
     "signIn": "Sign in to see this file.",
@@ -1423,7 +1435,8 @@
     "allIn": "all in",
     "plusIrembo": "+ Irembo fee",
     "plusTax": "+ tax",
-    "plusOfficial": "+ official fee"
+    "plusOfficial": "+ official fee",
+    "from": "From"
   },
   "steps": {
     "payT": "Send and pay",

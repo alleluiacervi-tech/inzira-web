@@ -343,6 +343,10 @@
 .auth-main { padding-top: clamp(24px, 6vw, 64px); padding-bottom: 96px; }
 .auth-card { max-width: 520px; margin: 0 auto; padding: clamp(20px, 4vw, 36px); background: var(--paper); border: 1px solid var(--line); border-radius: var(--r-lg); box-shadow: 0 24px 48px -36px rgba(20, 40, 80, .4); }
 /* Sign in: the form beside a customer holding her finished document. The picture is left out on narrow screens. */
+.svc-inperson { margin: -4px 0 0; max-width: 60ch; font-size: var(--fs-sm); color: var(--ink-2); }
+.fee-options { margin-top: 4px; }
+.choice-priced { display: flex; align-items: center; gap: 12px; }
+.choice-priced strong { font-size: 14.5px; color: var(--ink); }
 .auth-art { display: none; }
 /* Phones and tablets: the illustration sits small above the form, and the card loses its frame so the page reads as one calm column. */
 .auth-mark { display: flex; align-items: flex-end; justify-content: center; width: 112px; aspect-ratio: 1; margin: 0 auto 24px; border-radius: 50%; background: var(--brand-tint); overflow: hidden; }

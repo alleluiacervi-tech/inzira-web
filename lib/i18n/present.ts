@@ -2,11 +2,14 @@ import type { Category, Service } from "@/lib/types";
 import { officialLabel, rwf, shortTime, totalLabel } from "@/lib/format";
 import type { Locale } from "./locale";
 import { text } from "./messages";
-import { checkoutPrice } from "@/lib/pricing";
+import { checkoutPrice, optionRange } from "@/lib/pricing";
 import en from "./catalogue-en.json";
 import rw from "./catalogue-rw.json";
 
 type SvcText = {
+  feeOptionLabel?: string;
+  feeOptions?: string[];
+  inPerson?: string;
   name: string;
   aka?: string;
   tagline?: string;
@@ -76,6 +79,9 @@ export function localizeService<T extends Service>(s: T, locale: Locale): T {
     purposes: t.purposes?.length && s.purposes?.length ? t.purposes : s.purposes,
     questions: s.questions?.map((q, i) => ({ ...q, label: t.questions?.[i]?.label || q.label, hint: q.hint && (t.questions?.[i]?.hint || q.hint), placeholder: q.placeholder && (t.questions?.[i]?.placeholder || q.placeholder) })),
     purposeLabel: t.purposeLabel || s.purposeLabel,
+    feeOptionLabel: t.feeOptionLabel || s.feeOptionLabel,
+    feeOptions: s.feeOptions?.map((o, i) => ({ ...o, label: t.feeOptions?.[i] || o.label })),
+    inPerson: s.inPerson && (t.inPerson || s.inPerson),
     stageLabels: t.stageLabels ? { ...s.stageLabels, ...(t.stageLabels as Service["stageLabels"]) } : s.stageLabels,
   };
 }
@@ -132,6 +138,7 @@ export function displayOfficial(s: Service, locale: Locale) {
 export function displayTotal(s: Service, locale: Locale) {
   if (locale !== "rw") return totalLabel(s);
   const o = s.official;
+  if (o.amount === null && !o.mode && s.feeOptions?.length) return totalLabel(s);
   const ours = displayOurs(s, locale);
   if (o.mode === "none") return ours;
   if (o.mode === "direct") return `${ours} + ${phrase(locale, o.label?.toLowerCase().includes("tax") ? "tax due" : "official fee")}`;
@@ -147,6 +154,9 @@ export function displayPrice(s: Service, locale: Locale): { amount: string; note
   const unit = s.oursUnit ? unitLabel(s.oursUnit, locale) : "";
   const settled = checkoutPrice(s);
   if (settled) return { amount: rwf(settled.total), note: o.mode === "none" ? unit : text(locale, "price.allIn") };
+  // Priced by option (passport type, test type): the lowest total, all in.
+  const range = optionRange(s);
+  if (range) return { amount: `${text(locale, "price.from")} ${rwf(range.from)}`, note: text(locale, "price.allIn") };
   const label = `${o.label ?? ""} ${o.note}`.toLowerCase();
   const extra = o.mode === "none" ? "" : o.mode === "direct" && label.includes("irembo") ? text(locale, "price.plusIrembo")
     : o.mode === "direct" && /tax|district/.test(label) ? text(locale, "price.plusTax") : text(locale, "price.plusOfficial");

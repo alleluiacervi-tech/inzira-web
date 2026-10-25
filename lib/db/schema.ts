@@ -3,7 +3,7 @@
 import { sql } from "drizzle-orm";
 import { boolean, index, integer, jsonb, pgTable, primaryKey, serial, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
 import type { Locale } from "../i18n/locale";
-import type { Checkout, Closed, DeliverVia, DocGroup, DocStatus, Hold, IdPolicy, IdReview, MsgVars, OfficialMode, Request, Service, ServiceAnswer, ServiceQuestion, Stage, StaffRole } from "../types";
+import type { Checkout, Closed, DeliverVia, DocGroup, DocStatus, Hold, IdPolicy, IdReview, FeeOption, MsgVars, OfficialMode, Request, Service, ServiceAnswer, ServiceQuestion, Stage, StaffRole } from "../types";
 
 const ts = (name: string) => timestamp(name, { withTimezone: true, mode: "string" });
 
@@ -49,6 +49,11 @@ export const services = pgTable("services", {
   purposeLabel: text("purpose_label"),
   /** The service's own questions (plate number, pickup station…), asked when a request is started. */
   questions: jsonb("questions").$type<ServiceQuestion[]>(),
+  /** Priced choices (passport type, test type) and their heading; see lib/types.ts Service.feeOptions. */
+  feeOptions: jsonb("fee_options").$type<FeeOption[]>(),
+  feeOptionLabel: text("fee_option_label"),
+  /** The one in-person step, said before paying. */
+  inPerson: text("in_person"),
   noId: boolean("no_id").notNull().default(false),
   /** required: ask for a National ID. none: do not ask. unsure: optional, and an administrator should confirm the rule. */
   idPolicy: text("id_policy").$type<IdPolicy>().notNull().default("unsure"),

@@ -8,7 +8,7 @@ import { QuickSteps } from "@/components/QuickSteps";
 import { ServiceRows } from "@/components/PriceList";
 import { officeFor } from "@/lib/institutions";
 import { fmtDate, rwf } from "@/lib/format";
-import { checkoutPrice, reviewFeeFor } from "@/lib/pricing";
+import { checkoutPrice, optionRange, reviewFeeFor, withOption } from "@/lib/pricing";
 import { getLocale } from "@/lib/i18n/locale";
 import { text } from "@/lib/i18n/messages";
 import { displayOfficial, displayOurs, displayPrice, displayTime, displayTotal, localizeCategory, localizeService, localizeServices, officeText } from "@/lib/i18n/present";
@@ -45,6 +45,8 @@ export default async function ServiceDetail({ params }: { params: Promise<{ slug
   const training = s.official.mode === "none";
   // What sending the request costs: the whole price when it is settled, otherwise the review fee (lib/pricing.ts).
   const price = checkoutPrice(s);
+  // Priced by option (passport type, test type): paid in full like a settled price, once the option is picked.
+  const paidUpfront = !!(price || optionRange(s));
   const reviewFee = reviewFeeFor(s);
   const office = officeFor(s.category);
   const officeName = office ? officeText(office.code, locale)?.name ?? office.name : catName(s.category);
@@ -100,17 +102,19 @@ export default async function ServiceDetail({ params }: { params: Promise<{ slug
             <li data-price><Icon name="card" size={18} /><span><strong className="fig">{priceLabel.amount}</strong>{priceLabel.note && <span className="svc-chip-note"> {priceLabel.note}</span>}</span></li>
             <li><Icon name="clock" size={18} /><span>{shortTimeText}</span></li>
             <li><Icon name="file-text" size={18} /><span>{t("service.needs", { docs: s.docsShort })}</span></li>
+            {s.inPerson && <li data-in-person-chip><Icon name="pin" size={18} /><span>{t("service.inPerson")}</span></li>}
           </ul>
+          {s.inPerson && <p className="svc-inperson">{s.inPerson}</p>}
           <div className="svc-cta">
             <Link className="btn btn-p btn-lg" href={withLocale(locale, `/start/${s.slug}`)} data-start>{t("service.startShort")}</Link>
-            <span className="hint">{training ? t("service.trainLine") : price ? t("service.payLine") : reviewFee ? t("service.reviewLine", { fee: rwf(reviewFee) }) : t("service.noPay")}</span>
+            <span className="hint">{training ? t("service.trainLine") : paidUpfront ? t("service.payLine") : reviewFee ? t("service.reviewLine", { fee: rwf(reviewFee) }) : t("service.noPay")}</span>
           </div>
           {/* Only what can change the decision stays open: a reason the institution may refuse, a bill that lapses. */}
           {s.notes.filter((n) => n.kind === "warn").map((n) => <Alert key={n.title} kind="warn" title={n.title}>{n.body}</Alert>)}
         </section>
         <section className="wrap stack g14 svc-block">
           <h2 className="d h-3">{t("service.how")}</h2>
-          <QuickSteps locale={locale} kind={training ? "training" : price ? "paid" : "quote"} fee={reviewFee ? rwf(reviewFee) : ""} />
+          <QuickSteps locale={locale} kind={training ? "training" : paidUpfront ? "paid" : "quote"} fee={reviewFee ? rwf(reviewFee) : ""} />
         </section>
         <section className="wrap svc-block">
           <details className="svc-details">
@@ -136,8 +140,13 @@ export default async function ServiceDetail({ params }: { params: Promise<{ slug
                 <dl className="fee-mini show-split" style={{ maxWidth: 420 }}>
                   <div><dt>{t("service.officialShort")}</dt><dd>{displayOfficial(s, locale)}</dd></div>
                   <div><dt>{t("service.assistShort")}</dt><dd className="fee-ours">{displayOurs(s, locale)}</dd></div>
-                  <div><dt>{price ? t("service.totalFixed") : t("service.totalShort")}</dt><dd>{displayTotal(s, locale)}</dd></div>
+                  <div><dt>{paidUpfront ? t("service.totalFixed") : t("service.totalShort")}</dt><dd>{displayTotal(s, locale)}</dd></div>
                 </dl>
+                {s.feeOptions?.length ? (
+                  <dl className="fee-mini fee-options" style={{ maxWidth: 420 }} data-fee-options>
+                    {s.feeOptions.map((o, i) => <div key={o.label}><dt>{o.label}</dt><dd className="fig">{rwf(checkoutPrice(withOption(s, i)!)?.total ?? o.official + s.ours)}</dd></div>)}
+                  </dl>
+                ) : null}
                 <p className="hint" style={{ margin: 0 }}>{s.official.note}</p>
                 {s.official.verifiedAt && <p className="hint" style={{ margin: 0 }}>{t("service.checked", { who: s.authority, date: fmtDate(s.official.verifiedAt, locale) })}</p>}</div>
               <div className="stack g10">

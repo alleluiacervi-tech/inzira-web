@@ -216,6 +216,9 @@ async function addLaterObjects(database: Db) {
     `ALTER TABLE "requests" ADD COLUMN IF NOT EXISTS "deliver_via" text`,
     `ALTER TABLE "services" ADD COLUMN IF NOT EXISTS "questions" jsonb`,
     `ALTER TABLE "services" ADD COLUMN IF NOT EXISTS "tagline" text`,
+    `ALTER TABLE "services" ADD COLUMN IF NOT EXISTS "fee_options" jsonb`,
+    `ALTER TABLE "services" ADD COLUMN IF NOT EXISTS "fee_option_label" text`,
+    `ALTER TABLE "services" ADD COLUMN IF NOT EXISTS "in_person" text`,
   ];
   for (const statement of statements) await database.execute(sql.raw(statement));
 }

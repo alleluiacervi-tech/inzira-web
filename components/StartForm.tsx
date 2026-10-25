@@ -6,7 +6,8 @@ import { displayOfficial, displayOurs, displayTotal } from "@/lib/i18n/present";
 import { trError } from "@/lib/i18n/errors";
 import { rwf } from "@/lib/format";
 import { idAsk, nationalIdDigits, nationalIdError } from "@/lib/identity";
-import { checkoutPrice, reviewFeeFor } from "@/lib/pricing";
+import { answerError, answerInput, cleanAnswer, isAsked } from "@/lib/identifiers";
+import { checkoutPrice, optionRange, reviewFeeFor, withOption } from "@/lib/pricing";
 import type { DeliverVia, Service } from "@/lib/types";
 import { requestCode, requestEmailCode } from "@/app/actions/auth";
 import { submitRequest } from "@/app/actions/customer";
@@ -25,7 +26,7 @@ function withStrong(sentence: string, parts: Record<string, ReactNode>) {
 }
 
 type Key = "about" | "review";
-const EMPTY = { forWho: "me", name: "", subject: "", nid: "", via: "whatsapp" as DeliverVia, email: "", phone: "", purpose: "", notes: "" };
+const EMPTY = { forWho: "me", name: "", subject: "", nid: "", via: "whatsapp" as DeliverVia, email: "", phone: "", purpose: "", option: "", notes: "" };
 const isEmail = (v: string) => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v.trim());
 const MAX_FILE = 10 * 1024 * 1024;
 /** The slot for files that answer no document in particular. */
@@ -41,13 +42,11 @@ export default function StartForm({ service: s, describeFee = null, smsCodes = f
   const draftKey = `inzira:start:${s?.slug ?? "describe"}`;
   // Pay to submit: a service with a settled price is paid for in full at the end of this form, any other with a small
   // review fee taken off our fee later (lib/pricing.ts). The request reaches our team once that is paid.
-  const price = s ? checkoutPrice(s) : null;
-  const reviewFee = s ? reviewFeeFor(s) : describeFee;
-  const payFirst = price?.total ?? reviewFee;
+  // A service priced by option (passport type, test type) has its price once an option is picked.
+  const range = s ? optionRange(s) : null;
   // Two steps: who you are and where to send it, then a short check with the documents. Paying is the third.
   const keys: Key[] = ["about", "review"];
   const names: Record<Key, string> = { about: t("start.about"), review: t("start.review") };
-  const stepNames = [...keys.map((k) => names[k]), ...(payFirst ? [t("start.stepPay")] : [])];
   const router = useRouter();
   const who: [string, string][] = [["me", t("start.me")], ["family", t("start.family")], ["business", t("start.myBiz")]];
   const last = keys.length - 1;
@@ -73,6 +72,14 @@ export default function StartForm({ service: s, describeFee = null, smsCodes = f
   const [touched, setTouched] = useState(false);
   const [restored, setRestored] = useState(false);
   const set = (k: keyof typeof EMPTY, v: string) => setF((cur) => ({ ...cur, [k]: v }));
+  const priced = s ? withOption(s, f.option === "" ? null : Number(f.option)) : null;
+  const price = priced ? checkoutPrice(priced) : null;
+  const reviewFee = s ? (priced ? reviewFeeFor(priced) : null) : describeFee;
+  const payFirst = price?.total ?? reviewFee;
+  // Questions that depend on the purpose (a ticket number, or a plate and TIN) are asked once it is picked.
+  const purposeIndex = s?.purposes ? s.purposes.indexOf(f.purpose) : -1;
+  const asked = questions.filter((q) => isAsked(q, purposeIndex));
+  const stepNames = [...keys.map((k) => names[k]), ...(payFirst || range ? [t("start.stepPay")] : [])];
 
   // A refresh or an accidental back should not cost the customer what they typed.
   // Kept in this tab only, and cleared as soon as the request is sent. The ID number is never kept.
@@ -111,7 +118,12 @@ export default function StartForm({ service: s, describeFee = null, smsCodes = f
     if (f.forWho === "family" && !f.subject.trim()) errors.subject = t("start.errPerson");
     if (f.forWho === "business" && !f.subject.trim()) errors.subject = t("start.errBiz");
     if (storeId && idErr) errors.nid = t(idErr === "long" ? "start.errIdLong" : "start.errId", { n: nidDigits.length });
-    for (const q of questions) if (q.required && !(answers[q.key] ?? "").trim()) errors[`q-${q.key}`] = t("start.errAnswer");
+    if (s?.feeOptions?.length && !priced) errors.option = t("start.errOption");
+    for (const q of asked) {
+      const v = (answers[q.key] ?? "").trim();
+      if (q.required && !v) errors[`q-${q.key}`] = t("start.errAnswer");
+      else if (v && cleanAnswer(q.kind, v) === null) errors[`q-${q.key}`] = t(`start.${answerError(q.kind)}`);
+    }
     if (f.via === "whatsapp" && !isMobile(f.phone)) errors.phone = t("start.errWhatsapp");
     if (f.via === "email" && f.phone.trim() && !isMobile(f.phone)) errors.phone = t("authErr.badPhone");
     if (needsEmail && !isEmail(f.email)) errors.email = t("start.errEmail");
@@ -147,7 +159,8 @@ export default function StartForm({ service: s, describeFee = null, smsCodes = f
     fd.set("idConsent", storeId && ack ? "1" : "0");
     fd.set("code", code);
     fd.set("portal", "1");
-    for (const q of questions) fd.set(`answer-${q.key}`, (answers[q.key] ?? "").trim());
+    fd.set("option", f.option);
+    for (const q of asked) fd.set(`answer-${q.key}`, cleanAnswer(q.kind, answers[q.key] ?? "") ?? "");
     docs.forEach((d, i) => { for (const file of files[d.name] ?? []) fd.append(`file-${i}`, file); });
     for (const file of files[EXTRA] ?? []) fd.append("file-extra", file);
     const r = await submitRequest(fd).catch(() => ({ ok: false as const, error: t("authErr.submitFail") }));
@@ -281,15 +294,22 @@ export default function StartForm({ service: s, describeFee = null, smsCodes = f
                 {err("nid")}
               </div>
             )}
-            {questions.map((q) => (
-              <div className="field" key={q.key}>
-                <label htmlFor={`q-${q.key}`}>{q.label}{q.required ? null : <span className="mut" style={{ fontWeight: 400 }}> {t("start.optional")}</span>}</label>
-                <input id={`q-${q.key}`} className={`in ${bad(`q-${q.key}`)}`} value={answers[q.key] ?? ""} maxLength={200} placeholder={q.placeholder}
-                  onChange={(e) => setAnswers((cur) => ({ ...cur, [q.key]: e.target.value }))} aria-describedby={`q-${q.key}-err q-${q.key}-hint`} />
-                {q.hint && <span className="hint" id={`q-${q.key}-hint`}>{q.hint}</span>}
-                {err(`q-${q.key}`)}
-              </div>
-            ))}
+            {s?.feeOptions?.length ? (
+              <fieldset className="stack g10" style={{ border: 0, margin: 0, padding: 0 }} aria-describedby="option-err">
+                <legend className="label" style={{ marginBottom: 10 }}>{s.feeOptionLabel ?? t("start.option")}</legend>
+                {s.feeOptions.map((o, i) => {
+                  const total = checkoutPrice(withOption(s, i)!)?.total;
+                  return (
+                    <label key={o.label} className={`choice choice-priced ${f.option === String(i) ? "on" : ""}`} data-option={i}>
+                      <input type="radio" name="option" checked={f.option === String(i)} onChange={() => set("option", String(i))} />
+                      <span className="grow">{o.label}</span>
+                      {total !== undefined && <strong className="fig nowrap">{rwf(total)}</strong>}
+                    </label>
+                  );
+                })}
+                {err("option")}
+              </fieldset>
+            ) : null}
             {s?.purposes && (
               <fieldset className="stack g10" style={{ border: 0, margin: 0, padding: 0 }}>
                 <legend className="label" style={{ marginBottom: 10 }}>{s.purposeLabel ?? t("start.purpose")}</legend>
@@ -298,6 +318,20 @@ export default function StartForm({ service: s, describeFee = null, smsCodes = f
                 ))}
               </fieldset>
             )}
+            {asked.map((q) => {
+              const input = answerInput(q.kind);
+              return (
+                <div className="field" key={q.key}>
+                  <label htmlFor={`q-${q.key}`}>{q.label}{q.required ? null : <span className="mut" style={{ fontWeight: 400 }}> {t("start.optional")}</span>}</label>
+                  <input id={`q-${q.key}`} className={`in ${bad(`q-${q.key}`)}`} value={answers[q.key] ?? ""} placeholder={q.placeholder} spellCheck={false} autoComplete="off" {...input}
+                    onChange={(e) => setAnswers((cur) => ({ ...cur, [q.key]: e.target.value }))}
+                    onBlur={(e) => { const clean = cleanAnswer(q.kind, e.target.value); if (clean && q.kind && q.kind !== "text" && q.kind !== "date") setAnswers((cur) => ({ ...cur, [q.key]: clean })); }}
+                    aria-describedby={`q-${q.key}-err q-${q.key}-hint`} aria-invalid={touched && !!errors[`q-${q.key}`]} />
+                  {q.hint && <span className="hint" id={`q-${q.key}-hint`}>{q.hint}</span>}
+                  {err(`q-${q.key}`)}
+                </div>
+              );
+            })}
 
             <fieldset className="stack g12" style={{ border: 0, margin: 0, padding: 0 }}>
               <legend className="label" style={{ marginBottom: 4 }}>{t("start.viaTitle")}</legend>
@@ -344,8 +378,9 @@ export default function StartForm({ service: s, describeFee = null, smsCodes = f
                 <dt>{t("start.yourName")}</dt><dd>{f.name}</dd>
                 {f.forWho !== "me" && <><dt>{t("start.for")}</dt><dd>{f.subject}</dd></>}
                 {storeId && <><dt>{t("start.id")}</dt><dd className="m" style={{ fontSize: 14, fontWeight: 500 }}>{f.nid}</dd></>}
-                {questions.filter((q) => (answers[q.key] ?? "").trim()).map((q) => <Fragment key={q.key}><dt>{q.label}</dt><dd style={{ overflowWrap: "anywhere" }}>{answers[q.key]}</dd></Fragment>)}
-                {f.purpose && <><dt>{s?.noId ? t("start.attending") : t("start.purposeRow")}</dt><dd>{f.purpose}</dd></>}
+                {s?.feeOptions && priced && <><dt>{s.feeOptionLabel ?? t("start.option")}</dt><dd>{s.feeOptions[Number(f.option)]?.label}</dd></>}
+                {f.purpose && <><dt>{s?.noId ? t("start.attending") : s?.purposeLabel ?? t("start.purposeRow")}</dt><dd>{f.purpose}</dd></>}
+                {asked.filter((q) => (answers[q.key] ?? "").trim()).map((q) => <Fragment key={q.key}><dt>{q.label}</dt><dd style={{ overflowWrap: "anywhere" }}>{cleanAnswer(q.kind, answers[q.key]) ?? answers[q.key]}</dd></Fragment>)}
                 <dt>{t("start.deliverRow")}</dt><dd style={{ overflowWrap: "anywhere" }}>{f.via === "whatsapp" ? `WhatsApp · +250 ${prettyMobile(f.phone)}` : `${t("start.viaEmail")} · ${f.email.trim().toLowerCase()}`}</dd>
                 {f.via === "email" && f.phone.trim() && <><dt>{t("start.phoneRow")}</dt><dd>+250 {prettyMobile(f.phone)}</dd></>}
                 {f.via === "whatsapp" && needsEmail && <><dt>{t("start.emailRow")}</dt><dd style={{ overflowWrap: "anywhere" }}>{f.email.trim().toLowerCase()}</dd></>}
@@ -353,6 +388,8 @@ export default function StartForm({ service: s, describeFee = null, smsCodes = f
               </dl>
               <button type="button" className="btn btn-g btn-sm" style={{ marginTop: 12 }} onClick={() => { setStep(0); setTouched(false); }}><Icon name="edit" size={16} /> {t("start.edit")}</button>
             </div>
+            {/* Said before paying: the one thing the customer does in person. */}
+            {s?.inPerson && <Alert kind="info" title={t("start.inPersonTitle")}><span data-in-person>{s.inPerson}</span></Alert>}
 
             {docs.length > 0 ? (
               <div className="stack g12" data-doc-list>

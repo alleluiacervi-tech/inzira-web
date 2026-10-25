@@ -15,8 +15,28 @@ export const REVIEW_FEE = (() => {
 
 export type CheckoutPrice = { official: number; ours: number; total: number; direct: boolean };
 
-export function checkoutPrice(s: Pick<Service, "official" | "ours" | "oursUnit" | "visible">): CheckoutPrice | null {
+type Priced = Pick<Service, "official" | "ours" | "oursUnit" | "visible" | "feeOptions">;
+
+/** The service as priced for one of its fee options (passport type, test type): that option's fee becomes the official
+ *  fee. Null when the index is not one of its options. A service without options is returned as it is. */
+export function withOption<T extends Priced>(s: T, index: number | null | undefined): T | null {
+  if (!s.feeOptions?.length) return s;
+  const o = index === null || index === undefined ? undefined : s.feeOptions[index];
+  if (!o) return null;
+  return { ...s, official: { ...s.official, amount: o.official, mode: undefined } };
+}
+
+/** The lowest and highest totals across a service's fee options, when its fees are checked and our fee is fixed. */
+export function optionRange(s: Priced): { from: number; to: number } | null {
+  if (!s.feeOptions?.length) return null;
+  const totals = s.feeOptions.map((_, i) => checkoutPrice(withOption(s, i)!)?.total).filter((n): n is number => typeof n === "number");
+  return totals.length === s.feeOptions.length ? { from: Math.min(...totals), to: Math.max(...totals) } : null;
+}
+
+export function checkoutPrice(s: Priced): CheckoutPrice | null {
   if (s.visible === false || s.oursUnit || !(s.ours > 0)) return null;
+  // A service priced by option has no single price until one is chosen (withOption).
+  if (s.feeOptions?.length && (s.official.amount === null || s.official.amount === undefined)) return null;
   const { mode, amount, verifiedAt } = s.official;
   if (mode === "none") return { official: 0, ours: s.ours, total: s.ours, direct: false };
   if (mode === "direct") return { official: 0, ours: s.ours, total: s.ours, direct: true };
@@ -34,8 +54,9 @@ export function quoteRefusal(r: { checkout: "none" | "open" | "paid"; reviewFee:
 
 /** The review fee a request for this service starts with: none for a settled price (paid in full instead), and never more
  *  than our own fee, since it is taken off it. Null when nothing is charged to send the request. */
-export function reviewFeeFor(s: Pick<Service, "official" | "ours" | "oursUnit" | "visible">, fee = REVIEW_FEE): number | null {
-  if (fee <= 0 || checkoutPrice(s)) return null;
+export function reviewFeeFor(s: Priced, fee = REVIEW_FEE): number | null {
+  // Options with checked fees are paid in full once one is chosen, like a settled price.
+  if (fee <= 0 || checkoutPrice(s) || optionRange(s)) return null;
   const capped = s.ours > 0 ? Math.min(fee, s.ours) : fee;
   return capped > 0 ? capped : null;
 }

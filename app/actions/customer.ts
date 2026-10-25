@@ -11,7 +11,9 @@ import { text as tr } from "@/lib/i18n/messages";
 import type en from "@/lib/i18n/en.json";
 import type { DeliverVia, LibraryDoc, ServiceAnswer } from "@/lib/types";
 import { english, feeVars, msg, sms } from "@/lib/i18n/stored";
-import { checkoutPrice, reviewFeeFor } from "@/lib/pricing";
+import { checkoutPrice, reviewFeeFor, withOption } from "@/lib/pricing";
+import { cleanAnswer, isAsked } from "@/lib/identifiers";
+import { localizeService } from "@/lib/i18n/present";
 import { maskNationalId, parseDob, prettyPhone, rwf } from "@/lib/format";
 import { idAsk, idPolicyOf, mentionsNationalId, nationalIdDigits, nationalIdError } from "@/lib/identity";
 import { open, seal } from "@/lib/crypto";
@@ -77,8 +79,13 @@ export async function submitRequest(fd: FormData): Promise<Result<{ ref: string;
   if (!service || (!service.visible && slug !== "other-online-service")) return refuse("service");
   // Pay to submit. A service whose price the catalogue settles is paid in full; any other starts with a review fee, taken
   // off our fee when the quote is paid. Either way the request reaches staff once that payment is in (lib/billing.ts).
-  const price = checkoutPrice(service);
-  const reviewFee = reviewFeeFor(service);
+  // A service priced by option (passport type, test type) is priced by the one the customer picked.
+  const optionRaw = text(fd, "option");
+  const optionIndex = optionRaw === "" ? null : Number(optionRaw);
+  const priced = withOption(service, optionIndex);
+  if (!priced) return refuse("option");
+  const price = checkoutPrice(priced);
+  const reviewFee = reviewFeeFor(priced);
   const payFirst = price ? price.total : reviewFee;
   // The ID rule is the service's. A business request never asks for a personal number. An uncertain rule stays optional.
   const ask = idAsk(service, forWho);
@@ -94,12 +101,20 @@ export async function submitRequest(fd: FormData): Promise<Result<{ ref: string;
     if (idErr) return refuse("idShort");
     if (!consent) return refuse("idConsent");
   }
-  // The service's own questions. Answers keep the English label, which is what staff read.
+  // The service's own questions. Answers keep the English label, which is what staff read. A question tied to a purpose
+  // (the ticket number, or the plate and TIN) is asked only for that purpose, found by its place in either language.
+  const purpose = text(fd, "purpose");
+  const purposeIndex = [service.purposes, localizeService(service, "rw").purposes].map((list) => list?.indexOf(purpose) ?? -1).find((i) => i >= 0) ?? -1;
   const answers: ServiceAnswer[] = [];
+  if (optionIndex !== null && service.feeOptions?.[optionIndex]) answers.push({ key: "option", label: service.feeOptionLabel ?? "Option", value: service.feeOptions[optionIndex].label });
   for (const q of service.questions ?? []) {
-    const value = text(fd, `answer-${q.key}`).slice(0, 200);
+    if (!isAsked(q, purposeIndex)) continue;
+    const value = text(fd, `answer-${q.key}`).slice(0, 400);
     if (q.required && !value) return refuse("answer", { q: q.label });
-    if (value) answers.push({ key: q.key, label: q.label, value });
+    if (!value) continue;
+    const clean = cleanAnswer(q.kind, value);
+    if (clean === null) return refuse("answerFormat", { q: q.label });
+    answers.push({ key: q.key, label: q.label, value: clean });
   }
   const isFile = (f: FormDataEntryValue): f is File => f instanceof File && f.size > 0;
   const files = service.documents.map((_, i) => fd.getAll(`file-${i}`).filter(isFile));
@@ -182,10 +197,10 @@ export async function submitRequest(fd: FormData): Promise<Result<{ ref: string;
       checkout: payFirst ? "open" : "none", reviewFee,
       hold: checkoutHold ? { reason: "payment", title: english(checkoutHold, "title"), detail: english(checkoutHold, "detail"), since: now, msg: checkoutHold } : null,
       summary: { title: english(summary, "title"), body: english(summary, "body"), msg: summary },
-      next: english(summary, "next"), purpose: text(fd, "purpose") || null, answers: answers.length ? answers : null, deliverVia: via,
+      next: english(summary, "next"), purpose: purpose || null, answers: answers.length ? answers : null, deliverVia: via,
       idPolicy: policy, idRequired: ask === "required", idReview: ask === "required" ? "pending" : null, idConsent: storeId && consent,
       requirementsSnapshot: service.requirements,
-      invoice, official: service.official.mode ? null : service.official.amount, officialMode: service.official.mode ?? null,
+      invoice, official: priced.official.mode ? null : priced.official.amount, officialMode: priced.official.mode ?? null,
       officialLabel: service.official.mode === "none" ? "Official fee" : `${service.official.label ?? "Official fee"} · ${service.channel}`,
       ours: service.ours, oursStandard: service.ours, oursUnit: service.oursUnit ?? null, quote: price ? "confirmed" : "estimate",
       // An unpaid checkout is reminded once and closed after three days (lib/jobs.ts).
@@ -213,7 +228,7 @@ export async function submitRequest(fd: FormData): Promise<Result<{ ref: string;
     const notes = text(fd, "notes");
     if (notes) await tx.insert(s.messages).values({ ref, by: "customer", body: notes });
     await event(tx, ref, msg("ev.opened"), "customer", text(fd, "purpose") || undefined);
-    if (price) await event(tx, ref, msg("ev.feesConfirmed", { ...feeVars(service.official.mode, price.official), ours: rwf(price.ours) }), "system");
+    if (price) await event(tx, ref, msg("ev.feesConfirmed", { ...feeVars(priced.official.mode, price.official), ours: rwf(price.ours) }), "system");
     if (payFirst) {
       // Staff hear about it, and the customer is told it was received, once it is paid.
       await audit(tx, { actor: account.name, role: "Customer", action: price ? "Started a request at checkout" : "Started a request with a review fee", entity: `${ref} · ${service.name} · ${total}` });

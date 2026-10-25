@@ -325,7 +325,8 @@
     "trainLine": "MoMo cyangwa Airtel. Amatariki twumvikana nawe.",
     "details": "Ibisobanuro",
     "priceTitle": "Igiciro",
-    "totalFixed": "Igiteranyo"
+    "totalFixed": "Igiteranyo",
+    "inPerson": "Ujyayo rimwe"
   },
   "feeTag": {
     "official": "Urwego",
@@ -598,7 +599,16 @@
     "noDocsNeeded": "Iyi serivisi ntisaba inyandiko. Numero y'indangamuntu yawe irahagije.",
     "oursLine": "Amafaranga y'ubufasha bwa Inzira",
     "payNoteOneBill": "Twishyura fagitire ya Irembo mu izina ryawe ikimara gusohoka.",
-    "ackId": "Numero y'indangamuntu yanjye ikoreshwa kuri ubu busabe gusa."
+    "ackId": "Numero y'indangamuntu yanjye ikoreshwa kuri ubu busabe gusa.",
+    "option": "Ni iyihe?",
+    "errOption": "Hitamo kimwe muri ibi.",
+    "errPlate": "Andika pulake nk'uko iri ku kinyabiziga, urugero: RAD 123 A.",
+    "errTin": "TIN igira imibare 9.",
+    "errCode9": "Kode ya kompanyi igira imibare 9.",
+    "errUpi": "Andika buri UPI nka 1/02/03/04/1234.",
+    "errTicket": "Andika numero y'itike nk'uko yanditse.",
+    "errDate": "Hitamo itariki.",
+    "inPersonTitle": "Intambwe imwe ukora ubwawe"
   },
   "notFound": {
     "kicker": "Urupapuro ntirubonetse",
@@ -1398,7 +1408,9 @@
     "emailTaken": "Iyo imeri isanzwe ikoreshwa na konti indi.",
     "answer": "Subiza ibibazo iyi serivisi ibaza: {q}.",
     "phoneHasEmail": "Iyi numero iri kuri konti yinjirwamo n'imeyili. Hitamo Imeyili ukoreshe iyo aderesi.",
-    "tooManyFiles": "Ohereza dosiye zitarenze {n} hamwe n'ubusabe. Izindi wazongeraho nyuma kuri konti yawe."
+    "tooManyFiles": "Ohereza dosiye zitarenze {n} hamwe n'ubusabe. Izindi wazongeraho nyuma kuri konti yawe.",
+    "option": "Hitamo icyo ukeneye.",
+    "answerFormat": "Reba “{q}”: ntiyanditse uko bikwiye."
   },
   "fileRoute": {
     "signIn": "Injira muri konti kugira ngo urebe iyi dosiye.",
@@ -1423,7 +1435,8 @@
     "allIn": "byose hamwe",
     "plusIrembo": "+ amafaranga ya Irembo",
     "plusTax": "+ umusoro",
-    "plusOfficial": "+ amafaranga y'urwego"
+    "plusOfficial": "+ amafaranga y'urwego",
+    "from": "Guhera ku"
   },
   "steps": {
     "payT": "Ohereza wishyure",

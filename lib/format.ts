@@ -69,8 +69,17 @@ const unit = (u?: string) => (u ? ` ${u}` : "");
 /** Whether our fee is paid once, every month or every year (from oursUnit: "per month", "per year", "per UPI, per year"). */
 export const billingKind = (s: Service) => (s.oursUnit?.includes("month") ? "monthly" : s.oursUnit?.includes("year") ? "yearly" : "once");
 
+/** The institution's fees across a service's options, lowest and highest (passport types, test types). */
+export const feeSpan = (s: Pick<Service, "feeOptions">) => {
+  const all = s.feeOptions?.map((o) => o.official) ?? [];
+  return all.length ? { low: Math.min(...all), high: Math.max(...all) } : null;
+};
+const span = (low: number, high: number) => (low === high ? rwf(low) : `${rwf(low)} – ${high.toLocaleString("en-US")}`);
+
 export const officialLabel = (s: Service) => {
   const o = s.official;
+  const opts = o.amount === null && !o.mode ? feeSpan(s) : null;
+  if (opts) return span(opts.low, opts.high);
   if (o.mode === "none") return o.label ?? "None";
   if (o.mode === "direct") return o.label ?? "Paid by you directly";
   return o.amount === null ? o.label ?? "To be confirmed" : o.amount === 0 ? "Free" : rwf(o.amount);
@@ -83,6 +92,8 @@ export function shortTime(time: string) {
 export const oursLabel = (s: Service) => rwf(s.ours) + unit(s.oursUnit);
 export const totalLabel = (s: Service) => {
   const o = s.official;
+  const opts = o.amount === null && !o.mode ? feeSpan(s) : null;
+  if (opts) return span(opts.low + s.ours, opts.high + s.ours);
   if (o.mode === "none") return oursLabel(s);
   if (o.mode === "direct") return `${oursLabel(s)} + ${o.label?.toLowerCase().includes("tax") ? "tax due" : "official fee"}`;
   return o.amount === null ? `${oursLabel(s)} + official fee` : rwf(o.amount + s.ours) + unit(s.oursUnit);

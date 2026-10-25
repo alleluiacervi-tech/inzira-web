@@ -21,7 +21,16 @@ export type DocGroup = "Identification" | "Business documents" | "Tax documents"
 export type ServiceDocument = { name: string; detail: string; required: boolean; group: DocGroup };
 /** A short question a service asks when a request is started, such as the plate number or the pickup station.
  *  `key` stays the same across languages; the answer reaches the agent under the English label. */
-export type ServiceQuestion = { key: string; label: string; hint?: string; placeholder?: string; required?: boolean };
+export type ServiceQuestion = {
+  key: string; label: string; hint?: string; placeholder?: string; required?: boolean;
+  /** How the answer is typed and checked (lib/identifiers.ts). Plain text when unset. */
+  kind?: QuestionKind;
+  /** Asked only when the customer picked one of these purposes (indexes into `purposes`, the same in every language). */
+  when?: number[];
+};
+export type QuestionKind = "text" | "plate" | "tin" | "code9" | "upi" | "upis" | "ticket" | "date";
+/** A priced variant of a service, such as a 10-year passport: the institution's fee for that choice. */
+export type FeeOption = { label: string; official: number };
 /** An answer to a ServiceQuestion, kept on the request. */
 export type ServiceAnswer = { key: string; label: string; value: string };
 /** Where a customer wants the finished document sent. */
@@ -62,6 +71,12 @@ export type Service = {
   purposeLabel?: string;
   /** The service's own questions, asked with the name and ID (0 to 3). Documents are asked for separately. */
   questions?: ServiceQuestion[];
+  /** Priced choices, under `feeOptionLabel`: each sets the institution's fee (passport type, test type). The customer picks
+   *  one before paying. `official.verifiedAt` says when these amounts were checked. */
+  feeOptions?: FeeOption[];
+  feeOptionLabel?: string;
+  /** The one step the customer does in person, said before they pay ("You go once to DGIE for your fingerprints"). */
+  inPerson?: string;
   /** True when we do not need the customer's national ID number to start (e.g. booking a training). Kept in step with `idPolicy === "none"`. */
   noId?: boolean;
   /** Whether this service collects a National ID number. Unset on older catalogue rows: see idPolicyOf. */
