@@ -1,6 +1,7 @@
 "use server";
 import { eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
+import QRCode from "qrcode";
 import { getStaffUser } from "@/lib/auth";
 import { open, seal } from "@/lib/crypto";
 import { audit, db, fail, s, type Result } from "@/lib/mutate";
@@ -20,8 +21,9 @@ async function me() {
 }
 const ended = "Your session has ended. Sign in again.";
 
-/** Step 1: makes a secret and returns it for the authenticator app. It does nothing until a code from the app confirms it. */
-export async function beginTotp(): Promise<Result<{ secret: string; url: string }>> {
+/** Step 1: makes a secret and returns it for the authenticator app, as a key, a link and a QR code (drawn here, so the
+ *  secret never goes to a QR service). It does nothing until a code from the app confirms it. */
+export async function beginTotp(): Promise<Result<{ secret: string; url: string; qr: string }>> {
   const a = await me();
   if (!a) return fail(ended);
   if (a.row.totpEnabledAt) return fail("The authenticator step is already on.");
@@ -29,7 +31,9 @@ export async function beginTotp(): Promise<Result<{ secret: string; url: string 
   const secret = newSecret();
   try { await a.d.update(s.staff).set({ totpSecret: seal(secret) }).where(eq(s.staff.id, a.user.id)); }
   catch (e) { console.error("[security]", e); return fail("Can’t store the secret safely: DATA_KEY is not set on the server."); }
-  return { ok: true, secret, url: otpauthUrl(secret, a.user.name) };
+  const url = otpauthUrl(secret, a.user.name);
+  const svg = await QRCode.toString(url, { type: "svg", errorCorrectionLevel: "M", margin: 2, color: { dark: "#0b1b33", light: "#ffffff" } });
+  return { ok: true, secret, url, qr: `data:image/svg+xml;base64,${Buffer.from(svg).toString("base64")}` };
 }
 
 /** Step 2: a code from the app proves it was added correctly. Turns the step on and returns the recovery codes, once. */
