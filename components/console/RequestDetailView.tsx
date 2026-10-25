@@ -1,4 +1,5 @@
 "use client";
+import { withStepUp } from "./StepUp";
 import Link from "next/link";
 import { useEffect, useState, useTransition } from "react";
 import {
@@ -469,7 +470,7 @@ export function RequestDetailView({
                       <span className="tabular-nums">{shownId ?? c.profile.idMasked}</span>
                       {!shownId && can("viewIdentity") && (
                         <button type="button" className="c-btn c-btn-secondary c-btn-sm" disabled={busy} onClick={() => start(async () => {
-                          const res = await revealNationalId(c.profileId);
+                          const res = await withStepUp(() => revealNationalId(c.profileId));
                           if (res.ok) { setShownId(res.nationalId); setToast("National ID shown (logged in the audit trail)"); } else setError(res.error);
                         })}>Show</button>
                       )}

@@ -134,6 +134,13 @@
       "when": 1792934755260,
       "tag": "0018_guest_requests",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1792937979276,
+      "tag": "0019_staff_passwords",
+      "breakpoints": true
     }
   ]
 }

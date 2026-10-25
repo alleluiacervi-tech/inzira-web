@@ -122,7 +122,35 @@ export const staff = pgTable("staff", {
   totpLastStep: integer("totp_last_step"),
   /** SHA-256 hashes of the unused recovery codes. */
   totpRecovery: jsonb("totp_recovery").$type<string[]>(),
-}, (t) => [uniqueIndex("staff_email_unique").on(sql`lower(${t.email})`)]);
+  /** Sign-in name, lower case. The work email also signs in. */
+  username: text("username"),
+  /** scrypt hash of the password (lib/password.ts). Empty until the person sets one from their invite. */
+  passwordHash: text("password_hash"),
+  passwordSetAt: ts("password_set_at"),
+  /** Wrong passwords in a row, and until when sign-in is paused after five. */
+  failedLogins: integer("failed_logins").notNull().default(0),
+  lockedUntil: ts("locked_until"),
+}, (t) => [uniqueIndex("staff_email_unique").on(sql`lower(${t.email})`), uniqueIndex("staff_username_unique").on(sql`lower(${t.username})`)]);
+
+/** One-time links for staff to set a password: an invite from the owner, or a reset. Only the SHA-256 is kept. */
+export const staffTokens = pgTable("staff_tokens", {
+  id: text("id").primaryKey(),
+  staffId: text("staff_id").notNull().references(() => staff.id),
+  kind: text("kind").$type<"invite" | "reset">().notNull(),
+  createdAt: ts("created_at").notNull().defaultNow(),
+  expiresAt: ts("expires_at").notNull(),
+  usedAt: ts("used_at"),
+});
+
+/** Browsers a member of staff has signed in from, so a new one can be announced by email. */
+export const staffDevices = pgTable("staff_devices", {
+  staffId: text("staff_id").notNull().references(() => staff.id),
+  /** SHA-256 of the device cookie. */
+  device: text("device").notNull(),
+  label: text("label").notNull(),
+  firstSeen: ts("first_seen").notNull().defaultNow(),
+  lastSeen: ts("last_seen").notNull().defaultNow(),
+}, (t) => [primaryKey({ columns: [t.staffId, t.device] })]);
 
 /** One row per role and permission; `allowed` is what the roles matrix in the admin console edits. */
 export const rolePermissions = pgTable("role_permissions", {
@@ -419,6 +447,13 @@ export const sessions = pgTable("sessions", {
   subjectId: text("subject_id").notNull(),
   createdAt: ts("created_at").notNull().defaultNow(),
   expiresAt: ts("expires_at").notNull(),
+  /** Staff: last request seen (the console locks after an hour without one), the last authenticator code (money and ID
+   *  actions want one from the last 12 hours), whether the person chose to stay signed in for 30 days, and the device. */
+  lastSeenAt: ts("last_seen_at"),
+  stepUpAt: ts("step_up_at"),
+  trusted: boolean("trusted").notNull().default(false),
+  device: text("device"),
+  label: text("label"),
 }, (t) => [index("sessions_subject_idx").on(t.subjectId), index("sessions_expires_idx").on(t.expiresAt)]);
 
 /** Private links to one request, for people who sent it without an account (lib/request-links.ts). Only the SHA-256 of

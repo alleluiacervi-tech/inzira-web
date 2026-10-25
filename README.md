@@ -37,13 +37,19 @@ a live site without a real provider refuses to send a code instead.
 
 A live site never shows a code on screen, sample addresses included: anyone could type `admin@inzira.test`, and that account opens the whole staff console. Email sign-in waits for `SMTP_HOST`, and any session a sample account still has open is ended when the server starts.
 
-The sign-in page has one field: an email gets the code by email, a mobile number by SMS. Staff sign in with their phone
-number or work email. Customers sign in with their email; a customer who only has a phone number (entered by staff, or
-registered before email sign-in) can still use the phone until they add an email in Portal › Account.
+**Staff** sign in at `/staff` with a username (or work email), a password and a code from an authenticator app.
+"Keep me signed in" holds the session for 30 days on that device (12 hours otherwise); after an hour unused the
+console locks and asks for the password only, and refunds, payouts, roles, staff accounts and unmasked ID numbers
+ask for a fresh authenticator code once every 12 hours. The owner invites colleagues from Admin › Roles: each gets a
+48-hour link to set a password. Staff without a password yet (the first owner, and the demo accounts) sign in once
+with a code on `/sign-in`, then set a password and the authenticator under Security; after that a code no longer
+opens their console.
 
-Anyone else starts a request from the catalogue. They confirm their **email** with a code. Registration is optional:
-by default a portal is created and they are signed in, but they can untick that and follow the request with its
-reference and email, then open a portal later by signing in with that email.
+**Customers** never need an account. They choose a service, give their name, ID number and where to send the result,
+and pay with MoMo or Airtel Money: no code, since the PIN that approves the payment proves the number. Each request
+gets a private link (`/r/<reference>#k=…`, lib/request-links.ts) kept in their browser and sent with the receipt; it
+shows progress, takes documents, carries messages and the result. The receipt email offers to save the request to an
+account. The customer sign-in page has one field: an email gets the code by email, a mobile number by SMS.
 
 ```bash
 npm run typecheck
@@ -78,7 +84,8 @@ Copy `.env.example` to `.env.local`. None are needed for development.
 | `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `EMAIL_FROM` | Email through Nodemailer over SMTP: sign-in codes for customers and updates about their requests. Port 465 is implicit TLS (default), 587 is STARTTLS; `SMTP_SECURE=1/0` overrides. Use a dedicated `no-reply@` mailbox on your domain and set SPF, DKIM and DMARC. Optional: `EMAIL_REPLY_TO`, `EMAIL_DAILY_LIMIT` (default 400; the app stops short of the mailbox's own daily cap). |
 | `DATA_KEY` | Encrypts customers' national ID and TIN numbers in the database (AES-256-GCM). Required on the live site: `openssl rand -hex 32`. **Keep a copy outside the server; without it the numbers cannot be read.** To rotate: put the new key in `DATA_KEY`, the old in `DATA_KEY_PREVIOUS`, run `npm run db:rekey`, then remove the old one. |
 | `CLIENT_IP_HEADER` | Behind your own proxy (not Vercel): the header it sets with the caller's address (`x-real-ip`, `cf-connecting-ip`). Rate limits trust only this, never `X-Forwarded-For`. |
-| `REQUIRE_STAFF_TOTP` | `1` makes the authenticator-app second step compulsory for staff (they are sent to set it up at sign-in). Off by default; each person can turn it on under Sign-in security. |
+| `REQUIRE_STAFF_TOTP` | Staff need a password and the authenticator app before they can work. On by default on a live site (`0` turns it off); `1` turns it on in development and demos. |
+| `PASSWORD_BREACH_CHECK` | `0` stops checking new staff passwords against the Have I Been Pwned list (only a 5-character hash prefix leaves the server). |
 | `NEXT_PUBLIC_TURNSTILE_SITE_KEY`, `TURNSTILE_SECRET_KEY` | Optional bot check (Cloudflare Turnstile) on the forms that send a code. Off until both are set. |
 | `AUTH_SECRET` | Keys stored sign-in codes to this server. Set a long random value on the live site (`openssl rand -hex 32`). |
 | `CUSTOMER_PHONE_SIGNIN` | Set to `0` once customers have added their email, to end phone sign-in for customers. Staff keep it. |

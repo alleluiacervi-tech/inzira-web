@@ -104,7 +104,9 @@ async function signIn(p, who, { language = "en" } = {}) {
   // A signed-out visit already put the page they wanted in ?next=. Keep it.
   const search = await p.ev("location.search").catch(() => "");
   const path = await p.ev("location.pathname").catch(() => "");
-  if (!(path === "/sign-in" && String(search).includes("next="))) await p.go(url);
+  // A staff page sends a signed-out visitor to /staff; the demo staff have no password, so they use the code form, keeping the page.
+  if (path === "/staff" && String(search).includes("next=")) await p.go("/sign-in" + search);
+  else if (!(path === "/sign-in" && String(search).includes("next="))) await p.go(url);
   if ((await p.ev("location.pathname")) !== "/sign-in") { await signOut(p); await p.go(url); }
   await p.set("#si-contact", who); await p.click("Send me a code"); await waitCode(p);
   const code = await p.ev(`document.querySelector("[data-demo-code]")?.dataset.demoCode ?? ""`);
@@ -130,7 +132,7 @@ async function signOut(p) {
     for (let i = 0; i < 20 && !(await p.ev(`[...document.querySelectorAll("button")].some((b) => (b.getAttribute("aria-label") || b.textContent).trim().startsWith("Sign out"))`)); i++) await sleep(100);
   }
   await p.click("Sign out", "button");
-  await waitPath(p, (path) => path === "/sign-in");
+  await waitPath(p, (path) => path === "/sign-in" || path === "/staff");
 }
 /** Waits for the demo sign-in code to appear, up to 10 seconds. */
 async function waitCode(p) {
@@ -199,7 +201,7 @@ await step("private areas", async () => {
   await p.go("/portal");
   check("private: the portal asks you to sign in", (await p.ev("location.pathname")) === "/sign-in");
   await p.go("/admin");
-  check("private: the admin console asks you to sign in", (await p.ev("location.pathname")) === "/sign-in");
+  check("private: the admin console asks staff to sign in", (await p.ev("location.pathname")) === "/staff");
   await p.go("/sign-in");
   check("sign-in: one field takes an email or a phone number", await p.ev(`!!document.querySelector("#si-contact")`));
   await p.set("#si-contact", "not an email"); await p.click("Send me a code"); await sleep(300);
@@ -213,7 +215,7 @@ await step("private areas", async () => {
   await p.set("#otp", await p.ev(`document.querySelector("[data-demo-code]").dataset.demoCode`)); await p.click("Sign in", "button"); await sleep(1500);
   check("sign-in: a customer with an email cannot sign in by phone", await p.has("Customers sign in with their email address"));
   await p.go("/portal/requests");
-  check("sign-in: staff pages open the sign-in form", await (async () => { await p.go("/console"); return p.ev(`!!document.querySelector("#si-contact")`); })());
+  check("sign-in: staff pages open the staff sign-in, with username and password", await (async () => { await p.go("/console"); return (await p.ev("location.pathname")) === "/staff" && await p.ev(`!!document.querySelector("#st-user") && !!document.querySelector("#st-pass")`); })());
   await p.go("/sign-in");
   await p.click("Admin dashboard");
   check("sign-in: the admin demo email is filled in", (await p.ev(`document.querySelector("#si-contact")?.value`)) === "admin@inzira.test");
@@ -441,7 +443,7 @@ await step("agent", async () => {
   check("agent: My Day shows agent work queues", await p.has("Follow-ups due") && await p.has("Past or near target") && await p.has("My open cases ("));
   await signOut(p);
   await p.go("/console/requests/INZ-2026-04790");
-  check("deep link: the case is kept on the sign-in page", (await p.ev("location.pathname")) === "/sign-in" && (await p.ev("decodeURIComponent(location.search)")).includes("/console/requests/INZ-2026-04790"));
+  check("deep link: the case is kept on the staff sign-in page", (await p.ev("location.pathname")) === "/staff" && (await p.ev("decodeURIComponent(location.search)")).includes("/console/requests/INZ-2026-04790"));
   await signIn(p, "780000001");
   check("deep link: signing in returns the agent to that case", (await p.ev("location.pathname")) === "/console/requests/INZ-2026-04790");
   await p.go("/console/requests/INZ-2026-04817");
@@ -563,7 +565,7 @@ await step("admin", async () => {
   await p.click("Invite person"); await sleep(200); await p.set("#pp-name", "New Colleague"); await p.set("#pp-phone", "788 444 555"); await p.click("Send invite"); await waitFor(p, "invited as");
   check("people: inviting adds a person", await p.has("New Colleague"));
   await signOut(p); await sleep(500);
-  check("sign out: back to sign-in", (await p.ev("location.pathname")) === "/sign-in");
+  check("sign out: staff go back to the staff sign-in", (await p.ev("location.pathname")) === "/staff");
   await p.close();
 });
 
@@ -967,6 +969,64 @@ await step("mobile", async () => {
   check("menu: opens as a dialog", (await p.ev(`!!document.querySelector('.mobmenu[role=dialog]')`)) && (await p.ev(`document.body.style.overflow`)) === "hidden");
   await p.key("Escape"); await sleep(200);
   check("menu: Escape closes it and gives focus back", !(await p.ev(`!!document.querySelector('.mobmenu')`)) && (await p.ev(`document.activeElement?.getAttribute("aria-label")`)) === "Open menu");
+  await p.close();
+});
+
+// ---------- staff sign in with a username, a password and the authenticator; money asks again ----------
+// Last, because the owner stops signing in with an SMS code once they have a password.
+await step("staff password", async () => {
+  const p = await page();
+  await signIn(p, "780000008");
+  await p.go("/console/security"); await waitFor(p, "Username and password");
+  await p.set("#sec-user", "diane"); await p.click("Save username", "button"); await waitFor(p, "Your username is diane");
+  await p.set("#sec-new", "short pass"); await p.click("Set password", "button"); await waitFor(p, "Use at least 15 characters");
+  check("staff password: a short password is refused with a plain reason", await p.has("Use at least 15 characters"));
+  await p.set("#sec-new", "diane mango river 47"); await p.click("Set password", "button"); await waitFor(p, "your name");
+  check("staff password: a password with their own name is refused", await p.has("Don’t use your name"));
+  const password = "green mango river 47";
+  await p.set("#sec-new", password); await p.click("Set password", "button"); await waitFor(p, "Password set");
+  check("staff password: a long passphrase is accepted", await p.has("Password set"));
+  await p.click("Set up authenticator app", "button"); await waitFor(p, "Add Inzira to your app");
+  const secret = await p.ev(`document.querySelector("[data-totp-secret]")?.dataset.totpSecret ?? ""`);
+  await p.set("#sec-code", totp(secret)); await p.click("Turn on", "button"); await waitFor(p, "Save your recovery codes");
+  await p.click("I have saved them", "label"); await p.click("Done", "button"); await sleep(300);
+  check("staff password: the devices list shows this browser", await p.has("Where you’re signed in") && await p.has("This device"));
+  // Money and staff accounts ask for a fresh authenticator code: this session has not given one yet.
+  await p.go("/admin/roles"); await waitFor(p, "New Colleague");
+  await p.ev(`(() => { const row = [...document.querySelectorAll("tr")].find((r) => r.textContent.includes("New Colleague")); [...row.querySelectorAll("button")].find((b) => b.textContent.startsWith("Send password link")).click(); return true; })()`);
+  await waitFor(p, "Confirm it’s you");
+  check("step-up: a staff action asks for the authenticator code first", await p.ev(`!!document.querySelector("[data-step-up]")`));
+  await p.set("#stepup-code", totp(secret, 1)); await p.click("Confirm", "button"); await waitFor(p, "A password link was sent to New Colleague");
+  check("step-up: with the code, the action goes through", await p.has("A password link was sent to New Colleague") && !(await p.ev(`!!document.querySelector("[data-step-up]")`)));
+  const invite = await p.ev(`document.querySelector("[data-demo-link]")?.dataset.demoLink ?? ""`);
+  await signOut(p);
+  check("staff password: signing out lands on the staff sign-in", (await p.ev("location.pathname")) === "/staff");
+  await p.set("#st-user", "diane"); await p.set("#st-pass", "wrong password here"); await p.click("Sign in", "button"); await waitFor(p, "not right");
+  check("staff password: a wrong password is refused without saying which part", await p.has("That username or password is not right"));
+  await p.set("#st-pass", password); await p.click("Sign in", "button"); await waitFor(p, "One more step");
+  check("staff password: the right password asks for the authenticator next", await p.has("One more step") && (await p.ev("location.pathname")) === "/staff");
+  // Codes from the last two windows are spent: wait for the next one.
+  const windowNow = Math.floor(Date.now() / 30000); while (Math.floor(Date.now() / 30000) === windowNow) await sleep(500);
+  await p.set("#totp", totp(secret, 1)); await p.click("Sign in", "button"); await waitPath(p, (path) => path.startsWith("/console"));
+  check("staff password: username, password and code open the console", (await p.ev("location.pathname")).startsWith("/console"));
+  await signOut(p);
+  await p.go("/sign-in"); await p.set("#si-contact", "780000008"); await p.click("Send me a code"); await waitCode(p);
+  await p.set("#otp", await p.ev(`document.querySelector("[data-demo-code]")?.dataset.demoCode ?? ""`)); await p.click("Sign in", "button"); await waitFor(p, "username and password");
+  check("staff password: once set, a code to the phone no longer opens the console", await p.has("Inzira staff sign in with their username and password"));
+  // A colleague sets their password from the invite link.
+  check("invite: the link is sent", invite.includes("/staff/set-password#k="));
+  await p.go(invite); await waitFor(p, "Welcome, New");
+  await p.set("#sp-pass", "blue lake quiet morning 12"); await p.click("Save password", "button"); await waitFor(p, "Password saved");
+  const username = await p.ev(`document.querySelector("[data-password-set] strong")?.textContent ?? ""`);
+  check("invite: the colleague sets a password and is given a username", await p.has("Password saved") && username.length >= 3, username);
+  await p.go("/staff"); await p.go(invite); await waitFor(p, "This link no longer works");
+  check("invite: the link works once", await p.has("This link no longer works"));
+  await p.go("/staff"); await p.set("#st-user", username); await p.set("#st-pass", "blue lake quiet morning 12"); await p.click("Sign in", "button"); await waitPath(p, (path) => path.startsWith("/console"));
+  check("invite: and signs in with it", (await p.ev("location.pathname")).startsWith("/console"));
+  await signOut(p);
+  for (let i = 0; i < 5; i++) { await p.set("#st-user", "diane"); await p.set("#st-pass", `not it ${i} at all`); await p.click("Sign in", "button"); await sleep(700); }
+  await p.set("#st-pass", password); await p.click("Sign in", "button"); await waitFor(p, "paused");
+  check("staff password: five wrong passwords pause sign-in, even for the right one", await p.has("Sign-in is paused for 15 minutes"));
   await p.close();
 });
 

@@ -20,8 +20,15 @@ const COOKIE = "inzira_session";
 const CODE_TTL = 10 * 60e3;
 const RESEND_AFTER = 30e3;
 const MAX_ATTEMPTS = 5;
-/** A session ends after `idle` without use, and never lasts longer than `cap` from sign-in, however often it is used. */
-const SESSION = { customer: { idle: 7 * 864e5, cap: 30 * 864e5 }, staff: { idle: 8 * 36e5, cap: 864e5 } } as const;
+/** A customer's session ends after `idle` without use, and never lasts longer than `cap` from sign-in. */
+const SESSION = { customer: { idle: 7 * 864e5, cap: 30 * 864e5 } } as const;
+/** Staff: 30 days on a device they chose to trust, 12 hours otherwise. After an hour without use the console locks and
+ *  asks for the password only (NIST SP 800-63B allows that inside a longer session). Refunds, payouts, roles and ID
+ *  numbers want an authenticator code from the last 12 hours. */
+const STAFF_CAP = { trusted: 30 * 864e5, plain: 12 * 36e5 } as const;
+export const STAFF_IDLE_LOCK = 60 * 60e3;
+export const STEP_UP_FOR = 12 * 36e5;
+const DEVICE_COOKIE = "inzira_dev";
 const MAX_SESSIONS = 10;
 
 const sha = (v: string) => createHash("sha256").update(v).digest("hex");
@@ -143,19 +150,53 @@ export async function consumeEmailCode(emailInput: string, code: string): Promis
 }
 
 // ---------------- sessions ----------------
-export async function startSession(kind: "customer" | "staff", subjectId: string) {
+/** This browser's own random id (a long-lived cookie), hashed: how staff devices are told apart. Server actions only. */
+async function deviceHash(): Promise<string> {
+  const jar = await cookies();
+  let value = jar.get(DEVICE_COOKIE)?.value;
+  if (!value || !/^[A-Za-z0-9_-]{32}$/.test(value)) {
+    value = randomBytes(24).toString("base64url");
+    jar.set(DEVICE_COOKIE, value, { httpOnly: true, secure: process.env.NODE_ENV === "production", sameSite: "lax", path: "/", maxAge: 400 * 86400 });
+  }
+  return sha(value);
+}
+/** "Chrome on Android": enough for someone to recognise their own device in a list or an email. */
+export async function deviceLabel(): Promise<string> {
+  const ua = (await headers()).get("user-agent") ?? "";
+  const browser = /Edg\//.test(ua) ? "Edge" : /OPR\/|Opera/.test(ua) ? "Opera" : /Firefox\//.test(ua) ? "Firefox" : /SamsungBrowser/.test(ua) ? "Samsung Internet" : /Chrome\//.test(ua) ? "Chrome" : /Safari\//.test(ua) ? "Safari" : "A browser";
+  const os = /Android/.test(ua) ? "Android" : /iPhone|iPad|iPod/.test(ua) ? "iPhone" : /Windows/.test(ua) ? "Windows" : /Mac OS X/.test(ua) ? "Mac" : /Linux/.test(ua) ? "Linux" : "";
+  return os ? `${browser} on ${os}` : browser;
+}
+
+export async function startSession(kind: "customer" | "staff", subjectId: string, opts: { trusted?: boolean; stepUp?: boolean } = {}) {
   const d = await db();
   const jar = await cookies();
   // A new token for every sign-in, and the one this browser held before is dropped, so a token planted before sign-in is useless after.
   const before = jar.get(COOKIE)?.value;
   if (before) await d.delete(s.sessions).where(eq(s.sessions.id, sha(before)));
   const token = randomBytes(32).toString("base64url");
-  const { idle, cap } = SESSION[kind];
-  await d.insert(s.sessions).values({ id: sha(token), kind, subjectId, expiresAt: new Date(Date.now() + idle).toISOString() });
+  const now = Date.now();
+  const staff = kind === "staff";
+  const cap = staff ? (opts.trusted ? STAFF_CAP.trusted : STAFF_CAP.plain) : SESSION.customer.cap;
+  await d.insert(s.sessions).values({
+    id: sha(token), kind, subjectId, expiresAt: new Date(now + (staff ? cap : SESSION.customer.idle)).toISOString(),
+    ...(staff ? { lastSeenAt: new Date(now).toISOString(), stepUpAt: opts.stepUp ? new Date(now).toISOString() : null, trusted: !!opts.trusted, device: await deviceHash(), label: await deviceLabel() } : {}),
+  });
   // Keep the newest few sessions of this person; older devices are signed out.
   const mine = await d.select({ id: s.sessions.id }).from(s.sessions).where(and(eq(s.sessions.kind, kind), eq(s.sessions.subjectId, subjectId))).orderBy(desc(s.sessions.createdAt));
   if (mine.length > MAX_SESSIONS) await d.delete(s.sessions).where(inArray(s.sessions.id, mine.slice(MAX_SESSIONS).map((r) => r.id)));
-  jar.set(COOKIE, token, { httpOnly: true, secure: process.env.NODE_ENV === "production", sameSite: "lax", path: "/", expires: new Date(Date.now() + cap) });
+  jar.set(COOKIE, token, { httpOnly: true, secure: process.env.NODE_ENV === "production", sameSite: "lax", path: "/", expires: new Date(now + cap) });
+}
+
+/** Records this browser for a member of staff. True when it is one they have not signed in from before. */
+export async function rememberStaffDevice(staffId: string): Promise<{ isNew: boolean; label: string }> {
+  const d = await db();
+  const device = await deviceHash();
+  const label = await deviceLabel();
+  const now = new Date().toISOString();
+  const added = await d.insert(s.staffDevices).values({ staffId, device, label }).onConflictDoNothing().returning({ device: s.staffDevices.device });
+  if (!added.length) await d.update(s.staffDevices).set({ lastSeen: now, label }).where(and(eq(s.staffDevices.staffId, staffId), eq(s.staffDevices.device, device)));
+  return { isNew: added.length > 0, label };
 }
 
 // ---- second step for staff (authenticator app)
@@ -164,19 +205,19 @@ const PENDING_TTL = 5 * 60e3;
 
 /** After a staff member's SMS code is right but before the authenticator code: a five-minute marker, in its own cookie.
  *  It opens nothing on its own: getSession never reads it. */
-export async function startPending(staffId: string) {
+export async function startPending(staffId: string, trusted = false) {
   const d = await db();
   const jar = await cookies();
   const token = randomBytes(32).toString("base64url");
-  await d.insert(s.sessions).values({ id: sha(token), kind: "pending", subjectId: staffId, expiresAt: new Date(Date.now() + PENDING_TTL).toISOString() });
+  await d.insert(s.sessions).values({ id: sha(token), kind: "pending", subjectId: staffId, trusted, expiresAt: new Date(Date.now() + PENDING_TTL).toISOString() });
   jar.set(PENDING_COOKIE, token, { httpOnly: true, secure: process.env.NODE_ENV === "production", sameSite: "strict", path: "/", maxAge: PENDING_TTL / 1000 });
 }
 /** The staff id waiting for their second step, if the marker is still valid. */
-export async function readPending(): Promise<string | null> {
+export async function readPending(): Promise<{ staffId: string; trusted: boolean } | null> {
   const token = (await cookies()).get(PENDING_COOKIE)?.value;
   if (!token) return null;
   const [row] = await (await db()).select().from(s.sessions).where(and(eq(s.sessions.id, sha(token)), eq(s.sessions.kind, "pending"), gt(s.sessions.expiresAt, new Date().toISOString())));
-  return row?.subjectId ?? null;
+  return row ? { staffId: row.subjectId, trusted: row.trusted } : null;
 }
 export async function endPending() {
   const jar = await cookies();
@@ -199,16 +240,28 @@ export async function endSession() {
   jar.delete(COOKIE);
 }
 
-/** The signed-in person for this request, or null. Cached for the duration of one request. Using a session pushes its
- *  idle deadline forward (at most once per half window, so reading a page is not a write), never past the hard cap. */
-export const getSession = cache(async (): Promise<{ kind: "customer" | "staff"; subjectId: string } | null> => {
+export type Session = {
+  kind: "customer" | "staff"; subjectId: string;
+  /** Staff only: the session row, the last request it served, the last authenticator code, and the 30-day choice. */
+  id?: string; lastSeenAt?: string; stepUpAt?: string; trusted?: boolean;
+};
+
+/** The signed-in person for this request, or null. Cached for the duration of one request. A customer's session moves
+ *  its idle deadline forward when used (at most once per half window, so reading a page is not a write), never past its
+ *  cap. A staff session simply ends at its cap; going idle locks it instead (getStaffUser). */
+export const getSession = cache(async (): Promise<Session | null> => {
   const token = (await cookies()).get(COOKIE)?.value;
   if (!token) return null;
   const d = await db();
   const [row] = await d.select().from(s.sessions).where(and(eq(s.sessions.id, sha(token)), gt(s.sessions.expiresAt, new Date().toISOString())));
   if (!row || row.kind === "pending") return null;
-  const { idle, cap } = SESSION[row.kind];
-  const hardEnd = Date.parse(iso(row.createdAt)!) + cap;
+  const created = Date.parse(iso(row.createdAt)!);
+  if (row.kind === "staff") {
+    if (Date.now() >= created + (row.trusted ? STAFF_CAP.trusted : STAFF_CAP.plain)) return null;
+    return { kind: "staff", subjectId: row.subjectId, id: row.id, lastSeenAt: iso(row.lastSeenAt) ?? iso(row.createdAt), stepUpAt: iso(row.stepUpAt), trusted: row.trusted };
+  }
+  const { idle, cap } = SESSION.customer;
+  const hardEnd = created + cap;
   if (Date.now() >= hardEnd) return null;
   const expires = Date.parse(iso(row.expiresAt)!);
   if (expires - Date.now() < idle / 2) {
@@ -232,30 +285,94 @@ export async function requireCustomerId(next = "/portal"): Promise<string> {
   return session.subjectId;
 }
 
-/** When the owner requires the authenticator step (REQUIRE_STAFF_TOTP=1), staff who have not set it up hold no permissions
- *  and see only the page that sets it up, however they got into the console. */
-const mustSetUpSecondStep = (person: { totpEnabledAt: unknown }) => process.env.REQUIRE_STAFF_TOTP === "1" && !person.totpEnabledAt;
+/** Whether staff must have a password and the authenticator app before they can work: always on a live site, unless
+ *  REQUIRE_STAFF_TOTP=0; in development and demos only with REQUIRE_STAFF_TOTP=1. */
+export const staffSecurityRequired = () => {
+  const set = process.env.REQUIRE_STAFF_TOTP;
+  if (set === "1") return true;
+  if (set === "0") return false;
+  return process.env.NODE_ENV === "production" && process.env.INZIRA_DEMO !== "1";
+};
+/** Staff who must set up their password or authenticator hold no permissions and see only the page that sets them up. */
+const mustSetUp = (person: { totpEnabledAt: unknown; passwordHash: unknown }) => staffSecurityRequired() && (!person.totpEnabledAt || !person.passwordHash);
 export const SECOND_STEP_SETUP = "/console/security";
 
-export const getStaffUser = cache(async (): Promise<(Staff & { permissions: Set<Permission>; needsSecondStep: boolean }) | null> => {
+type StaffUser = Staff & {
+  permissions: Set<Permission>;
+  /** Must set up a password or the authenticator first. */
+  needsSecondStep: boolean;
+  /** An authenticator code was given in the last 12 hours, or the person has none to give. Money, roles and ID numbers
+   *  ask for one otherwise (lib/step-up.ts). */
+  stepUpFresh: boolean;
+  hasPassword: boolean;
+};
+
+/** The console locks after an hour without use, for someone with a password to unlock it. */
+const lockedOut = (session: Session, person: { passwordHash: string | null }) =>
+  !!person.passwordHash && !!session.lastSeenAt && Date.now() - Date.parse(session.lastSeenAt) > STAFF_IDLE_LOCK;
+
+async function loadStaff(touch: boolean): Promise<StaffUser | null> {
   const session = await getSession();
   if (session?.kind !== "staff") return null;
   const d = await db();
   const [person] = await d.select().from(s.staff).where(and(eq(s.staff.id, session.subjectId), eq(s.staff.active, true)));
-  if (!person) return null;
+  if (!person || lockedOut(session, person)) return null;
+  // Use keeps the console open. The background check for new alerts (peekStaffUser) does not.
+  if (touch && session.id && (!session.lastSeenAt || Date.now() - Date.parse(session.lastSeenAt) > 60e3)) {
+    await d.update(s.sessions).set({ lastSeenAt: new Date().toISOString() }).where(eq(s.sessions.id, session.id)).catch(() => {});
+  }
   const base = { id: person.id, name: person.name, role: person.role, team: person.team, title: person.title, active: person.active };
-  if (mustSetUpSecondStep(person)) return { ...base, permissions: new Set<Permission>(), needsSecondStep: true };
+  const stepUpFresh = !person.totpEnabledAt || (!!session.stepUpAt && Date.now() - Date.parse(session.stepUpAt) < STEP_UP_FOR);
+  const extra = { stepUpFresh, hasPassword: !!person.passwordHash };
+  if (mustSetUp(person)) return { ...base, ...extra, permissions: new Set<Permission>(), needsSecondStep: true };
   const rows = await d.select().from(s.rolePermissions).where(and(eq(s.rolePermissions.role, person.role), eq(s.rolePermissions.allowed, true)));
   // The owner can always do everything, whatever the matrix says.
   const all = person.role === "Owner";
   const permissions = new Set<Permission>(all ? (await d.select().from(s.rolePermissions)).map((r) => r.permission as Permission) : rows.map((r) => r.permission as Permission));
-  return { ...base, permissions, needsSecondStep: false };
+  return { ...base, ...extra, permissions, needsSecondStep: false };
+}
+export const getStaffUser = cache(() => loadStaff(true));
+/** The same, without counting as use: for the console's background checks. */
+export const peekStaffUser = cache(() => loadStaff(false));
+
+/** Whether this browser holds a staff session that is locked for being idle (it unlocks with the password). */
+export const staffLocked = cache(async (): Promise<boolean> => {
+  const session = await getSession();
+  if (session?.kind !== "staff") return false;
+  const [person] = await (await db()).select({ passwordHash: s.staff.passwordHash }).from(s.staff).where(and(eq(s.staff.id, session.subjectId), eq(s.staff.active, true)));
+  return !!person && lockedOut(session, person);
 });
 
 export async function requireStaff(next = "/console") {
   const me = await getStaffUser();
-  if (!me) redirect(`/sign-in?next=${encodeURIComponent((await askedPath()) ?? safeReturnPath(next) ?? "/console")}`);
+  const back = encodeURIComponent((await askedPath()) ?? safeReturnPath(next) ?? "/console");
+  if (!me) redirect((await staffLocked()) ? `/staff/unlock?next=${back}` : `/staff?next=${back}`);
   if (me.needsSecondStep && !((await askedPath()) ?? "").startsWith(SECOND_STEP_SETUP)) redirect(`${SECOND_STEP_SETUP}?setup=1`);
   return me;
 }
 export const can = (me: { permissions: Set<Permission> } | null, p: Permission) => !!me?.permissions.has(p);
+
+/** Marks the current staff session as having just given an authenticator code, and as used now. */
+export async function markStepUp() {
+  const session = await getSession();
+  if (session?.kind !== "staff" || !session.id) return;
+  const now = new Date().toISOString();
+  await (await db()).update(s.sessions).set({ stepUpAt: now, lastSeenAt: now }).where(eq(s.sessions.id, session.id));
+}
+/** Unlocks an idle console after the password was checked. */
+export async function markUnlocked() {
+  const session = await getSession();
+  if (session?.kind !== "staff" || !session.id) return;
+  await (await db()).update(s.sessions).set({ lastSeenAt: new Date().toISOString() }).where(eq(s.sessions.id, session.id));
+}
+/** The staff sessions of one person, newest first, for the devices list; `current` marks this browser's. */
+export async function listStaffSessions(staffId: string) {
+  const token = (await cookies()).get(COOKIE)?.value;
+  const rows = await (await db()).select().from(s.sessions)
+    .where(and(eq(s.sessions.kind, "staff"), eq(s.sessions.subjectId, staffId), gt(s.sessions.expiresAt, new Date().toISOString()))).orderBy(desc(s.sessions.createdAt));
+  return rows.map((r) => ({ id: r.id, label: r.label ?? "A browser", since: iso(r.createdAt)!, lastSeen: iso(r.lastSeenAt) ?? iso(r.createdAt)!, trusted: r.trusted, current: !!token && r.id === sha(token) }));
+}
+/** Ends one of this person's own staff sessions. */
+export async function endStaffSession(staffId: string, sessionId: string) {
+  await (await db()).delete(s.sessions).where(and(eq(s.sessions.id, sessionId), eq(s.sessions.kind, "staff"), eq(s.sessions.subjectId, staffId)));
+}

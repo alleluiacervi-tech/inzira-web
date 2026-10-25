@@ -10,7 +10,7 @@ import { unlessRedirect } from "./keep-redirect";
 import { Icon } from "./ui";
 
 /** Staff with an authenticator app: the 6-digit code from the app, or one of their recovery codes. */
-function SecondStep({ next, onRestart }: { next?: string; onRestart: () => void }) {
+export function SecondStep({ next, onRestart }: { next?: string; onRestart: () => void }) {
   const { locale, t } = useI18n();
   const [code, setCode] = useState("");
   const [recovery, setRecovery] = useState(false);

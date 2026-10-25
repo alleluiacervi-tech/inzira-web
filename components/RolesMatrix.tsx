@@ -1,6 +1,7 @@
 "use client";
+import { withStepUp } from "./console/StepUp";
 import { useState } from "react";
-import { inviteStaff, resetStaffTotp, savePermissions, updateStaff } from "@/app/actions/admin";
+import { inviteStaff, resetStaffTotp, savePermissions, sendPasswordLink, updateStaff } from "@/app/actions/admin";
 import { initials } from "@/lib/format";
 import type { Staff, StaffRole } from "@/lib/types";
 import { isMobile } from "./PhoneCode";
@@ -55,7 +56,7 @@ export default function RolesMatrix({ roles, groups, initial, canEdit }: { roles
           <button className="btn btn-g" type="button" disabled={!canEdit || !dirty || busy} onClick={() => { setM(initial); setDirty(false); }}>Discard</button>
           <button className="btn btn-p" type="button" disabled={!canEdit || !dirty || busy} onClick={async () => {
             setBusy(true); setError("");
-            const r = await savePermissions(m).catch(failed);
+            const r = await withStepUp(() => savePermissions(m)).catch(failed);
             setBusy(false);
             if (!r.ok) { setError(r.error); return; }
             setDirty(false); setSaved(true);
@@ -73,16 +74,19 @@ export function People({ staff, roles, meId, isOwner }: { staff: (Staff & { phon
   const [adding, setAdding] = useState(false);
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
+  const [email, setEmail] = useState("");
+  const [demoUrl, setDemoUrl] = useState<string>();
   const [role, setRole] = useState<StaffRole>("Agent");
   const [note, setNote] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
-  const run = async (fn: () => Promise<Res>, ok: string) => {
-    setBusy(true); setError(""); setNote("");
-    const r = await fn().catch(failed);
+  const run = async (fn: () => Promise<Res & { demoUrl?: string }>, ok: string) => {
+    setBusy(true); setError(""); setNote(""); setDemoUrl(undefined);
+    const r = await withStepUp(fn).catch(failed);
     setBusy(false);
     if (!r.ok) { setError(r.error); return false; }
     setNote(ok);
+    if ("demoUrl" in r && r.demoUrl) setDemoUrl(r.demoUrl);
     return true;
   };
 
@@ -93,15 +97,16 @@ export function People({ staff, roles, meId, isOwner }: { staff: (Staff & { phon
         <form className="row g10 wrapx" style={{ padding: "14px 20px", borderBottom: "1px solid var(--line)", alignItems: "flex-end" }} onSubmit={async (e) => {
           e.preventDefault();
           if (!name.trim() || !isMobile(phone)) { setError("Enter their full name and Rwandan mobile number."); return; }
-          if (await run(() => inviteStaff(name, phone, role), `${name.trim()} invited as ${role}. They sign in with their number.`)) { setName(""); setPhone(""); setAdding(false); }
+          if (await run(() => inviteStaff(name, phone, role, email), `${name.trim()} invited as ${role}. They get a link to set their password, valid 48 hours.`)) { setName(""); setPhone(""); setEmail(""); setAdding(false); }
         }}>
           <div className="field grow" style={{ minWidth: 180 }}><label htmlFor="pp-name">Full name</label><input id="pp-name" className="in" style={{ height: 40 }} value={name} onChange={(e) => setName(e.target.value)} /></div>
           <div className="field" style={{ minWidth: 170 }}><label htmlFor="pp-phone">Mobile number</label><input id="pp-phone" className="in" style={{ height: 40 }} inputMode="tel" placeholder="788 123 456" value={phone} onChange={(e) => setPhone(e.target.value)} /></div>
+          <div className="field" style={{ minWidth: 200 }}><label htmlFor="pp-email">Work email <span className="mut" style={{ fontWeight: 400 }}>(optional)</span></label><input id="pp-email" type="email" className="in" style={{ height: 40 }} autoCapitalize="none" value={email} onChange={(e) => setEmail(e.target.value)} /></div>
           <div className="field"><label htmlFor="pp-role">Role</label><select id="pp-role" className="in" style={{ height: 40, width: 170 }} value={role} onChange={(e) => setRole(e.target.value as StaffRole)}>{appointable.map((r) => <option key={r.name}>{r.name}</option>)}</select></div>
           <button className="btn btn-d btn-sm" type="submit" style={{ height: 40 }} disabled={busy}>Send invite</button>
         </form>
       )}
-      {note && <div className="alert t-ok" role="status" style={{ borderRadius: 0 }}><Icon name="check" size={20} /><div className="alert-body"><strong>Saved</strong><span>{note} Recorded in the audit log.</span></div></div>}
+      {note && <div className="alert t-ok" role="status" style={{ borderRadius: 0 }}><Icon name="check" size={20} /><div className="alert-body"><strong>Saved</strong><span>{note} Recorded in the audit log.</span>{demoUrl && <span data-demo-link={demoUrl.replace(/^https?:\/\/[^/]+/, "")}>Demo: no message is sent. <a className="lnk" href={demoUrl.replace(/^https?:\/\/[^/]+/, "")}>Open the link</a></span>}</div></div>}
       {error && <div className="alert t-err" role="alert" style={{ borderRadius: 0 }}><Icon name="alert" size={20} /><div className="alert-body"><strong>Not saved</strong><span>{error}</span></div></div>}
       <div className="table-wrap"><table>
         <thead><tr><th>Person</th><th>Team</th><th>Role</th><th>Status</th><th><span className="sr-only">Actions</span></th></tr></thead>
@@ -113,7 +118,7 @@ export function People({ staff, roles, meId, isOwner }: { staff: (Staff & { phon
               <td className="mut">{p.team}</td>
               <td>{locked ? <span className="tag">{p.role}</span> : <><label htmlFor={`r-${p.id}`} className="sr-only">Role for {p.name}</label><select id={`r-${p.id}`} className="in in-sm" value={p.role} disabled={busy} onChange={(e) => run(() => updateStaff(p.id, { role: e.target.value as StaffRole }), `${p.name} is now ${e.target.value}.`)}>{appointable.map((r) => <option key={r.name}>{r.name}</option>)}</select></>}</td>
               <td><span className="row g8 wrapx"><Badge tone={p.active ? "ok" : "neutral"} label={p.active ? "Active" : "Deactivated"} />{p.twoStep && <Badge tone="info" label="Authenticator" />}</span></td>
-              <td style={{ textAlign: "right" }}>{isOwner && p.twoStep && p.id !== meId && <button type="button" className="btn btn-g btn-sm" disabled={busy} onClick={() => { if (window.confirm(`Remove ${p.name}'s authenticator step? They will sign in by SMS and set it up again.`)) run(() => resetStaffTotp(p.id), `${p.name}'s authenticator step was removed.`); }}>Reset authenticator</button>}{!locked && <button type="button" className="btn btn-s btn-sm" disabled={busy} onClick={() => run(() => updateStaff(p.id, { active: !p.active }), `${p.name} ${p.active ? "deactivated — they are signed out and can no longer sign in" : "reactivated"}.`)}>{p.active ? "Deactivate" : "Reactivate"}</button>}</td>
+              <td style={{ textAlign: "right" }}>{isOwner && p.twoStep && p.id !== meId && <button type="button" className="btn btn-g btn-sm" disabled={busy} onClick={() => { if (window.confirm(`Remove ${p.name}'s authenticator step? They will have to set it up again after signing in.`)) run(() => resetStaffTotp(p.id), `${p.name}'s authenticator step was removed.`); }}>Reset authenticator</button>}{p.active && (!locked || p.id === meId) && <button type="button" className="btn btn-g btn-sm" disabled={busy} onClick={() => run(() => sendPasswordLink(p.id), `A password link was sent to ${p.name}.`)}>Send password link</button>}{!locked && <button type="button" className="btn btn-s btn-sm" disabled={busy} onClick={() => run(() => updateStaff(p.id, { active: !p.active }), `${p.name} ${p.active ? "deactivated — they are signed out and can no longer sign in" : "reactivated"}.`)}>{p.active ? "Deactivate" : "Reactivate"}</button>}</td>
             </tr>
           );
         })}</tbody>

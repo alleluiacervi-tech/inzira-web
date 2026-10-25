@@ -30,7 +30,7 @@ export default function SecurityPanel({ enabled, recoveryLeft, required, mustSet
 
   return (
     <div className="stack g16" style={{ maxWidth: 640 }}>
-      {mustSetUp && <Alert kind="info" title="Your owner requires the authenticator step">Set it up below, then you can carry on.</Alert>}
+      {mustSetUp && <Alert kind="info" title="Set up your sign-in first">Every staff account needs a password and the authenticator app. Set both on this page, then you can carry on.</Alert>}
       {error && <Alert kind="err" title="Not done" live>{error}</Alert>}
       {note && <Alert kind="ok" title="Done" live>{note}</Alert>}
 
@@ -50,7 +50,7 @@ export default function SecurityPanel({ enabled, recoveryLeft, required, mustSet
       {!codes && !on && !setup && (
         <section className="card stack g12" style={{ padding: 20 }}>
           <h2 className="d" style={{ fontSize: 18 }}>Authenticator app</h2>
-          <p className="mut" style={{ fontSize: 14.5 }}>Today you sign in with a code sent by SMS. Adding an authenticator app means a stolen or swapped SIM is not enough to open your account. It works offline and is free (Google Authenticator, Microsoft Authenticator, Authy, 1Password).</p>
+          <p className="mut" style={{ fontSize: 14.5 }}>After your password, the console asks for a 6-digit code from an app on your phone, so a stolen password or a swapped SIM is not enough to open your account. It works offline and is free (Google Authenticator, Microsoft Authenticator, Authy, 1Password).</p>
           <button type="button" className="btn btn-p" disabled={busy} style={{ alignSelf: "flex-start" }} onClick={async () => { const r = await run(beginTotp); if (r.ok) setSetup({ secret: r.secret, url: r.url }); }}>Set up authenticator app</button>
         </section>
       )}

@@ -356,6 +356,16 @@
 .link-card { display: flex; flex-direction: column; align-items: flex-start; gap: 12px; }
 .link-card[role="status"] { flex-direction: row; align-items: center; color: var(--muted); }
 @media (min-width: 960px) { .rq-grid { grid-template-columns: minmax(0, 1fr) 360px; align-items: start; gap: 24px; } }
+/* Staff sign-in, unlock and set-password: the same calm column as the customer sign-in. */
+.auth-staff .auth-card { max-width: 440px; }
+.pw-wrap { position: relative; }
+.pw-wrap .in { padding-right: 52px; width: 100%; }
+.pw-toggle { position: absolute; right: 4px; top: 50%; transform: translateY(-50%); width: 44px; height: 44px; display: grid; place-items: center; border: 0; background: none; color: var(--muted); border-radius: 8px; cursor: pointer; }
+.pw-toggle[aria-pressed="true"] { color: var(--brand); }
+.pw-meter { height: 4px; border-radius: 4px; background: var(--line-2); overflow: hidden; margin-top: -12px; }
+.pw-meter span { display: block; height: 100%; background: var(--warn, #c9962e); transition: width .2s; }
+.pw-meter span.ok { background: var(--ok); }
+.unlock-ico { width: 52px; height: 52px; margin: 0 auto 6px; border-radius: 50%; display: grid; place-items: center; background: var(--brand-tint); color: var(--brand); }
 .svc-inperson { margin: -4px 0 0; max-width: 60ch; font-size: var(--fs-sm); color: var(--ink-2); }
 .fee-options { margin-top: 4px; }
 .choice-priced { display: flex; align-items: center; gap: 12px; }
@@ -371,6 +381,7 @@
 .auth-links a { display: inline-flex; align-items: center; min-height: 44px; padding: 0 4px; color: var(--brand); text-decoration: none; }
 .auth-links a:hover { text-decoration: underline; text-underline-offset: 3px; }
 .auth-links span { color: var(--muted); }
+.auth-links .linkish { display: inline-flex; align-items: center; min-height: 44px; padding: 0 4px; font: inherit; font-weight: 600; color: var(--brand); text-decoration: none; }
 @media (max-width: 999px) {
   .auth-split { padding-top: clamp(20px, 6vw, 48px); }
   .auth-split .auth-card { max-width: 420px; padding: 0; background: none; border: 0; box-shadow: none; }

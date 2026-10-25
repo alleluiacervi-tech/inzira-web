@@ -1,4 +1,5 @@
 "use client";
+import { withStepUp } from "./StepUp";
 import Link from "next/link";
 import { useState, useTransition } from "react";
 import { addClientNote, addClientTag, removeClientTag, revealNationalId, revealTin } from "@/app/actions/console";
@@ -36,7 +37,7 @@ export function ClientDetailView({
   const handleRevealNid = () => {
     setRevealingNid(true);
     start(async () => {
-      const res = await revealNationalId(client.id);
+      const res = await withStepUp(() => revealNationalId(client.id));
       if (res.ok) {
         setUnmaskedNid(res.nationalId);
         setToast("National ID revealed (logged in audit)");
@@ -48,7 +49,7 @@ export function ClientDetailView({
   const handleRevealTin = () => {
     setRevealingTin(true);
     start(async () => {
-      const res = await revealTin(client.id);
+      const res = await withStepUp(() => revealTin(client.id));
       if (res.ok) {
         setUnmaskedTin(res.tin);
         setToast("TIN revealed (logged in audit)");

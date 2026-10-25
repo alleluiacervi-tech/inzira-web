@@ -12,6 +12,7 @@ import { providerFor } from "../lib/payments.ts";
 import { GATED_STAGES, PAYMENT_LOCK, isGated, lockMessage, paymentLock } from "../lib/payment-gate.ts";
 import { checkoutPrice, optionRange, quoteRefusal, reviewFeeFor, withOption } from "../lib/pricing.ts";
 import { cleanAnswer, isAsked } from "../lib/identifiers.ts";
+import { hashPassword, passwordProblem, verifyPassword } from "../lib/password.ts";
 import catalogueEn from "../lib/i18n/catalogue-en.json" with { type: "json" };
 import catalogueRw from "../lib/i18n/catalogue-rw.json" with { type: "json" };
 import { SERVICES } from "../lib/mock/catalogue.ts";
@@ -653,5 +654,23 @@ test("every Kinyarwanda catalogue entry lines up with the English one", () => {
     for (const f of ["inPerson", "feeOptionLabel", "purposeLabel"]) assert.equal(!!rw[s.slug][f], !!en[s.slug]?.[f], `${s.slug}.${f}`);
   }
 });
+
+// ---- staff passwords (async, so checked here rather than in test())
+{
+  const hash = await hashPassword("green mango river 47");
+  try {
+    assert.match(hash, /^scrypt\$15\$8\$1\$/);
+    assert.equal(await verifyPassword("green mango river 47", hash), true);
+    assert.equal(await verifyPassword("green mango river 48", hash), false);
+    assert.equal(await verifyPassword("anything", null), false, "no stored password never matches");
+    assert.notEqual(await hashPassword("green mango river 47"), hash, "each hash has its own salt");
+    assert.match((await passwordProblem("short one")) ?? "", /at least 15/);
+    assert.match((await passwordProblem("aaaaaaaaaaaaaaaaaaaa")) ?? "", /too few/);
+    assert.match((await passwordProblem("password12345678")) ?? "", /too common/);
+    assert.match((await passwordProblem("diane goes to the market", ["Diane Uwera"])) ?? "", /name/);
+    assert.equal(await passwordProblem("green mango river 47", ["Diane Uwera", "diane", "admin@inzira.test"]), null);
+    passed++;
+  } catch (e) { console.error("FAIL staff passwords are hashed with scrypt and checked against simple rules\n", e); process.exitCode = 1; }
+}
 
 console.log(process.exitCode ? "unit tests FAILED" : `unit tests ok (${passed})`);
