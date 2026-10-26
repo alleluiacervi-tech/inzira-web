@@ -133,7 +133,7 @@ function site(): Check[] {
   const out: Check[] = [
     process.env.NEXT_PUBLIC_SITE_URL
       ? { key: "url", name: "Website address", state: "ready", detail: process.env.NEXT_PUBLIC_SITE_URL }
-      : { key: "url", name: "Website address", state: "missing", detail: "Not set. SMS links and the sitemap can’t point to the site.", fix: "Set NEXT_PUBLIC_SITE_URL, e.g. https://inzira.rw." },
+      : { key: "url", name: "Website address", state: "missing", detail: "Not set. SMS links and the sitemap can’t point to the site.", fix: "Set NEXT_PUBLIC_SITE_URL, e.g. https://inziraservices.com." },
     placeholders.length
       ? { key: "company", name: "Company details", state: "missing", detail: `Still placeholders: ${placeholders.map((k) => ({ address: "office address", phone: "phone", companyCode: "company code", tin: "TIN" })[k]).join(", ")}${SITE.whatsapp ? "" : ", WhatsApp number"}.`, fix: "Fill them in lib/site.ts. Customers check these before trusting you." }
       : { key: "company", name: "Company details", state: SITE.whatsapp ? "ready" : "missing", detail: SITE.whatsapp ? "Filled in." : "WhatsApp number not set.", fix: SITE.whatsapp ? undefined : "Set whatsapp in lib/site.ts." },

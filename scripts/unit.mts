@@ -16,7 +16,7 @@ import { hashPassword, passwordProblem, verifyPassword } from "../lib/password.t
 import catalogueEn from "../lib/i18n/catalogue-en.json" with { type: "json" };
 import catalogueRw from "../lib/i18n/catalogue-rw.json" with { type: "json" };
 import { SERVICES } from "../lib/mock/catalogue.ts";
-import { barePath, isIndexable, languageAlternates, withLocale } from "../lib/seo.ts";
+import { barePath, canonicalRedirect, isIndexable, languageAlternates, withLocale } from "../lib/seo.ts";
 import { customerWhatsAppUrl, defaultFollowUpAt, deskChecks, fromKigaliDateTime, handoverRequired, kigaliDateTimeParts, nextKind, nextSentence, stageTargetRows } from "../lib/desk.ts";
 import { text as i18nText } from "../lib/i18n/messages.ts";
 
@@ -588,6 +588,18 @@ test("customer WhatsApp link is a Rwanda mobile number with the case reference",
   assert.equal(customerWhatsAppUrl("+250 788 123 456", "INZ-1"), customerWhatsAppUrl("0788123456", "INZ-1"));
   assert.equal(customerWhatsAppUrl("123", "INZ-1"), null);
   assert.deepEqual(stageTargetRows({ received: 2, checking: 4, preparing: 24, institution: 72, completed: 0 }).map((r) => r.stage), ["received", "checking", "preparing", "institution", "completed"]);
+});
+
+test("the vercel.app address redirects to the real domain", () => {
+  const base = { host: "inzira-web.vercel.app", pathname: "/services", search: "?a=1", origin: "https://inziraservices.com", production: true };
+  assert.equal(canonicalRedirect(base), "https://inziraservices.com/services?a=1");
+  assert.equal(canonicalRedirect({ ...base, host: "inzira-web.vercel.app:443" }), "https://inziraservices.com/services?a=1");
+  assert.equal(canonicalRedirect({ ...base, host: "inziraservices.com" }), null, "already on the domain");
+  assert.equal(canonicalRedirect({ ...base, production: false }), null, "previews keep their address");
+  assert.equal(canonicalRedirect({ ...base, origin: null }), null, "nothing to enforce without a site address");
+  assert.equal(canonicalRedirect({ ...base, origin: "https://inzira-web.vercel.app" }), null, "never loops");
+  assert.equal(canonicalRedirect({ ...base, pathname: "/api/cron" }), null, "scheduler is not redirected");
+  assert.equal(canonicalRedirect({ ...base, pathname: "/api/health" }), null);
 });
 
 test("english pages live under /en and private pages stay put", () => {
