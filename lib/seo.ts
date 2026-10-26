@@ -9,20 +9,16 @@ export function barePath(pathname: string): string {
 }
 
 /**
- * The address to send a visitor to when they reached the live site through its *.vercel.app address instead of
- * the real domain, or null when they are already on the right host (or there is nothing to enforce).
- * Only the production deployment redirects: preview deployments keep their own addresses.
- * /api/cron and /api/health are left alone so Vercel's scheduler and uptime checks, which can call the
- * deployment address, are never redirected.
+ * True when a production request arrived on a *.vercel.app address while the real domain is configured,
+ * so the site can refuse it. Without a real NEXT_PUBLIC_SITE_URL nothing is blocked, so the site never
+ * locks itself out before the domain is connected. Previews keep their own addresses.
+ * /api/cron and /api/health stay reachable for Vercel's scheduler and uptime checks.
  */
-export function canonicalRedirect(opts: { host: string | null; pathname: string; search: string; origin: string | null; production: boolean }): string | null {
+export function blockedHost(opts: { host: string | null; pathname: string; origin: string | null; production: boolean }): boolean {
   const host = (opts.host ?? "").split(":")[0].toLowerCase();
-  if (!opts.production || !opts.origin || !host.endsWith(".vercel.app")) return null;
-  if (/^\/api\/(cron|health)(\/|$)/.test(opts.pathname)) return null;
-  let target: URL;
-  try { target = new URL(opts.origin); } catch { return null; }
-  if (target.hostname.endsWith(".vercel.app")) return null;
-  return `${target.origin}${opts.pathname}${opts.search}`;
+  if (!opts.production || !opts.origin || !host.endsWith(".vercel.app")) return false;
+  if (/^\/api\/(cron|health)(\/|$)/.test(opts.pathname)) return false;
+  try { return !new URL(opts.origin).hostname.endsWith(".vercel.app"); } catch { return false; }
 }
 
 const UNPREFIXED = /^\/(portal|console|admin|api|files|sign-in|r|staff)(\/|$)/;

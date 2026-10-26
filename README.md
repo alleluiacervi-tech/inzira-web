@@ -96,7 +96,7 @@ Copy `.env.example` to `.env.local`. None are needed for development.
 | `INTOUCHPAY_CALLBACK_USER`, `INTOUCHPAY_CALLBACK_PASSWORD` | Optional. `POST /api/payments/callback` always answers 200 `{ "message": "success", "success": true, "request_id": … }` straight away, as IntouchPay requires, and then checks the payment with IntouchPay; a callback never decides the outcome, so it needs no login. If IntouchPay ever sends HTTP Basic with these values, a callback that says a prompt failed also closes it at once instead of when IntouchPay's status says so. |
 | `MTN_MOMO_*`, `AIRTEL_*` | Used only when `PAYMENT_PROVIDER=direct`. |
 | `CRON_SECRET` | Protects `/api/cron`. Vercel sends it automatically to scheduled jobs. |
-| `NEXT_PUBLIC_SITE_URL` | The public address (`https://inziraservices.com`), used in SMS links, the sitemap and canonical links. On the live deployment, requests to the project's `*.vercel.app` address redirect here. |
+| `NEXT_PUBLIC_SITE_URL` | The public address (`https://inziraservices.com`), used in SMS links, the sitemap and canonical links. Once it is set, the live deployment answers 404 on its `*.vercel.app` address (except `/api/cron` and `/api/health`). |
 | `BLOB_READ_WRITE_TOKEN` | Vercel Blob read/write token for local or non-Vercel deployments. On Vercel, connect a private Blob store to use OIDC instead. |
 | `UPLOAD_DIR` | Local development upload directory (default `.data/uploads`). Production requires private Blob storage. |
 | `OWNER_NAME`, `OWNER_PHONE` | Used once by `npm run db:setup`. |
