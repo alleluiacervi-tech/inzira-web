@@ -4,7 +4,7 @@ import type { Locale } from "./locale";
 import { text } from "./messages";
 import { checkoutPrice, optionRange } from "@/lib/pricing";
 import en from "./catalogue-en.json";
-import { contentVersion, liveCatalogue, shippedCatalogue } from "./live";
+import { contentVersion, isManaged, liveCatalogue, shippedCatalogue } from "./live";
 
 type SvcText = {
   feeOptionLabel?: string;
@@ -69,9 +69,10 @@ export function localizeService<T extends Service>(s: T, locale: Locale): T {
   const t = RW().services[s.slug];
   if (!t) return s;
   // A list of plain lines is paired with the English one by position, so a list of another length is not trusted (the English was
-  // changed after it was translated) unless the service has no shipped translation and the lines were written in the console.
+  // changed after it was translated) unless the lines were written in the console, which keeps them in step (lib/i18n/live.ts isManaged).
+  const trusted = isManaged(s.slug) || !(s.slug in shippedCatalogue().services);
   const lines = (translated: string[] | undefined, english: string[]) =>
-    english.map((line, i) => (translated && (translated.length === english.length || !(s.slug in shippedCatalogue().services)) && translated[i]) || line);
+    english.map((line, i) => (translated && (translated.length === english.length || trusted) && translated[i]) || line);
   return {
     ...s,
     name: t.name || s.name,

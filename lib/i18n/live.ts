@@ -68,6 +68,11 @@ export const liveCatalogue = (): RwCatalogue => state().catalogue;
 /** Changes whenever the edits change; "" while nothing has been edited. */
 export const contentVersion = () => state().version;
 
+/** The key that says a service's Kinyarwanda was written in the service editor, which keeps every list in step with the English. */
+export const managedKey = (slug: string) => `${CAT}services.${slug}.managed`;
+/** True when the service's Kinyarwanda lists are known to be in step with its English lists. */
+export const isManaged = (slug: string) => getPath(state().catalogue, `services.${slug}.managed`) === "1";
+
 /** The text shipped with the site, before any edit. */
 export const shippedRw = (): RwBundle => rwBase;
 export const shippedCatalogue = (): RwCatalogue => catalogueBase;

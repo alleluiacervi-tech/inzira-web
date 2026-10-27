@@ -3,19 +3,9 @@
 // A string is addressed by its key: "ui:<path in rw.json>" or "cat:<path in catalogue-rw.json>" (lib/i18n/live.ts).
 import catalogueEn from "./i18n/catalogue-en.json";
 import en from "./i18n/en.json";
-import { CAT, UI, getPath, liveCatalogue, liveRw, shippedCatalogue, shippedRw } from "./i18n/live";
-import { shortTime } from "./format";
-import type { Service } from "./types";
+import { CAT, UI, getPath, liveCatalogue, liveRw, managedKey, shippedCatalogue, shippedRw } from "./i18n/live";
+import { long, pathInService, serviceFields, variablesOf, words, type Field, type ServiceRw, type ServiceText } from "./service-text";
 
-export type Field = {
-  key: string;
-  /** Where the string sits, e.g. "Hero › Title" or "Step 3 › Title". */
-  label: string;
-  /** The English the Kinyarwanda is written from. */
-  en: string;
-  /** Long enough to need a larger box. */
-  long: boolean;
-};
 /** A string as the editor shows it. */
 export type Row = Field & {
   /** The text shipped with the site. Empty when the site has no Kinyarwanda for it yet. */
@@ -26,6 +16,7 @@ export type Row = Field & {
   /** {names} the text must keep. */
   vars: string[];
 };
+export { variablesOf, serviceFields, type Field, type ServiceText };
 export type SectionKind = "ui" | "catalogue" | "service";
 export type Section = { kind: SectionKind; id: string; title: string; hint: string; preview: string };
 export type Counts = { total: number; edited: number; missing: number };
@@ -57,10 +48,6 @@ const CATALOGUE_GROUPS: { id: string; title: string; hint: string; keys: ("categ
   { id: "fees", title: "Fee wording", hint: "Phrases such as “Official fee”, “To be confirmed” and the units after a price (“per year”).", keys: ["units", "officialPhrases"] },
 ];
 
-const words = (segment: string) => {
-  const spaced = segment.replace(/([a-z0-9])([A-Z])/g, "$1 $2").replace(/[-_]+/g, " ").toLowerCase();
-  return spaced.charAt(0).toUpperCase() + spaced.slice(1);
-};
 /** Names for the parts of rw.json whose own names are short codes. */
 const PART_NAMES: Record<string, string> = {
   "stored.ev": "Timeline line", "stored.nt": "Notification", "stored.sum": "Request summary", "stored.hold": "Hold", "stored.closed": "Closed request",
@@ -72,10 +59,6 @@ const labelOf = (path: string[]) => {
   const one = PART_NAMES[path[0]];
   return [one ?? words(path[0]), ...path.slice(1).map(words)].join(" › ");
 };
-const long = (text: string) => text.length > 80 || text.includes("\n");
-/** Every {name} in a text, once, in order. */
-export const variablesOf = (text: string) => [...new Set([...text.matchAll(/\{(\w+)\}/g)].map((m) => m[1]))];
-
 function leaves(node: unknown, path: string[] = [], out: { path: string[]; text: string }[] = []) {
   if (typeof node === "string") out.push({ path, text: node });
   else if (node && typeof node === "object") for (const [k, v] of Object.entries(node)) leaves(v, [...path, k], out);
@@ -87,44 +70,6 @@ function uiGroupFields(keys: string[]): Field[] {
   return keys.filter((k) => !NOT_EDITABLE.has(k)).flatMap((k) => leaves((en as Record<string, unknown>)[k], [k]).map((l) => uiField(l.path, l.text)));
 }
 const catalogueField = (path: string[], text: string): Field => ({ key: `${CAT}${path.join(".")}`, label: path.slice(1).map(words).join(" › "), en: text, long: long(text) });
-
-/** The strings of one service, from its current English: a service added in the console gets its own. */
-export type ServiceText = Pick<Service, "slug" | "name" | "aka" | "tagline" | "summary" | "authority" | "channel" | "via" | "time" | "docsShort" | "who" | "requirements" | "documents" | "steps" | "notes" | "official" | "purposes" | "purposeLabel" | "questions" | "feeOptions" | "feeOptionLabel" | "inPerson" | "stageLabels">;
-export function serviceFields(s: ServiceText): Field[] {
-  const base = ["services", s.slug];
-  const out: Field[] = [];
-  const add = (path: (string | number)[], label: string, text: string | undefined) => {
-    if (text && text.trim()) out.push({ key: `${CAT}${[...base, ...path].join(".")}`, label, en: text, long: long(text) });
-  };
-  add(["name"], "Name", s.name);
-  add(["aka"], "Also known as", s.aka);
-  add(["tagline"], "Tagline", s.tagline);
-  add(["summary"], "In simple terms", s.summary);
-  add(["authority"], "Responsible authority", s.authority);
-  add(["channel"], "Official channel", s.channel);
-  add(["via"], "Submitted via", s.via);
-  add(["time"], "How long it takes", s.time);
-  add(["timeShort"], "How long (short)", shortTime(s.time));
-  add(["docsShort"], "Documents (short)", s.docsShort);
-  s.who.forEach((w, i) => { add(["who", i, "title"], `Who it’s for ${i + 1} › Title`, w.title); add(["who", i, "body"], `Who it’s for ${i + 1} › Text`, w.body); });
-  s.requirements.forEach((r, i) => add(["requirements", i], `Requirement ${i + 1}`, r));
-  s.documents.forEach((d, i) => { add(["documents", i, "name"], `Document ${i + 1} › Name`, d.name); add(["documents", i, "detail"], `Document ${i + 1} › Detail`, d.detail); });
-  s.steps.forEach((st, i) => { add(["steps", i, "title"], `Step ${i + 1} › Title`, st.title); add(["steps", i, "body"], `Step ${i + 1} › Text`, st.body); });
-  s.notes.forEach((n, i) => { add(["notes", i, "title"], `Note ${i + 1} › Title`, n.title); add(["notes", i, "body"], `Note ${i + 1} › Text`, n.body); });
-  add(["officialNote"], "Official fee note", s.official.note);
-  add(["inPerson"], "The step done in person", s.inPerson);
-  add(["purposeLabel"], "Choice heading", s.purposeLabel);
-  s.purposes?.forEach((p, i) => add(["purposes", i], `Choice ${i + 1}`, p));
-  s.questions?.forEach((q, i) => {
-    add(["questions", i, "label"], `Question ${i + 1} › Label`, q.label);
-    add(["questions", i, "hint"], `Question ${i + 1} › Hint`, q.hint);
-    add(["questions", i, "placeholder"], `Question ${i + 1} › Example`, q.placeholder);
-  });
-  add(["feeOptionLabel"], "Price choice heading", s.feeOptionLabel);
-  s.feeOptions?.forEach((o, i) => add(["feeOptions", i], `Price choice ${i + 1}`, o.label));
-  for (const [stage, label] of Object.entries(s.stageLabels ?? {})) add(["stageLabels", stage], `Stage › ${words(stage)}`, label);
-  return out;
-}
 
 // ---------------- sections ----------------
 export function sections(services: ServiceText[]): { ui: Section[]; catalogue: Section[]; services: Section[] } {
@@ -215,4 +160,77 @@ export function checkText(field: Field, input: string): Checked {
     return { ok: false, error: `${extra.map((v) => `{${v}}`).join(", ")} is not in the English, so the site cannot fill it in.` };
   }
   return { ok: true, value };
+}
+
+// ---------------- a service, saved with its Kinyarwanda ----------------
+export type ServicePlan = { writes: Map<string, string>; removes: Set<string>; errors: string[] };
+
+/**
+ * What to store so a service reads as `rw` (its Kinyarwanda by path, one entry for every line of the English, "" for a line
+ * with none). A line equal to the shipped text needs no edit; a line that is empty where the shipped text has something stays as an
+ * empty edit, because the shipped line belongs to another item once a list has changed. Edits to lines the service no longer
+ * has are removed, and the service is marked as written in the console (lib/i18n/live.ts isManaged).
+ */
+export function planServiceText(service: ServiceText, rw: ServiceRw, existing: Record<string, string>): ServicePlan {
+  const plan: ServicePlan = { writes: new Map(), removes: new Set(), errors: [] };
+  const wanted = new Set<string>();
+  for (const f of serviceFields(service)) {
+    wanted.add(f.key);
+    const checked = checkText(f, typeof rw[pathInService(f)] === "string" ? rw[pathInService(f)] : "");
+    if (!checked.ok) { plan.errors.push(`${f.label}: ${checked.error}`); continue; }
+    const shipped = getPath(shippedCatalogue(), f.key.slice(CAT.length));
+    if (checked.value === (typeof shipped === "string" ? shipped : "")) { if (f.key in existing) plan.removes.add(f.key); }
+    else if (existing[f.key] !== checked.value) plan.writes.set(f.key, checked.value);
+  }
+  const prefix = `${CAT}services.${service.slug}.`;
+  const marker = managedKey(service.slug);
+  for (const key of Object.keys(existing)) if (key.startsWith(prefix) && key !== marker && !wanted.has(key)) plan.removes.add(key);
+  if (!(marker in existing)) plan.writes.set(marker, "1");
+  return plan;
+}
+
+// ---------------- find and replace ----------------
+export type Part = { text: string; hit: boolean };
+export type Match = { key: string; label: string; section: string; before: Part[]; after: Part[]; next: string };
+export type ReplaceInput = { find: string; replace: string; caseSensitive: boolean; wholeWord: boolean };
+export const MAX_FIND = 100;
+
+/** Every string with the screen it belongs to, against the edits made so far. */
+export function collectRows(services: ServiceText[], entries: Record<string, string>): { row: Row; section: Section }[] {
+  const all = sections(services);
+  return [...all.ui, ...all.catalogue, ...all.services].flatMap((section) =>
+    rowsFor(sectionFields(section.kind, section.id, services) ?? [], entries).map((row) => ({ row, section })));
+}
+
+/** The pattern for what to find: the words typed, not a regular expression. Undefined when there is nothing to find. */
+export function findPattern({ find, caseSensitive, wholeWord }: Pick<ReplaceInput, "find" | "caseSensitive" | "wholeWord">): RegExp | undefined {
+  const text = find.trim();
+  if (!text || text.length > MAX_FIND) return undefined;
+  const escaped = text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return new RegExp(wholeWord ? `(?<![\\p{L}\\p{N}])${escaped}(?![\\p{L}\\p{N}])` : escaped, caseSensitive ? "gu" : "giu");
+}
+
+/** The texts that contain what to find, with the text split around each hit before and after the change. */
+export function findMatches(rows: { row: Row; section: Section }[], input: ReplaceInput): Match[] {
+  const re = findPattern(input);
+  if (!re) return [];
+  const out: Match[] = [];
+  for (const { row, section } of rows) {
+    const value = row.value;
+    const before: Part[] = [], after: Part[] = [];
+    let last = 0, hits = 0;
+    for (const m of value.matchAll(re)) {
+      if (!m[0]) continue;
+      hits++;
+      const at = m.index ?? 0;
+      if (at > last) { before.push({ text: value.slice(last, at), hit: false }); after.push({ text: value.slice(last, at), hit: false }); }
+      before.push({ text: m[0], hit: true });
+      if (input.replace) after.push({ text: input.replace, hit: true });
+      last = at + m[0].length;
+    }
+    if (!hits) continue;
+    if (last < value.length) { before.push({ text: value.slice(last), hit: false }); after.push({ text: value.slice(last), hit: false }); }
+    out.push({ key: row.key, label: row.label, section: section.title, before, after, next: input.replace ? after.map((p) => p.text).join("") : after.map((p) => p.text).join("").replace(/[ \t]{2,}/g, " ").trim() });
+  }
+  return out;
 }

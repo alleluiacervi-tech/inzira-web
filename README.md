@@ -288,6 +288,17 @@ by every server action.
   lays the rows over the files, on the server and in the browser. A service added in the console has no
   shipped Kinyarwanda: its lines are written the same way. English text for a new service is still edited under
   Admin › Services.
+- **Services in both languages.** The service editor in Admin › Services has a **Kinyarwanda** tab beside the English
+  details: every line of the service (name, summary, requirements, documents, steps, who it is for, notes, questions) with
+  the English above a box for the Kinyarwanda. It is saved with the service in one transaction, so a new service goes live
+  in both languages at once (a new service starts with the usual six steps in Kinyarwanda), and a refused line undoes the
+  whole save. When a document or requirement is removed on the English side, its Kinyarwanda goes with it and the lines
+  after it move up (`shiftList`), so the languages stay paired by position; a service saved this way is marked
+  (`cat:services.<slug>.managed`) and its lists are then trusted even if their length differs from the shipped file.
+  The services list shows how many lines of each service still have no Kinyarwanda.
+- **Refining the language.** Admin › Kinyarwanda text › *Find and replace* finds a word or phrase in every Kinyarwanda
+  text (whole words, optionally matching capitals), shows each change as now and new, lets you untick the ones to leave,
+  and applies the rest together or not at all, with an audit line.
 - Not set up: ESLint (`npm run lint` has no config yet).
 - **Staff alerts** are a daily SMS summary. Nothing alerts staff the moment a customer replies; they see it
   in the console.
