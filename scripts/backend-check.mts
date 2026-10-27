@@ -287,7 +287,7 @@ await check("live site: the sample admin gets no code, and sample sessions are c
   }
 });
 
-await check("owner login: set once, kept on restart, replaced on request, no email kept", async () => {
+await check("owner login: applied once per hash, never undone by a restart, no email kept", async () => {
   const { setOwnerLogin, applyOwnerLoginFromEnv } = await import("../lib/db/owner.ts");
   const { hashPassword, verifyPassword } = await import("../lib/password.ts");
   const [before] = await d.select().from(s.staff).where(eq(s.staff.id, "s-diane"));
@@ -307,12 +307,18 @@ await check("owner login: set once, kept on restart, replaced on request, no ema
     process.env.OWNER_USERNAME = "admin@inziraservices.com";
     process.env.OWNER_PASSWORD_HASH = await hashPassword("second-password-2");
     await applyOwnerLoginFromEnv(d);
-    const [kept] = await d.select().from(s.staff).where(eq(s.staff.id, "s-diane"));
-    assert.equal(kept.passwordHash, row.passwordHash, "a start-up setting does not replace a password the owner already has");
-
-    assert.equal(await setOwnerLogin(d, { username: "admin@inziraservices.com", passwordHash: process.env.OWNER_PASSWORD_HASH }, { replace: true }), "set");
     const [replaced] = await d.select().from(s.staff).where(eq(s.staff.id, "s-diane"));
-    assert.equal(await verifyPassword("second-password-2", replaced.passwordHash), true);
+    assert.equal(await verifyPassword("second-password-2", replaced.passwordHash), true, "a new hash in the settings replaces the password the owner had");
+
+    await d.update(s.staff).set({ passwordHash: await hashPassword("changed-by-owner-3") }).where(eq(s.staff.id, "s-diane"));
+    await applyOwnerLoginFromEnv(d);
+    const [kept] = await d.select().from(s.staff).where(eq(s.staff.id, "s-diane"));
+    assert.equal(await verifyPassword("changed-by-owner-3", kept.passwordHash), true, "a restart with the same hash does not undo the owner's own change");
+
+    process.env.OWNER_PASSWORD_HASH = await hashPassword("fourth-password-4");
+    await applyOwnerLoginFromEnv(d);
+    const [again] = await d.select().from(s.staff).where(eq(s.staff.id, "s-diane"));
+    assert.equal(await verifyPassword("fourth-password-4", again.passwordHash), true, "another new hash is another reset");
 
     const [eric] = await d.select().from(s.staff).where(eq(s.staff.id, "s-eric"));
     await d.update(s.staff).set({ username: "taken.name" }).where(eq(s.staff.id, "s-eric"));
@@ -322,6 +328,7 @@ await check("owner login: set once, kept on restart, replaced on request, no ema
     delete process.env.OWNER_USERNAME;
     delete process.env.OWNER_PASSWORD_HASH;
     await d.delete(s.sessions).where(eq(s.sessions.id, "sess-owner-old"));
+    await d.delete(s.audit).where(eq(s.audit.action, "Owner login set from settings"));
     await d.update(s.staff).set({ username: before.username, email: before.email, passwordHash: before.passwordHash, passwordSetAt: before.passwordSetAt, failedLogins: before.failedLogins, lockedUntil: before.lockedUntil }).where(eq(s.staff.id, "s-diane"));
   }
 });
