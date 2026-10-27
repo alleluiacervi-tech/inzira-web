@@ -555,6 +555,14 @@ await step("admin", async () => {
     && (await p.ev(`document.querySelector(".svc-details")?.textContent ?? ""`)).includes("Official fee last checked"));
   await p.go("/admin/audit");
   check("audit: the price change is logged", await p.has("Changed assistance fee") && await p.has("RWF 10,000 → RWF 12,000"));
+  // A service is saved with its Kinyarwanda, from the Kinyarwanda tab of the same editor.
+  await p.go("/admin/services"); await p.click("Edit Company registration"); await sleep(400);
+  await p.click("Kinyarwanda", "button"); await waitUntil(p, `!!document.querySelector("#tr-name") && document.querySelector("#tr-name").value !== ""`);
+  await p.set("#tr-name", "Kwandikisha kompanyi (igerageza)"); await p.click("Save changes"); await waitFor(p, "Company registration updated");
+  check("services: the Kinyarwanda is saved with the service", (await (await fetch(base + "/services/company-registration")).text()).includes("Kwandikisha kompanyi (igerageza)"));
+  await p.click("Edit Company registration"); await sleep(400);
+  await p.click("Kinyarwanda", "button"); await waitUntil(p, `!!document.querySelector("#tr-name") && document.querySelector("#tr-name").value !== ""`);
+  await p.set("#tr-name", "Kwandikisha kompanyi"); await p.click("Save changes"); await waitFor(p, "Company registration updated");
   // Kinyarwanda text: the owner edits a line, the public site shows it, and "Use original" takes it back.
   await p.go("/admin/content");
   check("kinyarwanda text: the owner finds every screen of the site, and every service", await p.has("Home page") && await p.has("Privacy & terms") && await p.has("Company registration"));

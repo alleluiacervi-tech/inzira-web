@@ -22,7 +22,8 @@ import { text as i18nText } from "../lib/i18n/messages.ts";
 
 import { applyContent, contentVersion, getPath, liveCatalogue, liveRw, setPath, shippedCatalogue, shippedRw } from "../lib/i18n/live.ts";
 import { localizeService } from "../lib/i18n/present.ts";
-import { allFields, checkText, countRows, rowsFor, sectionFields, sections, serviceFields, variablesOf } from "../lib/content-fields.ts";
+import { allFields, checkText, collectRows, countRows, findMatches, findPattern, planServiceText, rowsFor, sectionFields, sections, serviceFields, variablesOf } from "../lib/content-fields.ts";
+import { defaultSteps, defaultStepsRw, pathInService, shiftList } from "../lib/service-text.ts";
 import en from "../lib/i18n/en.json" with { type: "json" };
 
 let passed = 0;
@@ -842,6 +843,79 @@ test("the editor counts what is edited and what has no Kinyarwanda", () => {
   assert.equal(rows[1].edited, false);
   assert.equal(countRows(sectionFields("service", "brand-new", [{ ...SERVICES[0], slug: "brand-new" }])!, {}).missing > 10, true, "a new service starts with nothing translated");
   assert.equal(liveRw(), shippedRw(), "no edits: the shipped text is used as it is");
+});
+
+// ---- a service saved with its Kinyarwanda
+const shippedRwOf = (svc: (typeof SERVICES)[number]) => Object.fromEntries(serviceFields(svc).map((f) => [pathInService(f), String(getPath(shippedCatalogue(), f.key.slice(4)) ?? "")]));
+const fromPlan = (plan: ReturnType<typeof planServiceText>) => Object.fromEntries(plan.writes);
+test("taking an item out of a list takes its Kinyarwanda with it, and the items after it move up", () => {
+  const rw = { "documents.0.name": "A", "documents.1.name": "B", "documents.1.detail": "B+", "documents.2.name": "C", "requirements.1": "R", name: "N" };
+  assert.deepEqual(shiftList(rw, "documents", 1), { "documents.0.name": "A", "documents.1.name": "C", "requirements.1": "R", name: "N" });
+  assert.deepEqual(shiftList(rw, "documents", 2), { "documents.0.name": "A", "documents.1.name": "B", "documents.1.detail": "B+", "requirements.1": "R", name: "N" });
+  assert.deepEqual(shiftList({ "requirements.0": "x", "requirements.10": "y" }, "requirements", 0), { "requirements.9": "y" }, "only whole indexes move");
+});
+test("a service saved with the Kinyarwanda it already has stores nothing but its mark", () => {
+  const svc = SERVICES.find((x) => x.documents.length >= 3 && x.requirements.length >= 2)!;
+  const plan = planServiceText(svc, shippedRwOf(svc), {});
+  assert.deepEqual(plan.errors, []);
+  assert.deepEqual([...plan.writes.keys()], [`cat:services.${svc.slug}.managed`]);
+  assert.equal(plan.removes.size, 0);
+  assert.equal(planServiceText(svc, shippedRwOf(svc), { [`cat:services.${svc.slug}.managed`]: "1" }).writes.size, 0, "the mark is written once");
+});
+test("changing a line, blanking one, and a line the service no longer has", () => {
+  const svc = SERVICES.find((x) => x.documents.length >= 3)!;
+  const base = shippedRwOf(svc);
+  const plan = planServiceText(svc, { ...base, name: "Izina rishya", "documents.0.detail": "" }, { [`cat:services.${svc.slug}.steps.9.title`]: "old", [`cat:services.${svc.slug}.name`]: "Izina rya kera" });
+  assert.equal(plan.writes.get(`cat:services.${svc.slug}.name`), "Izina rishya");
+  assert.equal(plan.writes.get(`cat:services.${svc.slug}.documents.0.detail`), "", "an empty line where the shipped text has something stays empty on purpose");
+  assert.ok(plan.removes.has(`cat:services.${svc.slug}.steps.9.title`), "an edit of a line that is gone is removed");
+  assert.equal(planServiceText(svc, { ...base, name: "Izina rishya" }, { [`cat:services.${svc.slug}.name`]: "Izina rishya" }).writes.has(`cat:services.${svc.slug}.name`), false, "a line already stored as it is is not written again");
+  assert.ok(planServiceText(svc, { ...base, name: "x".repeat(4001) }, {}).errors.length > 0);
+});
+test("removing a document in the English keeps the Kinyarwanda with the right document", () => {
+  const svc = SERVICES.find((x) => x.documents.length >= 3 && x.requirements.length >= 3)!;
+  const rw0 = shippedRwOf(svc);
+  const english = { ...svc, documents: svc.documents.slice(1), requirements: svc.requirements.slice(0, 1).concat(svc.requirements.slice(2)) };
+  let rw = shiftList(rw0, "documents", 0);
+  rw = shiftList(rw, "requirements", 1);
+  const plan = planServiceText(english, rw, {});
+  assert.deepEqual(plan.errors, []);
+  applyContent(Object.fromEntries(plan.writes), "9:plan");
+  try {
+    const shown = localizeService(english, "rw");
+    assert.equal(shown.documents[0].name, rw0["documents.1.name"], "the second document, now first, keeps its own Kinyarwanda");
+    assert.equal(shown.documents[1].name, rw0["documents.2.name"]);
+    assert.deepEqual(shown.requirements, [rw0["requirements.0"], rw0["requirements.2"], ...svc.requirements.slice(3).map((_, i) => rw0[`requirements.${i + 3}`])].slice(0, english.requirements.length));
+  } finally {
+    applyContent({}, "0:");
+  }
+  // Without the mark the unequal lists are not trusted, as before.
+  assert.deepEqual(localizeService(english, "rw").requirements, english.requirements);
+});
+test("a new service starts with the usual steps in both languages", () => {
+  const steps = defaultSteps("RDB online registration", "Rwanda Development Board");
+  const svc = { ...SERVICES[0], slug: "fresh", steps };
+  const rw = defaultStepsRw("RDB", "RDB");
+  const paths = serviceFields(svc).map(pathInService).filter((p) => p.startsWith("steps."));
+  assert.deepEqual(paths.sort(), Object.keys(rw).sort(), "every default step line has its Kinyarwanda");
+  assert.equal(rw["steps.3.title"], "Tubyohereza kuri RDB");
+});
+test("find and replace shows each hit, changes whole words only when asked, and takes the typed words literally", () => {
+  const rows = collectRows(SERVICES, {});
+  const any = rows.find((r) => /amafaranga/i.test(r.row.value))!;
+  assert.ok(any, "the site has Kinyarwanda about fees");
+  const hits = findMatches(rows, { find: "amafaranga", replace: "AYA", caseSensitive: false, wholeWord: true });
+  assert.ok(hits.length > 20);
+  const hit = hits[0];
+  assert.equal(hit.before.map((p) => p.text).join(""), rows.find((r) => r.row.key === hit.key)!.row.value, "the text before is the text now");
+  assert.ok(hit.before.some((p) => p.hit) && hit.after.some((p) => p.hit && p.text === "AYA"));
+  assert.equal(findMatches(rows, { find: "amafaranga", replace: "", caseSensitive: true, wholeWord: false }).length > 0, true);
+  assert.equal(findMatches([{ ...rows[0], row: { ...rows[0].row, value: "Amafaranga yose" } }], { find: "amafaranga", replace: "x", caseSensitive: true, wholeWord: false }).length, 0, "capital letters count when asked");
+  assert.equal(findMatches([{ ...rows[0], row: { ...rows[0].row, value: "Amafarangayose" } }], { find: "amafaranga", replace: "x", caseSensitive: false, wholeWord: true }).length, 0, "a longer word is not a whole-word hit");
+  assert.equal(findMatches([{ ...rows[0], row: { ...rows[0].row, value: "Ikiguzi (RWF) $1" } }], { find: "(RWF) $1", replace: "$&", caseSensitive: false, wholeWord: false })[0].next, "Ikiguzi $&", "the words are not a pattern, and $ is not special in the replacement");
+  assert.equal(findPattern({ find: "  ", caseSensitive: false, wholeWord: false }), undefined);
+  const gone = findMatches([{ ...rows[0], row: { ...rows[0].row, value: "Kwishyura  amafaranga  ya leta" } }], { find: "amafaranga", replace: "", caseSensitive: false, wholeWord: true })[0];
+  assert.equal(gone.next, "Kwishyura ya leta", "removing a word leaves no double space");
 });
 
 console.log(process.exitCode ? "unit tests FAILED" : `unit tests ok (${passed})`);

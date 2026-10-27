@@ -701,6 +701,51 @@ await check("Kinyarwanda text: saved all together or not at all, served over the
   }
   assert.equal(text("rw", "home.lead"), shipped, "no edits left: the shipped text again");
 });
+await check("a service saved with its Kinyarwanda: both are stored together, a refused line undoes the whole save", async () => {
+  const { saveServiceText, serviceRwNow, ServiceTextRefused } = await import("../lib/content-admin.ts");
+  const { primeContent } = await import("../lib/content.ts");
+  const { localizeService } = await import("../lib/i18n/present.ts");
+  const { shiftList, pathInService, serviceFields } = await import("../lib/service-text.ts");
+  const { SERVICES } = await import("../lib/mock/catalogue.ts");
+  const who = { name: "Diane", role: "Administrator" };
+  const svc = SERVICES.find((x) => x.documents.length >= 3)!;
+  const marker = `cat:services.${svc.slug}.managed`;
+  const rows = () => d.select().from(s.content);
+  try {
+    // The English loses its first document: the editor moves the Kinyarwanda up with it.
+    const now = serviceRwNow(svc);
+    const english = { ...svc, documents: svc.documents.slice(1) };
+    const rw = { ...shiftList(now, "documents", 0), name: "Izina ryahinduwe" };
+    await d.transaction((tx) => saveServiceText(tx, who, english, rw));
+    const stored = await rows();
+    assert.ok(stored.some((r) => r.key === marker), "the service is marked as written in the console");
+    assert.equal(stored.find((r) => r.key === `cat:services.${svc.slug}.name`)?.value, "Izina ryahinduwe");
+    await primeContent(true);
+    assert.equal(localizeService(english, "rw").documents[0].name, now["documents.1.name"], "the document kept its own Kinyarwanda");
+    assert.equal(localizeService(english, "rw").name, "Izina ryahinduwe");
+    const audited = (await d.select().from(s.audit)).filter((a) => /Kinyarwanda text/.test(a.action) && /with the service/.test(a.entity));
+    assert.equal(audited.length, 1);
+
+    // The same Kinyarwanda again: nothing changes and nothing is logged.
+    await d.transaction((tx) => saveServiceText(tx, who, english, rw));
+    assert.equal((await d.select().from(s.audit)).filter((a) => /with the service/.test(a.entity)).length, 1);
+
+    // A refused line undoes the service change made in the same transaction.
+    const before = (await d.select({ name: s.services.name }).from(s.services).where(eq(s.services.slug, svc.slug)))[0].name;
+    await assert.rejects(quiet(() => d.transaction(async (tx) => {
+      await tx.update(s.services).set({ name: "Changed in the same save" }).where(eq(s.services.slug, svc.slug));
+      await saveServiceText(tx, who, english, { ...rw, name: "x".repeat(4001) });
+    })), ServiceTextRefused);
+    assert.equal((await d.select({ name: s.services.name }).from(s.services).where(eq(s.services.slug, svc.slug)))[0].name, before, "the English change was undone too");
+    assert.equal((await rows()).find((r) => r.key === `cat:services.${svc.slug}.name`)?.value, "Izina ryahinduwe", "and the earlier Kinyarwanda is as it was");
+    assert.equal(serviceFields(english).length > 10, true);
+    void pathInService;
+  } finally {
+    await d.delete(s.content);
+    await d.delete(s.audit).where(sql`${s.audit.action} like '%Kinyarwanda text%'`);
+    await primeContent(true);
+  }
+});
 await check("a permission added in a later release is given to the roles that database already has, once", async () => {
   const { ensureCatalogue } = await import("../lib/db/seed.ts");
   const has = async () => d.select().from(s.rolePermissions).where(eq(s.rolePermissions.permission, "editContent"));

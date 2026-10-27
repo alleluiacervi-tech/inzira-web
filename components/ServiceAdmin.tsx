@@ -1,8 +1,11 @@
 "use client";
 import { useState } from "react";
 import { saveService } from "@/app/actions/admin";
+import { getServiceRw } from "@/app/actions/content";
 import { fmtDate, officialLabel, oursLabel, rwf, totalLabel } from "@/lib/format";
 import type { Category, DocGroup, Service } from "@/lib/types";
+import { defaultSteps, defaultStepsRw, pathInService, serviceFields, shiftList, type ServiceRw } from "@/lib/service-text";
+import ServiceTranslation, { untranslated } from "./ServiceTranslation";
 import { Badge, FeeTag, Icon } from "./ui";
 import { useDialog } from "./useDialog";
 
@@ -22,17 +25,43 @@ const blank = (category: string): Service => ({
   official: { amount: null, note: "" }, ours: 0, time: "", docsShort: "", audience: ["individual"], idPolicy: "unsure", visible: false,
 });
 
-export default function ServiceAdmin({ services: rows, categories, demand }: { services: Service[]; categories: Category[]; demand: Record<string, number> }) {
+/** What a new service's steps will be: the usual six, until someone writes others. */
+const withSteps = (s: Service): Service => (s.steps.length ? s : { ...s, steps: defaultSteps(s.channel || "the official channel", s.authority || "The institution") });
+/** A new service with no Kinyarwanda for its steps starts with the usual six, in the wording the catalogue uses. */
+const withStepsRw = (s: Service, rw: ServiceRw): ServiceRw =>
+  s.steps.length || Object.keys(rw).some((k) => k.startsWith("steps.")) ? rw : { ...defaultStepsRw(rw.channel || s.channel || "ibiro bya leta", rw.authority || s.authority || "Urwego"), ...rw };
+/** The draft without its blank documents and requirements, and the Kinyarwanda with the same items taken out. */
+function tidy(edit: Service, rw: ServiceRw | null) {
+  let next = rw;
+  const documents = [...edit.documents];
+  const requirements = edit.requirements.map((r) => r.trim());
+  for (let i = documents.length - 1; i >= 0; i--) if (!documents[i].name.trim()) { documents.splice(i, 1); if (next) next = shiftList(next, "documents", i); }
+  for (let i = requirements.length - 1; i >= 0; i--) if (!requirements[i]) { requirements.splice(i, 1); if (next) next = shiftList(next, "requirements", i); }
+  return { service: { ...edit, documents, requirements }, rw: next };
+}
+
+export default function ServiceAdmin({ services: rows, categories, demand, canTranslate = false, rwStatus = {} }: { services: Service[]; categories: Category[]; demand: Record<string, number>; canTranslate?: boolean; rwStatus?: Record<string, { total: number; missing: number }> }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [cat, setCat] = useState("all");
   const [edit, setEdit] = useState<Service | null>(null);
   const [saved, setSaved] = useState("");
+  const [tab, setTab] = useState<"details" | "rw">("details");
+  const [rw, setRw] = useState<ServiceRw | null>(null);
+  const [rwState, setRwState] = useState<"loading" | "ready" | "failed">("ready");
   const dialog = useDialog<HTMLElement>(!!edit, () => setEdit(null));
   const shown = rows.filter((r) => cat === "all" || r.category === cat);
   const short = (id: string) => categories.find((c) => c.id === id)?.short ?? "";
   const isNew = !!edit && !rows.some((r) => r.slug === edit.slug);
   const unchecked = rows.filter(needsCheck).length;
+  /** Opens the editor on a service, and fetches its Kinyarwanda so both languages are saved together. */
+  const open = (s: Service, fresh: boolean) => {
+    setSaved(""); setError(""); setTab("details"); setEdit(s); setRw(null);
+    if (!canTranslate) return;
+    if (fresh) { setRw({}); setRwState("ready"); return; }
+    setRwState("loading");
+    getServiceRw(s.slug).then((r) => { if (r.ok) { setRw(r.rw); setRwState("ready"); } else setRwState("failed"); }).catch(() => setRwState("failed"));
+  };
   const setDocAt = (i: number, patch: Partial<Service["documents"][number]>) => edit && setEdit({ ...edit, documents: edit.documents.map((d, j) => (j === i ? { ...d, ...patch } : d)) });
   const setKind = (k: Kind) => edit && setEdit({ ...edit, official: { ...edit.official, mode: k === "direct" ? "direct" : k === "none" ? "none" : undefined, amount: k === "fixed" ? edit.official.amount ?? 0 : k === "none" ? 0 : null, verifiedAt: undefined } });
 
@@ -44,19 +73,19 @@ export default function ServiceAdmin({ services: rows, categories, demand }: { s
           <button type="button" className={`chip chip-sm ${cat === "all" ? "chip-on" : ""}`} onClick={() => setCat("all")} aria-pressed={cat === "all"}>All · {rows.length}</button>
           {categories.filter((c) => !c.href).map((c) => <button key={c.id} type="button" className={`chip chip-sm ${cat === c.id ? "chip-on" : ""}`} onClick={() => setCat(c.id)} aria-pressed={cat === c.id}>{c.short} · {rows.filter((r) => r.category === c.id).length}</button>)}
         </div>
-        <button type="button" className="btn btn-p btn-sm" onClick={() => setEdit(blank(cat === "all" ? categories[0].id : cat))}><Icon name="plus" size={16} /> New service</button>
+        <button type="button" className="btn btn-p btn-sm" onClick={() => open(blank(cat === "all" ? categories[0].id : cat), true)}><Icon name="plus" size={16} /> New service</button>
       </div>
       {saved && <div className="alert t-ok" role="status"><Icon name="check" size={20} /><div className="alert-body"><strong>Saved</strong><span>{saved}</span></div></div>}
       <div className="card table-wrap">
         <table>
-          <thead><tr><th>Service</th><th>Category</th><th>Official fee</th><th>Our fee</th><th>Documents</th><th>Status</th><th style={{ textAlign: "right" }}>30-day</th><th><span className="sr-only">Edit</span></th></tr></thead>
+          <thead><tr><th>Service</th><th>Category</th><th>Official fee</th><th>Our fee</th><th>Documents</th><th>Status</th>{canTranslate && <th>Kinyarwanda</th>}<th style={{ textAlign: "right" }}>30-day</th><th><span className="sr-only">Edit</span></th></tr></thead>
           <tbody>{shown.map((r) => (
             <tr key={r.slug}>
               <td><span className="stack" style={{ gap: 2 }}><strong>{r.name || "Untitled service"}</strong><span className="mut" style={{ fontSize: 12.5 }}>{r.via}</span></span></td><td><span className="tag">{short(r.category)}</span></td>
               <td><span className="stack" style={{ gap: 4, alignItems: "flex-start" }}><span style={{ fontWeight: 600 }}>{officialLabel(r)}</span>{needsCheck(r) && <Badge tone="warn" label="Not checked" />}</span></td>
               <td className="fee-ours" style={{ fontWeight: 700 }}>{oursLabel(r)}</td><td className="mut">{r.documents.length || "—"}</td>
-              <td><span className="row g6 wrapx"><Badge tone={r.visible ? "ok" : "neutral"} label={r.visible ? "Active" : "Draft"} />{(r.idPolicy ?? "unsure") === "unsure" && <Badge tone="warn" label="ID not confirmed" />}</span></td><td style={{ textAlign: "right" }}>{demand[r.slug] ?? 0}</td>
-              <td><button type="button" className="btn btn-g btn-sm btn-ico" aria-label={`Edit ${r.name}`} onClick={() => { setSaved(""); setEdit({ ...r }); }}><Icon name="edit" size={17} /></button></td>
+              <td><span className="row g6 wrapx"><Badge tone={r.visible ? "ok" : "neutral"} label={r.visible ? "Active" : "Draft"} />{(r.idPolicy ?? "unsure") === "unsure" && <Badge tone="warn" label="ID not confirmed" />}</span></td>{canTranslate && <td>{rwStatus[r.slug]?.missing ? <Badge tone="warn" label={`${rwStatus[r.slug].missing} to translate`} /> : <Badge tone="ok" label="Complete" />}</td>}<td style={{ textAlign: "right" }}>{demand[r.slug] ?? 0}</td>
+              <td><button type="button" className="btn btn-g btn-sm btn-ico" aria-label={`Edit ${r.name}`} onClick={() => open({ ...r }, false)}><Icon name="edit" size={17} /></button></td>
             </tr>
           ))}</tbody>
         </table>
@@ -68,7 +97,20 @@ export default function ServiceAdmin({ services: rows, categories, demand }: { s
           <div className="drawer-bg" style={{ position: "fixed", zIndex: 65 }} onClick={() => setEdit(null)} />
           <aside ref={dialog} className="admin-drawer" role="dialog" aria-modal="true" aria-labelledby="ed-h">
             <div className="card-head" style={{ padding: "20px 24px" }}><div className="stack" style={{ gap: 3 }}><span className="eb" style={{ fontSize: 11 }}>{isNew ? "New service" : "Edit service"}</span><h2 id="ed-h" className="d" style={{ fontSize: 20 }}>{edit.name || "New service"}</h2></div><button className="btn btn-g btn-ico" type="button" aria-label="Close panel" onClick={() => setEdit(null)}><Icon name="x" size={20} /></button></div>
-            <div className="stack g18" style={{ padding: "20px 24px", overflowY: "auto", flexGrow: 1 }}>
+            {canTranslate && (
+              <div className="row g8" role="tablist" aria-label="Language" style={{ padding: "0 24px 12px", borderBottom: "1px solid var(--line)" }}>
+                <button type="button" role="tab" id="tab-details" aria-selected={tab === "details"} aria-controls="panel-edit" className={`chip chip-sm ${tab === "details" ? "chip-on" : ""}`} onClick={() => setTab("details")}>Details · English</button>
+                <button type="button" role="tab" id="tab-rw" aria-selected={tab === "rw"} aria-controls="panel-edit" className={`chip chip-sm ${tab === "rw" ? "chip-on" : ""}`} onClick={() => { if (isNew && rw) setRw(withStepsRw(edit, rw)); setTab("rw"); }}>
+                  Kinyarwanda{rw && untranslated(withSteps(edit), rw) > 0 ? ` · ${untranslated(withSteps(edit), rw)} to translate` : ""}
+                </button>
+              </div>
+            )}
+            {tab === "rw" && canTranslate ? (
+              <div id="panel-edit" role="tabpanel" aria-labelledby="tab-rw" className="stack g18" style={{ padding: "20px 24px", overflowY: "auto", flexGrow: 1 }}>
+                <ServiceTranslation service={withSteps(edit)} rw={rw} state={rwState} onChange={(path, text) => setRw((cur) => ({ ...(cur ?? {}), [path]: text }))} />
+              </div>
+            ) : (
+            <div id="panel-edit" role={canTranslate ? "tabpanel" : undefined} aria-labelledby={canTranslate ? "tab-details" : undefined} className="stack g18" style={{ padding: "20px 24px", overflowY: "auto", flexGrow: 1 }}>
               <div className="field"><label htmlFor="e1">Customer-facing name</label><input id="e1" className="in" value={edit.name} onChange={(e) => setEdit({ ...edit, name: e.target.value })} /></div>
               <div className="grid cols-2" style={{ gap: 12 }}>
                 <div className="field"><label htmlFor="e2">Category</label><select id="e2" className="in" value={edit.category} onChange={(e) => setEdit({ ...edit, category: e.target.value })}>{categories.filter((c) => !c.href).map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select></div>
@@ -100,7 +142,7 @@ export default function ServiceAdmin({ services: rows, categories, demand }: { s
                 {edit.documents.map((d, i) => (
                   <div key={i} className="stack g8" style={{ paddingBottom: 12, borderBottom: "1px solid var(--line-2)" }}>
                     <div className="row g8"><label htmlFor={`d${i}`} className="sr-only">Document {i + 1} name</label><input id={`d${i}`} className="in" style={{ height: 40 }} value={d.name} placeholder="Document name" onChange={(e) => setDocAt(i, { name: e.target.value })} />
-                      <button type="button" className="btn btn-g btn-sm btn-ico" aria-label={`Remove ${d.name || `document ${i + 1}`}`} onClick={() => setEdit({ ...edit, documents: edit.documents.filter((_, j) => j !== i) })}><Icon name="trash" size={17} /></button></div>
+                      <button type="button" className="btn btn-g btn-sm btn-ico" aria-label={`Remove ${d.name || `document ${i + 1}`}`} onClick={() => { setEdit({ ...edit, documents: edit.documents.filter((_, j) => j !== i) }); if (rw) setRw(shiftList(rw, "documents", i)); }}><Icon name="trash" size={17} /></button></div>
                     <label htmlFor={`dd${i}`} className="sr-only">Document {i + 1} instructions</label><input id={`dd${i}`} className="in" style={{ height: 40 }} value={d.detail} placeholder="What the customer should send" onChange={(e) => setDocAt(i, { detail: e.target.value })} />
                     <div className="row between g8 wrapx">
                       <label className="check" style={{ fontSize: 13.5 }}><input type="checkbox" checked={d.required} onChange={(e) => setDocAt(i, { required: e.target.checked })} /> Required</label>
@@ -134,18 +176,28 @@ export default function ServiceAdmin({ services: rows, categories, demand }: { s
                   <div className="field"><label htmlFor="e11">Shown under the name</label><input id="e11" className="in" value={edit.via} placeholder={`Via ${edit.channel || "…"}`} onChange={(e) => setEdit({ ...edit, via: e.target.value })} /></div>
                 </div>
                 <div className="field"><label htmlFor="e12">Documents, in a few words</label><input id="e12" className="in" value={edit.docsShort} placeholder="e.g. National ID, UPI" onChange={(e) => setEdit({ ...edit, docsShort: e.target.value })} /></div>
-                <div className="field"><label htmlFor="e13">Requirements <span className="mut" style={{ fontWeight: 400 }}>(one per line)</span></label><textarea id="e13" className="in" rows={3} value={edit.requirements.join("\n")} onChange={(e) => setEdit({ ...edit, requirements: e.target.value.split("\n") })} /></div>
+                <div className="stack g8"><span className="field-label" style={{ fontSize: 14, fontWeight: 600 }}>Requirements <span className="mut" style={{ fontWeight: 400 }}>(what the customer needs before starting)</span></span>
+                  {edit.requirements.map((r, i) => (
+                    <div key={i} className="row g8"><input aria-label={`Requirement ${i + 1}`} className="in" style={{ height: 40 }} value={r} onChange={(e) => setEdit({ ...edit, requirements: edit.requirements.map((x, j) => (j === i ? e.target.value : x)) })} />
+                      <button type="button" className="btn btn-g btn-sm btn-ico" aria-label={`Remove requirement ${i + 1}`} onClick={() => { setEdit({ ...edit, requirements: edit.requirements.filter((_, j) => j !== i) }); if (rw) setRw(shiftList(rw, "requirements", i)); }}><Icon name="trash" size={17} /></button></div>
+                  ))}
+                  <button type="button" className="btn btn-s btn-sm" style={{ alignSelf: "flex-start" }} onClick={() => setEdit({ ...edit, requirements: [...edit.requirements, ""] })}><Icon name="plus" size={16} /> Add requirement</button></div>
                 <label className="check"><input type="checkbox" checked={!!edit.popular} onChange={(e) => setEdit({ ...edit, popular: e.target.checked })} /> Mark as popular</label>
               </fieldset>
             </div>
+            )}
             {error && <div className="alert t-err" role="alert" style={{ borderRadius: 0 }}><Icon name="alert" size={20} /><div className="alert-body"><strong>Not saved</strong><span>{error}</span></div></div>}
             <div className="row between g8 wrapx" style={{ padding: "16px 24px", borderTop: "1px solid var(--line)" }}>
               <label className="check"><input type="checkbox" checked={edit.visible} onChange={(e) => setEdit({ ...edit, visible: e.target.checked })} /> Visible in catalogue</label>
               <div className="row g8"><button className="btn btn-g" type="button" onClick={() => setEdit(null)}>Cancel</button>
-                <button className="btn btn-p" type="button" disabled={!edit.name.trim() || busy} onClick={async () => {
-                  const clean = { ...edit, slug: edit.slug || slugify(edit.name), documents: edit.documents.filter((d) => d.name.trim()), requirements: edit.requirements.map((x) => x.trim()).filter(Boolean) };
+                <button className="btn btn-p" type="button" disabled={!edit.name.trim() || busy || (canTranslate && rwState === "loading")} onClick={async () => {
+                  const tidied = tidy({ ...edit, slug: edit.slug || slugify(edit.name) }, canTranslate ? rw : null);
+                  const clean = tidied.service;
+                  // The Kinyarwanda goes with the service when it was loaded (or is new), so both languages are saved together or not at all.
+                  const full = tidied.rw && withStepsRw(clean, tidied.rw);
+                  const send = full && Object.fromEntries(serviceFields(withSteps(clean)).map((f) => [pathInService(f), full[pathInService(f)] ?? ""]));
                   setBusy(true); setError("");
-                  const r = await saveService(clean, isNew).catch(() => ({ ok: false as const, error: "Not saved. Check your connection and try again." }));
+                  const r = await saveService(clean, isNew, send ?? undefined).catch(() => ({ ok: false as const, error: "Not saved. Check your connection and try again." }));
                   setBusy(false);
                   if (!r.ok) { setError(r.error); return; }
                   setSaved(`${clean.name} ${isNew ? "added" : "updated"} · our fee ${rwf(clean.ours)}${clean.oursUnit ? ` ${clean.oursUnit}` : ""}. Customers see it now, and the change is in the audit log.`);

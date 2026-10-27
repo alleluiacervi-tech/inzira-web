@@ -1,4 +1,7 @@
 "use server";
+import { primeContent } from "@/lib/content";
+import { ServiceTextRefused, saveServiceText } from "@/lib/content-admin";
+import { defaultSteps, type ServiceRw } from "@/lib/service-text";
 import { STEP_UP } from "@/lib/step-up";
 import { issueStaffToken, staffTokenUrl } from "@/lib/staff-tokens";
 import { showsEmailCodeOnScreen } from "@/lib/email";
@@ -22,16 +25,6 @@ import { allow } from "@/lib/ratelimit";
 import { idPolicyOf } from "@/lib/identity";
 import { STAGES, type Service, type StaffRole, type Stage } from "@/lib/types";
 
-/** The usual steps, for a new service that has none yet. */
-const defaultSteps = (channel: string, authority: string): Service["steps"] => [
-  { title: "You start the request", body: "Answer a few short questions. Takes about 3 minutes.", you: true },
-  { title: "We check your documents", body: "Your agent confirms everything is correct, usually within 2 working hours." },
-  { title: "You approve the fees", body: "You see the official fee and our fee separately, then pay by MoMo or Airtel Money.", you: true },
-  { title: `We submit via ${channel}`, body: "We submit through the official channel and share the official reference number with you." },
-  { title: `${authority} processes it`, body: "The institution reviews and decides. We follow up if it takes longer than usual." },
-  { title: "You receive the result", body: "Delivered to your portal, with official receipts." },
-];
-
 async function admin(perm: Permission) {
   const me = await getStaffUser();
   if (!me) return { error: "Your session has ended. Sign in again." } as const;
@@ -39,11 +32,14 @@ async function admin(perm: Permission) {
   return { me, d: await db() };
 }
 
-/** Creates or updates a catalogue entry, including both fee lines. Every price change is audited. */
-export async function saveService(v: Service, isNew = false): Promise<Result> {
+/** Creates or updates a catalogue entry, including both fee lines. Every price change is audited.
+ *  With `rw`, the service's Kinyarwanda (by path, a line for each line of the English; lib/service-text.ts) is saved with it, in the same
+ *  transaction, and needs the permission to edit Kinyarwanda text. */
+export async function saveService(v: Service, isNew = false, rw?: ServiceRw): Promise<Result> {
   const a = await admin("editServices");
   if ("error" in a) return fail(a.error!);
   const { me, d } = a;
+  if (rw && !me.permissions.has("editContent")) return fail(`Your role can’t do this (${PERMISSIONS.editContent}).`);
   if (!v.name.trim()) return fail("Give the service a name.");
   if (!v.summary.trim()) return fail("Write the “In simple terms” description customers read.");
   if (!v.channel.trim() || !v.authority.trim()) return fail("Fill in the responsible authority and the official channel.");
@@ -64,6 +60,7 @@ export async function saveService(v: Service, isNew = false): Promise<Result> {
     if (before && isNew) throw new Error("exists");
     if (before) await tx.update(s.services).set(row).where(eq(s.services.slug, v.slug));
     else await tx.insert(s.services).values({ ...row, position: 999 });
+    if (rw) await saveServiceText(tx, me, { ...v, name: row.name, via: row.via, tagline: row.tagline ?? undefined, requirements: row.requirements, documents: row.documents, steps: row.steps }, rw);
     if (!before) await audit(tx, { actor: me.name, role: me.role, action: "Added service", entity: `${row.name} · our fee ${rwf(row.ours)}`, fee: true });
     else {
       if (before.ours !== row.ours || before.oursUnit !== row.oursUnit) await audit(tx, { actor: me.name, role: me.role, action: "Changed assistance fee", entity: `${row.name} · ${rwf(before.ours)}${before.oursUnit ? ` ${before.oursUnit}` : ""} → ${rwf(row.ours)}${row.oursUnit ? ` ${row.oursUnit}` : ""}`, fee: true });
@@ -74,8 +71,10 @@ export async function saveService(v: Service, isNew = false): Promise<Result> {
     }
   }); } catch (e) {
     if (e instanceof Error && e.message === "exists") return fail("A service with that name already exists. Choose another name.");
+    if (e instanceof ServiceTextRefused) return fail(`The Kinyarwanda can’t be saved. ${e.message}`);
     throw e;
   }
+  if (rw) await primeContent(true);
   revalidatePath("/", "layout");
   return { ok: true };
 }

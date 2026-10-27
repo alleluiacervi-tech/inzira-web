@@ -62,6 +62,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ q
           <button className="btn btn-p" type="submit">Search</button>
           {q && <Link className="btn btn-g" href="/admin/content">Clear</Link>}
         </form>
+        {!q && <div className="row g8 wrapx"><Link className="btn btn-g btn-sm" href="/admin/content/replace">Find and replace…</Link><span className="hint">Make a word or phrase consistent across all the Kinyarwanda.</span></div>}
 
         {q ? (
           <div className="stack g16">

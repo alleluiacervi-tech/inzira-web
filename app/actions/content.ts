@@ -1,10 +1,13 @@
 "use server";
 import { revalidatePath } from "next/cache";
 import { getStaffUser } from "@/lib/auth";
-import { restoreContent, saveContent, type Change } from "@/lib/content-admin";
+import { contentEntries, primeContent } from "@/lib/content";
+import { MAX_CHANGES, collectRows, findMatches, type Match, type ReplaceInput } from "@/lib/content-fields";
+import { restoreContent, saveContent, serviceRwNow, type Change } from "@/lib/content-admin";
+import type { ServiceRw } from "@/lib/service-text";
 import { fail, type Result } from "@/lib/mutate";
 import { PERMISSIONS } from "@/lib/permissions";
-import { listServices } from "@/lib/repo";
+import { getService, listServices } from "@/lib/repo";
 
 async function editor() {
   const me = await getStaffUser();
@@ -38,4 +41,47 @@ export async function restoreKinyarwanda(keys: string[]): Promise<Result<{ resto
   const restored = await restoreContent(a.me, keys);
   revalidatePath("/", "layout");
   return { ok: true, restored };
+}
+
+/** A service's Kinyarwanda as the service editor holds it, by path. */
+export async function getServiceRw(slug: string): Promise<Result<{ rw: ServiceRw }>> {
+  const a = await editor();
+  if ("error" in a) return fail(a.error!);
+  const service = typeof slug === "string" ? await getService(slug) : undefined;
+  if (!service) return fail("That service no longer exists.");
+  await primeContent(true);
+  return { ok: true, rw: serviceRwNow(service) };
+}
+
+const cleanInput = (i: ReplaceInput): ReplaceInput => ({ find: String(i?.find ?? ""), replace: String(i?.replace ?? ""), caseSensitive: !!i?.caseSensitive, wholeWord: !!i?.wholeWord });
+
+/** The Kinyarwanda texts a find and replace would change, and what each would become. Changes nothing. */
+export async function previewReplace(input: ReplaceInput): Promise<Result<{ matches: Match[]; total: number }>> {
+  const a = await editor();
+  if ("error" in a) return fail(a.error!);
+  const i = cleanInput(input);
+  if (!i.find.trim()) return fail("Type the word or phrase to find.");
+  await primeContent(true);
+  const all = findMatches(collectRows(await listServices({ includeHidden: true }), contentEntries()), i);
+  return { ok: true, matches: all.slice(0, MAX_CHANGES), total: all.length };
+}
+
+/** Applies a find and replace to the chosen texts, all together or not at all. The matches are found again here: only the keys come from the page. */
+export async function applyReplace(input: ReplaceInput, keys: string[]): Promise<SaveResult> {
+  const a = await editor();
+  if ("error" in a) return fail(a.error!);
+  if (!Array.isArray(keys) || !keys.length) return fail("Choose at least one text.");
+  const i = cleanInput(input);
+  const services = await listServices({ includeHidden: true });
+  await primeContent(true);
+  const chosen = new Set(keys.filter((k) => typeof k === "string"));
+  const changes = findMatches(collectRows(services, contentEntries()), i).filter((m) => chosen.has(m.key)).map((m) => ({ key: m.key, value: m.next }));
+  if (!changes.length) return fail("Those texts no longer contain it. Preview again.");
+  const result = await saveContent(a.me, changes, services);
+  if ("errors" in result) {
+    const n = Object.keys(result.errors).length;
+    return { ok: false, error: n === 1 ? "One text can’t be changed. Nothing was changed." : `${n} texts can’t be changed. Nothing was changed.`, errors: result.errors };
+  }
+  revalidatePath("/", "layout");
+  return { ok: true, ...result };
 }

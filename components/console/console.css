@@ -1271,3 +1271,8 @@ a.c-kpi:focus-visible { outline: 2px solid var(--brand-2); outline-offset: -2px;
 }
 .cx-restore { align-self: flex-start; }
 .cx-link:disabled { opacity: .5; cursor: default; }
+.cx-pick { align-items: flex-start; }
+.cx-diff { white-space: pre-line; }
+.cx-mark { padding: 0 2px; border-radius: 3px; color: inherit; }
+.cx-mark-old { background: var(--err-bg); text-decoration: line-through; }
+.cx-mark-new { background: var(--ok-bg); }
