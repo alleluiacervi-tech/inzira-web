@@ -30,13 +30,17 @@ const csp = [
 // Browsers always ask again (max-age=0). Only full page loads: client-side navigations and prefetches (RSC)
 // return other content at the same address. A visitor with the English cookie is redirected by middleware.ts,
 // and that redirect must not be shared.
+// On Vercel the page's own Cache-Control (no-store, from the dynamic render) wins over this file's, so the CDN is
+// told through Vercel-CDN-Cache-Control, which outranks it and is not passed on to browsers. Cache-Control is
+// kept for other hosts (`next start` behind a CDN).
 const SHARED_CACHE = "public, max-age=0, s-maxage=120, stale-while-revalidate=86400";
+const VERCEL_CDN_CACHE = "max-age=120, stale-while-revalidate=86400";
 const SHARED_PATHS = ["/", "/services", "/services/:slug", "/about", "/privacy", "/terms"];
 const notRsc = [{ type: "header", key: "rsc" }, { type: "header", key: "next-router-prefetch" }];
 const sharedPageCache = dev ? [] : [
   ...SHARED_PATHS.map((source) => ({ source, missing: [...notRsc, { type: "cookie", key: "inzira_lang", value: "en" }] })),
   ...SHARED_PATHS.map((source) => ({ source: source === "/" ? "/en" : `/en${source}`, missing: notRsc })),
-].map((rule) => ({ ...rule, headers: [{ key: "Cache-Control", value: SHARED_CACHE }] }));
+].map((rule) => ({ ...rule, headers: [{ key: "Cache-Control", value: SHARED_CACHE }, { key: "Vercel-CDN-Cache-Control", value: VERCEL_CDN_CACHE }] }));
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
