@@ -20,6 +20,7 @@ import * as schema from "./schema";
 import { alignSchema, latestMigration } from "./align";
 import { pgCode } from "./errors";
 import { protectIdentity } from "./protect";
+import { applyOwnerLoginFromEnv } from "./owner";
 import { ensureCatalogue, ensureDemoSignIns, linkSampleSignIns, seed } from "./seed";
 
 export type Db = PgDatabase<PgQueryResultHKT, typeof schema>;
@@ -53,6 +54,7 @@ async function open(): Promise<Db> {
     await ensureCatalogue(d);
     await ensureDemoSignIns(d);
     await linkSampleSignIns(d);
+    await applyOwnerLoginFromEnv(d);
     await protectIdentity(d);
     return d;
   }
@@ -66,6 +68,7 @@ async function open(): Promise<Db> {
   await ensureCatalogue(d);
   await ensureDemoSignIns(d);
   await linkSampleSignIns(d);
+  await applyOwnerLoginFromEnv(d);
   await protectIdentity(d);
   return d;
 }

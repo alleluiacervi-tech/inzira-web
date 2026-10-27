@@ -3,6 +3,9 @@
 //   npm run db:setup     production first run: fill an EMPTY database with the catalogue and one
 //                        owner (OWNER_NAME and OWNER_PHONE must be set). No sample data.
 //   npm run db:seed      development: fill an EMPTY database with the catalogue and sample data
+//   npm run db:owner    live database: set the owner's console login from OWNER_USERNAME and OWNER_PASSWORD, replacing any
+//                        password the owner has. `npm run db:owner -- hash` prints OWNER_PASSWORD_HASH for Vercel instead, and
+//                        touches no database.
 //   npm run db:remove-samples [--yes]
 //                        live database: switch off the sample staff and list the sample customers that a
 //                        demo build may have added. Shows what it would do until you pass --yes.
@@ -19,6 +22,14 @@ if (cmd === "reset") {
   const dir = path.join(process.cwd(), ".data", "pglite");
   rmSync(dir, { recursive: true, force: true });
   console.log(`Deleted ${dir}. It is recreated and seeded the next time the app starts.`);
+  process.exit(0);
+}
+
+if (cmd === "owner" && process.argv[3] === "hash") {
+  const password = process.env.OWNER_PASSWORD;
+  if (!password) { console.error("Set OWNER_PASSWORD, e.g. OWNER_PASSWORD='…' npm run db:owner -- hash"); process.exit(1); }
+  const { hashPassword } = await import("../lib/password.ts");
+  console.log(await hashPassword(password));
   process.exit(0);
 }
 
@@ -41,6 +52,23 @@ if (cmd === "migrate") {
   if (existing.length) { console.log("The database already has data; nothing changed."); process.exit(0); }
   await setupProduction(d, { name, phone });
   console.log(`Set up. ${name} can now sign in with ${phone} and invite the team.`);
+} else if (cmd === "owner") {
+  const username = process.env.OWNER_USERNAME, password = process.env.OWNER_PASSWORD;
+  if (!username || !password) { console.error("Set OWNER_USERNAME and OWNER_PASSWORD."); process.exit(1); }
+  const { setOwnerLogin, weakPasswordNote } = await import("../lib/db/owner.ts");
+  const { hashPassword } = await import("../lib/password.ts");
+  const note = weakPasswordNote(password);
+  if (note) console.warn(`Note: ${note}`);
+  const result = await setOwnerLogin(await db(), { username, passwordHash: await hashPassword(password) }, { replace: true });
+  const said = {
+    set: `Done. The owner signs in with ${username.trim().toLowerCase()}, then the authenticator code. Other devices were signed out.`,
+    "no-owner": "No active owner found. Run db:setup first.",
+    "several-owners": "More than one active owner; nothing changed.",
+    "username-taken": "Another staff account already uses that username; nothing changed.",
+    kept: "",
+  }[result];
+  console.log(said);
+  process.exit(result === "set" ? 0 : 1);
 } else if (cmd === "remove-samples") {
   const { and, eq, inArray } = await import("drizzle-orm");
   const { STAFF_PHONES } = await import("../lib/db/seed.ts");
@@ -69,7 +97,7 @@ if (cmd === "migrate") {
   await seed(d);
   console.log("Seeded.");
 } else {
-  console.error("Usage: tsx scripts/db.mts migrate | setup | seed | remove-samples | rekey | reset");
+  console.error("Usage: tsx scripts/db.mts migrate | setup | owner | seed | remove-samples | rekey | reset");
   process.exit(1);
 }
 process.exit(0);

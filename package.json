@@ -16,6 +16,7 @@
     "db:migrate": "tsx scripts/db.mts migrate",
     "db:seed": "tsx scripts/db.mts seed",
     "db:reset": "tsx scripts/db.mts reset",
+    "db:owner": "tsx scripts/db.mts owner",
     "db:remove-samples": "tsx scripts/db.mts remove-samples",
     "db:rekey": "tsx scripts/db.mts rekey",
     "db:setup": "tsx scripts/db.mts setup",
