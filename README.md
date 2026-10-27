@@ -102,7 +102,7 @@ Copy `.env.example` to `.env.local`. None are needed for development.
 | `BLOB_READ_WRITE_TOKEN` | Vercel Blob read/write token for local or non-Vercel deployments. On Vercel, connect a private Blob store to use OIDC instead. |
 | `UPLOAD_DIR` | Local development upload directory (default `.data/uploads`). Production requires private Blob storage. |
 | `OWNER_NAME`, `OWNER_PHONE` | Used once by `npm run db:setup`. |
-| `OWNER_USERNAME`, `OWNER_PASSWORD_HASH` | Console login for the owner, applied at start-up only while the owner has no password. Make the hash with `OWNER_PASSWORD='…' npm run db:owner -- hash`. The owner's account keeps no email, so nothing is sent to it. Sign-in is then username, password and the authenticator code; "keep me signed in" holds a device for 30 days. To replace a forgotten password, run `OWNER_USERNAME=… OWNER_PASSWORD=… npm run db:owner` against the live database. |
+| `OWNER_USERNAME`, `OWNER_PASSWORD_HASH` | Console login for the owner. Applied the first time the server starts with that hash and recorded in the audit log, so a restart never undoes a password the owner changed later; a new hash is a reset. Make the hash with `OWNER_PASSWORD='…' npm run db:owner -- hash`. The owner's account keeps no email, so nothing is sent to it. Sign-in is then username, password and the authenticator code; "keep me signed in" holds a device for 30 days. `OWNER_USERNAME=… OWNER_PASSWORD=… npm run db:owner` does the same from a shell with the live `DATABASE_URL`. |
 | `DOC_RETENTION_DAYS` | Days after a request finishes before the customer's uploaded documents are deleted (default 90). |
 | `TEST_PHONE`, `TEST_AIRTEL_PHONE`, `CHECK_AMOUNT`, `CHECK_REFUND` | Used only by `npm run check:providers`. |
 
