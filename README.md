@@ -39,8 +39,9 @@ A live site never shows a code on screen, sample addresses included: anyone coul
 
 **Staff** sign in at `/staff` with a username (or work email), a password and a code from an authenticator app.
 "Keep me signed in" holds the session for 30 days on that device (12 hours otherwise); after an hour unused the
-console locks and asks for the password only, and refunds, payouts, roles, staff accounts and unmasked ID numbers
-ask for a fresh authenticator code once every 12 hours. The owner invites colleagues from Admin › Roles: each gets a
+console locks and asks for the password only. The authenticator code is asked once per session: the code given at
+sign-in also covers refunds, payouts, roles, staff accounts and unmasked ID numbers, so on a trusted device that is
+once in 30 days. The owner invites colleagues from Admin › Roles: each gets a
 48-hour link to set a password. Staff without a password yet (the first owner, and the demo accounts) sign in once
 with a code on `/sign-in`, then set a password and the authenticator under Security; after that a code no longer
 opens their console.

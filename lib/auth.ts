@@ -24,10 +24,11 @@ const MAX_ATTEMPTS = 5;
 const SESSION = { customer: { idle: 7 * 864e5, cap: 30 * 864e5 } } as const;
 /** Staff: 30 days on a device they chose to trust, 12 hours otherwise. After an hour without use the console locks and
  *  asks for the password only (NIST SP 800-63B allows that inside a longer session). Refunds, payouts, roles and ID
- *  numbers want an authenticator code from the last 12 hours. */
+ *  numbers want an authenticator code given at sign-in, so on a trusted device it is asked once in the 30 days. */
 const STAFF_CAP = { trusted: 30 * 864e5, plain: 12 * 36e5 } as const;
 export const STAFF_IDLE_LOCK = 60 * 60e3;
-export const STEP_UP_FOR = 12 * 36e5;
+/** How long an authenticator code stays good: as long as the session it was given in. */
+export const stepUpWindow = (trusted: boolean) => (trusted ? STAFF_CAP.trusted : STAFF_CAP.plain);
 const DEVICE_COOKIE = "inzira_dev";
 const MAX_SESSIONS = 10;
 
@@ -301,7 +302,7 @@ type StaffUser = Staff & {
   permissions: Set<Permission>;
   /** Must set up a password or the authenticator first. */
   needsSecondStep: boolean;
-  /** An authenticator code was given in the last 12 hours, or the person has none to give. Money, roles and ID numbers
+  /** An authenticator code was given in this session (30 days on a trusted device), or the person has none to give. Money, roles and ID numbers
    *  ask for one otherwise (lib/step-up.ts). */
   stepUpFresh: boolean;
   hasPassword: boolean;
@@ -322,7 +323,7 @@ async function loadStaff(touch: boolean): Promise<StaffUser | null> {
     await d.update(s.sessions).set({ lastSeenAt: new Date().toISOString() }).where(eq(s.sessions.id, session.id)).catch(() => {});
   }
   const base = { id: person.id, name: person.name, role: person.role, team: person.team, title: person.title, active: person.active };
-  const stepUpFresh = !person.totpEnabledAt || (!!session.stepUpAt && Date.now() - Date.parse(session.stepUpAt) < STEP_UP_FOR);
+  const stepUpFresh = !person.totpEnabledAt || (!!session.stepUpAt && Date.now() - Date.parse(session.stepUpAt) < stepUpWindow(!!session.trusted));
   const extra = { stepUpFresh, hasPassword: !!person.passwordHash };
   if (mustSetUp(person)) return { ...base, ...extra, permissions: new Set<Permission>(), needsSecondStep: true };
   const rows = await d.select().from(s.rolePermissions).where(and(eq(s.rolePermissions.role, person.role), eq(s.rolePermissions.allowed, true)));

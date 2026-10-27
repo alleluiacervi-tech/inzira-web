@@ -209,7 +209,7 @@ export async function unlockConsole(password: string, next?: string) {
   redirect(asked && (asked.startsWith("/console") || asked.startsWith("/admin")) ? asked : await staffHome(person.role));
 }
 
-/** "Confirm it's you" before a refund, payout, role change or ID number: an authenticator code, good for 12 hours. */
+/** "Confirm it's you" before a refund, payout, role change or ID number: an authenticator code, good for the rest of the session. */
 export async function confirmSecondStep(input: string): Promise<{ ok: true } | { ok: false; error: string }> {
   if (!(await allowIp("signIn"))) return { ok: false, error: TOO_MANY };
   const session = await getSession();

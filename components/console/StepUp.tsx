@@ -47,7 +47,7 @@ export function StepUpHost() {
         if (r.ok) close(true); else setError(r.error);
       }}>
         <h2 id="stepup-h">Confirm it’s you</h2>
-        <p>Money, roles and ID numbers need a code from your authenticator app. It covers the next 12 hours.</p>
+        <p>Money, roles and ID numbers need a code from your authenticator app. It covers the rest of this sign-in.</p>
         <label htmlFor="stepup-code">{recovery ? "Recovery code" : "6-digit code"}</label>
         <input ref={input} id="stepup-code" key={recovery ? "r" : "c"} className="c-input stepup-code" inputMode={recovery ? "text" : "numeric"} autoComplete="one-time-code" maxLength={recovery ? 12 : 6}
           value={code} onChange={(e) => { setCode(recovery ? e.target.value : e.target.value.replace(/\D/g, "").slice(0, 6)); setError(""); }} aria-describedby="stepup-err" />
