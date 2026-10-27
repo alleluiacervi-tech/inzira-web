@@ -24,6 +24,20 @@ const csp = [
   ...(dev ? [] : ["upgrade-insecure-requests"]),
 ].join("; ");
 
+// Public pages that read nothing about the visitor (lib/seo.ts isSharedPage) are kept by Vercel's CDN for
+// 2 minutes, then served stale while one request refreshes them in the background, so a visitor never waits on
+// the server or the database for them. A price change in the console shows there within about 2 minutes.
+// Browsers always ask again (max-age=0). Only full page loads: client-side navigations and prefetches (RSC)
+// return other content at the same address. A visitor with the English cookie is redirected by middleware.ts,
+// and that redirect must not be shared.
+const SHARED_CACHE = "public, max-age=0, s-maxage=120, stale-while-revalidate=86400";
+const SHARED_PATHS = ["/", "/services", "/services/:slug", "/about", "/privacy", "/terms"];
+const notRsc = [{ type: "header", key: "rsc" }, { type: "header", key: "next-router-prefetch" }];
+const sharedPageCache = dev ? [] : [
+  ...SHARED_PATHS.map((source) => ({ source, missing: [...notRsc, { type: "cookie", key: "inzira_lang", value: "en" }] })),
+  ...SHARED_PATHS.map((source) => ({ source: source === "/" ? "/en" : `/en${source}`, missing: notRsc })),
+].map((rule) => ({ ...rule, headers: [{ key: "Cache-Control", value: SHARED_CACHE }] }));
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
@@ -48,7 +62,7 @@ const nextConfig = {
     ];
   },
   async headers() {
-    return [{
+    return [...sharedPageCache, {
       source: "/:path*",
       headers: [
         { key: "Content-Security-Policy", value: csp },

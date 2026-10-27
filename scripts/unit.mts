@@ -16,7 +16,7 @@ import { hashPassword, passwordProblem, verifyPassword } from "../lib/password.t
 import catalogueEn from "../lib/i18n/catalogue-en.json" with { type: "json" };
 import catalogueRw from "../lib/i18n/catalogue-rw.json" with { type: "json" };
 import { SERVICES } from "../lib/mock/catalogue.ts";
-import { barePath, blockedHost, isIndexable, languageAlternates, withLocale } from "../lib/seo.ts";
+import { barePath, blockedHost, isIndexable, isSharedPage, languageAlternates, withLocale } from "../lib/seo.ts";
 import { customerWhatsAppUrl, defaultFollowUpAt, deskChecks, fromKigaliDateTime, handoverRequired, kigaliDateTimeParts, nextKind, nextSentence, stageTargetRows } from "../lib/desk.ts";
 import { text as i18nText } from "../lib/i18n/messages.ts";
 
@@ -600,6 +600,11 @@ test("the vercel.app address is refused once the real domain is set", () => {
   assert.equal(blockedHost({ ...base, origin: "https://inzira-web.vercel.app" }), false, "site address is still vercel.app");
   assert.equal(blockedHost({ ...base, pathname: "/api/cron" }), false, "scheduler stays reachable");
   assert.equal(blockedHost({ ...base, pathname: "/api/health" }), false);
+});
+
+test("only pages that read nothing about the visitor are shared by the CDN", () => {
+  for (const p of ["/", "/en", "/services", "/en/services", "/services/company-registration", "/en/services/company-registration", "/about", "/privacy", "/en/terms"]) assert.equal(isSharedPage(p), true, p);
+  for (const p of ["/track", "/start", "/start/company-registration", "/sign-in", "/portal", "/console", "/staff", "/r/abc", "/api/locale", "/services/a/b", "/aboutx"]) assert.equal(isSharedPage(p), false, p);
 });
 
 test("english pages live under /en and private pages stay put", () => {

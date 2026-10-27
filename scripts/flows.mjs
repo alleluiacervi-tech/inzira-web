@@ -750,7 +750,7 @@ await step("privacy", async () => {
   if (!purged) console.log("    page says:", (await p.ev(`document.querySelector("#acct-data")?.closest("section")?.innerText ?? ""`)).replace(/\s+/g, " ").slice(0, 400));
   check("privacy: a customer can delete documents of finished requests", purged);
   await p.click("Delete account", "button"); await sleep(300);
-  await p.set("#del-confirm", "DELETE"); await p.click("Delete my account", "button"); await waitPath(p, (path) => path === "/"); await waitFor(p, "Your account is deleted");
+  await p.set("#del-confirm", "DELETE"); await p.click("Delete my account", "button"); await waitPath(p, (path) => path === "/" || path === "/en"); await waitFor(p, "Your account is deleted");
   check("privacy: a customer can delete their account", await p.has("Your account is deleted"));
   await p.go("/sign-in"); await p.set("#si-contact", "test.person@example.com"); await p.click("Send me a code"); await waitCode(p);
   await p.set("#otp", await p.ev(`document.querySelector("[data-demo-code]")?.dataset.demoCode ?? ""`)); await p.click("Sign in", "button"); await waitFor(p, "don’t have an account");

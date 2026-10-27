@@ -21,6 +21,15 @@ export function blockedHost(opts: { host: string | null; pathname: string; origi
   try { return !new URL(opts.origin).hostname.endsWith(".vercel.app"); } catch { return false; }
 }
 
+// Pages that read nothing about the visitor (no session, no cookie), only the catalogue and fixed text.
+const SHARED = /^\/(services(\/[^/]+)?|about|privacy|terms)?$/;
+
+/** True for a public page whose HTML is the same for every visitor at the same address, so a shared
+ *  cache may keep it for a few minutes. With or without /en. */
+export function isSharedPage(pathname: string): boolean {
+  return SHARED.test(barePath(pathname));
+}
+
 const UNPREFIXED = /^\/(portal|console|admin|api|files|sign-in|r|staff)(\/|$)/;
 
 /** Signed-in areas and the sign-in page stay off the public index. */
