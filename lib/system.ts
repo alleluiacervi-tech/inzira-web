@@ -41,15 +41,18 @@ function sms(): Check {
 
 function email(): Check {
   const name = "Email (customer sign-in and updates)";
-  if (has("SMTP_HOST", "SMTP_USER", "SMTP_PASS", "EMAIL_FROM")) return { key: "email", name, state: "ready", detail: `Sending as ${process.env.EMAIL_FROM} through ${process.env.SMTP_HOST}, at most ${Number(process.env.EMAIL_DAILY_LIMIT) || 400} a day. Run npm run check:email from the server to test it.` };
-  if (!production() || demo()) return { key: "email", name, state: "test", detail: "Messages are printed to the server log; codes appear on screen. Nobody receives an email.", fix: "Set SMTP_HOST, SMTP_USER, SMTP_PASS and EMAIL_FROM." };
-  return { key: "email", name, state: "missing", detail: "No mailbox. Nobody can sign in or get updates by email.", fix: "Set SMTP_HOST, SMTP_USER, SMTP_PASS and EMAIL_FROM, with SPF, DKIM and DMARC on the domain." };
+  if (has("RESEND_API_KEY", "EMAIL_FROM")) {
+    const limit = Number(process.env.EMAIL_DAILY_LIMIT);
+    return { key: "email", name, state: "ready", detail: `Sending as ${process.env.EMAIL_FROM} through Resend${limit > 0 ? `, at most ${limit} a day` : ""}. Run npm run check:email to test it.` };
+  }
+  if (!production() || demo()) return { key: "email", name, state: "test", detail: "Messages are printed to the server log; codes appear on screen. Nobody receives an email.", fix: "Set RESEND_API_KEY and EMAIL_FROM." };
+  return { key: "email", name, state: "missing", detail: "No email provider. Nobody can sign in or get updates by email.", fix: "Set RESEND_API_KEY and EMAIL_FROM, on a domain verified in Resend." };
 }
 
 async function messages(): Promise<Check> {
   const name = "Message queue";
   const c = await counts();
-  if (c.failed > 0) return { key: "outbox", name, state: "missing", detail: `${c.failed} message${c.failed === 1 ? "" : "s"} could not be delivered after five tries.`, fix: "Check the mailbox or SMS provider above. Customers can still see the update in their portal." };
+  if (c.failed > 0) return { key: "outbox", name, state: "missing", detail: `${c.failed} message${c.failed === 1 ? "" : "s"} could not be delivered after five tries.`, fix: "Check the email or SMS provider above. Customers can still see the update in their portal." };
   if (c.pending > 0) return { key: "outbox", name, state: "test", detail: `${c.pending} message${c.pending === 1 ? " is" : "s are"} waiting to be sent or retried. The scheduled job keeps trying.` };
   return { key: "outbox", name, state: "ready", detail: "Nothing waiting. Failed messages are retried automatically." };
 }

@@ -5,7 +5,7 @@ import { open, seal, isSealed } from "../lib/crypto.ts";
 import { sniffType } from "../lib/storage.ts";
 import { safeReturnPath } from "../lib/return-path.ts";
 import { amountDue, payableNow, payStatus, refundSplit } from "../lib/status.ts";
-import { canDeliverEmailCodes, isReservedTestEmail, showsEmailCodeOnScreen } from "../lib/email.ts";
+import { canDeliverEmailCodes, isReservedTestEmail, sendEmail, sendingDomain, showsEmailCodeOnScreen } from "../lib/email.ts";
 import { idAsk, idPolicyOf, mentionsNationalId, nationalIdDigits, nationalIdError } from "../lib/identity.ts";
 import { cleanTaxRef, periodsBetween, taxPhase, weekdayOnOrBefore } from "../lib/tax-calendar.ts";
 import { providerFor } from "../lib/payments.ts";
@@ -453,21 +453,21 @@ test("ID policy: required, hidden, or optional — uncertain stays optional", ()
 });
 
 test("sample sign-in: a live site shows no code on screen, not even for a reserved address", () => {
-  const prev = { node: process.env.NODE_ENV, demo: process.env.INZIRA_DEMO, host: process.env.SMTP_HOST, user: process.env.SMTP_USER, pass: process.env.SMTP_PASS, from: process.env.EMAIL_FROM };
+  const prev = { node: process.env.NODE_ENV, demo: process.env.INZIRA_DEMO, key: process.env.RESEND_API_KEY, from: process.env.EMAIL_FROM };
   const restore = () => {
     const set = (k: string, v: string | undefined) => { if (v === undefined) delete process.env[k]; else process.env[k] = v; };
-    set("NODE_ENV", prev.node); set("INZIRA_DEMO", prev.demo); set("SMTP_HOST", prev.host); set("SMTP_USER", prev.user); set("SMTP_PASS", prev.pass); set("EMAIL_FROM", prev.from);
+    set("NODE_ENV", prev.node); set("INZIRA_DEMO", prev.demo); set("RESEND_API_KEY", prev.key); set("EMAIL_FROM", prev.from);
   };
   try {
     process.env.NODE_ENV = "production";
     delete process.env.INZIRA_DEMO;
-    delete process.env.SMTP_HOST; delete process.env.SMTP_USER; delete process.env.SMTP_PASS; delete process.env.EMAIL_FROM;
+    delete process.env.RESEND_API_KEY; delete process.env.EMAIL_FROM;
     assert.equal(isReservedTestEmail("admin@inzira.test"), true);
     assert.equal(isReservedTestEmail("aline.uwase@example.com"), true);
     assert.equal(isReservedTestEmail("person@gmail.com"), false);
     assert.equal(showsEmailCodeOnScreen(), false);
     assert.equal(canDeliverEmailCodes(), false, "with no mailbox a live site refuses to send a code");
-    process.env.SMTP_HOST = "smtp.example"; process.env.SMTP_USER = "u"; process.env.SMTP_PASS = "p"; process.env.EMAIL_FROM = "Inzira <no-reply@inzira.rw>";
+    process.env.RESEND_API_KEY = "re_test"; process.env.EMAIL_FROM = "Inzira <no-reply@inziraservices.com>";
     assert.equal(showsEmailCodeOnScreen(), false, "a real mailbox sends the code instead of showing it");
     assert.equal(canDeliverEmailCodes(), true);
   } finally { restore(); }
@@ -689,5 +689,54 @@ test("every Kinyarwanda catalogue entry lines up with the English one", () => {
     passed++;
   } catch (e) { console.error("FAIL staff passwords are hashed with scrypt and checked against simple rules\n", e); process.exitCode = 1; }
 }
+
+await asyncTest("resend: one request per message, retried only when it may succeed", async () => {
+  const keep = { key: process.env.RESEND_API_KEY, from: process.env.EMAIL_FROM, reply: process.env.EMAIL_REPLY_TO, limit: process.env.EMAIL_DAILY_LIMIT, fetch: globalThis.fetch };
+  const calls: { url: string; init: RequestInit }[] = [];
+  let answers: { status: number; body: unknown }[] = [];
+  globalThis.fetch = (async (url: string, init: RequestInit) => {
+    calls.push({ url, init });
+    const a = answers.shift() ?? { status: 200, body: { id: "e1" } };
+    return new Response(JSON.stringify(a.body), { status: a.status, headers: { "content-type": "application/json" } });
+  }) as typeof fetch;
+  try {
+    process.env.RESEND_API_KEY = "re_test"; process.env.EMAIL_FROM = "Inzira <no-reply@inziraservices.com>";
+    process.env.EMAIL_REPLY_TO = "contact@inziraservices.com"; delete process.env.EMAIL_DAILY_LIMIT;
+    assert.equal(sendingDomain(), "inziraservices.com");
+
+    await sendEmail({ to: "a@b.rw", subject: "Code", text: "Your code", highlight: "123456" }, { idempotencyKey: "outbox-7" });
+    assert.equal(calls.length, 1);
+    assert.equal(calls[0].url, "https://api.resend.com/emails");
+    const h = calls[0].init.headers as Record<string, string>;
+    assert.equal(h.Authorization, "Bearer re_test");
+    assert.equal(h["Idempotency-Key"], "outbox-7");
+    const body = JSON.parse(String(calls[0].init.body));
+    assert.deepEqual(body.to, ["a@b.rw"]);
+    assert.equal(body.from, "Inzira <no-reply@inziraservices.com>");
+    assert.equal(body.reply_to, "contact@inziraservices.com");
+    assert.ok(body.text.includes("123456") && body.html.includes("123456"), "the code is in both parts");
+
+    calls.length = 0; answers = [{ status: 429, body: { name: "rate_limit_exceeded", message: "Too many requests" } }];
+    await sendEmail({ to: "a@b.rw", subject: "s", text: "t" });
+    assert.equal(calls.length, 2, "a rate limit is tried again");
+
+    calls.length = 0; answers = [{ status: 403, body: { name: "validation_error", message: "The inziraservices.com domain is not verified." } }];
+    await assert.rejects(sendEmail({ to: "a@b.rw", subject: "s", text: "t" }), /not verified/);
+    assert.equal(calls.length, 1, "a refusal is not tried again");
+
+    calls.length = 0; answers = [{ status: 429, body: { name: "daily_quota_exceeded", message: "quota" } }];
+    await assert.rejects(sendEmail({ to: "a@b.rw", subject: "s", text: "t" }), /daily email limit/, "the outbox waits an hour on this wording");
+    assert.equal(calls.length, 1);
+
+    calls.length = 0; answers = [{ status: 500, body: {} }, { status: 503, body: {} }, { status: 500, body: {} }];
+    await assert.rejects(sendEmail({ to: "a@b.rw", subject: "s", text: "t" }), /500/);
+    assert.equal(calls.length, 3, "an outage is tried three times, then reported");
+  } finally {
+    globalThis.fetch = keep.fetch;
+    for (const [k, v] of [["RESEND_API_KEY", keep.key], ["EMAIL_FROM", keep.from], ["EMAIL_REPLY_TO", keep.reply], ["EMAIL_DAILY_LIMIT", keep.limit]] as const) {
+      if (v === undefined) delete process.env[k]; else process.env[k] = v;
+    }
+  }
+});
 
 console.log(process.exitCode ? "unit tests FAILED" : `unit tests ok (${passed})`);

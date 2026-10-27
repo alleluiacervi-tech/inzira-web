@@ -50,15 +50,17 @@ async function deliver(id: number): Promise<boolean> {
     .where(and(eq(s.outbox.id, id), eq(s.outbox.status, "pending"), lte(s.outbox.nextAttemptAt, new Date(now).toISOString()))).returning();
   if (!row) return false;
   try {
-    if (row.channel === "email") await sendEmail({ ...(row.payload as { mail: Mail }).mail, to: row.recipient });
+    // The same key on every try: if an earlier try reached Resend but its answer was lost, the customer still gets one email.
+    if (row.channel === "email") await sendEmail({ ...(row.payload as { mail: Mail }).mail, to: row.recipient }, { idempotencyKey: `outbox-${row.id}` });
     else await sendSms(row.recipient, (row.payload as { message: string }).message);
     // The text is not kept once it has gone.
     await d.update(s.outbox).set({ status: "sent", sentAt: new Date().toISOString(), payload: {}, lastError: null }).where(eq(s.outbox.id, id));
     return true;
   } catch (e) {
     const error = (e instanceof Error ? e.message : String(e)).slice(0, 300);
-    // Hitting our own daily cap says nothing about this message: try again in an hour without using up an attempt.
-    const capped = /daily email limit/i.test(error);
+    // Hitting a sending limit (ours, or the Resend plan's daily or monthly quota) says nothing about this message:
+    // try again in an hour without using up an attempt.
+    const capped = /(daily|monthly) email limit/i.test(error);
     const attempts = capped ? row.attempts - 1 : row.attempts;
     const giveUp = attempts >= MAX_ATTEMPTS;
     await d.update(s.outbox).set({

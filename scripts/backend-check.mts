@@ -270,10 +270,10 @@ await check("live site: the sample admin gets no code, and sample sessions are c
     { id: "sess-sample-customer", kind: "customer", subjectId: "acc-aline", expiresAt: until },
     { id: "sess-real-staff", kind: "staff", subjectId: "s-eric", expiresAt: until },
   ]);
-  const keep = ["NODE_ENV", "INZIRA_DEMO", "SMTP_HOST"].map((k) => [k, process.env[k]] as const);
+  const keep = ["NODE_ENV", "INZIRA_DEMO", "RESEND_API_KEY"].map((k) => [k, process.env[k]] as const);
   (process.env as Record<string, string | undefined>).NODE_ENV = "production";
   delete process.env.INZIRA_DEMO;
-  delete process.env.SMTP_HOST;
+  delete process.env.RESEND_API_KEY;
   try {
     const r = await issueEmailCode("admin@inzira.test", "en");
     assert.equal(r.ok, false, "no code for the sample admin on a live site");

@@ -41,14 +41,14 @@ Everything in this audit is now fixed or decided, except the items under "Left o
 
 ### Left on purpose
 
-- **Bounce handling.** SMTP gives none. Failed sends are retried and then shown on the System page; a bounced address is only noticed when a customer reports it.
+- **Bounce handling.** Email now goes through Resend, which reports bounces and complaints by webhook, but no webhook is wired up yet. Failed sends are retried and then shown on the System page; a bounced address is only noticed when a customer reports it or in the Resend dashboard.
 - **CSP `'unsafe-inline'` scripts.** Next.js inlines small scripts; moving to nonces makes every page dynamic. Nothing from other domains is allowed, except Turnstile when it is switched on.
 - **Refunds** still mark our fee refunded and return nothing automatically; the money moves in the provider's dashboard.
 - **Audit log actor names.** The log still stores display names. Changing it means a migration of old rows.
 - **Malware scanning** of uploaded documents. Staff open them in the browser's viewer; add a scanner if staff start downloading files to their computers.
 - **ESLint** has no config; `npm run lint` does nothing useful yet.
 - **Next 16** for the bundled `postcss` advisory (build-time only).
-- **Not tested against live services:** Hostinger or any real mailbox, Africa's Talking, MTN MoMo, Airtel Money, Vercel Blob, a real Postgres server. `npm run check:email` and `npm run check:providers` do that from the real host.
+- **Not tested against live services:** Resend, Africa's Talking, MTN MoMo, Airtel Money, Vercel Blob, a real Postgres server. `npm run check:email` and `npm run check:providers` do that from the real host.
 
 ## What is solid
 
