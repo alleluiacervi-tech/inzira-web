@@ -691,7 +691,7 @@ test("every Kinyarwanda catalogue entry lines up with the English one", () => {
 }
 
 await asyncTest("resend: one request per message, retried only when it may succeed", async () => {
-  const keep = { key: process.env.RESEND_API_KEY, from: process.env.EMAIL_FROM, reply: process.env.EMAIL_REPLY_TO, limit: process.env.EMAIL_DAILY_LIMIT, fetch: globalThis.fetch };
+  const keep = { key: process.env.RESEND_API_KEY, from: process.env.EMAIL_FROM, reply: process.env.EMAIL_REPLY_TO, limit: process.env.RESEND_DAILY_LIMIT, fetch: globalThis.fetch };
   const calls: { url: string; init: RequestInit }[] = [];
   let answers: { status: number; body: unknown }[] = [];
   globalThis.fetch = (async (url: string, init: RequestInit) => {
@@ -701,7 +701,8 @@ await asyncTest("resend: one request per message, retried only when it may succe
   }) as typeof fetch;
   try {
     process.env.RESEND_API_KEY = "re_test"; process.env.EMAIL_FROM = "Inzira <no-reply@inziraservices.com>";
-    process.env.EMAIL_REPLY_TO = "contact@inziraservices.com"; delete process.env.EMAIL_DAILY_LIMIT;
+    process.env.EMAIL_REPLY_TO = "contact@inziraservices.com"; delete process.env.RESEND_DAILY_LIMIT;
+    for (const k of ["SMTP_HOST", "SMTP_USER", "SMTP_PASS", "SMTP_FROM", "EMAIL_PROVIDER"]) delete process.env[k];
     assert.equal(sendingDomain(), "inziraservices.com");
 
     await sendEmail({ to: "a@b.rw", subject: "Code", text: "Your code", highlight: "123456" }, { idempotencyKey: "outbox-7" });
@@ -733,7 +734,8 @@ await asyncTest("resend: one request per message, retried only when it may succe
     assert.equal(calls.length, 3, "an outage is tried three times, then reported");
   } finally {
     globalThis.fetch = keep.fetch;
-    for (const [k, v] of [["RESEND_API_KEY", keep.key], ["EMAIL_FROM", keep.from], ["EMAIL_REPLY_TO", keep.reply], ["EMAIL_DAILY_LIMIT", keep.limit]] as const) {
+    delete (globalThis as { __inziraResendPausedUntil?: number }).__inziraResendPausedUntil;
+    for (const [k, v] of [["RESEND_API_KEY", keep.key], ["EMAIL_FROM", keep.from], ["EMAIL_REPLY_TO", keep.reply], ["RESEND_DAILY_LIMIT", keep.limit]] as const) {
       if (v === undefined) delete process.env[k]; else process.env[k] = v;
     }
   }

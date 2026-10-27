@@ -4,6 +4,7 @@ import { and, desc, eq, isNull, sql } from "drizzle-orm";
 import { db, iso, schema as s } from "./db";
 import { RETENTION_DAYS } from "./privacy";
 import { counts } from "./outbox";
+import { providers, type Provider } from "./email";
 import { intouchProxyHost } from "./intouchpay";
 import { isSet, SITE } from "./site";
 import { turnstileEnabled } from "./turnstile";
@@ -41,12 +42,14 @@ function sms(): Check {
 
 function email(): Check {
   const name = "Email (customer sign-in and updates)";
-  if (has("RESEND_API_KEY", "EMAIL_FROM")) {
-    const limit = Number(process.env.EMAIL_DAILY_LIMIT);
-    return { key: "email", name, state: "ready", detail: `Sending as ${process.env.EMAIL_FROM} through Resend${limit > 0 ? `, at most ${limit} a day` : ""}. Run npm run check:email to test it.` };
+  const order = providers();
+  if (order.length) {
+    const label = (p: Provider) => (p === "resend" ? "Resend" : `SMTP (${process.env.SMTP_HOST})`);
+    const backup = order[1] ? ` If Resend cannot send (its daily or monthly quota is used up, or it is down), ${label(order[1])} sends instead.` : order[0] === "resend" ? " No backup: set the SMTP settings to keep email going when Resend's quota runs out." : "";
+    return { key: "email", name, state: "ready", detail: `Sending as ${process.env.EMAIL_FROM || process.env.SMTP_FROM} through ${label(order[0])}.${backup} Run npm run check:email to test it.` };
   }
-  if (!production() || demo()) return { key: "email", name, state: "test", detail: "Messages are printed to the server log; codes appear on screen. Nobody receives an email.", fix: "Set RESEND_API_KEY and EMAIL_FROM." };
-  return { key: "email", name, state: "missing", detail: "No email provider. Nobody can sign in or get updates by email.", fix: "Set RESEND_API_KEY and EMAIL_FROM, on a domain verified in Resend." };
+  if (!production() || demo()) return { key: "email", name, state: "test", detail: "Messages are printed to the server log; codes appear on screen. Nobody receives an email.", fix: "Set RESEND_API_KEY and EMAIL_FROM, and the SMTP settings as a backup." };
+  return { key: "email", name, state: "missing", detail: "No email provider. Nobody can sign in or get updates by email.", fix: "Set RESEND_API_KEY and EMAIL_FROM (domain verified in Resend), or the SMTP settings." };
 }
 
 async function messages(): Promise<Check> {

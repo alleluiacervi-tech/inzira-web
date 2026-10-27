@@ -1,18 +1,37 @@
-// Outgoing email, through Resend's HTTP API (resend.com). Server only.
+// Outgoing email. Server only. Two providers, either or both:
 //
-//   RESEND_API_KEY    a key from resend.com/api-keys; on the live site a "Sending access" key for this domain only
-//   EMAIL_FROM        "Inzira <no-reply@your-domain>", on a domain verified in Resend (its SPF and DKIM records added)
-//   EMAIL_REPLY_TO    where replies go (support); optional
-//   EMAIL_DAILY_LIMIT optional: stop at this many messages in 24 hours, below the plan's own quota
+//   Resend (resend.com), the main one:
+//     RESEND_API_KEY      a "Sending access" key for the sending domain
+//     EMAIL_FROM          "Inzira <no-reply@your-domain>", on a domain verified in Resend
+//     RESEND_DAILY_LIMIT  optional: stop using Resend after this many messages in 24 hours
+//   SMTP (a business mailbox such as Hostinger), the backup:
+//     SMTP_HOST, SMTP_PORT (465 by default; 465 is implicit TLS, 587 is STARTTLS), SMTP_USER, SMTP_PASS, SMTP_SECURE (1/0 to override)
+//     SMTP_FROM           the mailbox's own address as sender (default EMAIL_FROM); most mailboxes refuse any other
+//     SMTP_DAILY_LIMIT    messages the mailbox may send in 24 hours; the app stops short of it (default 400)
+//   EMAIL_REPLY_TO        where replies go (support); optional, used by both
+//   EMAIL_PROVIDER        optional: "smtp" sends through SMTP only, "resend" through Resend only.
+//                         Unset: Resend first, and SMTP whenever Resend cannot send (its daily or monthly quota is
+//                         used up, it is down, or the key or domain stopped working).
 //
-// Without RESEND_API_KEY a demo or development build prints the message (and sign-in shows the code on screen).
-// A live site without it refuses to send, so nothing is silently dropped and a code is never shown on screen.
+// With neither, a demo or development build prints the message (and sign-in shows the code on screen).
+// A live site with neither refuses to send, so nothing is silently dropped and a code is never shown on screen.
+import nodemailer, { type Transporter } from "nodemailer";
 import { allow } from "./ratelimit";
 import { isDemo } from "./sms";
 
 const API = "https://api.resend.com";
 
-export const sendsRealEmail = () => !!process.env.RESEND_API_KEY && !!process.env.EMAIL_FROM;
+export type Provider = "resend" | "smtp";
+const resendSet = () => !!process.env.RESEND_API_KEY && !!process.env.EMAIL_FROM;
+const smtpSet = () => !!process.env.SMTP_HOST && !!process.env.SMTP_USER && !!process.env.SMTP_PASS && !!(process.env.SMTP_FROM || process.env.EMAIL_FROM);
+/** The providers to try, in order. */
+export function providers(): Provider[] {
+  const only = process.env.EMAIL_PROVIDER?.trim().toLowerCase();
+  if (only === "smtp") return smtpSet() ? ["smtp"] : [];
+  if (only === "resend") return resendSet() ? ["resend"] : [];
+  return [...(resendSet() ? ["resend" as const] : []), ...(smtpSet() ? ["smtp" as const] : [])];
+}
+export const sendsRealEmail = () => providers().length > 0;
 /** Codes may be shown on screen only in development and demo builds, and only without a real mailbox. */
 export const showsEmailCodeOnScreen = () => isDemo() && !sendsRealEmail();
 /**
@@ -80,33 +99,55 @@ async function resend<T>(path: string, init: { method?: string; body?: unknown; 
 }
 
 const retryable = (e: unknown) => e instanceof EmailError && (e.code === "rate_limit_exceeded" || e.code === "concurrent_idempotent_requests" || e.status === 0 || e.status >= 500);
+/** Resend failed for a reason that is not about this message, so the backup may send it: a quota, an outage,
+ *  a timeout, or a key or domain that stopped working. A bad address (400, 422) would fail there too. */
+const backupMaySend = (e: unknown) => !(e instanceof EmailError) || e.status === 0 || e.status === 401 || e.status === 403 || e.status === 429 || e.status >= 500;
 
-/**
- * Sends one message. Throws when it cannot (not configured, Resend refused, a timeout), so a caller that
- * must tell the person (a sign-in code) can say so, and one that need not (an update) can log and go on.
- * A message that may be sent again (the outbox retries) passes an idempotencyKey: Resend then sends it once
- * even if an earlier try went through but its answer was lost.
- */
-export async function sendEmail(m: Mail, opts: { idempotencyKey?: string } = {}): Promise<void> {
-  if (!sendsRealEmail()) {
-    if (!isDemo()) throw new Error("Email is not configured. Set RESEND_API_KEY and EMAIL_FROM (see README).");
-    console.log(`[email] to ${m.to}: ${m.subject}\n${m.highlight ? `${m.highlight}\n` : ""}${m.text}`);
-    return;
-  }
-  const limit = Number(process.env.EMAIL_DAILY_LIMIT);
-  if (limit > 0 && !(await allow("email:day", limit, 24 * 60 * 60e3))) throw new Error("The daily email limit was reached.");
-  const text = m.highlight ? `${m.text}\n\n${m.highlight}${m.footer ? `\n\n${m.footer}` : ""}` : `${m.text}${m.footer ? `\n\n${m.footer}` : ""}`;
+// After a quota error Resend is skipped until it resets (daily: midnight UTC; monthly: checked again hourly),
+// so every message does not first wait on a refusal. Per server instance; a new one simply asks once.
+const g = globalThis as unknown as { __inziraMail?: Transporter; __inziraResendPausedUntil?: number };
+function pauseResend(e: unknown) {
+  if (!(e instanceof EmailError)) return;
+  if (e.code === "daily_quota_exceeded") { const t = new Date(); t.setUTCHours(24, 0, 0, 0); g.__inziraResendPausedUntil = t.getTime(); }
+  if (e.code === "monthly_quota_exceeded") g.__inziraResendPausedUntil = Date.now() + 3600e3;
+}
+const resendPaused = () => (g.__inziraResendPausedUntil ?? 0) > Date.now();
+
+function transporter(): Transporter {
+  if (g.__inziraMail) return g.__inziraMail;
+  const port = Number(process.env.SMTP_PORT) || 465;
+  // Port 465 is implicit TLS; others upgrade with STARTTLS. SMTP_SECURE=1 or 0 overrides that for a provider that differs.
+  const secure = process.env.SMTP_SECURE ? process.env.SMTP_SECURE === "1" : port === 465;
+  g.__inziraMail = nodemailer.createTransport({
+    host: process.env.SMTP_HOST,
+    port,
+    secure,
+    // A STARTTLS connection must upgrade: it never continues in the clear.
+    requireTLS: !secure,
+    auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
+    // A hung mail server must not hold a sign-in open: fail in seconds, then the caller says so.
+    connectionTimeout: 10_000, greetingTimeout: 10_000, socketTimeout: 20_000,
+  });
+  return g.__inziraMail;
+}
+
+// A person asked for this message: it is not bulk mail, and auto-replies must not answer it.
+const HEADERS = { "Auto-Submitted": "auto-generated", "X-Auto-Response-Suppress": "All" };
+const plain = (m: Mail) => m.highlight ? `${m.text}\n\n${m.highlight}${m.footer ? `\n\n${m.footer}` : ""}` : `${m.text}${m.footer ? `\n\n${m.footer}` : ""}`;
+
+async function viaResend(m: Mail, idempotencyKey?: string) {
+  const limit = Number(process.env.RESEND_DAILY_LIMIT);
+  if (limit > 0 && !(await allow("email:resend:day", limit, 24 * 60 * 60e3))) throw new EmailError("The daily email limit was reached (RESEND_DAILY_LIMIT).", 429, "daily_quota_exceeded");
   const body = {
-    from: process.env.EMAIL_FROM, to: [m.to], subject: m.subject, text, html: html(m),
+    from: process.env.EMAIL_FROM, to: [m.to], subject: m.subject, text: plain(m), html: html(m),
     ...(process.env.EMAIL_REPLY_TO ? { reply_to: process.env.EMAIL_REPLY_TO } : {}),
-    // A person asked for this message: it is not bulk mail, and auto-replies must not answer it.
-    headers: { "Auto-Submitted": "auto-generated", "X-Auto-Response-Suppress": "All" },
+    headers: HEADERS,
   };
   // Resend allows a few requests a second. A burst, a brief outage or a lost answer is tried twice more
   // within a few seconds; a refusal (bad address, unverified domain, quota) is not.
   for (let attempt = 1; ; attempt++) {
     try {
-      await resend<{ id: string }>("/emails", { method: "POST", body, idempotencyKey: opts.idempotencyKey });
+      await resend<{ id: string }>("/emails", { method: "POST", body, idempotencyKey });
       return;
     } catch (e) {
       if (attempt >= 3 || !retryable(e)) throw e;
@@ -115,15 +156,61 @@ export async function sendEmail(m: Mail, opts: { idempotencyKey?: string } = {})
   }
 }
 
+async function viaSmtp(m: Mail) {
+  // Stop a little short of the mailbox's own daily cap, so a burst can never get the mailbox suspended.
+  // EMAIL_DAILY_LIMIT is the older name, from before Resend.
+  const limit = Number(process.env.SMTP_DAILY_LIMIT || process.env.EMAIL_DAILY_LIMIT) || 400;
+  if (!(await allow("email:day", limit, 24 * 60 * 60e3))) throw new Error("The daily email limit was reached (SMTP_DAILY_LIMIT).");
+  await transporter().sendMail({
+    from: process.env.SMTP_FROM || process.env.EMAIL_FROM, replyTo: process.env.EMAIL_REPLY_TO || undefined, to: m.to,
+    subject: m.subject, text: plain(m), html: html(m), headers: HEADERS,
+  });
+}
+
+/**
+ * Sends one message and says which provider took it. Throws when none could (not configured, refused, a timeout),
+ * so a caller that must tell the person (a sign-in code) can say so, and one that need not (an update) can log and go on.
+ * A message that may be sent again (the outbox retries) passes an idempotencyKey: Resend then sends it once even if
+ * an earlier try went through but its answer was lost. `via` forces one provider (npm run check:email).
+ */
+export async function sendEmail(m: Mail, opts: { idempotencyKey?: string; via?: Provider } = {}): Promise<Provider | "log"> {
+  const order = opts.via ? providers().filter((p) => p === opts.via) : providers();
+  if (!order.length) {
+    if (opts.via) throw new Error(`${opts.via === "smtp" ? "SMTP" : "Resend"} is not configured.`);
+    if (!isDemo()) throw new Error("Email is not configured. Set RESEND_API_KEY and EMAIL_FROM, or the SMTP settings (see README).");
+    console.log(`[email] to ${m.to}: ${m.subject}\n${m.highlight ? `${m.highlight}\n` : ""}${m.text}`);
+    return "log";
+  }
+  let failure: unknown;
+  for (const provider of order) {
+    const backup = provider !== order[0];
+    if (provider === "resend" && resendPaused() && order.length > 1 && !opts.via) {
+      failure ??= new EmailError("The email limit was reached earlier (Resend); waiting for it to reset.", 429, "daily_quota_exceeded");
+      continue;
+    }
+    try {
+      if (provider === "resend") await viaResend(m, opts.idempotencyKey); else await viaSmtp(m);
+      if (backup) console.warn(`[email] sent through ${provider} because ${order[0]} could not: ${failure instanceof Error ? failure.message : String(failure)}`);
+      return provider;
+    } catch (e) {
+      if (provider === "resend") pauseResend(e);
+      // The first error is the one to report: it says why the main provider failed.
+      failure ??= e;
+      if (provider === "resend" && !backupMaySend(e)) break;
+    }
+  }
+  throw failure ?? new Error("Email could not be sent.");
+}
+
 /** The sending domain from EMAIL_FROM ("Inzira <no-reply@inziraservices.com>" → "inziraservices.com"). */
 export const sendingDomain = () => (process.env.EMAIL_FROM ?? "").match(/@([^>\s]+)/)?.[1]?.toLowerCase() ?? "";
 
 /**
- * Checks the key and the sending domain without sending anything: used by `npm run check:email`.
+ * Checks Resend's key and sending domain without sending anything: used by `npm run check:email`.
  * A "Sending access" key (the safer kind) cannot read domains, so then only the key itself is confirmed.
  */
-export async function verifyEmailSettings(): Promise<string> {
-  if (!sendsRealEmail()) throw new Error("RESEND_API_KEY and EMAIL_FROM must both be set.");
+export async function verifyResend(): Promise<string> {
+  if (!resendSet()) throw new Error("RESEND_API_KEY and EMAIL_FROM must both be set.");
   const domain = sendingDomain();
   if (!domain) throw new Error(`EMAIL_FROM has no address: ${process.env.EMAIL_FROM}`);
   try {
@@ -136,4 +223,10 @@ export async function verifyEmailSettings(): Promise<string> {
     if (e instanceof EmailError && e.code === "restricted_api_key" && e.status === 401) return `the key is valid and limited to sending (the domain is checked when a message goes out).`;
     throw e;
   }
+}
+
+/** Logs in to the SMTP server without sending anything: used by `npm run check:email`. */
+export async function verifySmtp(): Promise<void> {
+  if (!smtpSet()) throw new Error("SMTP_HOST, SMTP_USER, SMTP_PASS and SMTP_FROM (or EMAIL_FROM) must all be set.");
+  await transporter().verify();
 }

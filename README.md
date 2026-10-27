@@ -61,7 +61,7 @@ npm run check:backend        # in-memory database: encryption at rest, outbox re
 npm run flows                # with the app running in demo mode on a fresh database: 143 end-to-end checks,
                              # including what each role can see (needs Chrome and Node 22+)
 npm run check:providers      # with real keys set: tests SMS, MTN MoMo, Airtel Money and Blob storage end to end
-npm run check:email          # with Resend settings set: is the key valid, the domain verified, and does one message go out?
+npm run check:email          # with email settings set: checks Resend and SMTP, and sends one message through each
 npm run db:remove-samples    # live database that may hold sample staff: lists them; add --yes to switch them off
 ```
 
@@ -81,7 +81,9 @@ Copy `.env.example` to `.env.local`. None are needed for development.
 | `DATABASE_URL_UNPOOLED` | Optional. The direct (not pooled) address of the same database, used only to apply migrations at startup. Neon's Vercel integration sets it. A pooler can leave the startup lock held, so set it when `DATABASE_URL` goes through PgBouncer, Neon's pooler or Supabase's port 6543. |
 | `DB_AUTO_MIGRATE=0` | Skip applying migrations on startup. By default the server applies `drizzle/` when it starts. |
 | `INZIRA_DEMO=1` | Demo/staging builds: allows the console SMS, the payment simulator, PGlite and local file storage in a production build. Never on the live site. |
-| `RESEND_API_KEY`, `EMAIL_FROM` | Email through Resend: sign-in codes for customers and updates about their requests. `EMAIL_FROM` must be on a domain verified in Resend. Use a "Sending access" key limited to that domain. Optional: `EMAIL_REPLY_TO`; `EMAIL_DAILY_LIMIT` to stop below the plan's daily quota (otherwise Resend's own quota applies, and queued updates wait and retry). Updates are sent with an idempotency key, so a retry never sends one twice. |
+| `RESEND_API_KEY`, `EMAIL_FROM` | Email through Resend, the main provider: sign-in codes for customers and updates about their requests. `EMAIL_FROM` must be on a domain verified in Resend; use a "Sending access" key limited to that domain. Optional `RESEND_DAILY_LIMIT`. Updates carry an idempotency key, so a retry never sends one twice. |
+| `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM` | The backup: a mailbox that sends whenever Resend can't (its daily or monthly quota is used up, it is down, or the key or domain stopped working), never for a bad address. Port 465 is implicit TLS (default), 587 is STARTTLS; `SMTP_SECURE=1/0` overrides. `SMTP_FROM` is the mailbox's own address (default `EMAIL_FROM`). `SMTP_DAILY_LIMIT` (default 400) stops short of the mailbox's own cap. |
+| `EMAIL_PROVIDER` | Optional switch: `smtp` sends through SMTP only (Resend off), `resend` through Resend only. Unset: Resend, then SMTP. `EMAIL_REPLY_TO` (optional) applies to both. |
 | `DATA_KEY` | Encrypts customers' national ID and TIN numbers in the database (AES-256-GCM). Required on the live site: `openssl rand -hex 32`. **Keep a copy outside the server; without it the numbers cannot be read.** To rotate: put the new key in `DATA_KEY`, the old in `DATA_KEY_PREVIOUS`, run `npm run db:rekey`, then remove the old one. |
 | `CLIENT_IP_HEADER` | Behind your own proxy (not Vercel): the header it sets with the caller's address (`x-real-ip`, `cf-connecting-ip`). Rate limits trust only this, never `X-Forwarded-For`. |
 | `REQUIRE_STAFF_TOTP` | Staff need a password and the authenticator app before they can work. On by default on a live site (`0` turns it off); `1` turns it on in development and demos. |
@@ -234,13 +236,14 @@ by every server action.
   WhatsApp messages are still sent by staff from the request page (wa.me): there is no WhatsApp Business Platform yet.
 - **Network logos.** public/pay/mtn-momo.svg and airtel-money.svg are stand-in tiles. Replace them with the official
   acceptance marks from MTN Rwanda and Airtel Rwanda (same file names), following their usage rules.
-- **Email.** Sent through Resend. Add the domain at resend.com/domains and put its DNS records (DKIM, and the MX and
-  SPF records for its sending subdomain) at the registrar, plus a DMARC record; wait for "Verified". Create a
-  "Sending access" API key for that domain, set `RESEND_API_KEY` and `EMAIL_FROM`, and run `npm run check:email`
-  (`TEST_EMAIL=delivered@resend.dev` checks the setup without a real inbox). Then send to Gmail and Outlook and look for
-  `spf=pass`, `dkim=pass` and `dmarc=pass` in the headers. The plan's quota counts every sign-in code (free plan:
-  100 a day, 3,000 a month, subject to change); Resend does not host the reply-to inbox, so `EMAIL_REPLY_TO` must be
-  a mailbox that exists elsewhere.
+- **Email.** Resend sends first; the SMTP mailbox takes over whenever Resend can't (see the table above). Add the domain at
+  resend.com/domains, put its DNS records (DKIM, and the MX and SPF records for its sending subdomain) at the registrar,
+  plus a DMARC record, and wait for "Verified". Create a "Sending access" API key for that domain, set `RESEND_API_KEY`
+  and `EMAIL_FROM`, keep the `SMTP_*` settings as the backup, and run `npm run check:email` with `TEST_EMAIL`: it sends one
+  message through each. Look for `spf=pass`, `dkim=pass` and `dmarc=pass` in the headers. Resend's quota counts every
+  sign-in code (free plan: 100 a day, 3,000 a month, subject to change); after that, mail goes out through SMTP until it
+  resets. To turn Resend off entirely, set `EMAIL_PROVIDER=smtp`. Resend does not host the reply-to inbox, so
+  `EMAIL_REPLY_TO` must be a mailbox that exists.
 - **SMS.** Now only for staff sign-in and for customers who have no email yet. The Africa's Talking integration is
   written but has not been tested against a live account — send a test message first. WhatsApp messages are not sent yet.
 - **File storage.** Production uploads use private Vercel Blob and are delivered only after the file
