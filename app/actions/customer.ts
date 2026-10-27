@@ -23,6 +23,7 @@ import { isUniqueViolation } from "@/lib/db/errors";
 import { isReservedTestEmail } from "@/lib/email";
 import { refusalKind, type RefusalKind } from "@/lib/intouchpay";
 import { PromptRefused, methodFor, newPrompt } from "@/lib/payments";
+import { withLocale } from "@/lib/seo";
 import { SITE } from "@/lib/site";
 import { payableNow } from "@/lib/status";
 import { getService, listMyDocuments } from "@/lib/repo";
@@ -536,5 +537,5 @@ export async function deleteMyAccount(confirmation: string): Promise<Result> {
   if (!result.ok) return result;
   await audit(await db(), { actor: accountId, role: "Customer", action: "Deleted account", entity: accountId });
   await endSession();
-  redirect("/?account=deleted");
+  redirect(withLocale(await getLocale(), "/?account=deleted"));
 }

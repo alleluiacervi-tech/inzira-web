@@ -4,6 +4,7 @@ import { and, desc, eq, isNull, sql } from "drizzle-orm";
 import { db, iso, schema as s } from "./db";
 import { RETENTION_DAYS } from "./privacy";
 import { counts } from "./outbox";
+import { providers, type Provider } from "./email";
 import { intouchProxyHost } from "./intouchpay";
 import { isSet, SITE } from "./site";
 import { turnstileEnabled } from "./turnstile";
@@ -41,15 +42,20 @@ function sms(): Check {
 
 function email(): Check {
   const name = "Email (customer sign-in and updates)";
-  if (has("SMTP_HOST", "SMTP_USER", "SMTP_PASS", "EMAIL_FROM")) return { key: "email", name, state: "ready", detail: `Sending as ${process.env.EMAIL_FROM} through ${process.env.SMTP_HOST}, at most ${Number(process.env.EMAIL_DAILY_LIMIT) || 400} a day. Run npm run check:email from the server to test it.` };
-  if (!production() || demo()) return { key: "email", name, state: "test", detail: "Messages are printed to the server log; codes appear on screen. Nobody receives an email.", fix: "Set SMTP_HOST, SMTP_USER, SMTP_PASS and EMAIL_FROM." };
-  return { key: "email", name, state: "missing", detail: "No mailbox. Nobody can sign in or get updates by email.", fix: "Set SMTP_HOST, SMTP_USER, SMTP_PASS and EMAIL_FROM, with SPF, DKIM and DMARC on the domain." };
+  const order = providers();
+  if (order.length) {
+    const label = (p: Provider) => (p === "resend" ? "Resend" : `SMTP (${process.env.SMTP_HOST})`);
+    const backup = order[1] ? ` If Resend cannot send (its daily or monthly quota is used up, or it is down), ${label(order[1])} sends instead.` : order[0] === "resend" ? " No backup: set the SMTP settings to keep email going when Resend's quota runs out." : "";
+    return { key: "email", name, state: "ready", detail: `Sending as ${process.env.EMAIL_FROM || process.env.SMTP_FROM} through ${label(order[0])}.${backup} Run npm run check:email to test it.` };
+  }
+  if (!production() || demo()) return { key: "email", name, state: "test", detail: "Messages are printed to the server log; codes appear on screen. Nobody receives an email.", fix: "Set RESEND_API_KEY and EMAIL_FROM, and the SMTP settings as a backup." };
+  return { key: "email", name, state: "missing", detail: "No email provider. Nobody can sign in or get updates by email.", fix: "Set RESEND_API_KEY and EMAIL_FROM (domain verified in Resend), or the SMTP settings." };
 }
 
 async function messages(): Promise<Check> {
   const name = "Message queue";
   const c = await counts();
-  if (c.failed > 0) return { key: "outbox", name, state: "missing", detail: `${c.failed} message${c.failed === 1 ? "" : "s"} could not be delivered after five tries.`, fix: "Check the mailbox or SMS provider above. Customers can still see the update in their portal." };
+  if (c.failed > 0) return { key: "outbox", name, state: "missing", detail: `${c.failed} message${c.failed === 1 ? "" : "s"} could not be delivered after five tries.`, fix: "Check the email or SMS provider above. Customers can still see the update in their portal." };
   if (c.pending > 0) return { key: "outbox", name, state: "test", detail: `${c.pending} message${c.pending === 1 ? " is" : "s are"} waiting to be sent or retried. The scheduled job keeps trying.` };
   return { key: "outbox", name, state: "ready", detail: "Nothing waiting. Failed messages are retried automatically." };
 }
@@ -133,7 +139,7 @@ function site(): Check[] {
   const out: Check[] = [
     process.env.NEXT_PUBLIC_SITE_URL
       ? { key: "url", name: "Website address", state: "ready", detail: process.env.NEXT_PUBLIC_SITE_URL }
-      : { key: "url", name: "Website address", state: "missing", detail: "Not set. SMS links and the sitemap can’t point to the site.", fix: "Set NEXT_PUBLIC_SITE_URL, e.g. https://inzira.rw." },
+      : { key: "url", name: "Website address", state: "missing", detail: "Not set. SMS links and the sitemap can’t point to the site.", fix: "Set NEXT_PUBLIC_SITE_URL, e.g. https://inziraservices.com." },
     placeholders.length
       ? { key: "company", name: "Company details", state: "missing", detail: `Still placeholders: ${placeholders.map((k) => ({ address: "office address", phone: "phone", companyCode: "company code", tin: "TIN" })[k]).join(", ")}${SITE.whatsapp ? "" : ", WhatsApp number"}.`, fix: "Fill them in lib/site.ts. Customers check these before trusting you." }
       : { key: "company", name: "Company details", state: SITE.whatsapp ? "ready" : "missing", detail: SITE.whatsapp ? "Filled in." : "WhatsApp number not set.", fix: SITE.whatsapp ? undefined : "Set whatsapp in lib/site.ts." },

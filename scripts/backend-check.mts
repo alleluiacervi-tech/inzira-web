@@ -270,10 +270,10 @@ await check("live site: the sample admin gets no code, and sample sessions are c
     { id: "sess-sample-customer", kind: "customer", subjectId: "acc-aline", expiresAt: until },
     { id: "sess-real-staff", kind: "staff", subjectId: "s-eric", expiresAt: until },
   ]);
-  const keep = ["NODE_ENV", "INZIRA_DEMO", "SMTP_HOST"].map((k) => [k, process.env[k]] as const);
+  const keep = ["NODE_ENV", "INZIRA_DEMO", "RESEND_API_KEY"].map((k) => [k, process.env[k]] as const);
   (process.env as Record<string, string | undefined>).NODE_ENV = "production";
   delete process.env.INZIRA_DEMO;
-  delete process.env.SMTP_HOST;
+  delete process.env.RESEND_API_KEY;
   try {
     const r = await issueEmailCode("admin@inzira.test", "en");
     assert.equal(r.ok, false, "no code for the sample admin on a live site");
@@ -539,6 +539,60 @@ await check("authenticator: a code works once; recovery codes work once", async 
   assert.equal((await checkSecondStep("s-eric", rec)).ok, false, "a recovery code is gone after one use");
   const [p] = await d.select({ left: s.staff.totpRecovery }).from(s.staff).where(eq(s.staff.id, "s-eric"));
   assert.equal(p.left?.length, 1);
+});
+
+await check("email: Resend first; SMTP takes over when Resend's quota is used up or it is down, not for a bad address", async () => {
+  const { sendEmail } = await import("../lib/email.ts");
+  const names = ["RESEND_API_KEY", "EMAIL_FROM", "SMTP_HOST", "SMTP_USER", "SMTP_PASS", "SMTP_FROM", "EMAIL_PROVIDER", "SMTP_DAILY_LIMIT", "RESEND_DAILY_LIMIT"];
+  const keep = Object.fromEntries(names.map((k) => [k, process.env[k]]));
+  const g = globalThis as unknown as { __inziraMail?: unknown; __inziraResendPausedUntil?: number };
+  const realFetch = globalThis.fetch;
+  let answers: { status: number; body: unknown }[] = [];
+  let fetches = 0;
+  const smtp: { from?: string; to?: string }[] = [];
+  globalThis.fetch = (async () => {
+    fetches++;
+    const a = answers.shift() ?? { status: 200, body: { id: "e1" } };
+    return new Response(JSON.stringify(a.body), { status: a.status, headers: { "content-type": "application/json" } });
+  }) as typeof fetch;
+  g.__inziraMail = { sendMail: async (o: { from?: string; to?: string }) => { smtp.push(o); return {}; } };
+  const mail = { to: "a@b.rw", subject: "s", text: "t" };
+  try {
+    Object.assign(process.env, { RESEND_API_KEY: "re_test", EMAIL_FROM: "Inzira <no-reply@inziraservices.com>", SMTP_HOST: "smtp.example", SMTP_USER: "box@old.rw", SMTP_PASS: "p", SMTP_FROM: "Inzira <box@old.rw>" });
+    delete process.env.EMAIL_PROVIDER; delete process.env.SMTP_DAILY_LIMIT; delete process.env.RESEND_DAILY_LIMIT;
+    delete g.__inziraResendPausedUntil;
+
+    assert.equal(await sendEmail(mail), "resend");
+    assert.equal(smtp.length, 0, "SMTP is not used while Resend works");
+
+    answers = [{ status: 429, body: { name: "daily_quota_exceeded", message: "quota" } }];
+    assert.equal(await sendEmail(mail), "smtp", "quota used up: SMTP sends it");
+    assert.equal(smtp.at(-1)?.from, "Inzira <box@old.rw>", "SMTP sends as its own mailbox");
+    fetches = 0;
+    assert.equal(await quiet(() => sendEmail(mail)), "smtp");
+    assert.equal(fetches, 0, "until midnight UTC, Resend is not asked again");
+
+    delete g.__inziraResendPausedUntil;
+    answers = [{ status: 500, body: {} }, { status: 500, body: {} }, { status: 500, body: {} }];
+    assert.equal(await quiet(() => sendEmail(mail)), "smtp", "Resend down: SMTP sends it");
+
+    smtp.length = 0;
+    answers = [{ status: 422, body: { name: "validation_error", message: "Invalid `to` field." } }];
+    await assert.rejects(sendEmail(mail), /Invalid `to`/);
+    assert.equal(smtp.length, 0, "a bad address is not tried again on SMTP");
+
+    process.env.EMAIL_PROVIDER = "smtp"; fetches = 0;
+    assert.equal(await sendEmail(mail), "smtp", "EMAIL_PROVIDER=smtp switches Resend off");
+    assert.equal(fetches, 0);
+
+    delete process.env.EMAIL_PROVIDER; process.env.SMTP_DAILY_LIMIT = "1";
+    answers = [{ status: 429, body: { name: "daily_quota_exceeded", message: "quota" } }];
+    await assert.rejects(quiet(() => sendEmail(mail)), /daily email limit/, "both used up: the outbox waits an hour");
+  } finally {
+    globalThis.fetch = realFetch;
+    delete g.__inziraMail; delete g.__inziraResendPausedUntil;
+    for (const k of names) { if (keep[k] === undefined) delete process.env[k]; else process.env[k] = keep[k]; }
+  }
 });
 
 console.log(process.exitCode ? "backend checks FAILED" : `backend checks ok (${passed})`);

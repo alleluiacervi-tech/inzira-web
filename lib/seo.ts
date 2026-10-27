@@ -8,6 +8,28 @@ export function barePath(pathname: string): string {
   return stripped === "" ? "/" : stripped;
 }
 
+/**
+ * True when a production request arrived on a *.vercel.app address while the real domain is configured,
+ * so the site can refuse it. Without a real NEXT_PUBLIC_SITE_URL nothing is blocked, so the site never
+ * locks itself out before the domain is connected. Previews keep their own addresses.
+ * /api/cron and /api/health stay reachable for Vercel's scheduler and uptime checks.
+ */
+export function blockedHost(opts: { host: string | null; pathname: string; origin: string | null; production: boolean }): boolean {
+  const host = (opts.host ?? "").split(":")[0].toLowerCase();
+  if (!opts.production || !opts.origin || !host.endsWith(".vercel.app")) return false;
+  if (/^\/api\/(cron|health)(\/|$)/.test(opts.pathname)) return false;
+  try { return !new URL(opts.origin).hostname.endsWith(".vercel.app"); } catch { return false; }
+}
+
+// Pages that read nothing about the visitor (no session, no cookie), only the catalogue and fixed text.
+const SHARED = /^\/(services(\/[^/]+)?|about|privacy|terms)?$/;
+
+/** True for a public page whose HTML is the same for every visitor at the same address, so a shared
+ *  cache may keep it for a few minutes. With or without /en. */
+export function isSharedPage(pathname: string): boolean {
+  return SHARED.test(barePath(pathname));
+}
+
 const UNPREFIXED = /^\/(portal|console|admin|api|files|sign-in|r|staff)(\/|$)/;
 
 /** Signed-in areas and the sign-in page stay off the public index. */
