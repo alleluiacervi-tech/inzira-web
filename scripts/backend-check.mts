@@ -333,6 +333,13 @@ await check("owner login: applied once per hash, never undone by a restart, no e
   }
 });
 
+await check("authenticator: asked once per session, so once in 30 days on a trusted device", async () => {
+  const { stepUpWindow, STAFF_IDLE_LOCK } = await import("../lib/auth.ts");
+  assert.equal(stepUpWindow(true), 30 * 864e5);
+  assert.equal(stepUpWindow(false), 12 * 36e5);
+  assert.ok(STAFF_IDLE_LOCK < stepUpWindow(false), "the idle lock asks for the password only, not the code");
+});
+
 await check("unpaid quotes: one reminder, then the request is closed a week after the fees were sent", async () => {
   const { remindUnpaidQuotes, expireUnpaidQuotes } = await import("../lib/jobs.ts");
   const [{ cols }] = (await d.execute(sql.raw(`select string_agg(column_name, ', ' order by ordinal_position) cols from information_schema.columns where table_name = 'requests'`))).rows as { cols: string }[];

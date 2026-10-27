@@ -448,7 +448,7 @@ export const sessions = pgTable("sessions", {
   createdAt: ts("created_at").notNull().defaultNow(),
   expiresAt: ts("expires_at").notNull(),
   /** Staff: last request seen (the console locks after an hour without one), the last authenticator code (money and ID
-   *  actions want one from the last 12 hours), whether the person chose to stay signed in for 30 days, and the device. */
+   *  actions want one from this session), whether the person chose to stay signed in for 30 days, and the device. */
   lastSeenAt: ts("last_seen_at"),
   stepUpAt: ts("step_up_at"),
   trusted: boolean("trusted").notNull().default(false),
