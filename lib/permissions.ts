@@ -25,6 +25,7 @@ export const PERMISSIONS = {
   changeOurs: "Change our assistance fee on a case",
   refund: "Issue refunds",
   editServices: "Edit services & prices",
+  editContent: "Edit Kinyarwanda text",
   manageStaff: "Manage agents & roles",
   viewAudit: "View audit logs",
 } as const;
@@ -35,17 +36,17 @@ export const DEFAULT_MATRIX: Record<Permission, string> = {
   viewAssigned: "111111", viewAll: "111011", assign: "111000", updateStatus: "111100", complete: "111100",
   reviewDocs: "111100", downloadDocs: "111101", viewIdentity: "111100", deleteDocs: "100000",
   recordOfficial: "111110", changeOurs: "111000", refund: "100010",
-  editServices: "110000", manageStaff: "110000", viewAudit: "110001",
+  editServices: "110000", editContent: "110000", manageStaff: "110000", viewAudit: "110001",
 };
 
 export const PERMISSION_GROUPS: { group: string; items: Permission[] }[] = [
   { group: "Cases", items: ["viewAssigned", "viewAll", "assign", "updateStatus", "complete"] },
   { group: "Documents", items: ["reviewDocs", "downloadDocs", "viewIdentity", "deleteDocs"] },
   { group: "Payments", items: ["recordOfficial", "changeOurs", "refund"] },
-  { group: "Administration", items: ["editServices", "manageStaff", "viewAudit"] },
+  { group: "Administration", items: ["editServices", "editContent", "manageStaff", "viewAudit"] },
 ];
 
 /** Who may open the admin console and the operations overview. */
 export const hasAdminAccess = (role: StaffRole, permissions: Iterable<Permission>) =>
   role === "Owner" || role === "Administrator" || role === "Finance" ||
-  [...permissions].some((p) => p === "editServices" || p === "manageStaff" || p === "refund" || p === "viewAudit");
+  [...permissions].some((p) => p === "editServices" || p === "editContent" || p === "manageStaff" || p === "refund" || p === "viewAudit");

@@ -259,6 +259,12 @@ async function addLaterObjects(database: Db) {
     `ALTER TABLE "staff" ADD COLUMN IF NOT EXISTS "failed_logins" integer DEFAULT 0 NOT NULL`,
     `ALTER TABLE "staff" ADD COLUMN IF NOT EXISTS "locked_until" timestamp with time zone`,
     `CREATE UNIQUE INDEX IF NOT EXISTS "staff_username_unique" ON "staff" USING btree (lower("username"))`,
+    `CREATE TABLE IF NOT EXISTS "content" (
+      "key" text PRIMARY KEY NOT NULL,
+      "value" text NOT NULL,
+      "updated_by" text NOT NULL,
+      "updated_at" timestamp with time zone DEFAULT now() NOT NULL
+    )`,
   ];
   for (const statement of statements) await database.execute(sql.raw(statement));
 }

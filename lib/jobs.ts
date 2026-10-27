@@ -1,5 +1,6 @@
 // Scheduled work, run by /api/cron (see vercel.json). Every task is safe to run twice.
 import { and, eq, gt, inArray, isNotNull, isNull, lt, ne, type SQL } from "drizzle-orm";
+import { primeContent } from "./content";
 import { purgeDocuments, retentionSweep } from "./privacy";
 import { allow } from "./ratelimit";
 import { deliverDue, enqueue, pruneOutbox, sendNow as deliverOne } from "./outbox";
@@ -237,6 +238,7 @@ export async function runAll() {
 
 /** Runs every task and records the run, so the admin console can show when the job last worked. */
 export async function runAndRecord() {
+  await primeContent(); // reminders are written in the customer's language, with any Kinyarwanda edits
   const started = Date.now();
   let ok = true;
   let result: Record<string, unknown>;

@@ -555,6 +555,20 @@ await step("admin", async () => {
     && (await p.ev(`document.querySelector(".svc-details")?.textContent ?? ""`)).includes("Official fee last checked"));
   await p.go("/admin/audit");
   check("audit: the price change is logged", await p.has("Changed assistance fee") && await p.has("RWF 10,000 → RWF 12,000"));
+  // Kinyarwanda text: the owner edits a line, the public site shows it, and "Use original" takes it back.
+  await p.go("/admin/content");
+  check("kinyarwanda text: the owner finds every screen of the site, and every service", await p.has("Home page") && await p.has("Privacy & terms") && await p.has("Company registration"));
+  await p.go("/admin/content/ui/about"); await waitFor(p, "Find in this list");
+  const box = await p.ev(`document.querySelector(".cx-row textarea").id`);
+  await p.set("#" + box, "Ibyerekeye Inzira byahinduwe mu igerageza"); await p.click("Save changes", "button"); await waitFor(p, "Saved 1 text");
+  const publicAbout = await (await fetch(base + "/about")).text();
+  check("kinyarwanda text: a saved edit shows on the public page", publicAbout.includes("Ibyerekeye Inzira byahinduwe mu igerageza"));
+  check("kinyarwanda text: English pages are not touched", !(await (await fetch(base + "/en/about")).text()).includes("byahinduwe mu igerageza"));
+  await p.go("/admin/audit");
+  check("kinyarwanda text: the edit is in the audit log", await p.has("Edited Kinyarwanda text"));
+  await p.go("/admin/content/ui/about"); await waitFor(p, "Find in this list");
+  await p.click("Use original", "button"); await p.click("Save changes", "button"); await waitFor(p, "Saved 1 text");
+  check("kinyarwanda text: using the original takes the edit away", !(await (await fetch(base + "/about")).text()).includes("byahinduwe mu igerageza"));
   await p.go("/admin/payments");
   await p.click("Refund"); await sleep(400);
   check("refund: dialog explains only our fee is refunded", await p.has("Only our assistance fee"));
@@ -699,6 +713,8 @@ await step("staff scope", async () => {
   check("scope: no full TIN on the client page", !fullIds(html).length, fullIds(html).join(", "));
   await p.go("/console/overview"); await sleep(500);
   check("scope: an agent can't open the overview", await p.has("Your role doesn’t include the operations overview"));
+  await p.go("/admin/content"); await sleep(500);
+  check("scope: an agent can't edit the Kinyarwanda text", await p.has("Your role doesn’t include"));
   await p.go("/console/inbox"); await sleep(500);
   check("scope: an agent can't open the triage inbox", await p.has("Your role doesn’t include the triage inbox"));
   check("scope: the agent's menu has no Overview or Payments", !(await p.ev(`[...document.querySelectorAll(".console-nav-item")].some((a) => /Overview|Payments/.test(a.textContent))`)));

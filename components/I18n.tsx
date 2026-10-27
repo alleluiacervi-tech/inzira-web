@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useMemo, type ReactNode } from "react";
 import type { Locale } from "@/lib/i18n/locale";
+import { contentVersion } from "@/lib/i18n/live";
 import { text, type Messages, messages } from "@/lib/i18n/messages";
 
 type Bag = { locale: Locale; m: Messages; t: (path: string, vars?: Record<string, string | number>) => string };
@@ -10,7 +11,9 @@ const Ctx = createContext<Bag | null>(null);
 
 /** Provides the language for client screens. Dashboard layouts pass English. */
 export function LocaleProvider({ locale, children }: { locale: Locale; children: ReactNode }) {
-  const value = useMemo<Bag>(() => ({ locale, m: messages(locale), t: (path, vars) => text(locale, path, vars) }), [locale]);
+  // The text changes when the edits made in the admin console do (components/ContentBridge.tsx).
+  const version = contentVersion();
+  const value = useMemo<Bag>(() => ({ locale, m: messages(locale), t: (path, vars) => text(locale, path, vars) }), [locale, version]);
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
 

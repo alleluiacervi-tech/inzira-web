@@ -6,6 +6,7 @@ import { consumeCode, consumeEmailCode, endOtherSessions, endSession, getSession
 import { redirect } from "next/navigation";
 import { deleteAccount, finishedWithDocuments, purgeDocuments } from "@/lib/privacy";
 import { iso } from "@/lib/db";
+import { primeContent } from "@/lib/content";
 import { asLocale, getLocale, rememberLocale, type Locale } from "@/lib/i18n/locale";
 import { text as tr } from "@/lib/i18n/messages";
 import type en from "@/lib/i18n/en.json";
@@ -42,6 +43,7 @@ const text = (fd: FormData, k: string) => String(fd.get(k) ?? "").trim();
 async function customerLocale(): Promise<Locale> {
   const session = await getSession();
   if (session?.kind !== "customer") return getLocale();
+  await primeContent(); // a signed-in customer's language comes from their account, so getLocale() did not load the Kinyarwanda edits
   const [a] = await (await db()).select({ locale: s.accounts.locale }).from(s.accounts).where(eq(s.accounts.id, session.subjectId));
   return a?.locale ?? getLocale();
 }
@@ -132,6 +134,8 @@ export async function submitRequest(fd: FormData): Promise<Result<{ ref: string;
 
   const d = await db();
   const now = new Date().toISOString();
+  // Asked before the transaction: it may read the database, which the transaction must not wait on.
+  const visitorLocale = await getLocale();
   // Files are written inside the transaction; if it fails, the ones already stored are removed so none is left behind.
   const stored: string[] = [];
   const result = await d.transaction(async (tx) => {
@@ -140,7 +144,7 @@ export async function submitRequest(fd: FormData): Promise<Result<{ ref: string;
     let [account] = signedIn ? await tx.select().from(s.accounts).where(eq(s.accounts.id, signedIn)) : [];
     if (!account) {
       [account] = await tx.insert(s.accounts).values({
-        id: id("acc"), name, first: name.split(" ")[0], phone: null, email: null, languages: [], locale: await getLocale(), registeredAt: null,
+        id: id("acc"), name, first: name.split(" ")[0], phone: null, email: null, languages: [], locale: visitorLocale, registeredAt: null,
       }).returning();
     }
     const profiles = await tx.select().from(s.profiles).where(eq(s.profiles.accountId, account.id));

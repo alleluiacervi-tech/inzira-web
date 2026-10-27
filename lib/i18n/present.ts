@@ -4,7 +4,7 @@ import type { Locale } from "./locale";
 import { text } from "./messages";
 import { checkoutPrice, optionRange } from "@/lib/pricing";
 import en from "./catalogue-en.json";
-import rw from "./catalogue-rw.json";
+import { contentVersion, liveCatalogue, shippedCatalogue } from "./live";
 
 type SvcText = {
   feeOptionLabel?: string;
@@ -40,25 +40,38 @@ type Cat = {
 };
 
 const EN = en as unknown as Cat;
-const RW = rw as unknown as Cat;
-const bag = (locale: Locale) => (locale === "rw" ? RW : EN);
+/** The Kinyarwanda catalogue text: the shipped file with the edits from the admin console laid over it (./live.ts). */
+const RW = () => liveCatalogue() as unknown as Cat;
+const bag = (locale: Locale) => (locale === "rw" ? RW() : EN);
 
-const docNames = new Map<string, string>();
-const channels = new Map<string, string>();
-for (const [slug, src] of Object.entries(EN.services)) {
-  src.documents.forEach((d, i) => {
-    const next = RW.services[slug]?.documents[i]?.name;
-    if (next && next !== d.name) docNames.set(d.name, next);
-  });
-  const channel = RW.services[slug]?.channel;
-  if (src.channel && channel) channels.set(src.channel, channel);
+// English document and channel names → their Kinyarwanda, read from the services, rebuilt when the text is edited.
+let names: { version: string; docNames: Map<string, string>; channels: Map<string, string> } | undefined;
+function lookups() {
+  const version = contentVersion();
+  if (names?.version === version) return names;
+  const rw = RW();
+  const docNames = new Map<string, string>();
+  const channels = new Map<string, string>();
+  for (const [slug, src] of Object.entries(EN.services)) {
+    src.documents.forEach((d, i) => {
+      const next = rw.services[slug]?.documents?.[i]?.name;
+      if (next && next !== d.name) docNames.set(d.name, next);
+    });
+    const channel = rw.services[slug]?.channel;
+    if (src.channel && channel) channels.set(src.channel, channel);
+  }
+  return (names = { version, docNames, channels });
 }
 
 /** Display copy only. Slug, amounts, oursUnit and official.label stay as stored. */
 export function localizeService<T extends Service>(s: T, locale: Locale): T {
   if (locale !== "rw") return s;
-  const t = RW.services[s.slug];
+  const t = RW().services[s.slug];
   if (!t) return s;
+  // A list of plain lines is paired with the English one by position, so a list of another length is not trusted (the English was
+  // changed after it was translated) unless the service has no shipped translation and the lines were written in the console.
+  const lines = (translated: string[] | undefined, english: string[]) =>
+    english.map((line, i) => (translated && (translated.length === english.length || !(s.slug in shippedCatalogue().services)) && translated[i]) || line);
   return {
     ...s,
     name: t.name || s.name,
@@ -70,13 +83,13 @@ export function localizeService<T extends Service>(s: T, locale: Locale): T {
     via: t.via || s.via,
     time: t.time || s.time,
     docsShort: t.docsShort || s.docsShort,
-    who: s.who.map((w, i) => ({ ...w, title: t.who[i]?.title || w.title, body: t.who[i]?.body || w.body })),
-    requirements: t.requirements?.length === s.requirements.length ? t.requirements : s.requirements,
-    documents: s.documents.map((d, i) => ({ ...d, name: t.documents[i]?.name || d.name, detail: t.documents[i]?.detail || d.detail })),
-    steps: s.steps.map((st, i) => ({ ...st, title: t.steps[i]?.title || st.title, body: t.steps[i]?.body || st.body })),
-    notes: s.notes.map((n, i) => ({ ...n, title: t.notes[i]?.title || n.title, body: t.notes[i]?.body || n.body })),
+    who: s.who.map((w, i) => ({ ...w, title: t.who?.[i]?.title || w.title, body: t.who?.[i]?.body || w.body })),
+    requirements: lines(t.requirements, s.requirements),
+    documents: s.documents.map((d, i) => ({ ...d, name: t.documents?.[i]?.name || d.name, detail: t.documents?.[i]?.detail || d.detail })),
+    steps: s.steps.map((st, i) => ({ ...st, title: t.steps?.[i]?.title || st.title, body: t.steps?.[i]?.body || st.body })),
+    notes: s.notes.map((n, i) => ({ ...n, title: t.notes?.[i]?.title || n.title, body: t.notes?.[i]?.body || n.body })),
     official: { ...s.official, note: t.officialNote || s.official.note },
-    purposes: t.purposes?.length && s.purposes?.length ? t.purposes : s.purposes,
+    purposes: s.purposes && lines(t.purposes, s.purposes),
     questions: s.questions?.map((q, i) => ({ ...q, label: t.questions?.[i]?.label || q.label, hint: q.hint && (t.questions?.[i]?.hint || q.hint), placeholder: q.placeholder && (t.questions?.[i]?.placeholder || q.placeholder) })),
     purposeLabel: t.purposeLabel || s.purposeLabel,
     feeOptionLabel: t.feeOptionLabel || s.feeOptionLabel,
@@ -90,7 +103,7 @@ export const localizeServices = <T extends Service>(list: T[], locale: Locale) =
 
 export function localizeCategory<T extends Category>(c: T, locale: Locale): T {
   if (locale !== "rw") return c;
-  const t = RW.categories[c.id];
+  const t = RW().categories[c.id];
   return t ? { ...c, name: t.name || c.name, short: t.short || c.short, desc: t.desc || c.desc } : c;
 }
 
@@ -101,22 +114,24 @@ export function officeText(code: string, locale: Locale) {
 export function unitLabel(unit: string | undefined, locale: Locale) {
   if (!unit) return "";
   if (locale !== "rw") return unit;
-  return RW.units[unit] || unit;
+  return RW().units[unit] || unit;
 }
 
 export function phrase(locale: Locale, english: string) {
   if (locale !== "rw") return english;
-  return RW.officialPhrases[english] || english;
+  return RW().officialPhrases[english] || english;
 }
 
 /** Fee captions stored in English, including "Official fee · RDB online registration". */
 export function feeCaption(locale: Locale, label: string) {
   if (locale !== "rw" || !label) return label;
-  const exact = RW.officialPhrases[label];
+  const phrases = RW().officialPhrases;
+  const exact = phrases[label];
   if (exact) return exact;
   const parts = label.split(" · ");
   if (parts.length < 2) return label;
-  return parts.map((part) => RW.officialPhrases[part] || channels.get(part) || part).join(" · ");
+  const { channels } = lookups();
+  return parts.map((part) => phrases[part] || channels.get(part) || part).join(" · ");
 }
 
 export function teamName(name: string, locale: Locale) {
@@ -165,7 +180,7 @@ export function displayPrice(s: Service, locale: Locale): { amount: string; note
 
 export function displayTime(s: Service, locale: Locale) {
   if (locale !== "rw") return shortTime(s.time);
-  return RW.services[s.slug]?.timeShort || s.time;
+  return RW().services[s.slug]?.timeShort || s.time;
 }
 
 /** English plus Kinyarwanda, so search works in either language. */
@@ -175,13 +190,13 @@ export function searchText(s: Service) {
 }
 
 export function displayDocName(name: string, locale: Locale) {
-  return locale === "rw" ? docNames.get(name) || name : name;
+  return locale === "rw" ? lookups().docNames.get(name) || name : name;
 }
 
 /** Show the translated service name when the request title is still the English catalogue name. */
 export function requestTitle(name: string, service: Service, locale: Locale) {
   if (locale !== "rw") return name;
-  const local = RW.services[service.slug]?.name;
+  const local = RW().services[service.slug]?.name;
   if (!local || local === service.name) return name;
   if (name === service.name) return local;
   if (name.startsWith(`${service.name} `) || name.startsWith(`${service.name}·`) || name.startsWith(`${service.name} ·`)) return local + name.slice(service.name.length);
@@ -191,12 +206,12 @@ export function requestTitle(name: string, service: Service, locale: Locale) {
 /** A service's name in this language, from its slug; the stored English name when it has no translation. */
 export function serviceName(slug: string | undefined, english: string, locale: Locale) {
   if (locale !== "rw" || !slug) return english;
-  return RW.services[slug]?.name || english;
+  return RW().services[slug]?.name || english;
 }
 
 /** An official channel's name in this language, e.g. "RDB online registration". */
 export function channelName(channel: string, locale: Locale) {
-  return locale === "rw" ? channels.get(channel) || channel : channel;
+  return locale === "rw" ? lookups().channels.get(channel) || channel : channel;
 }
 
 /** A payment method in this language; brand names (MTN MoMo, Airtel Money) stay as they are. */
@@ -207,6 +222,6 @@ export function methodName(method: string, locale: Locale) {
 }
 
 export function requestChannel(channel: string, service: Service, locale: Locale) {
-  if (locale === "rw" && channel === service.channel) return RW.services[service.slug]?.channel || channel;
+  if (locale === "rw" && channel === service.channel) return RW().services[service.slug]?.channel || channel;
   return channel;
 }
