@@ -287,6 +287,45 @@ await check("live site: the sample admin gets no code, and sample sessions are c
   }
 });
 
+await check("owner login: set once, kept on restart, replaced on request, no email kept", async () => {
+  const { setOwnerLogin, applyOwnerLoginFromEnv } = await import("../lib/db/owner.ts");
+  const { hashPassword, verifyPassword } = await import("../lib/password.ts");
+  const [before] = await d.select().from(s.staff).where(eq(s.staff.id, "s-diane"));
+  assert.equal(before.role, "Owner");
+  await d.insert(s.sessions).values({ id: "sess-owner-old", kind: "staff", subjectId: "s-diane", expiresAt: new Date(Date.now() + 3600e3).toISOString() });
+  try {
+    await d.update(s.staff).set({ passwordHash: null }).where(eq(s.staff.id, "s-diane"));
+    const first = await hashPassword("first-password-1");
+    assert.equal(await setOwnerLogin(d, { username: " Admin@InziraServices.com ", passwordHash: first }), "set");
+    const [row] = await d.select().from(s.staff).where(eq(s.staff.id, "s-diane"));
+    assert.equal(row.username, "admin@inziraservices.com", "the username is stored in lower case");
+    assert.equal(row.email, null, "no email, so no alert or reset link goes to an unread mailbox");
+    assert.equal(await verifyPassword("first-password-1", row.passwordHash), true);
+    assert.equal(await verifyPassword("something-else", row.passwordHash), false);
+    assert.equal((await d.select({ id: s.sessions.id }).from(s.sessions).where(eq(s.sessions.id, "sess-owner-old"))).length, 0, "old sessions end");
+
+    process.env.OWNER_USERNAME = "admin@inziraservices.com";
+    process.env.OWNER_PASSWORD_HASH = await hashPassword("second-password-2");
+    await applyOwnerLoginFromEnv(d);
+    const [kept] = await d.select().from(s.staff).where(eq(s.staff.id, "s-diane"));
+    assert.equal(kept.passwordHash, row.passwordHash, "a start-up setting does not replace a password the owner already has");
+
+    assert.equal(await setOwnerLogin(d, { username: "admin@inziraservices.com", passwordHash: process.env.OWNER_PASSWORD_HASH }, { replace: true }), "set");
+    const [replaced] = await d.select().from(s.staff).where(eq(s.staff.id, "s-diane"));
+    assert.equal(await verifyPassword("second-password-2", replaced.passwordHash), true);
+
+    const [eric] = await d.select().from(s.staff).where(eq(s.staff.id, "s-eric"));
+    await d.update(s.staff).set({ username: "taken.name" }).where(eq(s.staff.id, "s-eric"));
+    assert.equal(await setOwnerLogin(d, { username: "Taken.Name", passwordHash: first }, { replace: true }), "username-taken");
+    await d.update(s.staff).set({ username: eric.username }).where(eq(s.staff.id, "s-eric"));
+  } finally {
+    delete process.env.OWNER_USERNAME;
+    delete process.env.OWNER_PASSWORD_HASH;
+    await d.delete(s.sessions).where(eq(s.sessions.id, "sess-owner-old"));
+    await d.update(s.staff).set({ username: before.username, email: before.email, passwordHash: before.passwordHash, passwordSetAt: before.passwordSetAt, failedLogins: before.failedLogins, lockedUntil: before.lockedUntil }).where(eq(s.staff.id, "s-diane"));
+  }
+});
+
 await check("unpaid quotes: one reminder, then the request is closed a week after the fees were sent", async () => {
   const { remindUnpaidQuotes, expireUnpaidQuotes } = await import("../lib/jobs.ts");
   const [{ cols }] = (await d.execute(sql.raw(`select string_agg(column_name, ', ' order by ordinal_position) cols from information_schema.columns where table_name = 'requests'`))).rows as { cols: string }[];
