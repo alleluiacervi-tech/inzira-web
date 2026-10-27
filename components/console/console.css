@@ -1233,3 +1233,41 @@ a.c-kpi:focus-visible { outline: 2px solid var(--brand-2); outline-offset: -2px;
 .setup-left > span::before { content: "○"; color: var(--ink-3, #6b7280); }
 .setup-left > span.done { font-weight: 400; color: var(--ink-2); }
 .setup-left > span.done::before { content: "✓"; color: #1a7f4b; }
+
+/* ---- Admin › Kinyarwanda text ---- */
+.cx-search { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.cx-search .in { flex: 1 1 260px; width: auto; }
+.cx-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; }
+.cx-card { display: flex; flex-direction: column; justify-content: space-between; gap: 14px; padding: 16px 18px; text-decoration: none; color: inherit; min-height: 44px; }
+.cx-card:hover { border-color: var(--brand-line); box-shadow: var(--shadow-pop); }
+.cx-card:focus-visible { outline: 3px solid var(--brand-line); outline-offset: 2px; }
+.cx-tools { display: flex; flex-direction: column; gap: 10px; }
+.cx-find { position: relative; }
+.cx-find svg { position: absolute; left: 14px; top: 15px; color: var(--muted); pointer-events: none; }
+.cx-find .in { padding-left: 42px; }
+.cx-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 12px; }
+.cx-row { display: flex; flex-direction: column; gap: 10px; padding: 14px 16px 12px; background: var(--paper); border: 1px solid var(--line); border-radius: var(--r-card); }
+.cx-row.cx-changed { border-color: var(--info); box-shadow: 0 0 0 1px var(--info-line); }
+.cx-row.cx-bad { border-color: var(--err); }
+.cx-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+.cx-label { font-size: 13px; font-weight: 700; color: var(--ink-2); line-height: 1.35; }
+.cx-where { font-size: 12px; color: var(--muted); margin-top: -6px; }
+.cx-en { margin: 0; padding: 9px 12px; background: var(--sand-2); border-radius: var(--r-ctl); font-size: 14px; line-height: 1.5; color: var(--ink-2); white-space: pre-line; overflow-wrap: anywhere; }
+.cx-lang { display: inline-block; margin-right: 8px; padding: 1px 6px; border-radius: 4px; background: var(--line); color: var(--neutral); font-size: 10.5px; font-weight: 700; letter-spacing: .04em; vertical-align: 1px; }
+.cx-row textarea.in { font-size: 16px; min-height: 48px; }
+.cx-foot { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 14px; }
+.cx-foot > .cx-error { flex-basis: 100%; }
+.cx-error { margin: 0; font-size: 13px; font-weight: 600; color: var(--err); }
+.cx-var { padding: 2px 7px; border-radius: 5px; background: var(--ok-bg); color: var(--ok); font-size: 12.5px; }
+.cx-var-off { background: var(--err-bg); color: var(--err); }
+.cx-link { background: none; border: 0; padding: 10px 2px; min-height: 44px; font: inherit; font-size: 13px; font-weight: 600; color: var(--brand-2); text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+.cx-bar { position: sticky; bottom: 12px; z-index: 30; display: flex; align-items: center; justify-content: flex-end; gap: 10px; flex-wrap: wrap; padding: 10px 12px 10px 16px; background: var(--paper); border: 1px solid var(--brand-line); border-radius: var(--r-card); box-shadow: var(--shadow-pop); }
+.cx-bar-msg { margin-right: auto; font-size: 14px; }
+@media (max-width: 768px) {
+  .cx-bar { position: fixed; left: 12px; right: 12px; bottom: calc(76px + env(safe-area-inset-bottom)); }
+  .cx { padding-bottom: 76px; }
+  .cx-bar .btn { flex: 1 1 0; }
+  .cx-bar-msg { flex-basis: 100%; }
+}
+.cx-restore { align-self: flex-start; }
+.cx-link:disabled { opacity: .5; cursor: default; }

@@ -1,7 +1,10 @@
 import type { Metadata, Viewport } from "next";
 import { headers } from "next/headers";
 import { Hanken_Grotesk } from "next/font/google";
+import ContentBridge from "@/components/ContentBridge";
 import { LocaleProvider } from "@/components/I18n";
+import { contentEntries } from "@/lib/content";
+import { contentVersion } from "@/lib/i18n/live";
 import { getLocale } from "@/lib/i18n/locale";
 import { text } from "@/lib/i18n/messages";
 import { isIndexable, languageAlternates } from "@/lib/seo";
@@ -44,7 +47,10 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   const locale = await getLocale();
   return (
     <html lang={locale} className={sans.variable}>
-      <body><LocaleProvider locale={locale}>{children}</LocaleProvider></body>
+      <body>
+        <ContentBridge entries={locale === "rw" ? contentEntries() : {}} version={locale === "rw" ? contentVersion() : ""} />
+        <LocaleProvider locale={locale}>{children}</LocaleProvider>
+      </body>
     </html>
   );
 }

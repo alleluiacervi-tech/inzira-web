@@ -62,6 +62,19 @@ export async function ensureCatalogue(database: Db) {
   // Order follows the catalogue. Fees and wording already saved on a service stay as they are.
   await Promise.all(SERVICES.map((v, i) => database.update(s.services).set({ position: i }).where(eq(s.services.slug, v.slug))));
   await applyRevisions(database);
+  await ensurePermissions(database);
+}
+
+/** A permission added in a later release has no rows in a database set up before it. Gives it the default for each role,
+ *  once, and never changes a row that exists (the Owner may have turned it off on purpose). A database with no permissions
+ *  at all is still being set up and gets the whole matrix from there. */
+async function ensurePermissions(database: Db) {
+  const rows = await database.select({ role: s.rolePermissions.role, permission: s.rolePermissions.permission }).from(s.rolePermissions);
+  if (!rows.length) return;
+  const have = new Set(rows.map((r) => `${r.role}/${r.permission}`));
+  const missing = (Object.keys(DEFAULT_MATRIX) as Permission[]).flatMap((permission) =>
+    ROLES.map((r, i) => ({ role: r.name, permission, allowed: DEFAULT_MATRIX[permission][i] === "1" })).filter((r) => !have.has(`${r.role}/${r.permission}`)));
+  if (missing.length) await database.insert(s.rolePermissions).values(missing).onConflictDoNothing();
 }
 
 /** Catalogue corrections a database receives once, by id. Each rewrites the named services from the catalogue above

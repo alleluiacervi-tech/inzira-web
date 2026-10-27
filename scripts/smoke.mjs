@@ -33,6 +33,7 @@ const PRIVATE = [
   "/console/requests/INZ-2026-04817",
   "/console/clients/p-aline",
   "/admin/services",
+  "/admin/content",
   "/admin/payments",
   "/admin/roles",
   "/admin/audit",

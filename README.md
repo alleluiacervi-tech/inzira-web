@@ -161,6 +161,8 @@ lib/
                      Each request stores the rule from the moment it was sent.
   auth.ts            phone + SMS code sign-in, sessions (hashed, httpOnly cookie), staff permissions
   permissions.ts     the permission list and the starting roles matrix
+  content.ts         loads the Kinyarwanda edits from the database; content-admin.ts saves them; content-fields.ts
+                     lists every string that can be edited and checks an edit. i18n/live.ts lays them over rw.json
   sms.ts             SMS providers (console, Africa's Talking)
   payments.ts        mobile money providers (IntouchPay, direct MTN/Airtel, simulator)
   intouchpay.ts      IntouchPay request, status and callback field handling
@@ -274,7 +276,18 @@ by every server action.
   notifications, holds and summaries are stored as message keys (`lib/i18n/stored.ts`) and shown in
   each reader's language; older rows fall back to an exact-match table (`lib/i18n/legacy-rw.json`).
   The staff console and staff SMS are English. The Kinyarwanda was not written by a native speaker:
-  have one review `lib/i18n/rw.json` before launch.
+  have one review it before launch, in **Admin › Kinyarwanda text** (below) or in `lib/i18n/rw.json`.
+- **Editing the Kinyarwanda.** An owner or administrator (permission "Edit Kinyarwanda text") edits every
+  Kinyarwanda text on the site in **Admin › Kinyarwanda text**: each screen of the site, the fee wording,
+  the institutions and every line of every service, with the English beside it. Search finds a text in either
+  language. Changes are saved together or not at all, must keep the `{names}` the site fills in, are written
+  to the audit log, and show on the public pages within about 2 minutes (the CDN keeps pages that long).
+  "Use original" puts the shipped text back. Not editable there: English, and the SMS texts (they must stay in
+  the GSM-7 alphabet and within two messages, which `npm run check:i18n` checks). The shipped files stay the
+  starting point; an edit is a row in the `content` table that replaces one string, and `lib/i18n/live.ts`
+  lays the rows over the files, on the server and in the browser. A service added in the console has no
+  shipped Kinyarwanda: its lines are written the same way. English text for a new service is still edited under
+  Admin › Services.
 - Not set up: ESLint (`npm run lint` has no config yet).
 - **Staff alerts** are a daily SMS summary. Nothing alerts staff the moment a customer replies; they see it
   in the console.

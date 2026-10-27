@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-import { LANG_COOKIE } from "@/lib/i18n/locale";
+import { LANG_COOKIE } from "@/lib/i18n/cookie";
 import { barePath, blockedHost, isSharedPage, withLocale } from "@/lib/seo";
 import { siteOrigin } from "@/lib/site";
 

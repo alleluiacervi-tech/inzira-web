@@ -8,6 +8,7 @@ import { fmtDate, rwf } from "../format";
 import type { Msg, MsgVars } from "../types";
 import en from "./en.json";
 import legacyRw from "./legacy-rw.json";
+import { contentVersion } from "./live";
 import type { Locale } from "./locale";
 import { fill, messages, text } from "./messages";
 import { channelName, displayDocName, methodName, serviceName } from "./present";
@@ -85,21 +86,28 @@ export function english(m: Msg, part?: Part): string {
  * Kinyarwanda they are looked up: first in legacy-rw.json, then among the messages that take no
  * values (so an old "Document approved" reads like a new one). Anything else stays as stored.
  */
-const fixedRw = new Map<string, string>();
-(function collect(enNode: unknown, rwNode: unknown) {
-  if (typeof enNode === "string") {
-    if (typeof rwNode === "string" && rwNode.trim() && !enNode.includes("{")) fixedRw.set(enNode, rwNode);
-    return;
-  }
-  if (enNode && typeof enNode === "object") for (const [k, v] of Object.entries(enNode)) collect(v, (rwNode as Record<string, unknown> | undefined)?.[k]);
-})(en.stored, messages("rw").stored);
-for (const [k, v] of Object.entries(legacyRw as Record<string, string>)) fixedRw.set(k, v);
+let fixed: { version: string; map: Map<string, string> } | undefined;
+function fixedRw(): Map<string, string> {
+  const version = contentVersion();
+  if (fixed?.version === version) return fixed.map;
+  const map = new Map<string, string>();
+  (function collect(enNode: unknown, rwNode: unknown) {
+    if (typeof enNode === "string") {
+      if (typeof rwNode === "string" && rwNode.trim() && !enNode.includes("{")) map.set(enNode, rwNode);
+      return;
+    }
+    if (enNode && typeof enNode === "object") for (const [k, v] of Object.entries(enNode)) collect(v, (rwNode as Record<string, unknown> | undefined)?.[k]);
+  })(en.stored, messages("rw").stored);
+  for (const [k, v] of Object.entries(legacyRw as Record<string, string>)) map.set(k, v);
+  fixed = { version, map };
+  return map;
+}
 
 export function legacyText(locale: Locale, english: string): string;
 export function legacyText(locale: Locale, english: string | undefined): string | undefined;
 export function legacyText(locale: Locale, english: string | undefined) {
   if (!english || locale === "en") return english;
-  return fixedRw.get(english) ?? english;
+  return fixedRw().get(english) ?? english;
 }
 
 /** The note left on a checklist document whose file was deleted (lib/privacy.ts writes it in English

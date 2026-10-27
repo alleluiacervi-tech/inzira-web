@@ -648,5 +648,75 @@ await check("email: Resend first; SMTP takes over when Resend's quota is used up
   }
 });
 
+await check("Kinyarwanda text: saved all together or not at all, served over the shipped text, restorable", async () => {
+  const { saveContent, restoreContent, lastEdits } = await import("../lib/content-admin.ts");
+  const { primeContent, contentEntries } = await import("../lib/content.ts");
+  const { text } = await import("../lib/i18n/messages.ts");
+  const { localizeService } = await import("../lib/i18n/present.ts");
+  const { SERVICES } = await import("../lib/mock/catalogue.ts");
+  const who = { name: "Diane", role: "Administrator" };
+  const rows = () => d.select().from(s.content);
+  const shipped = text("rw", "home.lead");
+  const audited = async () => (await d.select().from(s.audit)).filter((a) => /Kinyarwanda text/.test(a.action));
+  try {
+    const refused = await quiet(() => saveContent(who, [{ key: "ui:home.lead", value: "Nshya" }, { key: "ui:nope.x", value: "x" }], SERVICES));
+    assert.ok("errors" in refused && "ui:nope.x" in refused.errors && !("ui:home.lead" in refused.errors), "the unknown text is refused by name");
+    assert.equal((await rows()).length, 0, "nothing was saved when one text was refused");
+    assert.equal(text("rw", "home.lead"), shipped);
+
+    assert.ok("errors" in await saveContent(who, [{ key: "ui:home.lead", value: "" }], SERVICES), "a text with shipped Kinyarwanda cannot be emptied");
+    assert.ok("errors" in await saveContent(who, [{ key: "ui:stored.fee.amount", value: "Nta mubare" }], SERVICES), "a {placeholder} cannot be dropped");
+
+    assert.deepEqual(await saveContent(who, [{ key: "ui:home.lead", value: "  Ibishya  " }, { key: `cat:services.${SERVICES[0].slug}.steps.0.title`, value: "Intambwe nshya" }], SERVICES), { saved: 2, restored: 0 });
+    assert.equal(text("rw", "home.lead"), "Ibishya", "served at once on this server");
+    assert.equal(localizeService(SERVICES[0], "rw").steps[0].title, "Intambwe nshya");
+    assert.equal(text("en", "home.lead").includes("Ibishya"), false, "English is untouched");
+
+    // Another server reads the same rows.
+    const g = globalThis as unknown as { __inziraContent?: { loadedAt: number; entries: Record<string, string> } };
+    g.__inziraContent = undefined;
+    await primeContent(true);
+    assert.equal(contentEntries()["ui:home.lead"], "Ibishya");
+    assert.equal(text("rw", "home.lead"), "Ibishya");
+    assert.equal((await lastEdits(["ui:home.lead"]))["ui:home.lead"].by, "Diane");
+    assert.equal((await audited()).length, 1, "one audit line per save");
+
+    assert.deepEqual(await saveContent(who, [{ key: "ui:home.lead", value: shipped }], SERVICES), { saved: 0, restored: 1 }, "writing the shipped text again removes the edit");
+    assert.equal(text("rw", "home.lead"), shipped);
+    assert.equal((await rows()).length, 1);
+
+    assert.equal(await restoreContent(who, [`cat:services.${SERVICES[0].slug}.steps.0.title`, "ui:home.lead", "other:x"]), 1);
+    assert.equal((await rows()).length, 0);
+    assert.equal(localizeService(SERVICES[0], "rw").steps[0].title, "Utangira ubusabe");
+
+    // A service added in the console gets Kinyarwanda from nothing.
+    const fresh = { ...SERVICES[0], slug: "brand-new-service", name: "Brand new" };
+    assert.deepEqual(await saveContent(who, [{ key: "cat:services.brand-new-service.name", value: "Serivisi nshya" }], [...SERVICES, fresh]), { saved: 1, restored: 0 });
+    assert.equal(localizeService(fresh, "rw").name, "Serivisi nshya");
+    assert.ok("errors" in await saveContent(who, [{ key: "cat:services.brand-new-service.name", value: "x" }], SERVICES), "a service that does not exist has no text to edit");
+  } finally {
+    await d.delete(s.content);
+    await d.delete(s.audit).where(sql`${s.audit.action} like '%Kinyarwanda text%'`);
+    await primeContent(true);
+  }
+  assert.equal(text("rw", "home.lead"), shipped, "no edits left: the shipped text again");
+});
+await check("a permission added in a later release is given to the roles that database already has, once", async () => {
+  const { ensureCatalogue } = await import("../lib/db/seed.ts");
+  const has = async () => d.select().from(s.rolePermissions).where(eq(s.rolePermissions.permission, "editContent"));
+  assert.equal((await has()).length, 6, "a new database has it from the start");
+  await d.delete(s.rolePermissions).where(eq(s.rolePermissions.permission, "editContent"));
+  await d.update(s.rolePermissions).set({ allowed: false }).where(sql`${s.rolePermissions.permission} = 'editServices' and ${s.rolePermissions.role} = 'Administrator'`);
+  await ensureCatalogue(d);
+  const rows = await has();
+  assert.equal(rows.length, 6);
+  assert.equal(rows.find((r) => r.role === "Owner")?.allowed, true);
+  assert.equal(rows.find((r) => r.role === "Administrator")?.allowed, true);
+  assert.equal(rows.find((r) => r.role === "Agent")?.allowed, false);
+  const [kept] = await d.select().from(s.rolePermissions).where(sql`${s.rolePermissions.permission} = 'editServices' and ${s.rolePermissions.role} = 'Administrator'`);
+  assert.equal(kept.allowed, false, "an existing row, changed by the owner, is left as it is");
+  await d.update(s.rolePermissions).set({ allowed: true }).where(sql`${s.rolePermissions.permission} = 'editServices' and ${s.rolePermissions.role} = 'Administrator'`);
+});
+
 console.log(process.exitCode ? "backend checks FAILED" : `backend checks ok (${passed})`);
 process.exit(process.exitCode ?? 0);

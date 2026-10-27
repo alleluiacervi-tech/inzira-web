@@ -20,6 +20,11 @@ import { barePath, blockedHost, isIndexable, isSharedPage, languageAlternates, w
 import { customerWhatsAppUrl, defaultFollowUpAt, deskChecks, fromKigaliDateTime, handoverRequired, kigaliDateTimeParts, nextKind, nextSentence, stageTargetRows } from "../lib/desk.ts";
 import { text as i18nText } from "../lib/i18n/messages.ts";
 
+import { applyContent, contentVersion, getPath, liveCatalogue, liveRw, setPath, shippedCatalogue, shippedRw } from "../lib/i18n/live.ts";
+import { localizeService } from "../lib/i18n/present.ts";
+import { allFields, checkText, countRows, rowsFor, sectionFields, sections, serviceFields, variablesOf } from "../lib/content-fields.ts";
+import en from "../lib/i18n/en.json" with { type: "json" };
+
 let passed = 0;
 const test = (name: string, fn: () => void) => { try { fn(); passed++; } catch (e) { console.error(`FAIL ${name}\n`, e); process.exitCode = 1; } };
 
@@ -739,6 +744,104 @@ await asyncTest("resend: one request per message, retried only when it may succe
       if (v === undefined) delete process.env[k]; else process.env[k] = v;
     }
   }
+});
+
+// ---- Kinyarwanda text edited in the admin console
+test("edits are laid over the shipped Kinyarwanda, and removing them brings it back", () => {
+  const shipped = shippedRw().home.lead;
+  const key = "ui:home.lead";
+  assert.equal(i18nText("rw", "home.lead"), shipped);
+  applyContent({ [key]: "Umutwe mushya" }, "1:a");
+  try {
+    assert.equal(i18nText("rw", "home.lead"), "Umutwe mushya");
+    assert.equal(shippedRw().home.lead, shipped, "the shipped text itself is never changed");
+    assert.equal(i18nText("en", "home.lead"), en.home.lead, "English is not editable");
+    assert.equal(contentVersion(), "1:a");
+  } finally {
+    applyContent({}, "0:");
+  }
+  assert.equal(i18nText("rw", "home.lead"), shipped);
+});
+test("an edit of a service's text reaches the service page, and a service with no shipped Kinyarwanda can be written from nothing", () => {
+  const first = SERVICES[0];
+  const steps = liveCatalogue().services[first.slug as keyof ReturnType<typeof liveCatalogue>["services"]].steps;
+  applyContent({ [`cat:services.${first.slug}.steps.0.title`]: "Intambwe ya mbere" }, "1:b");
+  try {
+    assert.equal(localizeService(first, "rw").steps[0].title, "Intambwe ya mbere");
+    assert.equal(localizeService(first, "rw").steps[1].title, steps[1].title, "the other steps keep their text");
+    const fresh = { ...first, slug: "brand-new-service", name: "Brand new", requirements: ["One", "Two", "Three"] };
+    assert.equal(localizeService(fresh, "rw").name, "Brand new", "no Kinyarwanda yet: English shows");
+    applyContent({ "cat:services.brand-new-service.name": "Serivisi nshya", "cat:services.brand-new-service.requirements.1": "Bibiri" }, "2:c");
+    const rw = localizeService(fresh, "rw");
+    assert.equal(rw.name, "Serivisi nshya");
+    assert.deepEqual(rw.requirements, ["One", "Bibiri", "Three"], "a new service shows the lines that are translated and the English for the rest");
+  } finally {
+    applyContent({}, "0:");
+  }
+});
+test("edits cannot write outside the text", () => {
+  const root = {};
+  assert.equal(setPath(root, "__proto__.polluted", "x"), false);
+  assert.equal(setPath(root, "a.constructor.prototype.polluted", "x"), false);
+  assert.equal(setPath(root, "", "x"), false);
+  assert.equal(({} as Record<string, unknown>).polluted, undefined);
+  assert.equal(setPath({ a: "text" }, "a.b", "x"), false, "a string is not a section");
+  const tree: Record<string, unknown> = {};
+  assert.equal(setPath(tree, "list.2.title", "t"), true);
+  assert.ok(Array.isArray(tree.list), "a number in a path makes a list");
+  assert.equal(getPath(tree, "list.2.title"), "t");
+  assert.equal(getPath(tree, "list.__proto__"), undefined);
+});
+test("every text the site has can be edited from one screen, and every key is a safe path", () => {
+  const fields = allFields(SERVICES);
+  const screens = new Set(sections(SERVICES).ui.map((s) => s.id));
+  assert.ok(!screens.has("other"), "every part of rw.json belongs to a screen listed in lib/content-fields.ts");
+  let ui = 0;
+  for (const f of fields.values()) {
+    const path = f.key.replace(/^(ui|cat):/, "");
+    assert.ok(path.split(".").every((p) => p && !/[\s]$/.test(p) || f.key.startsWith("cat:officialPhrases") || f.key.startsWith("cat:units")), `${f.key} has an empty part`);
+    if (f.key.startsWith("ui:")) { ui++; assert.equal(typeof getPath(shippedRw(), path), "string", `${f.key} has no Kinyarwanda in rw.json`); }
+    assert.ok(f.en.trim(), `${f.key} has no English`);
+  }
+  assert.ok(![...fields.keys()].some((k) => k.startsWith("ui:sms.")), "SMS texts are not editable here: they must stay in the GSM-7 alphabet");
+  const stored = [...fields.keys()].filter((k) => k.startsWith("ui:stored.")).length;
+  assert.ok(stored > 100, "customer updates are editable");
+  assert.ok(ui > 1000);
+  for (const keys of [Object.keys(shippedCatalogue().officialPhrases), Object.keys(shippedCatalogue().units)]) assert.ok(keys.every((k) => !k.includes(".")), "a phrase with a dot cannot be addressed by its path");
+});
+test("every line of every shipped service can be edited, and each has its Kinyarwanda", () => {
+  const missing: string[] = [];
+  for (const svc of SERVICES) {
+    const fields = serviceFields(svc);
+    assert.ok(fields.length >= 10, `${svc.slug} lists its lines`);
+    for (const f of fields) if (typeof getPath(shippedCatalogue(), f.key.slice(4)) !== "string") missing.push(f.key);
+  }
+  assert.deepEqual(missing.slice(0, 5), [], `${missing.length} service lines have no shipped Kinyarwanda`);
+});
+test("an edit is checked before it is saved", () => {
+  const field = allFields(SERVICES).get("ui:stored.fee.amount") ?? [...allFields(SERVICES).values()].find((f) => variablesOf(f.en).length)!;
+  const vars = variablesOf(field.en);
+  assert.ok(vars.length > 0);
+  const ok = checkText(field, field.en.replace(/[A-Za-z]+(?=[ ,.])/g, "a"));
+  assert.equal(ok.ok, true, "the placeholders can stay among other words");
+  assert.equal(checkText(field, "Nta mwanya wo gukoresha").ok, false, "a placeholder cannot be dropped");
+  assert.equal(checkText(field, `${field.en} {surprise}`).ok, false, "a placeholder the site does not fill cannot be added");
+  const plain = { key: "ui:x", label: "x", en: "Hello", long: false };
+  assert.deepEqual(checkText(plain, "  Muraho \r\n  neza\u0000\u200b "), { ok: true, value: "Muraho neza" });
+  assert.deepEqual(checkText({ ...plain, long: true }, "Umurongo\n\nwa kabiri"), { ok: true, value: "Umurongo\n\nwa kabiri" });
+  assert.equal(checkText(plain, "x".repeat(4001)).ok, false);
+  assert.deepEqual(checkText(plain, "   "), { ok: true, value: "" });
+});
+test("the editor counts what is edited and what has no Kinyarwanda", () => {
+  const fields = sectionFields("ui", "about", SERVICES)!;
+  assert.deepEqual(countRows(fields, {}), { total: fields.length, edited: 0, missing: 0 });
+  const rows = rowsFor(fields, { [fields[0].key]: "Ihinduwe" });
+  assert.equal(rows[0].edited, true);
+  assert.equal(rows[0].value, "Ihinduwe");
+  assert.equal(rows[0].shipped, getPath(shippedRw(), fields[0].key.slice(3)));
+  assert.equal(rows[1].edited, false);
+  assert.equal(countRows(sectionFields("service", "brand-new", [{ ...SERVICES[0], slug: "brand-new" }])!, {}).missing > 10, true, "a new service starts with nothing translated");
+  assert.equal(liveRw(), shippedRw(), "no edits: the shipped text is used as it is");
 });
 
 console.log(process.exitCode ? "unit tests FAILED" : `unit tests ok (${passed})`);

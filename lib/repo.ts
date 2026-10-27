@@ -10,6 +10,7 @@ import { timingSafeEqual } from "node:crypto";
 import { fmtDay, isOnOrBeforeDay, kigaliMonthStart, monthShort, phoneDigits, prettyPhone, shortName } from "./format";
 import type { Locale } from "./i18n/locale";
 import { text } from "./i18n/messages";
+import { primeContent } from "./content";
 import { channelName } from "./i18n/present";
 import { documentNote, hasPart, legacyText, say, type Part } from "./i18n/stored";
 import { PERMISSION_GROUPS, PERMISSIONS, ROLES, type Permission } from "./permissions";
@@ -178,6 +179,7 @@ export async function getAccount(): Promise<Account & { profiles: Profile[] }> {
  *  It is one indexed lookup. */
 export async function getPortalLocale(): Promise<Locale> {
   const id = await requireCustomerId();
+  await primeContent();
   const [a] = await (await db()).select({ locale: s.accounts.locale }).from(s.accounts).where(eq(s.accounts.id, id));
   return a?.locale === "en" ? "en" : "rw";
 }

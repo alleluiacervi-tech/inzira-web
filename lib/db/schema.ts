@@ -329,6 +329,15 @@ export const catalogueRevisions = pgTable("catalogue_revisions", {
   appliedAt: ts("applied_at").notNull().defaultNow(),
 });
 
+/** Kinyarwanda text edited in Admin › Kinyarwanda text (lib/content.ts). One row per edited string, keyed "ui:<path in rw.json>"
+ *  or "cat:<path in catalogue-rw.json>". A row replaces the text shipped with the site; deleting it restores the original. */
+export const content = pgTable("content", {
+  key: text("key").primaryKey(),
+  value: text("value").notNull(),
+  updatedBy: text("updated_by").notNull(),
+  updatedAt: ts("updated_at").notNull().defaultNow(),
+});
+
 /** Uploaded files. The bytes live in file storage (lib/storage.ts); this row says who may read them. */
 export const files = pgTable("files", {
   id: text("id").primaryKey(),
