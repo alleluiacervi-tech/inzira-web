@@ -108,7 +108,7 @@ export async function acceptAndAssignRequest(ref: string, agentId: string, messa
 
     await event(tx, ref, msg("ev.acceptedAssigned", { name: agent.name }), me.id, own || undefined);
     const first = agent.name.split(" ")[0];
-    await notify(tx, ref, { icon: "user", title: msg("nt.taken", { agent: first, ref }), sms: sms("taken", { agent: first, ref }) });
+    await notify(tx, ref, { icon: "user", title: msg("nt.taken", { agent: first, ref }) });
     await audit(tx, { actor: me.name, role: me.role, action: "Accepted & assigned case", entity: `${ref} → ${agent.name}` });
   });
 
@@ -278,7 +278,7 @@ export async function recordManualPayment(input: {
       await openPaidCheckout(tx, req, { total: paid.total, official: paid.official, ours: paid.ours, receipt: paid.receipt, method: input.method });
     } else {
       if (req.hold?.reason === "payment") await tx.update(s.requests).set({ hold: null }).where(eq(s.requests.ref, ref));
-      await notify(tx, ref, { icon: "card", title: msg("nt.paymentRecorded", paid), sms: sms("paymentRecorded", paid) });
+      await notify(tx, ref, { icon: "card", title: msg("nt.paymentRecorded", paid) });
     }
     await audit(tx, {
       actor: me.name,
@@ -367,7 +367,7 @@ export async function reviewIdentity(ref: string, outcome: string, note: string)
     if (outcome === "checked") {
       await tx.update(s.profiles).set({ idCheckedAt: at, idCheckedBy: me.id }).where(eq(s.profiles.id, req.profileId));
       await event(tx, ref, msg("ev.idChecked"), me.id);
-      await notify(tx, ref, { icon: "check", title: msg("nt.idChecked", { ref }), sms: sms("idChecked", { ref }) });
+      await notify(tx, ref, { icon: "check", title: msg("nt.idChecked", { ref }) });
     } else if (outcome === "correction") {
       await tx.update(s.profiles).set({ idCheckedAt: null, idCheckedBy: null }).where(eq(s.profiles.id, req.profileId));
       await event(tx, ref, msg("ev.idCorrection"), me.id, textNote);

@@ -38,10 +38,12 @@ a live site without a real provider refuses to send a code instead.
 A live site never shows a code on screen, sample addresses included: anyone could type `admin@inzira.test`, and that account opens the whole staff console. Email sign-in waits for `RESEND_API_KEY`, and any session a sample account still has open is ended when the server starts.
 
 **Staff** sign in at `/staff` with a username (or work email), a password and a code from an authenticator app.
-"Keep me signed in" holds the session for 30 days on that device (12 hours otherwise); after an hour unused the
-console locks and asks for the password only. The authenticator code is asked once per session: the code given at
-sign-in also covers refunds, payouts, roles, staff accounts and unmasked ID numbers, so on a trusted device that is
-once in 30 days. The owner invites colleagues from Admin › Roles: each gets a
+"Keep me signed in" (on by default) holds the session for 30 days on that device (12 hours otherwise). The
+authenticator code is asked on a device it has not been given from, or not in the last 30 days; on a device that gave
+one, the password alone opens the console. A device that is not kept signed in asks every time. Resetting a password or
+the authenticator makes every device ask again. The console locks and asks for the password only after an hour unused
+(ten hours on a kept device). Refunds, payouts, roles, staff accounts and unmasked ID numbers ask for a code once per
+session, whatever the device. The owner invites colleagues from Admin › Roles: each gets a
 48-hour link to set a password. Staff without a password yet (the first owner, and the demo accounts) sign in once
 with a code on `/sign-in`, then set a password and the authenticator under Security; after that a code no longer
 opens their console.
@@ -51,6 +53,11 @@ and pay with MoMo or Airtel Money: no code, since the PIN that approves the paym
 gets a private link (`/r/<reference>#k=…`, lib/request-links.ts) kept in their browser and sent with the receipt; it
 shows progress, takes documents, carries messages and the result. The receipt email offers to save the request to an
 account. The customer sign-in page has one field: an email gets the code by email, a mobile number by SMS.
+Signing in to the portal is the only time a customer meets a code, and the session then lasts 30 days unused (90 in
+all). Customers are messaged (email, else SMS) only when something needs them (fees to pay, a question, a document
+to redo, an ID correction), when money moves (receipt, refund) and for the outcome (delivered, completed, declined,
+cancelled, a payment overdue). Progress (taken, checked, submitted, a plain stage change) is shown in their portal
+only; an agent's own words are always sent.
 
 ```bash
 npm run typecheck
@@ -288,14 +295,6 @@ by every server action.
   lays the rows over the files, on the server and in the browser. A service added in the console has no
   shipped Kinyarwanda: its lines are written the same way. English text for a new service is still edited under
   Admin › Services.
-- **Categories and institutions.** **Admin › Categories** (permission "edit services") manages the groups of services: name,
-  short name (the menu and card label), description, icon (a set of 18), the institution the services are filed with and its
-  logo, a Kinyarwanda tab, whether it is shown, whether it is a card on the home page, and its order. The menu, the home page,
-  the filing rail and the services list all read them from the `categories` table. A category with no visible service is not
-  on the public site. The logo is a PNG, JPEG or WebP under 200 KB (the browser shrinks it), kept in the table and served
-  from `/brand/<id>`; SVG is refused because it can carry scripts. The built-in offices (RDB, RRA, NLA, RURA, RNP, Irembo)
-  stay in `lib/institutions.ts`; a category an administrator adds is its own office. The shipped categories can be edited and
-  hidden but not deleted; after the first start the seed never changes a category's text, icon or order again.
 - **Categories and institutions.** **Admin › Categories** (permission "edit services") manages the groups of services: name,
   short name (the menu and card label), description, icon (a set of 18), the institution the services are filed with and its
   logo, a Kinyarwanda tab, whether it is shown, whether it is a card on the home page, and its order. The menu, the home page,

@@ -81,7 +81,7 @@ export default function StaffSignIn({ next }: { next?: string }) {
   );
 }
 
-/** The console locked after an hour unused: the password only, inside the same session. */
+/** The console locked while it was unused: the password only, inside the same session. */
 export function StaffUnlock({ name, next }: { name: string; next?: string }) {
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
@@ -95,7 +95,7 @@ export function StaffUnlock({ name, next }: { name: string; next?: string }) {
       setBusy(false);
       if (r && !r.ok) { setError(r.error); if (r.restart) window.location.href = "/staff"; }
     }}>
-      <div className="auth-head"><span className="unlock-ico" aria-hidden="true"><Icon name="lock" size={24} /></span><h1>Welcome back, {name.split(" ")[0]}</h1><p>The console locked after an hour unused. Enter your password to carry on.</p></div>
+      <div className="auth-head"><span className="unlock-ico" aria-hidden="true"><Icon name="lock" size={24} /></span><h1>Welcome back, {name.split(" ")[0]}</h1><p>The console locked while you were away. Enter your password to carry on.</p></div>
       <PasswordField id="un-pass" value={password} onChange={(v) => { setPassword(v); setError(""); }} autoComplete="current-password" error={error} />
       <button className="btn btn-p btn-lg" type="submit" disabled={busy}>{busy ? <><span className="spin" /> Unlocking…</> : "Unlock"}</button>
     </form>

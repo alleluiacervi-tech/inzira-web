@@ -338,6 +338,22 @@ await check("authenticator: asked once per session, so once in 30 days on a trus
   assert.equal(stepUpWindow(true), 30 * 864e5);
   assert.equal(stepUpWindow(false), 12 * 36e5);
   assert.ok(STAFF_IDLE_LOCK < stepUpWindow(false), "the idle lock asks for the password only, not the code");
+  const { STAFF_IDLE_LOCK_TRUSTED, DEVICE_VERIFIED_FOR } = await import("../lib/auth.ts");
+  assert.ok(STAFF_IDLE_LOCK < STAFF_IDLE_LOCK_TRUSTED && STAFF_IDLE_LOCK_TRUSTED < stepUpWindow(true), "a trusted device locks later, not never");
+  assert.equal(DEVICE_VERIFIED_FOR, 30 * 864e5);
+});
+
+await check("messages: progress is shown in the portal only; money, questions and outcomes are also sent", async () => {
+  const { notify } = await import("../lib/mutate.ts");
+  const { msg, sms } = await import("../lib/i18n/stored.ts");
+  const ref = "INZ-2026-04741";
+  const sent = async () => Number((await d.execute(sql.raw(`select count(*) n from outbox where ref = '${ref}'`))).rows[0].n);
+  const before = await sent();
+  await d.transaction((tx) => notify(tx, ref, { icon: "user", title: msg("nt.taken", { agent: "Eric", ref }) }));
+  assert.equal(await sent(), before, "an agent taking the case is not texted or emailed");
+  await d.transaction((tx) => notify(tx, ref, { icon: "alert", title: msg("nt.declined", { ref }), sms: sms("declined", { ref, reason: "test" }) }));
+  assert.equal(await sent(), before + 1, "a decline still reaches the customer");
+  await d.execute(sql.raw(`delete from outbox where ref = '${ref}' and id > 0 and created_at > now() - interval '1 minute'`));
 });
 
 await check("unpaid quotes: one reminder, then the request is closed a week after the fees were sent", async () => {

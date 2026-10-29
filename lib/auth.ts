@@ -20,13 +20,18 @@ const COOKIE = "inzira_session";
 const CODE_TTL = 10 * 60e3;
 const RESEND_AFTER = 30e3;
 const MAX_ATTEMPTS = 5;
-/** A customer's session ends after `idle` without use, and never lasts longer than `cap` from sign-in. */
-const SESSION = { customer: { idle: 7 * 864e5, cap: 30 * 864e5 } } as const;
-/** Staff: 30 days on a device they chose to trust, 12 hours otherwise. After an hour without use the console locks and
- *  asks for the password only (NIST SP 800-63B allows that inside a longer session). Refunds, payouts, roles and ID
- *  numbers want an authenticator code given at sign-in, so on a trusted device it is asked once in the 30 days. */
+/** A customer's session ends after `idle` without use, and never lasts longer than `cap` from sign-in. A month of idle
+ *  and a quarter in all: a customer on their own phone signs in with a code a few times a year, not every week. */
+const SESSION = { customer: { idle: 30 * 864e5, cap: 90 * 864e5 } } as const;
+/** Staff: 30 days on a device they chose to trust, 12 hours otherwise. After a while without use the console locks and
+ *  asks for the password only (NIST SP 800-63B allows that inside a longer session): an hour on a device that is not
+ *  trusted, a working day on one that is. The authenticator code is asked on a new device, on one not used for 30 days,
+ *  and before refunds, payouts, roles and ID numbers, once per session. */
 const STAFF_CAP = { trusted: 30 * 864e5, plain: 12 * 36e5 } as const;
 export const STAFF_IDLE_LOCK = 60 * 60e3;
+export const STAFF_IDLE_LOCK_TRUSTED = 10 * 36e5;
+/** How long a device that gave an authenticator code is known: password alone there until then. */
+export const DEVICE_VERIFIED_FOR = 30 * 864e5;
 /** How long an authenticator code stays good: as long as the session it was given in. */
 export const stepUpWindow = (trusted: boolean) => (trusted ? STAFF_CAP.trusted : STAFF_CAP.plain);
 const DEVICE_COOKIE = "inzira_dev";
@@ -190,14 +195,23 @@ export async function startSession(kind: "customer" | "staff", subjectId: string
 }
 
 /** Records this browser for a member of staff. True when it is one they have not signed in from before. */
-export async function rememberStaffDevice(staffId: string): Promise<{ isNew: boolean; label: string }> {
+export async function rememberStaffDevice(staffId: string, verified = false): Promise<{ isNew: boolean; label: string }> {
   const d = await db();
   const device = await deviceHash();
   const label = await deviceLabel();
   const now = new Date().toISOString();
-  const added = await d.insert(s.staffDevices).values({ staffId, device, label }).onConflictDoNothing().returning({ device: s.staffDevices.device });
-  if (!added.length) await d.update(s.staffDevices).set({ lastSeen: now, label }).where(and(eq(s.staffDevices.staffId, staffId), eq(s.staffDevices.device, device)));
+  const added = await d.insert(s.staffDevices).values({ staffId, device, label, ...(verified ? { verifiedAt: now } : {}) }).onConflictDoNothing().returning({ device: s.staffDevices.device });
+  if (!added.length) await d.update(s.staffDevices).set({ lastSeen: now, label, ...(verified ? { verifiedAt: now } : {}) }).where(and(eq(s.staffDevices.staffId, staffId), eq(s.staffDevices.device, device)));
   return { isNew: added.length > 0, label };
+}
+/** Did this browser give an authenticator code for this person in the last 30 days, with "keep me signed in" on? */
+export async function isDeviceVerified(staffId: string): Promise<boolean> {
+  const jar = await cookies();
+  const value = jar.get(DEVICE_COOKIE)?.value;
+  if (!value || !/^[A-Za-z0-9_-]{32}$/.test(value)) return false;
+  const [row] = await (await db()).select({ verifiedAt: s.staffDevices.verifiedAt }).from(s.staffDevices)
+    .where(and(eq(s.staffDevices.staffId, staffId), eq(s.staffDevices.device, sha(value))));
+  return !!row?.verifiedAt && Date.now() - Date.parse(iso(row.verifiedAt)!) < DEVICE_VERIFIED_FOR;
 }
 
 // ---- second step for staff (authenticator app)
@@ -308,9 +322,9 @@ type StaffUser = Staff & {
   hasPassword: boolean;
 };
 
-/** The console locks after an hour without use, for someone with a password to unlock it. */
+/** The console locks after a while without use, for someone with a password to unlock it. */
 const lockedOut = (session: Session, person: { passwordHash: string | null }) =>
-  !!person.passwordHash && !!session.lastSeenAt && Date.now() - Date.parse(session.lastSeenAt) > STAFF_IDLE_LOCK;
+  !!person.passwordHash && !!session.lastSeenAt && Date.now() - Date.parse(session.lastSeenAt) > (session.trusted ? STAFF_IDLE_LOCK_TRUSTED : STAFF_IDLE_LOCK);
 
 async function loadStaff(touch: boolean): Promise<StaffUser | null> {
   const session = await getSession();
