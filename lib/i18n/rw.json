@@ -42,16 +42,6 @@
     "help": "Ubufasha",
     "allServices": "Serivisi zose",
     "browse": "Reba ukurikije icyiciro",
-    "cat": {
-      "rdb": "Kwandikisha ubucuruzi",
-      "tax": "Imisoro",
-      "ebm": "EBM",
-      "land": "Ubutaka",
-      "rura": "Gutwara abantu n'ibintu",
-      "police": "Polisi",
-      "papers": "Ibyangombwa",
-      "irembo": "Amahugurwa ya Irembo"
-    },
     "servicesMenu": "Menu ya serivisi",
     "skip": "Simbukira ku nyandiko"
   },

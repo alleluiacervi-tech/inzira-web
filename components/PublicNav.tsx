@@ -7,23 +7,13 @@ import { LanguageSwitch } from "./LanguageSwitch";
 import { Icon, Logo } from "./ui";
 import { barePath, withLocale } from "@/lib/seo";
 import { useI18n } from "./I18n";
+import { useNavCategories } from "./NavCategories";
 import { useDialog } from "./useDialog";
-
-// The service categories are fixed seed data (see lib/mock/catalogue.ts), so the menu does not need a query.
-const CATEGORIES = [
-  { id: "rdb", icon: "c-biz" },
-  { id: "tax", icon: "c-tax" },
-  { id: "ebm", icon: "c-ebm" },
-  { id: "land", icon: "c-land" },
-  { id: "rura", icon: "c-car" },
-  { id: "police", icon: "c-id" },
-  { id: "papers", icon: "c-comp" },
-  { id: "irembo", icon: "c-learn" },
-] as const;
 
 export default function PublicNav() {
   const path = usePathname();
   const { locale, t } = useI18n();
+  const categories = useNavCategories();
   const [open, setOpen] = useState(false);
   const [menu, setMenu] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -64,8 +54,8 @@ export default function PublicNav() {
                 <div id="svc-panel" className="svc-panel" aria-label={t("nav.servicesMenu")}>
                   <p className="svc-panel-t">{t("nav.browse")}</p>
                   <ul className="svc-panel-list">
-                    {CATEGORIES.map((c) => (
-                      <li key={c.id}><Link href={withLocale(locale, `/services?category=${c.id}`)} className="svc-panel-a"><span className="svc-panel-ico"><Icon name={c.icon} size={20} /></span>{t(`nav.cat.${c.id}`)}</Link></li>
+                    {categories.map((c) => (
+                      <li key={c.id}><Link href={withLocale(locale, `/services?category=${c.id}`)} className="svc-panel-a"><span className="svc-panel-ico"><Icon name={c.icon} size={20} /></span>{c.short}</Link></li>
                     ))}
                   </ul>
                   <Link href={withLocale(locale, "/services")} className="svc-panel-all">{t("nav.allServices")}<Icon name="arrow" size={16} /></Link>
@@ -105,8 +95,8 @@ export default function PublicNav() {
             <nav aria-label={t("nav.mobile")} className="stack">
               <Link className="mm" href={withLocale(locale, "/services")} onClick={() => setOpen(false)}>{t("nav.allServices")}<Icon name="right" size={18} /></Link>
               <ul className="mm-cats">
-                {CATEGORIES.map((c) => (
-                  <li key={c.id}><Link href={withLocale(locale, `/services?category=${c.id}`)} onClick={() => setOpen(false)}><Icon name={c.icon} size={18} />{t(`nav.cat.${c.id}`)}</Link></li>
+                {categories.map((c) => (
+                  <li key={c.id}><Link href={withLocale(locale, `/services?category=${c.id}`)} onClick={() => setOpen(false)}><Icon name={c.icon} size={18} />{c.short}</Link></li>
                 ))}
               </ul>
               {links.map((l) => <Link key={l.href} className="mm" href={withLocale(locale, l.href)} onClick={() => setOpen(false)}>{l.label}<Icon name="right" size={18} /></Link>)}

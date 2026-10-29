@@ -7,16 +7,20 @@
 import type { Category, DocGroup, Service, ServiceDocument } from "../types";
 
 export const CATEGORIES: Category[] = [
-  { id: "rdb", icon: "c-biz", name: "RDB / Business registration", short: "RDB", desc: "Register, change or keep your enterprise or company up to date." },
-  { id: "tax", icon: "c-tax", name: "Taxes", short: "Taxes", desc: "Trading licence, property tax, vehicle income tax and monthly declarations." },
+  { id: "rdb", featured: true, icon: "c-biz", name: "RDB / Business registration", short: "Business registration", desc: "Register, change or keep your enterprise or company up to date." },
+  { id: "tax", featured: true, icon: "c-tax", name: "Taxes", short: "Taxes", desc: "Trading licence, property tax, vehicle income tax and monthly declarations." },
   { id: "ebm", icon: "c-ebm", name: "EBM", short: "EBM", desc: "Get an Electronic Billing Machine installed and learn to use it." },
-  { id: "land", icon: "c-land", name: "Land services", short: "Land", desc: "E-titles, spouse changes in the land register and merging plots." },
-  { id: "rura", icon: "c-car", name: "RURA / Transport", short: "RURA", desc: "Authorisations for vehicles that carry passengers or goods." },
-  { id: "police", icon: "c-id", name: "Police services", short: "Police", desc: "A criminal record certificate, driving licences, traffic fines and vehicle inspection." },
-  { id: "papers", icon: "c-comp", name: "Certificates", short: "Papers", desc: "Birth, marriage and other certificates, a passport and a replacement ID card. We file them and send the document when it is issued." },
-  { id: "irembo", icon: "c-learn", name: "Irembo training", short: "Irembo", desc: "Learn to use Irembo yourself — online or at our office." },
+  { id: "land", featured: true, icon: "c-land", name: "Land services", short: "Land", desc: "E-titles, spouse changes in the land register and merging plots." },
+  { id: "rura", featured: true, icon: "c-car", name: "RURA / Transport", short: "Transport", desc: "Authorisations for vehicles that carry passengers or goods." },
+  { id: "police", featured: true, icon: "c-id", name: "Police services", short: "Police", desc: "A criminal record certificate, driving licences, traffic fines and vehicle inspection." },
+  { id: "papers", featured: true, icon: "c-comp", name: "Certificates", short: "Certificates", desc: "Birth, marriage and other certificates, a passport and a replacement ID card. We file them and send the document when it is issued." },
+  { id: "irembo", icon: "c-learn", name: "Irembo training", short: "Irembo training", desc: "Learn to use Irembo yourself — online or at our office." },
+  { id: "iecms", featured: true, icon: "c-court", name: "Courts / IECMS", short: "Courts", institution: "Rwanda Judiciary", desc: "Open an IECMS account, file a case in court, and get a copy of a judgment or the court’s seal on it." },
   { id: "other", icon: "c-other", name: "Other online services", short: "Other", desc: "Need something else done online? We agree the process and our fee with you first.", href: "/start" },
 ];
+
+/** The categories the site ships with. An administrator may edit and hide them but not delete them. */
+export const BUILT_IN_CATEGORIES = CATEGORIES.map((c) => c.id);
 
 const doc = (name: string, detail: string, required: boolean, group: DocGroup): ServiceDocument => ({ name, detail, required, group });
 
@@ -95,6 +99,14 @@ const trainingFlow = {
   flow: ["received" as const, "preparing" as const, "completed" as const], stageLabels: { preparing: "Sessions scheduled" }, noId: true,
   purposeLabel: "How would you like to attend?", purposes: ["Online", "At the Inzira office", "Either is fine"],
 };
+
+/** A service filed on IECMS, the Rwanda Judiciary’s online case system. Hidden until an administrator sets its prices. */
+const court = (over: Pick<Service, "slug" | "name" | "summary" | "who" | "requirements" | "documents" | "ours" | "time" | "docsShort"> & Partial<Service>): Service => ({
+  category: "iecms", authority: "Rwanda Judiciary", channel: "IECMS", via: "Via IECMS · Rwanda Judiciary",
+  steps: procedure("IECMS", "The court"), notes: [], official: toConfirm("the court"),
+  audience: ["individual", "business", "organization"], idPolicy: "required", visible: false,
+  ...over,
+});
 
 export const SERVICES: Service[] = [
   // ---------------- RDB ----------------
@@ -547,4 +559,47 @@ export const SERVICES: Service[] = [
     official: none, ours: 50000, oursUnit: "per month",
     time: "Online or at our office", docsShort: "No documents needed", audience: ["individual", "business", "organization"], visible: true,
   },
+
+  // ---------------- Courts (IECMS) ----------------
+  // Drafts: our fees are placeholders and the court’s fees are unchecked, so they stay hidden until an administrator sets the
+  // prices (Admin › Services & prices) and ticks “Visible in catalogue”.
+  court({
+    slug: "iecms-account", tagline: "Your account to file and follow court cases online.", name: "Open an IECMS account", aka: "IECMS registration · court e-filing account",
+    summary: "IECMS is the online case system of the Rwanda Judiciary. We request your account with your details, so you can file cases and follow them online, and we show you how to sign in.",
+    who: [{ title: "People with a case", body: "Who want to file or follow a case online." }, { title: "Businesses", body: "With disputes, debts or contracts in court." }, { title: "Lawyers and their assistants", body: "Who file on behalf of clients." }],
+    requirements: ["Your National ID number", "A phone number and an email address for the account"],
+    documents: [doc("Copy of your ID", "National ID or passport", true, "Identification"), doc("Proof of your role", "A lawyer’s card or a company letter, if the account is for a lawyer or a business", false, "Other")],
+    purposeLabel: "Who is the account for?", purposes: ["Myself", "My business or organisation", "A lawyer or a law firm"],
+    ours: 3000, time: "Usually 1–3 working days", docsShort: "National ID, phone, email",
+  }),
+  court({
+    slug: "iecms-file-case", tagline: "Your complaint filed in court through IECMS.", name: "File a case in court", aka: "Filing a complaint · starting a court case",
+    summary: "Start a case by filing your complaint on IECMS. You give us your written complaint and your documents; we upload them correctly, pay the court fee for you and send you the case number. We do not give legal advice and we do not represent you.",
+    who: [{ title: "People owed money or property", body: "Who want a court to decide." }, { title: "Businesses", body: "With unpaid invoices or broken contracts." }, { title: "Families and employees", body: "With a family or labour dispute." }],
+    requirements: ["Your National ID number, and an IECMS account (we can open one first)", "Your written complaint, signed", "The name and address of the person or company the case is against", "Your evidence: contracts, receipts, letters or messages"],
+    documents: [doc("Your complaint", "Signed, saying what happened and what you ask the court to decide", true, "Other"), doc("Evidence", "Contracts, receipts, letters or photos that support it", true, "Other"), doc("Copy of your ID", "National ID or passport", true, "Identification"), doc("Power of attorney", "Only if you file for someone else", false, "Other")],
+    questions: [{ key: "court", label: "Which court is the case filed in?", hint: "If you are not sure, write the district where the other party lives", placeholder: "e.g. Nyarugenge Intermediate Court", required: true }, { key: "against", label: "Who is the case against?", placeholder: "Full name or company name", required: true }],
+    purposeLabel: "What kind of case is it?", purposes: ["A civil claim", "A commercial case", "A labour case", "A family case", "Something else"],
+    notes: [{ kind: "warn", title: "We file. We do not advise.", body: "Inzira is not a law firm and is not the court. If you are unsure of your rights or of which court to use, speak to a lawyer first. We upload what you give us." }],
+    ours: 15000, time: "Usually 2–5 working days to file", docsShort: "Complaint, evidence, ID",
+  }),
+  court({
+    slug: "judgment-copy", tagline: "A copy of your judgment, sent to your account.", name: "Copy of a judgment", aka: "Copy of a court decision · copy of a case file",
+    summary: "Ask the court for a copy of a judgment. Give us the case number and the court; we request the copy on IECMS and send it to your portal as soon as the court issues it.",
+    who: [{ title: "People who won or lost a case", body: "And need the decision in writing." }, { title: "Banks and offices", body: "That asked for the judgment." }, { title: "Lawyers", body: "Who need a copy for their file." }],
+    requirements: ["The case number and the court that decided it", "The names of the people in the case"],
+    documents: [doc("Copy of your ID", "National ID or passport", true, "Identification"), doc("Authorisation", "Only if you were not part of the case", false, "Other")],
+    questions: [{ key: "case", label: "Case number", hint: "As written on the judgment or the summons", placeholder: "e.g. RC 00123/2025/TGI/NYGE", required: true }, { key: "court", label: "Court that decided the case", placeholder: "e.g. Nyarugenge Intermediate Court", required: true }],
+    ours: 5000, time: "Usually 3–7 working days", docsShort: "Case number, court, ID",
+  }),
+  court({
+    slug: "cachet-mpuruza", tagline: "The court’s seal that lets a judgment be enforced.", name: "Executory seal on a judgment (cachet mpuruza)", aka: "Cachet mpuruza · enforcement seal",
+    summary: "A judgment can be enforced once the court has put its executory seal (cachet mpuruza) on it. We request the seal on IECMS and send you the sealed copy.",
+    who: [{ title: "People who won a case", body: "And want the judgment carried out." }, { title: "Creditors", body: "Who need to recover a debt." }, { title: "Lawyers", body: "Who act for the winning party." }],
+    requirements: ["The case number and the court that decided it", "A copy of the judgment"],
+    documents: [doc("The judgment", "A copy, or its case number", true, "Other"), doc("Copy of your ID", "National ID or passport", true, "Identification")],
+    questions: [{ key: "case", label: "Case number", hint: "As written on the judgment", placeholder: "e.g. RC 00123/2025/TGI/NYGE", required: true }, { key: "court", label: "Court that decided the case", placeholder: "e.g. Nyarugenge Intermediate Court", required: true }],
+    notes: [{ kind: "warn", title: "We request. The court decides.", body: "Inzira is not the court. The court decides whether the seal can be put on the judgment, and your agent tells you if it needs anything more." }],
+    ours: 5000, time: "Usually 3–7 working days", docsShort: "Case number, court, judgment",
+  }),
 ];

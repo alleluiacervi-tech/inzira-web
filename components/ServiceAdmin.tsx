@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { saveService } from "@/app/actions/admin";
 import { getServiceRw } from "@/app/actions/content";
 import { fmtDate, officialLabel, oursLabel, rwf, totalLabel } from "@/lib/format";
@@ -40,10 +40,10 @@ function tidy(edit: Service, rw: ServiceRw | null) {
   return { service: { ...edit, documents, requirements }, rw: next };
 }
 
-export default function ServiceAdmin({ services: rows, categories, demand, canTranslate = false, rwStatus = {} }: { services: Service[]; categories: Category[]; demand: Record<string, number>; canTranslate?: boolean; rwStatus?: Record<string, { total: number; missing: number }> }) {
+export default function ServiceAdmin({ services: rows, categories, demand, canTranslate = false, rwStatus = {}, initialCategory = "all", startNew = false }: { services: Service[]; categories: Category[]; demand: Record<string, number>; canTranslate?: boolean; initialCategory?: string; startNew?: boolean; rwStatus?: Record<string, { total: number; missing: number }> }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  const [cat, setCat] = useState("all");
+  const [cat, setCat] = useState(categories.some((c) => c.id === initialCategory && !c.href) ? initialCategory : "all");
   const [edit, setEdit] = useState<Service | null>(null);
   const [saved, setSaved] = useState("");
   const [tab, setTab] = useState<"details" | "rw">("details");
@@ -62,6 +62,8 @@ export default function ServiceAdmin({ services: rows, categories, demand, canTr
     setRwState("loading");
     getServiceRw(s.slug).then((r) => { if (r.ok) { setRw(r.rw); setRwState("ready"); } else setRwState("failed"); }).catch(() => setRwState("failed"));
   };
+  // Arriving from Admin › Categories with “Add a service”: the editor opens on a new service in that category.
+  useEffect(() => { if (startNew) open(blank(categories.some((c) => c.id === initialCategory && !c.href) ? initialCategory : categories.find((c) => !c.href)?.id ?? ""), true); }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const setDocAt = (i: number, patch: Partial<Service["documents"][number]>) => edit && setEdit({ ...edit, documents: edit.documents.map((d, j) => (j === i ? { ...d, ...patch } : d)) });
   const setKind = (k: Kind) => edit && setEdit({ ...edit, official: { ...edit.official, mode: k === "direct" ? "direct" : k === "none" ? "none" : undefined, amount: k === "fixed" ? edit.official.amount ?? 0 : k === "none" ? 0 : null, verifiedAt: undefined } });
 

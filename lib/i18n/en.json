@@ -42,16 +42,6 @@
     "help": "Help",
     "allServices": "All services",
     "browse": "Browse by category",
-    "cat": {
-      "rdb": "Business registration",
-      "tax": "Taxes",
-      "ebm": "EBM",
-      "land": "Land",
-      "rura": "Transport",
-      "police": "Police",
-      "papers": "Certificates",
-      "irembo": "Irembo training"
-    },
     "servicesMenu": "Services menu",
     "skip": "Skip to content"
   },

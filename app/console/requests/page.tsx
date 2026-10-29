@@ -23,7 +23,7 @@ export default async function RequestsPage({ searchParams }: { searchParams: Pro
     getMyPermissions(),
     listCases(),
     listAgents(),
-    listCategories(),
+    listCategories({ includeHidden: true }),
     listStageTargets(),
     listSavedViews("requests"),
     getNow(),

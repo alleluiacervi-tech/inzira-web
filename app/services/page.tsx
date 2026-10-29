@@ -12,10 +12,9 @@ import { siteOrigin } from "@/lib/site";
 export async function generateMetadata({ searchParams }: { searchParams: Promise<{ q?: string; category?: string }> }): Promise<Metadata> {
   const [locale, sp, categories] = await Promise.all([getLocale(), searchParams, listCategories()]);
   const t = (path: string, vars?: Record<string, string | number>) => text(locale, path, vars);
-  const category = categories.find((c) => c.id === sp.category);
-  const labelKey = category ? `nav.cat.${category.id}` : "";
-  const label = category ? t(labelKey) : "";
-  const title = category ? t("meta.inPlace", { name: label === labelKey ? category.name : label }) : t("meta.servicesTitle");
+  const found = categories.find((c) => c.id === sp.category);
+  const category = found && localizeCategory(found, locale);
+  const title = category ? t("meta.inPlace", { name: category.short }) : t("meta.servicesTitle");
   const description = category?.desc || t("meta.servicesDescription");
   const origin = siteOrigin();
   const path = category ? `/services?category=${category.id}` : "/services";
@@ -31,10 +30,12 @@ export async function generateMetadata({ searchParams }: { searchParams: Promise
 export default async function ServicesPage({ searchParams }: { searchParams: Promise<{ q?: string; category?: string }> }) {
   const locale = await getLocale();
   const [sp, services, categories] = await Promise.all([searchParams, listServices(), listCategories()]);
+  // A category with no service on the site yet is not offered as a filter.
+  const used = new Set(services.map((x) => x.category));
   return (
     <>
       <PublicNav />
-      <main id="main"><Catalogue services={localizeServices(services, locale)} categories={categories.map((c) => localizeCategory(c, locale))} initialQuery={sp.q ?? ""} initialCategory={sp.category ?? "all"} /></main>
+      <main id="main"><Catalogue services={localizeServices(services, locale)} categories={categories.filter((c) => c.href || used.has(c.id)).map((c) => localizeCategory(c, locale))} initialQuery={sp.q ?? ""} initialCategory={sp.category ?? "all"} /></main>
       <Footer />
     </>
   );

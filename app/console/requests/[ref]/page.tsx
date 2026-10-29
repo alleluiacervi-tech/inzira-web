@@ -25,7 +25,7 @@ export default async function RequestDetailPage({
     getStaffUser(),
     getMyPermissions(),
     listAgents(),
-    listCategories(),
+    listCategories({ includeHidden: true }),
     getNow(),
   ]);
 

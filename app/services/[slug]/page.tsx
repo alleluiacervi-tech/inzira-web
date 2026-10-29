@@ -11,7 +11,7 @@ import { fmtDate, rwf } from "@/lib/format";
 import { checkoutPrice, optionRange, reviewFeeFor, withOption } from "@/lib/pricing";
 import { getLocale } from "@/lib/i18n/locale";
 import { text } from "@/lib/i18n/messages";
-import { displayOfficial, displayOurs, displayPrice, displayTime, displayTotal, localizeCategory, localizeService, localizeServices, officeText } from "@/lib/i18n/present";
+import { displayOfficial, displayOurs, displayPrice, displayTime, displayTotal, localizeCategory, localizeService, localizeServices, officeCopy } from "@/lib/i18n/present";
 import { getService, listCategories, listServices } from "@/lib/repo";
 import { JsonLd } from "@/components/JsonLd";
 import { languageAlternates, withLocale } from "@/lib/seo";
@@ -48,8 +48,10 @@ export default async function ServiceDetail({ params }: { params: Promise<{ slug
   // Priced by option (passport type, test type): paid in full like a settled price, once the option is picked.
   const paidUpfront = !!(price || optionRange(s));
   const reviewFee = reviewFeeFor(s);
-  const office = officeFor(s.category);
-  const officeName = office ? officeText(office.code, locale)?.name ?? office.name : catName(s.category);
+  const office = officeFor(s.category, cats);
+  const officeName = office ? officeCopy(office, locale).name : catName(s.category);
+  // The short name on the plate: the code of a built-in office, the category's short name for one an administrator added.
+  const officeLabel = office ? (office.fromCategory ? office.area : office.code) : "";
   const priceLabel = displayPrice(s, locale);
   // The one line under the name; a service saved before taglines existed shows its summary's first sentence.
   const tagline = s.tagline || s.summary.split(/(?<=\.)\s/)[0];
@@ -95,7 +97,7 @@ export default async function ServiceDetail({ params }: { params: Promise<{ slug
         </div>
         {/* The first screen holds what a customer decides on: what it is, the price, the time, what they need, and Start. */}
         <section className="wrap svc-hero">
-          {office && <p className="row g10 svc-office"><Plate code={office.code} size="sm" />{training ? t("service.trainingVia", { via: s.via }) : t("service.filedWith", { office: office.code === "Irembo" ? "Irembo" : locale === "en" ? `the ${officeName}` : officeName, channel: s.channel })}</p>}
+          {office && <p className="row g10 svc-office"><Plate code={officeLabel} size="sm" />{training ? t("service.trainingVia", { via: s.via }) : t("service.filedWith", { office: office.code === "Irembo" ? "Irembo" : locale === "en" ? `the ${officeName}` : officeName, channel: s.channel })}</p>}
           <h1 className="d h-1">{s.name}</h1>
           <p className="svc-tag">{tagline}</p>
           <ul className="svc-chips" aria-label={t("service.facts")}>
@@ -152,14 +154,14 @@ export default async function ServiceDetail({ params }: { params: Promise<{ slug
               <div className="stack g10">
                 {!training && <Alert kind="info" title={t("service.timeTitle")}>{t("service.timeBody", { time: s.time.replace(/^\*/, "") })}</Alert>}
                 {s.notes.filter((n) => n.kind !== "warn").map((n) => <Alert key={n.title} kind={n.kind} title={n.title}>{n.body}</Alert>)}
-                <p className="hint row g8" style={{ alignItems: "flex-start", margin: 0 }}><Icon name="shield" size={16} /><span>{t("service.privateOffice", { who: office && office.code !== "Irembo" ? office.code : t("service.privateGov") })}</span></p>
+                <p className="hint row g8" style={{ alignItems: "flex-start", margin: 0 }}><Icon name="shield" size={16} /><span>{t("service.privateOffice", { who: office && office.code !== "Irembo" ? officeLabel : t("service.privateGov") })}</span></p>
               </div>
             </div>
           </details>
         </section>
         <section className="wrap stack g14" style={{ paddingBottom: 96 }}>
           <h2 className="d h-3">{t("service.together")}</h2>
-          <div style={{ maxWidth: 860 }}><ServiceRows services={related} /></div>
+          <div style={{ maxWidth: 860 }}><ServiceRows services={related} categories={cats} /></div>
         </section>
         <div className="startbar">
           <span className="stack"><strong className="fig startbar-v">{priceLabel.amount}</strong>{priceLabel.note && <span className="startbar-l">{priceLabel.note}</span>}</span>

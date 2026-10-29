@@ -3,14 +3,14 @@ import PublicNav from "@/components/PublicNav";
 import Footer from "@/components/Footer";
 import { Alert, Icon } from "@/components/ui";
 import { listCategories, listServices } from "@/lib/repo";
-import { OFFICES } from "@/lib/institutions";
+import { officesFor } from "@/lib/institutions";
 import { FilingRail } from "@/components/FilingRail";
 import { isSet, SITE, siteOrigin } from "@/lib/site";
 import { ContactList } from "@/components/Contact";
 import { getLocale } from "@/lib/i18n/locale";
 import { text } from "@/lib/i18n/messages";
 import { JsonLd } from "@/components/JsonLd";
-import { displayPrice, displayTime, localizeCategory, localizeServices, officeText } from "@/lib/i18n/present";
+import { displayPrice, displayTime, localizeCategory, localizeServices, officeCopy } from "@/lib/i18n/present";
 import { QuickSteps } from "@/components/QuickSteps";
 import { withLocale } from "@/lib/seo";
 
@@ -80,10 +80,10 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ a
     return { c, count: list.length };
   }).filter((b) => b.c.href || b.count > 0);
   const browseById = new Map(browse.map((b) => [b.c.id, b]));
-  // The six places a request is filed. EBM, Irembo training and an unlisted service sit on the line under them.
-  const six = ["rdb", "tax", "land", "rura", "police", "papers"] as const;
-  const desks = six.flatMap((id) => { const item = browseById.get(id); return item ? [item] : []; });
-  const more = ["ebm", "irembo", "other"].flatMap((id) => { const item = browseById.get(id); return item ? [item] : []; });
+  // The categories an administrator features are cards. The others, and an unlisted service, sit on the line under them.
+  const desks = browse.filter((b) => b.c.featured && !b.c.href);
+  const more = browse.filter((b) => !(b.c.featured && !b.c.href));
+  const offices = officesFor(categories);
 
   const origin = siteOrigin();
   const pageUrl = (path: string) => (origin ? origin + withLocale(locale, path) : undefined);
@@ -149,12 +149,12 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ a
               note={t("home.filedShort")}
               pause={t("home.filedPause")}
               play={t("home.filedPlay")}
-              offices={OFFICES.map((o) => ({
+              offices={offices.map((o) => ({
                 code: o.code,
-                name: officeText(o.code, locale)?.name ?? o.name,
+                name: officeCopy(o, locale).name,
                 href: withLocale(locale, o.href),
                 mark: o.mark,
-                label: o.code === "CIV" ? t("home.filedCivil") : o.code === "RNP" ? "RNP" : null,
+                label: o.code === "CIV" ? t("home.filedCivil") : o.code === "RNP" ? "RNP" : o.mark ? null : officeCopy(o, locale).name,
               }))}
             />
           </div>
@@ -196,14 +196,15 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ a
             </div>
             <ul className="desk">
               {desks.map(({ c, count }) => {
-                const mark = OFFICES.find((o) => (o.cats as readonly string[]).includes(c.id))?.mark ?? null;
+                const office = offices.find((o) => o.cats.includes(c.id));
+                const mark = office?.mark ?? null;
                 return (
                   <li key={c.id}>
                     <Link href={withLocale(locale, c.href ?? `/services?category=${c.id}`)}>
                       <span className="desk-markslot">
-                        {mark ? <img className="desk-mark" src={mark} alt="" /> : <span className="desk-word">{t("home.filedCivil")}</span>}
+                        {mark ? <img className="desk-mark" src={mark} alt="" /> : office && <span className="desk-word">{office.code === "CIV" ? t("home.filedCivil") : officeCopy(office, locale).name}</span>}
                       </span>
-                      <span className="desk-name">{t(`nav.cat.${c.id}`)}</span>
+                      <span className="desk-name">{c.short}</span>
                       <span className="desk-foot">
                         <span>{count === 1 ? t("home.oneService") : t("home.nServices", { n: count })}</span>
                       </span>
@@ -216,7 +217,7 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ a
               <p className="desk-more">
                 <span>{t("home.groupAlso")}</span>
                 {more.map(({ c }) => (
-                  <Link key={c.id} href={withLocale(locale, c.href ?? `/services?category=${c.id}`)}>{c.href ? t("home.notListed") : t(`nav.cat.${c.id}`)}</Link>
+                  <Link key={c.id} href={withLocale(locale, c.href ?? `/services?category=${c.id}`)}>{c.href ? t("home.notListed") : c.short}</Link>
                 ))}
               </p>
             )}
