@@ -70,7 +70,13 @@
 @media (max-width: 960px) { .two-col { grid-template-columns: minmax(0, 1fr); } }
 
 /* ============ home: the top ============ */
-.top { background: var(--paper); color: var(--ink); }
+.top { position: relative; isolation: isolate; background: var(--paper); color: var(--ink); }
+/* Kigali city centre (Pexels licence), washed to paper so the text on it keeps its contrast: nearly solid behind the words, clearer on the right. */
+.top::before { content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none;
+  background: linear-gradient(90deg, var(--paper) 0%, var(--paper) 34%, color-mix(in srgb, var(--paper) 72%, transparent) 62%, color-mix(in srgb, var(--paper) 46%, transparent) 100%), url(/photos/kigali-centre.webp) center / cover no-repeat;
+  -webkit-mask-image: linear-gradient(#000 55%, transparent 96%); mask-image: linear-gradient(#000 55%, transparent 96%); }
+@media (max-width: 720px) { .top::before { background: linear-gradient(color-mix(in srgb, var(--paper) 84%, transparent), color-mix(in srgb, var(--paper) 92%, transparent)), url(/photos/kigali-centre-sm.webp) center / cover no-repeat; } }
+@media (prefers-reduced-data: reduce) { .top::before { background: var(--paper); } }
 .top-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(300px, 440px); gap: clamp(36px, 6vw, 88px); align-items: center; padding-top: clamp(32px, 5vw, 72px); padding-bottom: clamp(28px, 4vw, 48px); }
 .top-copy { display: flex; flex-direction: column; gap: 24px; max-width: 40rem; }
 .top .h-hero { color: var(--brand); }

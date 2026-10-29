@@ -250,6 +250,8 @@ export async function resetStaffTotp(id: string): Promise<Result> {
   if (!person) return fail("Person not found.");
   await d.transaction(async (tx) => {
     await tx.update(s.staff).set({ totpSecret: null, totpEnabledAt: null, totpLastStep: null, totpRecovery: null }).where(eq(s.staff.id, id));
+    // Devices that were trusted under the old secret ask for a code again.
+    await tx.update(s.staffDevices).set({ verifiedAt: null }).where(eq(s.staffDevices.staffId, id));
     await tx.delete(s.sessions).where(eq(s.sessions.subjectId, id));
     await audit(tx, { actor: me.name, role: me.role, action: "Reset authenticator step", entity: person.name });
   });

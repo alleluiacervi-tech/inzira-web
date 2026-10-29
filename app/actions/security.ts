@@ -81,6 +81,8 @@ export async function disableTotp(code: string): Promise<Result> {
   if (!ok.ok) return fail(ok.error);
   await a.d.transaction(async (tx) => {
     await tx.update(s.staff).set({ totpSecret: null, totpEnabledAt: null, totpLastStep: null, totpRecovery: null }).where(eq(s.staff.id, a.user.id));
+    // Devices that were trusted under the old secret ask for a code again.
+    await tx.update(s.staffDevices).set({ verifiedAt: null }).where(eq(s.staffDevices.staffId, a.user.id));
     await audit(tx, { actor: a.user.name, role: a.user.role, action: "Turned off authenticator step", entity: a.user.name });
   });
   revalidatePath("/console/security");

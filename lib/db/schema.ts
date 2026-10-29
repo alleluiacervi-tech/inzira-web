@@ -161,6 +161,9 @@ export const staffDevices = pgTable("staff_devices", {
   label: text("label").notNull(),
   firstSeen: ts("first_seen").notNull().defaultNow(),
   lastSeen: ts("last_seen").notNull().defaultNow(),
+  /** The last time an authenticator code was given from this device with "keep me signed in" on. Within 30 days the
+   *  password alone opens the console here. */
+  verifiedAt: ts("verified_at"),
 }, (t) => [primaryKey({ columns: [t.staffId, t.device] })]);
 
 /** One row per role and permission; `allowed` is what the roles matrix in the admin console edits. */

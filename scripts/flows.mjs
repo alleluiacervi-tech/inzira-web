@@ -1058,6 +1058,13 @@ await step("staff password", async () => {
   await p.set("#totp", totp(secret, 1)); await p.click("Sign in", "button"); await waitPath(p, (path) => path.startsWith("/console"));
   check("staff password: username, password and code open the console", (await p.ev("location.pathname")).startsWith("/console"));
   await signOut(p);
+  // This browser just gave a code with "keep me signed in" on: for the next 30 days the password alone is enough here.
+  await p.set("#st-user", "diane"); await p.set("#st-pass", password); await p.click("Sign in", "button"); await waitPath(p, (path) => path.startsWith("/console"));
+  check("staff password: a device that gave a code in the last 30 days needs only the password", (await p.ev("location.pathname")).startsWith("/console") && !(await p.has("One more step")));
+  await signOut(p);
+  // On a shared computer ("keep me signed in" off) the code is asked every time.
+  await p.set("#st-user", "diane"); await p.set("#st-pass", password); await p.click("Keep me signed in", "label"); await p.click("Sign in", "button"); await waitFor(p, "One more step");
+  check("staff password: without keeping signed in, the authenticator is asked again", await p.has("One more step") && (await p.ev("location.pathname")) === "/staff");
   await p.go("/sign-in"); await p.set("#si-contact", "780000008"); await p.click("Send me a code"); await waitCode(p);
   await p.set("#otp", await p.ev(`document.querySelector("[data-demo-code]")?.dataset.demoCode ?? ""`)); await p.click("Sign in", "button"); await waitFor(p, "username and password");
   check("staff password: once set, a code to the phone no longer opens the console", await p.has("Inzira staff sign in with their username and password"));

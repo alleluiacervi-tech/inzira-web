@@ -1,7 +1,7 @@
 "use server";
 import { and, eq, or, sql } from "drizzle-orm";
 import { redirect } from "next/navigation";
-import { normalisePhone, consumeCode, consumeEmailCode, endPending, endSession, getSession, issueCode, issueEmailCode, markStepUp, markUnlocked, readPending, rememberStaffDevice, staffSecurityRequired, startPending, startSession } from "@/lib/auth";
+import { normalisePhone, consumeCode, isDeviceVerified, consumeEmailCode, endPending, endSession, getSession, issueCode, issueEmailCode, markStepUp, markUnlocked, readPending, rememberStaffDevice, staffSecurityRequired, startPending, startSession } from "@/lib/auth";
 import { enqueue, sendSoon } from "@/lib/outbox";
 import { verifyPassword } from "@/lib/password";
 import { safeReturnPath } from "@/lib/return-path";
@@ -80,7 +80,7 @@ async function staffHome(role: StaffRole): Promise<"/console/overview" | "/conso
 async function openConsole(person: typeof s.staff.$inferSelect, next?: string, via = "SMS code", opts: { trusted?: boolean; stepUp?: boolean } = {}): Promise<never> {
   await startSession("staff", person.id, opts);
   const d = await db();
-  const device = await rememberStaffDevice(person.id);
+  const device = await rememberStaffDevice(person.id, !!(opts.trusted && opts.stepUp));
   await audit(d, { actor: person.name, role: person.role, action: "Signed in", entity: `Staff · ${via} · ${device.label}${opts.trusted ? " · 30 days" : ""}` }).catch(() => {});
   if (device.isNew && person.email) await announceDevice(person, device.label).catch((e) => console.error("[auth] new-device email", e));
   if (staffSecurityRequired() && (!person.totpEnabledAt || !person.passwordHash)) redirect("/console/security?setup=1");
@@ -164,7 +164,7 @@ async function announceDevice(person: typeof s.staff.$inferSelect, label: string
 }
 
 /** Staff sign-in, step 1: username (or work email) and password. Five wrong passwords pause the account for 15 minutes.
- *  With the authenticator on, the code is step 2; `trust` keeps them signed in on this device for 30 days. */
+ *  With the authenticator on, the code is step 2 on a new device or one not verified in 30 days; `trust` keeps them signed in on this device for 30 days. */
 export async function staffPasswordSignIn(identifier: string, password: string, trust: boolean, next?: string) {
   if (!(await allowIp("signIn"))) return { ok: false as const, error: TOO_MANY };
   const name = identifier.trim().toLowerCase().slice(0, 120);
@@ -186,6 +186,9 @@ export async function staffPasswordSignIn(identifier: string, password: string, 
   }
   if (person.failedLogins || person.lockedUntil) await d.update(s.staff).set({ failedLogins: 0, lockedUntil: null }).where(eq(s.staff.id, person.id));
   if (person.totpEnabledAt) {
+    // A device that gave a code in the last 30 days opens with the password alone. A new device, or one not used for a
+    // month, asks for the code. Refunds, payouts and roles still ask for it once per session (lib/step-up.ts).
+    if (trust && (await isDeviceVerified(person.id))) return openConsole(person, next, "password · known device", { trusted: true });
     await startPending(person.id, trust);
     return { ok: true as const, step: "totp" as const };
   }

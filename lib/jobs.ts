@@ -97,7 +97,7 @@ export async function expireUnpaidQuotes() {
       }).where(and(eq(s.requests.ref, r.ref), isNull(s.requests.closed))).returning({ ref: s.requests.ref });
       if (!closed) return; // someone closed it first
       await event(tx, r.ref, msg("ev.quoteExpired"), "system");
-      await notify(tx, r.ref, { icon: "alert", title: msg("nt.quoteExpired", { ref: r.ref }), sms: sms("quoteExpired", { ref: r.ref }) });
+      await notify(tx, r.ref, { icon: "alert", title: msg("nt.quoteExpired", { ref: r.ref }) });
       await audit(tx, { actor: "System", role: "—", action: "Closed an unpaid request", entity: `${r.ref} · ${rwf(due)} not paid within a week of the quote` });
     });
     expired++;

@@ -122,6 +122,7 @@ export async function setPasswordWithLink(token: string, password: string, code?
   const username = person.username ?? person.email?.toLowerCase() ?? await freeUsername(person.name);
   await d.update(s.staff).set({ passwordHash: await hashPassword(password), passwordSetAt: new Date().toISOString(), failedLogins: 0, lockedUntil: null, username }).where(eq(s.staff.id, person.id));
   await d.delete(s.sessions).where(and(eq(s.sessions.kind, "staff"), eq(s.sessions.subjectId, person.id)));
+  await d.update(s.staffDevices).set({ verifiedAt: null }).where(eq(s.staffDevices.staffId, person.id));
   await audit(d, { actor: person.name, role: person.role, action: link.kind === "invite" ? "Set a password from an invite" : "Reset password", entity: "Staff sign-in" });
   return { ok: true, username };
 }

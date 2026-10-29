@@ -78,7 +78,7 @@ export async function reviewDocument(ref: string, docId: string, decision: "appr
       const blocked = all.some((x) => x.status === "rejected" || (x.required && x.status === "required"));
       if (r.hold?.reason === "document" && !blocked) {
         await tx.update(s.requests).set({ hold: null }).where(eq(s.requests.ref, ref));
-        await notify(tx, ref, { icon: "check", title: msg("nt.docsApproved", { ref }), sms: sms("docsApproved") });
+        await notify(tx, ref, { icon: "check", title: msg("nt.docsApproved", { ref }) });
       }
     } else {
       const holdMsg = msg("hold.newCopy", { doc: doc.name });
@@ -145,7 +145,8 @@ export async function setStage(ref: string, stage: Stage, message: string, tell:
     if (tell) await notify(tx, ref, {
       icon: done ? "check" : "send",
       title: done ? msg("nt.completed", { ref }) : msg("nt.moved", { ref, stage: STAGE_LABEL[stage] }),
-      sms: message.trim() ? sms("ownWords", { text: message.trim() }) : done ? sms("completed") : sms("moved", { stage: STAGE_LABEL[stage] }),
+      // A plain move to the next stage is shown in the portal only; the customer is messaged for the agent's own words and for completion.
+      sms: message.trim() ? sms("ownWords", { text: message.trim() }) : done ? sms("completed") : undefined,
     });
     await audit(tx, { actor: me.name, role: me.role, action: "Changed stage", entity: `${ref} · ${STAGE_LABEL[r.stage]} → ${STAGE_LABEL[stage]}` });
   });
@@ -170,7 +171,7 @@ export async function markSubmitted(ref: string, channel: string, officialRef: s
     await tx.update(s.requests).set({ stage: "institution", channel: channel || r.channel, officialRef: officialRef.trim(), ...(billNo ? { officialBill: billNo } : {}), hold: null, stageDates: { ...r.stageDates, institution: r.stageDates.institution ?? now() } }).where(eq(s.requests.ref, ref));
     const vars = { channel: channel || r.channel, officialRef: officialRef.trim() };
     await event(tx, ref, again ? msg("ev.resubmitted", vars) : msg("ev.submitted", vars), me.id);
-    await notify(tx, ref, { icon: "send", title: again ? msg("nt.resubmitted", vars) : msg("nt.submitted", vars), sms: sms("submitted", vars) });
+    await notify(tx, ref, { icon: "send", title: again ? msg("nt.resubmitted", vars) : msg("nt.submitted", vars) });
     await audit(tx, { actor: me.name, role: me.role, action: "Added official reference", entity: `${ref} · ${officialRef.trim()}${billNo ? ` · bill ${billNo}` : ""}` });
   });
   return done(ref);

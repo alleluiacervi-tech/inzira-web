@@ -301,7 +301,7 @@ export async function correctSubmittedId(fd: FormData): Promise<Result> {
       hold: req.hold?.msg?.key === "hold.idCorrection" ? null : req.hold,
     }).where(eq(s.requests.ref, ref));
     await event(tx, ref, msg("ev.idUpdated"), "customer");
-    await notify(tx, ref, { icon: "check", title: msg("nt.idUpdated", { ref }), sms: sms("idUpdated", { ref }) });
+    await notify(tx, ref, { icon: "check", title: msg("nt.idUpdated", { ref }) });
     await audit(tx, { actor: own.name, role: "Customer", action: "Corrected national ID", entity: ref });
   });
   refreshRequest(ref);
