@@ -1,3 +1,4 @@
+import type { Office } from "@/lib/institutions";
 import type { Category, Service } from "@/lib/types";
 import { officialLabel, rwf, shortTime, totalLabel } from "@/lib/format";
 import type { Locale } from "./locale";
@@ -32,7 +33,7 @@ type SvcText = {
   stageLabels?: Partial<Record<string, string>>;
 };
 type Cat = {
-  categories: Record<string, { name: string; short: string; desc: string }>;
+  categories: Record<string, { name: string; short: string; desc: string; institution?: string }>;
   offices: Record<string, { name: string; area: string; does: string }>;
   services: Record<string, SvcText>;
   units: Record<string, string>;
@@ -105,11 +106,16 @@ export const localizeServices = <T extends Service>(list: T[], locale: Locale) =
 export function localizeCategory<T extends Category>(c: T, locale: Locale): T {
   if (locale !== "rw") return c;
   const t = RW().categories[c.id];
-  return t ? { ...c, name: t.name || c.name, short: t.short || c.short, desc: t.desc || c.desc } : c;
+  return t ? { ...c, name: t.name || c.name, short: t.short || c.short, desc: t.desc || c.desc, institution: c.institution && (t.institution || c.institution) } : c;
 }
 
 export function officeText(code: string, locale: Locale) {
   return bag(locale).offices[code] ?? EN.offices[code];
+}
+
+/** An office's name, what it is and what it does, in the reader's language. */
+export function officeCopy(o: Office, locale: Locale): { name: string; area: string; does: string } {
+  return o.fromCategory ? o : officeText(o.code, locale) ?? o;
 }
 
 export function unitLabel(unit: string | undefined, locale: Locale) {

@@ -73,10 +73,7 @@ export default function Catalogue({ services, categories, initialQuery, initialC
 
   const heading = (() => {
     if (cat === "all") return t("catalogue.title");
-    const key = `nav.cat.${cat}`;
-    const label = t(key);
-    const name = label === key ? categories.find((c) => c.id === cat)?.name ?? label : label;
-    return t("meta.inPlace", { name });
+    return t("meta.inPlace", { name: categories.find((c) => c.id === cat)?.short ?? cat });
   })();
 
   const filters = (
@@ -151,7 +148,7 @@ export default function Catalogue({ services, categories, initialQuery, initialC
             </div>
           )}
           {results.length ? (
-            <ServiceRows services={results} />
+            <ServiceRows services={results} categories={categories} />
           ) : (
             <div className="card stack g12" style={{ padding: "40px 24px", alignItems: "center", textAlign: "center" }}>
               <span style={{ width: 56, height: 56, borderRadius: "50%", background: "var(--bone)", display: "flex", alignItems: "center", justifyContent: "center" }}><Icon name="search" size={26} /></span>

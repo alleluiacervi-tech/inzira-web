@@ -7,7 +7,17 @@ export type Tone = "neutral" | "info" | "ok" | "warn" | "err" | "act" | "teal" |
 
 // ---------------- catalogue ----------------
 /** `href` sends the category somewhere other than the filtered catalogue (e.g. "other" opens /start). */
-export type Category = { id: string; icon: string; name: string; short: string; desc: string; href?: string };
+export type Category = {
+  id: string; icon: string; name: string; short: string; desc: string; href?: string;
+  /** False when an administrator has hidden the category from the public site. Only the console sees hidden ones. */
+  visible?: boolean;
+  /** Shown as a card on the home page; the others are linked on the line under the cards. */
+  featured?: boolean;
+  /** The institution the category is filed with, when it is not one of the built-in offices (lib/institutions.ts). */
+  institution?: string;
+  /** The institution's logo (an address on this site), when one was uploaded in the console. */
+  mark?: string;
+};
 export type Audience = "individual" | "business" | "organization";
 /** Whether a service asks for a National ID number. "unsure" means it is optional and an administrator should confirm the rule. */
 export type IdPolicy = "required" | "none" | "unsure";

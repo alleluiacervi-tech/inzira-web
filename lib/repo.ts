@@ -34,18 +34,50 @@ export const toService = (r: ServiceRow): Service => ({
   purposes: r.purposes ?? undefined, purposeLabel: r.purposeLabel ?? undefined, questions: r.questions ?? undefined, feeOptions: r.feeOptions ?? undefined, feeOptionLabel: r.feeOptionLabel ?? undefined, inPerson: r.inPerson ?? undefined, noId: r.idPolicy === "none" || r.noId, idPolicy: isIdPolicy(r.idPolicy) ? r.idPolicy : undefined, flow: r.flow ?? undefined, stageLabels: r.stageLabels ?? undefined, visible: r.visible,
 });
 
-export async function listCategories(): Promise<Category[]> {
-  const rows = await (await db()).select().from(s.categories).orderBy(asc(s.categories.position));
-  return rows.map((c) => ({ id: c.id, icon: c.icon, name: c.name, short: c.short, desc: c.desc, href: c.href ?? undefined }));
+/** The address a category's uploaded logo is served from. `rev` changes with every upload so browsers fetch the new one. */
+export const markUrl = (id: string, rev: number) => `/brand/${encodeURIComponent(id)}?v=${rev}`;
+
+/** The categories in the order an administrator set. The public site sees the visible ones; the console passes `includeHidden`. */
+export async function listCategories(opts: { includeHidden?: boolean } = {}): Promise<Category[]> {
+  const c = s.categories;
+  const rows = await (await db()).select({
+    id: c.id, icon: c.icon, name: c.name, short: c.short, desc: c.desc, href: c.href, visible: c.visible, featured: c.featured, institution: c.institution, markRev: c.markRev,
+    hasMark: sql<boolean>`${c.markData} is not null`,
+  }).from(c).where(opts.includeHidden ? undefined : eq(c.visible, true)).orderBy(asc(c.position), asc(c.id));
+  return rows.map((r) => ({
+    id: r.id, icon: r.icon, name: r.name, short: r.short, desc: r.desc, href: r.href ?? undefined, visible: r.visible, featured: r.featured,
+    institution: r.institution ?? undefined, mark: r.hasMark ? markUrl(r.id, r.markRev) : undefined,
+  }));
 }
+/** The categories the menu lists: shown, and with at least one service on the site. */
+export async function listNavCategories(): Promise<Category[]> {
+  const d = await db();
+  const [cats, used] = await Promise.all([
+    listCategories(),
+    d.selectDistinct({ id: s.services.category }).from(s.services).where(eq(s.services.visible, true)),
+  ]);
+  const withServices = new Set(used.map((u) => u.id));
+  return cats.filter((c) => !c.href && withServices.has(c.id));
+}
+/** The uploaded logo of a category, or null. */
+export async function getCategoryMark(id: string): Promise<{ bytes: Buffer; type: string } | null> {
+  const [row] = await (await db()).select({ data: s.categories.markData, type: s.categories.markType }).from(s.categories).where(eq(s.categories.id, id));
+  return row?.data && row.type ? { bytes: Buffer.from(row.data, "base64"), type: row.type } : null;
+}
+/** Services on the public site: shown, and in a category that is shown. The console passes `includeHidden`. */
 export async function listServices(opts: { includeHidden?: boolean } = {}): Promise<Service[]> {
   const d = await db();
-  const rows = await d.select().from(s.services).where(opts.includeHidden ? undefined : eq(s.services.visible, true)).orderBy(asc(s.services.position));
-  return rows.map(toService);
+  if (opts.includeHidden) return (await d.select().from(s.services).orderBy(asc(s.services.position))).map(toService);
+  const rows = await d.select({ svc: s.services }).from(s.services)
+    .innerJoin(s.categories, eq(s.categories.id, s.services.category))
+    .where(and(eq(s.services.visible, true), eq(s.categories.visible, true))).orderBy(asc(s.services.position));
+  return rows.map((r) => toService(r.svc));
 }
+/** One service by address. A service in a hidden category reads as not shown, so customers cannot start a request for it. */
 export async function getService(slug: string): Promise<Service | undefined> {
-  const [row] = await (await db()).select().from(s.services).where(eq(s.services.slug, slug));
-  return row && toService(row);
+  const [row] = await (await db()).select({ svc: s.services, shown: s.categories.visible }).from(s.services)
+    .leftJoin(s.categories, eq(s.categories.id, s.services.category)).where(eq(s.services.slug, slug));
+  return row && { ...toService(row.svc), visible: row.svc.visible && row.shown !== false };
 }
 /** Requests opened per service in the last 30 days. */
 export async function getServiceDemand(): Promise<Record<string, number>> {
@@ -619,7 +651,7 @@ export async function getAdminOverview(rangeDays: OverviewRange = 30) {
     loadRequests(),
     d.select({ since: s.accounts.since }).from(s.accounts),
     d.select().from(s.transactions),
-    listCategories(),
+    listCategories({ includeHidden: true }),
     listServices({ includeHidden: true }),
     listStageTargets(),
     listAgents(),

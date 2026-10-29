@@ -2,7 +2,7 @@
   "categories": {
     "rdb": {
       "name": "RDB / Business registration",
-      "short": "RDB",
+      "short": "Business registration",
       "desc": "Register, change or keep your enterprise or company up to date."
     },
     "tax": {
@@ -22,7 +22,7 @@
     },
     "rura": {
       "name": "RURA / Transport",
-      "short": "RURA",
+      "short": "Transport",
       "desc": "Authorisations for vehicles that carry passengers or goods."
     },
     "police": {
@@ -32,13 +32,19 @@
     },
     "papers": {
       "name": "Certificates",
-      "short": "Papers",
+      "short": "Certificates",
       "desc": "Birth, marriage and other certificates, a passport and a replacement ID card. We file them and send the document when it is issued."
     },
     "irembo": {
       "name": "Irembo training",
-      "short": "Irembo",
+      "short": "Irembo training",
       "desc": "Learn to use Irembo yourself — online or at our office."
+    },
+    "iecms": {
+      "name": "Courts / IECMS",
+      "short": "Courts",
+      "desc": "Open an IECMS account, file a case in court, and get a copy of a judgment or the court’s seal on it.",
+      "institution": "Rwanda Judiciary"
     },
     "other": {
       "name": "Other online services",
@@ -2767,6 +2773,345 @@
       "stageLabels": {
         "preparing": "Sessions scheduled"
       }
+    },
+    "iecms-account": {
+      "name": "Open an IECMS account",
+      "aka": "IECMS registration · court e-filing account",
+      "tagline": "Your account to file and follow court cases online.",
+      "summary": "IECMS is the online case system of the Rwanda Judiciary. We request your account with your details, so you can file cases and follow them online, and we show you how to sign in.",
+      "authority": "Rwanda Judiciary",
+      "channel": "IECMS",
+      "via": "Via IECMS · Rwanda Judiciary",
+      "time": "Usually 1–3 working days",
+      "timeShort": "1–3 working days",
+      "docsShort": "National ID, phone, email",
+      "who": [
+        {
+          "title": "People with a case",
+          "body": "Who want to file or follow a case online."
+        },
+        {
+          "title": "Businesses",
+          "body": "With disputes, debts or contracts in court."
+        },
+        {
+          "title": "Lawyers and their assistants",
+          "body": "Who file on behalf of clients."
+        }
+      ],
+      "requirements": [
+        "Your National ID number",
+        "A phone number and an email address for the account"
+      ],
+      "documents": [
+        {
+          "name": "Copy of your ID",
+          "detail": "National ID or passport"
+        },
+        {
+          "name": "Proof of your role",
+          "detail": "A lawyer’s card or a company letter, if the account is for a lawyer or a business"
+        }
+      ],
+      "steps": [
+        {
+          "title": "You start the request",
+          "body": "Answer a few short questions. Takes about 3 minutes."
+        },
+        {
+          "title": "We check your documents",
+          "body": "Your agent confirms everything is correct, usually within 2 working hours."
+        },
+        {
+          "title": "You approve the fees",
+          "body": "You see the official fee and our fee separately, then pay by MoMo or Airtel Money."
+        },
+        {
+          "title": "We submit via IECMS",
+          "body": "We submit through the official channel and share the official reference number with you."
+        },
+        {
+          "title": "The court processes it",
+          "body": "The institution reviews and decides. We follow up if it takes longer than usual."
+        },
+        {
+          "title": "You receive the result",
+          "body": "Delivered to your portal and WhatsApp, with official receipts."
+        }
+      ],
+      "notes": [],
+      "officialNote": "Set by the court. Your agent confirms the exact amount before you pay anything.",
+      "purposeLabel": "Who is the account for?",
+      "purposes": [
+        "Myself",
+        "My business or organisation",
+        "A lawyer or a law firm"
+      ]
+    },
+    "iecms-file-case": {
+      "name": "File a case in court",
+      "aka": "Filing a complaint · starting a court case",
+      "tagline": "Your complaint filed in court through IECMS.",
+      "summary": "Start a case by filing your complaint on IECMS. You give us your written complaint and your documents; we upload them correctly, pay the court fee for you and send you the case number. We do not give legal advice and we do not represent you.",
+      "authority": "Rwanda Judiciary",
+      "channel": "IECMS",
+      "via": "Via IECMS · Rwanda Judiciary",
+      "time": "Usually 2–5 working days to file",
+      "timeShort": "2–5 working days to file",
+      "docsShort": "Complaint, evidence, ID",
+      "who": [
+        {
+          "title": "People owed money or property",
+          "body": "Who want a court to decide."
+        },
+        {
+          "title": "Businesses",
+          "body": "With unpaid invoices or broken contracts."
+        },
+        {
+          "title": "Families and employees",
+          "body": "With a family or labour dispute."
+        }
+      ],
+      "requirements": [
+        "Your National ID number, and an IECMS account (we can open one first)",
+        "Your written complaint, signed",
+        "The name and address of the person or company the case is against",
+        "Your evidence: contracts, receipts, letters or messages"
+      ],
+      "documents": [
+        {
+          "name": "Your complaint",
+          "detail": "Signed, saying what happened and what you ask the court to decide"
+        },
+        {
+          "name": "Evidence",
+          "detail": "Contracts, receipts, letters or photos that support it"
+        },
+        {
+          "name": "Copy of your ID",
+          "detail": "National ID or passport"
+        },
+        {
+          "name": "Power of attorney",
+          "detail": "Only if you file for someone else"
+        }
+      ],
+      "steps": [
+        {
+          "title": "You start the request",
+          "body": "Answer a few short questions. Takes about 3 minutes."
+        },
+        {
+          "title": "We check your documents",
+          "body": "Your agent confirms everything is correct, usually within 2 working hours."
+        },
+        {
+          "title": "You approve the fees",
+          "body": "You see the official fee and our fee separately, then pay by MoMo or Airtel Money."
+        },
+        {
+          "title": "We submit via IECMS",
+          "body": "We submit through the official channel and share the official reference number with you."
+        },
+        {
+          "title": "The court processes it",
+          "body": "The institution reviews and decides. We follow up if it takes longer than usual."
+        },
+        {
+          "title": "You receive the result",
+          "body": "Delivered to your portal and WhatsApp, with official receipts."
+        }
+      ],
+      "notes": [
+        {
+          "title": "We file. We do not advise.",
+          "body": "Inzira is not a law firm and is not the court. If you are unsure of your rights or of which court to use, speak to a lawyer first. We upload what you give us."
+        }
+      ],
+      "officialNote": "Set by the court. Your agent confirms the exact amount before you pay anything.",
+      "purposeLabel": "What kind of case is it?",
+      "purposes": [
+        "A civil claim",
+        "A commercial case",
+        "A labour case",
+        "A family case",
+        "Something else"
+      ],
+      "questions": [
+        {
+          "label": "Which court is the case filed in?",
+          "hint": "If you are not sure, write the district where the other party lives",
+          "placeholder": "e.g. Nyarugenge Intermediate Court"
+        },
+        {
+          "label": "Who is the case against?",
+          "placeholder": "Full name or company name"
+        }
+      ]
+    },
+    "judgment-copy": {
+      "name": "Copy of a judgment",
+      "aka": "Copy of a court decision · copy of a case file",
+      "tagline": "A copy of your judgment, sent to your account.",
+      "summary": "Ask the court for a copy of a judgment. Give us the case number and the court; we request the copy on IECMS and send it to your portal as soon as the court issues it.",
+      "authority": "Rwanda Judiciary",
+      "channel": "IECMS",
+      "via": "Via IECMS · Rwanda Judiciary",
+      "time": "Usually 3–7 working days",
+      "timeShort": "3–7 working days",
+      "docsShort": "Case number, court, ID",
+      "who": [
+        {
+          "title": "People who won or lost a case",
+          "body": "And need the decision in writing."
+        },
+        {
+          "title": "Banks and offices",
+          "body": "That asked for the judgment."
+        },
+        {
+          "title": "Lawyers",
+          "body": "Who need a copy for their file."
+        }
+      ],
+      "requirements": [
+        "The case number and the court that decided it",
+        "The names of the people in the case"
+      ],
+      "documents": [
+        {
+          "name": "Copy of your ID",
+          "detail": "National ID or passport"
+        },
+        {
+          "name": "Authorisation",
+          "detail": "Only if you were not part of the case"
+        }
+      ],
+      "steps": [
+        {
+          "title": "You start the request",
+          "body": "Answer a few short questions. Takes about 3 minutes."
+        },
+        {
+          "title": "We check your documents",
+          "body": "Your agent confirms everything is correct, usually within 2 working hours."
+        },
+        {
+          "title": "You approve the fees",
+          "body": "You see the official fee and our fee separately, then pay by MoMo or Airtel Money."
+        },
+        {
+          "title": "We submit via IECMS",
+          "body": "We submit through the official channel and share the official reference number with you."
+        },
+        {
+          "title": "The court processes it",
+          "body": "The institution reviews and decides. We follow up if it takes longer than usual."
+        },
+        {
+          "title": "You receive the result",
+          "body": "Delivered to your portal and WhatsApp, with official receipts."
+        }
+      ],
+      "notes": [],
+      "officialNote": "Set by the court. Your agent confirms the exact amount before you pay anything.",
+      "questions": [
+        {
+          "label": "Case number",
+          "hint": "As written on the judgment or the summons",
+          "placeholder": "e.g. RC 00123/2025/TGI/NYGE"
+        },
+        {
+          "label": "Court that decided the case",
+          "placeholder": "e.g. Nyarugenge Intermediate Court"
+        }
+      ]
+    },
+    "cachet-mpuruza": {
+      "name": "Executory seal on a judgment (cachet mpuruza)",
+      "aka": "Cachet mpuruza · enforcement seal",
+      "tagline": "The court’s seal that lets a judgment be enforced.",
+      "summary": "A judgment can be enforced once the court has put its executory seal (cachet mpuruza) on it. We request the seal on IECMS and send you the sealed copy.",
+      "authority": "Rwanda Judiciary",
+      "channel": "IECMS",
+      "via": "Via IECMS · Rwanda Judiciary",
+      "time": "Usually 3–7 working days",
+      "timeShort": "3–7 working days",
+      "docsShort": "Case number, court, judgment",
+      "who": [
+        {
+          "title": "People who won a case",
+          "body": "And want the judgment carried out."
+        },
+        {
+          "title": "Creditors",
+          "body": "Who need to recover a debt."
+        },
+        {
+          "title": "Lawyers",
+          "body": "Who act for the winning party."
+        }
+      ],
+      "requirements": [
+        "The case number and the court that decided it",
+        "A copy of the judgment"
+      ],
+      "documents": [
+        {
+          "name": "The judgment",
+          "detail": "A copy, or its case number"
+        },
+        {
+          "name": "Copy of your ID",
+          "detail": "National ID or passport"
+        }
+      ],
+      "steps": [
+        {
+          "title": "You start the request",
+          "body": "Answer a few short questions. Takes about 3 minutes."
+        },
+        {
+          "title": "We check your documents",
+          "body": "Your agent confirms everything is correct, usually within 2 working hours."
+        },
+        {
+          "title": "You approve the fees",
+          "body": "You see the official fee and our fee separately, then pay by MoMo or Airtel Money."
+        },
+        {
+          "title": "We submit via IECMS",
+          "body": "We submit through the official channel and share the official reference number with you."
+        },
+        {
+          "title": "The court processes it",
+          "body": "The institution reviews and decides. We follow up if it takes longer than usual."
+        },
+        {
+          "title": "You receive the result",
+          "body": "Delivered to your portal and WhatsApp, with official receipts."
+        }
+      ],
+      "notes": [
+        {
+          "title": "We request. The court decides.",
+          "body": "Inzira is not the court. The court decides whether the seal can be put on the judgment, and your agent tells you if it needs anything more."
+        }
+      ],
+      "officialNote": "Set by the court. Your agent confirms the exact amount before you pay anything.",
+      "questions": [
+        {
+          "label": "Case number",
+          "hint": "As written on the judgment",
+          "placeholder": "e.g. RC 00123/2025/TGI/NYGE"
+        },
+        {
+          "label": "Court that decided the case",
+          "placeholder": "e.g. Nyarugenge Intermediate Court"
+        }
+      ]
     }
   },
   "units": {

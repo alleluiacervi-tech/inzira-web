@@ -110,3 +110,45 @@ export async function saveServiceText(tx: Tx, who: { name: string; role: string 
   const changed = plan.removes.size > 0 || [...plan.writes.keys()].some((k) => k !== marker);
   await writeEdits(tx, who, plan.writes, plan.removes, `${service.slug} (with the service)`, changed);
 }
+
+// ---------------- a category, saved with its Kinyarwanda ----------------
+export type CategoryRw = { name: string; short: string; desc: string; institution: string };
+const CATEGORY_TEXT: { field: keyof CategoryRw; label: string; long: boolean }[] = [
+  { field: "name", label: "Name", long: false },
+  { field: "short", label: "Short name", long: false },
+  { field: "desc", label: "Description", long: true },
+  { field: "institution", label: "Institution", long: false },
+];
+const categoryKey = (id: string, field: string) => `${CAT}categories.${id}.${field}`;
+
+/** A category's Kinyarwanda as the category editor holds it: the text the site shows now. */
+export function categoryRwNow(id: string): CategoryRw {
+  const now = (field: string) => { const v = getPath(liveCatalogue(), `categories.${id}.${field}`); return typeof v === "string" ? v : ""; };
+  return { name: now("name"), short: now("short"), desc: now("desc"), institution: now("institution") };
+}
+
+/** Saves a category's Kinyarwanda in the caller's transaction. A text left empty, or equal to the shipped one, removes the edit
+ *  (visitors then read the shipped Kinyarwanda, or the English where there is none). Throws ServiceTextRefused, with what to fix. */
+export async function saveCategoryText(tx: Tx, who: { name: string; role: string }, id: string, rw: Partial<CategoryRw>) {
+  const rows = await tx.select({ key: s.content.key, value: s.content.value }).from(s.content).where(like(s.content.key, `${CAT}categories.${id}.%`));
+  const existing = Object.fromEntries(rows.map((r) => [r.key, r.value]));
+  const writes = new Map<string, string>();
+  const removes = new Set<string>();
+  const errors: string[] = [];
+  for (const { field, label, long } of CATEGORY_TEXT) {
+    if (typeof rw[field] !== "string") continue;
+    const key = categoryKey(id, field);
+    const checked = checkText({ key, label, en: "", long }, rw[field]!);
+    if (!checked.ok) { errors.push(`${label}: ${checked.error}`); continue; }
+    const shipped = getPath(shippedCatalogue(), `categories.${id}.${field}`);
+    if (!checked.value || checked.value === (typeof shipped === "string" ? shipped : "")) { if (key in existing) removes.add(key); }
+    else if (existing[key] !== checked.value) writes.set(key, checked.value);
+  }
+  if (errors.length) throw new ServiceTextRefused(errors.join(" "));
+  await writeEdits(tx, who, writes, removes, `category ${id} (with the category)`);
+}
+
+/** Removes every Kinyarwanda edit of a category that is being deleted. */
+export async function removeCategoryText(tx: Tx, id: string) {
+  await tx.delete(s.content).where(like(s.content.key, `${CAT}categories.${id}.%`));
+}

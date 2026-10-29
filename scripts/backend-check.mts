@@ -763,5 +763,67 @@ await check("a permission added in a later release is given to the roles that da
   await d.update(s.rolePermissions).set({ allowed: true }).where(sql`${s.rolePermissions.permission} = 'editServices' and ${s.rolePermissions.role} = 'Administrator'`);
 });
 
+await check("categories: the Courts category ships hidden-until-priced, administrators own the order, hidden ones leave the site", async () => {
+  const { ensureCatalogue } = await import("../lib/db/seed.ts");
+  const { getCategoryMark, getService, listCategories, listNavCategories, listServices, markUrl } = await import("../lib/repo.ts");
+  const { officesFor } = await import("../lib/institutions.ts");
+  const { saveCategoryText, categoryRwNow } = await import("../lib/content-admin.ts");
+  const { primeContent } = await import("../lib/content.ts");
+  const { localizeCategory } = await import("../lib/i18n/present.ts");
+  const ids = async (includeHidden = false) => (await listCategories({ includeHidden })).map((c) => c.id);
+  const order = await ids();
+  assert.ok(order.includes("iecms"), "the Courts category is there");
+  assert.equal(order.indexOf("iecms") < order.indexOf("other"), true, "and sits before the catch-all");
+  const courts = (await listServices({ includeHidden: true })).filter((x) => x.category === "iecms");
+  assert.equal(courts.length, 4);
+  assert.ok(courts.every((x) => !x.visible), "the court services start as drafts until someone sets their prices");
+  assert.equal((await listServices()).some((x) => x.category === "iecms"), false);
+  assert.equal((await listNavCategories()).some((c) => c.id === "iecms"), false, "a category with no visible service is not in the menu");
+
+  // An administrator's edits to a category survive a restart (ensureCatalogue runs on every start).
+  await d.update(s.categories).set({ desc: "Edited by an administrator", position: 41 }).where(eq(s.categories.id, "tax"));
+  await d.update(s.services).set({ visible: true }).where(eq(s.services.slug, "judgment-copy"));
+  await ensureCatalogue(d);
+  const tax = (await listCategories()).find((c) => c.id === "tax")!;
+  assert.equal(tax.desc, "Edited by an administrator");
+  assert.equal((await ids()).at(-1), "tax", "and so does the order they set");
+  assert.equal((await listNavCategories()).some((c) => c.id === "iecms"), true, "one visible service puts the category in the menu");
+
+  // Institution and logo: a category with either is an office of its own.
+  assert.equal(officesFor(await listCategories()).some((o) => o.code === "iecms" && o.name === "Rwanda Judiciary" && o.fromCategory), true);
+  const png = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==", "base64");
+  await d.update(s.categories).set({ markData: png.toString("base64"), markType: "image/png", markRev: 3 }).where(eq(s.categories.id, "iecms"));
+  assert.equal((await listCategories()).find((c) => c.id === "iecms")!.mark, markUrl("iecms", 3));
+  assert.deepEqual((await getCategoryMark("iecms"))?.bytes, png);
+  assert.equal(await getCategoryMark("tax"), null);
+
+  // Hiding a category takes its services and its office off the site, but not out of the console.
+  await d.update(s.categories).set({ visible: false }).where(eq(s.categories.id, "iecms"));
+  assert.equal((await ids()).includes("iecms"), false);
+  assert.equal((await ids(true)).includes("iecms"), true);
+  assert.equal((await listServices()).some((x) => x.slug === "judgment-copy"), false);
+  assert.equal((await getService("judgment-copy"))?.visible, false, "customers cannot start a request for it");
+  assert.equal((await listServices({ includeHidden: true })).find((x) => x.slug === "judgment-copy")?.visible, true, "the console still sees its own setting");
+  assert.equal(officesFor(await listCategories()).some((o) => o.code === "iecms"), false);
+
+  // The Kinyarwanda of a category is stored with it and read back over the shipped text.
+  const who = { name: "Diane", role: "Administrator" };
+  try {
+    await d.transaction((tx) => saveCategoryText(tx, who, "iecms", { name: "Inkiko nshya", institution: "" }));
+    await primeContent(true);
+    assert.equal(localizeCategory({ id: "iecms", icon: "c-court", name: "Courts / IECMS", short: "Courts", desc: "d", institution: "Rwanda Judiciary" }, "rw").name, "Inkiko nshya");
+    assert.equal(categoryRwNow("iecms").institution, "Urwego rw'Ubucamanza", "an empty text leaves the shipped Kinyarwanda");
+    await d.transaction((tx) => saveCategoryText(tx, who, "iecms", { name: "" }));
+    await primeContent(true);
+    assert.equal(categoryRwNow("iecms").name, "Inkiko / IECMS", "emptying it brings the shipped text back");
+  } finally {
+    await d.delete(s.content);
+    await d.delete(s.audit).where(sql`${s.audit.action} like '%Kinyarwanda text%'`);
+    await primeContent(true);
+    await d.update(s.categories).set({ visible: true, markData: null, markType: null, desc: "x" }).where(eq(s.categories.id, "iecms"));
+    await d.update(s.services).set({ visible: false }).where(eq(s.services.slug, "judgment-copy"));
+  }
+});
+
 console.log(process.exitCode ? "backend checks FAILED" : `backend checks ok (${passed})`);
 process.exit(process.exitCode ?? 0);

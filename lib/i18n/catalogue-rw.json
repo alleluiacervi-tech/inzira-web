@@ -2,7 +2,7 @@
   "categories": {
     "rdb": {
       "name": "RDB / Kwandikisha ubucuruzi",
-      "short": "RDB",
+      "short": "Kwandikisha ubucuruzi",
       "desc": "Kwandikisha, guhindura amakuru cyangwa gukurikirana iby'ubucuruzi bwawe cyangwa kompanyi yawe."
     },
     "tax": {
@@ -22,12 +22,12 @@
     },
     "rura": {
       "name": "RURA / Gutwara abantu n'ibintu",
-      "short": "RURA",
+      "short": "Gutwara abantu n'ibintu",
       "desc": "Uruhushya rwo gutwara abantu cyangwa ibicuruzwa ku binyabiziga."
     },
     "irembo": {
       "name": "Amahugurwa ya Irembo",
-      "short": "Irembo",
+      "short": "Amahugurwa ya Irembo",
       "desc": "Kwiga kwikoreshereza Irembo ubwawe — kuri interineti cyangwa ku biro byacu."
     },
     "other": {
@@ -44,6 +44,12 @@
       "name": "Ibyangombwa",
       "short": "Ibyangombwa",
       "desc": "Icyemezo cy'amavuko, cy'ishyingirwa n'ibindi, pasiporo n'indangamuntu isimbuwe. Turabysaba tukaguha inyandiko iyo isohotse."
+    },
+    "iecms": {
+      "name": "Inkiko / IECMS",
+      "short": "Inkiko",
+      "desc": "Gufungura konte ya IECMS, gutanga ikirego mu rukiko, no gusaba kopi y'urubanza cyangwa ikashe y'urukiko ruriho.",
+      "institution": "Urwego rw'Ubucamanza"
     }
   },
   "offices": {
@@ -2767,6 +2773,345 @@
         "Ikarita nshya n'indangamuntu y'agateganyo (iminsi 60)"
       ],
       "inPerson": "Ujya rimwe kuri RIB mbere y'uko ikarita ikorwa. Tukubwira aho n'igihe."
+    },
+    "iecms-account": {
+      "authority": "Urwego rw'Ubucamanza",
+      "channel": "IECMS",
+      "via": "Binyuze kuri IECMS · Urwego rw'Ubucamanza",
+      "steps": [
+        {
+          "title": "Utangira ubusabe",
+          "body": "Subiza ibibazo bike byoroshye. Bitwara nk'iminota 3 gusa."
+        },
+        {
+          "title": "Dusuzuma inyandiko zawe",
+          "body": "Umuhagarikizi wawe asuzuma ko byose byujuje ibyangombwa, ubusanzwe mu masaha 2 y'akazi."
+        },
+        {
+          "title": "Wemeza amafaranga yo kwishyura",
+          "body": "Ubona amafaranga y'urwego n'ay'ubufasha bwacu bitandukanye, hanyuma ukishyura ukoresheje MoMo cyangwa Airtel Money."
+        },
+        {
+          "title": "Tubyohereza kuri IECMS",
+          "body": "Tubyohereza binyuze mu nzira yemewe tukaguha numero y'ubusabe yo gukurikirana."
+        },
+        {
+          "title": "Urukiko rurabisuzuma",
+          "body": "Urwego rubisuzuma rukafata icyemezo. Iyo bitinze kurenza bisanzwe turabikurikirana."
+        },
+        {
+          "title": "Uhabwa igisubizo",
+          "body": "Ucyakira kuri konte yawe yo kuri Inzira no kuri WhatsApp, hamwe n'inyemezabwishyu z'urwego."
+        }
+      ],
+      "officialNote": "Ashyirwaho n'urukiko. Umuhagarikizi wawe akwemeza amafaranga nyayo mbere y'uko ugira icyo wishyura.",
+      "name": "Gufungura konte muri IECMS",
+      "aka": "Kwiyandikisha muri IECMS · konte yo gutanga ibirego mu rukiko",
+      "tagline": "Konte yawe yo gutanga no gukurikirana imanza kuri interineti.",
+      "summary": "IECMS ni uburyo bw'Urwego rw'Ubucamanza bwo gukurikirana imanza kuri interineti. Dusaba konte yawe dukoresheje amakuru yawe, ukabasha gutanga ibirego no gukurikirana imanza kuri interineti, tukakwereka uko winjira.",
+      "time": "Nk'iminsi 1–3 y'akazi",
+      "timeShort": "Iminsi 1–3",
+      "docsShort": "Indangamuntu, telefone, imeri",
+      "who": [
+        {
+          "title": "Abafite urubanza",
+          "body": "Bashaka gutanga cyangwa gukurikirana urubanza kuri interineti."
+        },
+        {
+          "title": "Ubucuruzi",
+          "body": "Bufite amakimbirane, imyenda cyangwa amasezerano mu rukiko."
+        },
+        {
+          "title": "Abavoka n'ababafasha",
+          "body": "Batanga ibirego mu izina ry'abakiriya."
+        }
+      ],
+      "requirements": [
+        "Numero y'indangamuntu yawe",
+        "Numero ya telefone na imeri bya konte"
+      ],
+      "documents": [
+        {
+          "name": "Kopi y'indangamuntu",
+          "detail": "Indangamuntu cyangwa pasiporo"
+        },
+        {
+          "name": "Icyemezo cy'uruhare rwawe",
+          "detail": "Ikarita y'avoka cyangwa ibaruwa ya sosiyete, niba konte ari iy'avoka cyangwa iy'ubucuruzi"
+        }
+      ],
+      "notes": [],
+      "purposeLabel": "Konte ni iya nde?",
+      "purposes": [
+        "Njyewe",
+        "Ubucuruzi bwanjye cyangwa umuryango wanjye",
+        "Avoka cyangwa ikigo cy'abavoka"
+      ]
+    },
+    "iecms-file-case": {
+      "authority": "Urwego rw'Ubucamanza",
+      "channel": "IECMS",
+      "via": "Binyuze kuri IECMS · Urwego rw'Ubucamanza",
+      "steps": [
+        {
+          "title": "Utangira ubusabe",
+          "body": "Subiza ibibazo bike byoroshye. Bitwara nk'iminota 3 gusa."
+        },
+        {
+          "title": "Dusuzuma inyandiko zawe",
+          "body": "Umuhagarikizi wawe asuzuma ko byose byujuje ibyangombwa, ubusanzwe mu masaha 2 y'akazi."
+        },
+        {
+          "title": "Wemeza amafaranga yo kwishyura",
+          "body": "Ubona amafaranga y'urwego n'ay'ubufasha bwacu bitandukanye, hanyuma ukishyura ukoresheje MoMo cyangwa Airtel Money."
+        },
+        {
+          "title": "Tubyohereza kuri IECMS",
+          "body": "Tubyohereza binyuze mu nzira yemewe tukaguha numero y'ubusabe yo gukurikirana."
+        },
+        {
+          "title": "Urukiko rurabisuzuma",
+          "body": "Urwego rubisuzuma rukafata icyemezo. Iyo bitinze kurenza bisanzwe turabikurikirana."
+        },
+        {
+          "title": "Uhabwa igisubizo",
+          "body": "Ucyakira kuri konte yawe yo kuri Inzira no kuri WhatsApp, hamwe n'inyemezabwishyu z'urwego."
+        }
+      ],
+      "officialNote": "Ashyirwaho n'urukiko. Umuhagarikizi wawe akwemeza amafaranga nyayo mbere y'uko ugira icyo wishyura.",
+      "name": "Gutanga ikirego mu rukiko",
+      "aka": "Gutanga ikirego · gutangiza urubanza",
+      "tagline": "Ikirego cyawe gitangirwa mu rukiko kuri IECMS.",
+      "summary": "Tangiza urubanza utanga ikirego cyawe kuri IECMS. Utwoherereza ikirego cyanditse n'inyandiko zawe; tuzishyiraho neza, tukakwishyurira amafaranga y'urukiko, tukakoherereza numero y'urubanza. Ntitugira inama z'amategeko kandi ntitukuhagararira mu rukiko.",
+      "time": "Nk'iminsi 2–5 y'akazi yo gutanga ikirego",
+      "timeShort": "Iminsi 2–5",
+      "docsShort": "Ikirego, ibimenyetso, indangamuntu",
+      "who": [
+        {
+          "title": "Abarimo umwenda cyangwa umutungo",
+          "body": "Bifuza ko urukiko rubifataho icyemezo."
+        },
+        {
+          "title": "Ubucuruzi",
+          "body": "Bufite fagitire zitishyuwe cyangwa amasezerano yishwe."
+        },
+        {
+          "title": "Imiryango n'abakozi",
+          "body": "Bafite amakimbirane mu muryango cyangwa mu kazi."
+        }
+      ],
+      "requirements": [
+        "Numero y'indangamuntu yawe, na konte ya IECMS (tuyifungura mbere nibiba ngombwa)",
+        "Ikirego cyawe cyanditse kandi gisinyweho",
+        "Izina n'aderesi by'uwo ikirego kigenewe, cyangwa sosiyete",
+        "Ibimenyetso byawe: amasezerano, inyemezabwishyu, amabaruwa cyangwa ubutumwa"
+      ],
+      "documents": [
+        {
+          "name": "Ikirego cyawe",
+          "detail": "Gisinyweho, kivuga ibyabaye n'ibyo usaba urukiko gufataho icyemezo"
+        },
+        {
+          "name": "Ibimenyetso",
+          "detail": "Amasezerano, inyemezabwishyu, amabaruwa cyangwa amafoto biwushyigikira"
+        },
+        {
+          "name": "Kopi y'indangamuntu",
+          "detail": "Indangamuntu cyangwa pasiporo"
+        },
+        {
+          "name": "Inyandiko y'ubuhagararizi",
+          "detail": "Gusa niba utanga ikirego mu izina ry'undi"
+        }
+      ],
+      "questions": [
+        {
+          "label": "Ikirego gitangirwa mu rukiko rwuhe?",
+          "hint": "Niba utabizi, andika akarere uwo ikirego kigenewe atuyemo",
+          "placeholder": "urugero: Urukiko Rwisumbuye rwa Nyarugenge"
+        },
+        {
+          "label": "Ikirego kigenewe nde?",
+          "placeholder": "Amazina yose cyangwa izina rya sosiyete"
+        }
+      ],
+      "notes": [
+        {
+          "title": "Turatanga. Ntitugira inama.",
+          "body": "Inzira si ikigo cy'amategeko kandi si urukiko. Niba utazi neza uburenganzira bwawe cyangwa urukiko rukwiriye, banza ubaze avoka. Dushyiraho ibyo uduhaye."
+        }
+      ],
+      "purposeLabel": "Urubanza ni uruhe rwego?",
+      "purposes": [
+        "Ikirego mu manza z'imbonezamubano",
+        "Urubanza rw'ubucuruzi",
+        "Urubanza rw'umurimo",
+        "Urubanza rw'umuryango",
+        "Ikindi"
+      ]
+    },
+    "judgment-copy": {
+      "authority": "Urwego rw'Ubucamanza",
+      "channel": "IECMS",
+      "via": "Binyuze kuri IECMS · Urwego rw'Ubucamanza",
+      "steps": [
+        {
+          "title": "Utangira ubusabe",
+          "body": "Subiza ibibazo bike byoroshye. Bitwara nk'iminota 3 gusa."
+        },
+        {
+          "title": "Dusuzuma inyandiko zawe",
+          "body": "Umuhagarikizi wawe asuzuma ko byose byujuje ibyangombwa, ubusanzwe mu masaha 2 y'akazi."
+        },
+        {
+          "title": "Wemeza amafaranga yo kwishyura",
+          "body": "Ubona amafaranga y'urwego n'ay'ubufasha bwacu bitandukanye, hanyuma ukishyura ukoresheje MoMo cyangwa Airtel Money."
+        },
+        {
+          "title": "Tubyohereza kuri IECMS",
+          "body": "Tubyohereza binyuze mu nzira yemewe tukaguha numero y'ubusabe yo gukurikirana."
+        },
+        {
+          "title": "Urukiko rurabisuzuma",
+          "body": "Urwego rubisuzuma rukafata icyemezo. Iyo bitinze kurenza bisanzwe turabikurikirana."
+        },
+        {
+          "title": "Uhabwa igisubizo",
+          "body": "Ucyakira kuri konte yawe yo kuri Inzira no kuri WhatsApp, hamwe n'inyemezabwishyu z'urwego."
+        }
+      ],
+      "officialNote": "Ashyirwaho n'urukiko. Umuhagarikizi wawe akwemeza amafaranga nyayo mbere y'uko ugira icyo wishyura.",
+      "name": "Gusaba kopi y'urubanza",
+      "aka": "Kopi y'icyemezo cy'urukiko · kopi y'idosiye y'urubanza",
+      "tagline": "Kopi y'urubanza rwawe, yoherezwa kuri konte yawe.",
+      "summary": "Saba urukiko kopi y'urubanza. Duhe numero y'urubanza n'urukiko; dusaba kopi kuri IECMS tukayikohereza kuri konte yawe urukiko rukimara kuyitanga.",
+      "time": "Nk'iminsi 3–7 y'akazi",
+      "timeShort": "Iminsi 3–7",
+      "docsShort": "Numero y'urubanza, urukiko, indangamuntu",
+      "who": [
+        {
+          "title": "Abatsinze cyangwa abatsinzwe",
+          "body": "Bakeneye icyemezo cyanditse."
+        },
+        {
+          "title": "Amabanki n'ibiro",
+          "body": "Byasabye urubanza."
+        },
+        {
+          "title": "Abavoka",
+          "body": "Bakeneye kopi mu idosiye yabo."
+        }
+      ],
+      "requirements": [
+        "Numero y'urubanza n'urukiko rwarufashe",
+        "Amazina y'abari mu rubanza"
+      ],
+      "documents": [
+        {
+          "name": "Kopi y'indangamuntu",
+          "detail": "Indangamuntu cyangwa pasiporo"
+        },
+        {
+          "name": "Uruhushya",
+          "detail": "Gusa niba utari mu rubanza"
+        }
+      ],
+      "questions": [
+        {
+          "label": "Numero y'urubanza",
+          "hint": "Nk'uko yanditse ku rubanza",
+          "placeholder": "urugero: RC 00123/2025/TGI/NYGE"
+        },
+        {
+          "label": "Urukiko rwafashe urubanza",
+          "placeholder": "urugero: Urukiko Rwisumbuye rwa Nyarugenge"
+        }
+      ],
+      "notes": []
+    },
+    "cachet-mpuruza": {
+      "authority": "Urwego rw'Ubucamanza",
+      "channel": "IECMS",
+      "via": "Binyuze kuri IECMS · Urwego rw'Ubucamanza",
+      "steps": [
+        {
+          "title": "Utangira ubusabe",
+          "body": "Subiza ibibazo bike byoroshye. Bitwara nk'iminota 3 gusa."
+        },
+        {
+          "title": "Dusuzuma inyandiko zawe",
+          "body": "Umuhagarikizi wawe asuzuma ko byose byujuje ibyangombwa, ubusanzwe mu masaha 2 y'akazi."
+        },
+        {
+          "title": "Wemeza amafaranga yo kwishyura",
+          "body": "Ubona amafaranga y'urwego n'ay'ubufasha bwacu bitandukanye, hanyuma ukishyura ukoresheje MoMo cyangwa Airtel Money."
+        },
+        {
+          "title": "Tubyohereza kuri IECMS",
+          "body": "Tubyohereza binyuze mu nzira yemewe tukaguha numero y'ubusabe yo gukurikirana."
+        },
+        {
+          "title": "Urukiko rurabisuzuma",
+          "body": "Urwego rubisuzuma rukafata icyemezo. Iyo bitinze kurenza bisanzwe turabikurikirana."
+        },
+        {
+          "title": "Uhabwa igisubizo",
+          "body": "Ucyakira kuri konte yawe yo kuri Inzira no kuri WhatsApp, hamwe n'inyemezabwishyu z'urwego."
+        }
+      ],
+      "officialNote": "Ashyirwaho n'urukiko. Umuhagarikizi wawe akwemeza amafaranga nyayo mbere y'uko ugira icyo wishyura.",
+      "name": "Gusaba cachet mpuruza ku rubanza",
+      "aka": "Cachet mpuruza · ikashe ituma urubanza rushyirwa mu bikorwa",
+      "tagline": "Ikashe y'urukiko ituma urubanza rushyirwa mu bikorwa.",
+      "summary": "Urubanza rushyirwa mu bikorwa iyo urukiko rurushyizeho ikashe mpuruza (cachet mpuruza). Tuyisaba kuri IECMS tukakohereza kopi iriho ikashe.",
+      "time": "Nk'iminsi 3–7 y'akazi",
+      "timeShort": "Iminsi 3–7",
+      "docsShort": "Numero y'urubanza, urukiko, urubanza",
+      "who": [
+        {
+          "title": "Abatsinze urubanza",
+          "body": "Bashaka ko rushyirwa mu bikorwa."
+        },
+        {
+          "title": "Abafitiwe imyenda",
+          "body": "Bakeneye kwishyuza umwenda."
+        },
+        {
+          "title": "Abavoka",
+          "body": "Bahagarariye uwatsinze."
+        }
+      ],
+      "requirements": [
+        "Numero y'urubanza n'urukiko rwarufashe",
+        "Kopi y'urubanza"
+      ],
+      "documents": [
+        {
+          "name": "Urubanza",
+          "detail": "Kopi, cyangwa numero yarwo"
+        },
+        {
+          "name": "Kopi y'indangamuntu",
+          "detail": "Indangamuntu cyangwa pasiporo"
+        }
+      ],
+      "questions": [
+        {
+          "label": "Numero y'urubanza",
+          "hint": "Nk'uko yanditse ku rubanza",
+          "placeholder": "urugero: RC 00123/2025/TGI/NYGE"
+        },
+        {
+          "label": "Urukiko rwafashe urubanza",
+          "placeholder": "urugero: Urukiko Rwisumbuye rwa Nyarugenge"
+        }
+      ],
+      "notes": [
+        {
+          "title": "Turasaba. Urukiko ni rwo rufata icyemezo.",
+          "body": "Inzira si urukiko. Urukiko ni rwo rufata icyemezo cyo gushyira ikashe ku rubanza, kandi umuhagarikizi wawe akubwira niba hari ikindi gikenewe."
+        }
+      ]
     }
   },
   "units": {

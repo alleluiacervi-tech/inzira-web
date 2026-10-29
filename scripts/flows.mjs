@@ -577,6 +577,28 @@ await step("admin", async () => {
   await p.go("/admin/content/ui/about"); await waitFor(p, "Find in this list");
   await p.click("Use original", "button"); await p.click("Save changes", "button"); await waitFor(p, "Saved 1 text");
   check("kinyarwanda text: using the original takes the edit away", !(await (await fetch(base + "/about")).text()).includes("byahinduwe mu igerageza"));
+  // Categories: the owner adds one with an icon and an institution, and it stays off the site until a service in it is shown.
+  await p.go("/admin/categories");
+  check("categories: the list has the Courts category, waiting for a visible service", await p.has("Courts / IECMS") && await p.has("No visible service yet"));
+  await p.click("New category", "button"); await sleep(400);
+  await p.set("#c1", "Health tests"); await p.set("#c2", "Health"); await p.set("#c3", "Medical tests and certificates."); await p.set("#c4", "Ministry of Health");
+  await p.click("Health", "button");
+  check("categories: the icon picker marks the chosen icon", (await p.ev(`[...document.querySelectorAll("[aria-pressed=true]")].some((b) => b.textContent.trim() === "Health")`)) === true);
+  await p.click("Kinyarwanda", "button"); await waitUntil(p, `!!document.querySelector("#rw-name")`);
+  await p.set("#rw-name", "Ibizamini by'ubuzima"); await p.set("#rw-short", "Ubuzima");
+  await p.click("Save changes", "button"); await waitFor(p, "Health tests added");
+  check("categories: the new category is listed with its institution", await p.has("Ministry of Health"));
+  check("categories: it is not on the public site while it has no visible service", !(await (await fetch(base + "/services", { headers: { cookie: "inzira_lang=en" } })).text()).includes("Health tests"));
+  await p.go("/admin/services?category=health&new=1"); await waitUntil(p, `!!document.querySelector("#e2")`);
+  check("categories: “Add a service” opens a new service in that category", (await p.ev(`document.querySelector("#e2").value`)) === "health");
+  await p.go("/admin/categories");
+  const editFirst = await p.ev(`[...document.querySelectorAll("li.card")].findIndex((li) => li.textContent.includes("Health tests"))`);
+  await p.ev(`document.querySelectorAll("li.card")[${editFirst}].querySelector("button.btn-s").click()`); await sleep(500);
+  await p.ev(`window.confirm = () => true`);
+  await p.click("Delete", "button"); await waitFor(p, "Health tests was deleted");
+  check("categories: a category with no services can be deleted", !(await p.has("Ministry of Health")));
+  await p.go("/admin/audit");
+  check("categories: adding and deleting are in the audit log", await p.has("Added category") && await p.has("Deleted category"));
   await p.go("/admin/payments");
   await p.click("Refund"); await sleep(400);
   check("refund: dialog explains only our fee is refunded", await p.has("Only our assistance fee"));

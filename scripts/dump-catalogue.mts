@@ -34,7 +34,7 @@ for (const s of SERVICES) {
 }
 
 const out = {
-  categories: Object.fromEntries(CATEGORIES.map((c) => [c.id, { name: c.name, short: c.short, desc: c.desc }])),
+  categories: Object.fromEntries(CATEGORIES.map((c) => [c.id, { name: c.name, short: c.short, desc: c.desc, ...(c.institution ? { institution: c.institution } : {}) }])),
   offices: Object.fromEntries(OFFICES.map((o) => [o.code, { name: o.name, area: o.area, does: o.does }])),
   services,
   units: {

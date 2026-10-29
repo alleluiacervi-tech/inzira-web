@@ -1,6 +1,6 @@
 // Fills an empty database with the catalogue and the sample customers, staff and requests from
 // lib/mock. Used automatically for the development database, or with `npm run db:seed`.
-import { and, eq, inArray, sql } from "drizzle-orm";
+import { and, asc, eq, inArray, sql } from "drizzle-orm";
 import { idPolicyOf } from "../identity";
 import { horizon, kigaliToday, periodsBetween, type PayRoute, type TaxKind } from "../tax-calendar";
 import { CATEGORIES, SERVICES } from "../mock/catalogue";
@@ -53,9 +53,16 @@ export async function ensureCatalogue(database: Db) {
     database.select({ slug: s.services.slug }).from(s.services),
   ]);
   const haveCats = new Set(cats.map((c) => c.id));
-  const missingCats = CATEGORIES.map((c, i) => ({ ...c, position: i })).filter((c) => !haveCats.has(c.id));
-  if (missingCats.length) await database.insert(s.categories).values(missingCats).onConflictDoNothing();
-  await Promise.all(CATEGORIES.map((c, i) => database.update(s.categories).set({ position: i, desc: c.desc }).where(eq(s.categories.id, c.id))));
+  const missingCats = CATEGORIES.filter((c) => !haveCats.has(c.id));
+  if (missingCats.length) {
+    // The administrator owns the categories once they exist: their wording, icon, logo and order are never reset here.
+    // A category added in a later release goes in before the catch-all ("other") and the order is numbered again, once.
+    const order = (await database.select({ id: s.categories.id }).from(s.categories).orderBy(asc(s.categories.position), asc(s.categories.id))).map((c) => c.id);
+    const at = order.indexOf("other");
+    order.splice(at < 0 ? order.length : at, 0, ...missingCats.map((c) => c.id));
+    await database.insert(s.categories).values(missingCats.map((c) => ({ ...c, position: order.indexOf(c.id) }))).onConflictDoNothing();
+    await Promise.all(order.map((id, i) => database.update(s.categories).set({ position: i }).where(eq(s.categories.id, id))));
+  }
   const have = new Set(rows.map((r) => r.slug));
   const missing = SERVICES.map((v, i) => serviceRow(v, i)).filter((v) => !have.has(v.slug));
   if (missing.length) await database.insert(s.services).values(missing).onConflictDoNothing();

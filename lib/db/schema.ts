@@ -16,6 +16,17 @@ export const categories = pgTable("categories", {
   desc: text("desc").notNull(),
   href: text("href"),
   position: integer("position").notNull().default(0),
+  /** A hidden category is off the public site (menu, home page, catalogue) and its services with it. */
+  visible: boolean("visible").notNull().default(true),
+  /** Shown as a card on the home page. The others are linked on the line under the cards. */
+  featured: boolean("featured").notNull().default(false),
+  /** The institution the category's services are filed with (lib/institutions.ts), for categories that are not one of the built-in offices. */
+  institution: text("institution"),
+  /** The institution's logo, uploaded in the console: base64 of a small PNG, JPEG or WebP. Served by app/brand/[id]. */
+  markData: text("mark_data"),
+  markType: text("mark_type"),
+  /** Changes with every upload, so a browser fetches the new logo. */
+  markRev: integer("mark_rev").notNull().default(0),
 });
 
 export const services = pgTable("services", {

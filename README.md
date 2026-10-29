@@ -288,6 +288,22 @@ by every server action.
   lays the rows over the files, on the server and in the browser. A service added in the console has no
   shipped Kinyarwanda: its lines are written the same way. English text for a new service is still edited under
   Admin › Services.
+- **Categories and institutions.** **Admin › Categories** (permission "edit services") manages the groups of services: name,
+  short name (the menu and card label), description, icon (a set of 18), the institution the services are filed with and its
+  logo, a Kinyarwanda tab, whether it is shown, whether it is a card on the home page, and its order. The menu, the home page,
+  the filing rail and the services list all read them from the `categories` table. A category with no visible service is not
+  on the public site. The logo is a PNG, JPEG or WebP under 200 KB (the browser shrinks it), kept in the table and served
+  from `/brand/<id>`; SVG is refused because it can carry scripts. The built-in offices (RDB, RRA, NLA, RURA, RNP, Irembo)
+  stay in `lib/institutions.ts`; a category an administrator adds is its own office. The shipped categories can be edited and
+  hidden but not deleted; after the first start the seed never changes a category's text, icon or order again.
+- **Categories and institutions.** **Admin › Categories** (permission "edit services") manages the groups of services: name,
+  short name (the menu and card label), description, icon (a set of 18), the institution the services are filed with and its
+  logo, a Kinyarwanda tab, whether it is shown, whether it is a card on the home page, and its order. The menu, the home page,
+  the filing rail and the services list all read them from the `categories` table. A category with no visible service is not
+  on the public site. The logo is a PNG, JPEG or WebP under 200 KB (the browser shrinks it), kept in the table and served
+  from `/brand/<id>`; SVG is refused because it can carry scripts. The built-in offices (RDB, RRA, NLA, RURA, RNP, Irembo)
+  stay in `lib/institutions.ts`; a category an administrator adds is its own office. The shipped categories can be edited and
+  hidden but not deleted; after the first start the seed never changes a category's text, icon or order again.
 - **Services in both languages.** The service editor in Admin › Services has a **Kinyarwanda** tab beside the English
   details: every line of the service (name, summary, requirements, documents, steps, who it is for, notes, questions) with
   the English above a box for the Kinyarwanda. It is saved with the service in one transaction, so a new service goes live

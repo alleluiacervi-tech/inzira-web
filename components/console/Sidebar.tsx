@@ -67,6 +67,7 @@ export function Sidebar({
       group: "Catalogue",
       items: [
         { label: "Services", href: "/admin/services", icon: "grid", permission: "editServices", matchPrefix: "/admin/services" },
+        { label: "Categories", href: "/admin/categories", icon: "bookmark", permission: "editServices", matchPrefix: "/admin/categories" },
         { label: "Kinyarwanda text", href: "/admin/content", icon: "globe", permission: "editContent", matchPrefix: "/admin/content" },
       ],
     },
