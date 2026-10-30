@@ -1,5 +1,7 @@
 "use client";
-import { useMemo, useState, type ReactNode } from "react";
+import { useCallback, useId, useMemo, useState, type ReactNode } from "react";
+import { useDialog } from "@/components/useDialog";
+import { csvCell } from "@/lib/csv";
 import { Icon } from "@/components/ui";
 import type { SavedView } from "@/lib/types";
 
@@ -77,13 +79,18 @@ export function DataTable<T extends { id?: string; ref?: string }>({
   const [colChooserOpen, setColChooserOpen] = useState(false);
   const [saveViewOpen, setSaveViewOpen] = useState(false);
   const [newViewName, setNewViewName] = useState("");
+  const [viewSaving, setViewSaving] = useState(false);
+  const [viewError, setViewError] = useState("");
+  const viewNameId = useId();
+  const viewDialog = useDialog<HTMLDivElement>(saveViewOpen, () => { if (!viewSaving) setSaveViewOpen(false); });
   const [pickedView, setPickedView] = useState("");
 
   const [visibleCols, setVisibleCols] = useState<Set<string>>(
     new Set(columns.filter((c) => c.defaultVisible !== false).map((c) => c.id))
   );
 
-  const getRowId = (row: T, idx: number) => row.id || row.ref || String(idx);
+  const rowIndices = useMemo(() => new Map(data.map((row, index) => [row, index])), [data]);
+  const getRowId = useCallback((row: T, _idx: number) => row.id || row.ref || String(rowIndices.get(row)), [rowIndices]);
 
   // Filter & Search
   const filteredData = useMemo(() => {
@@ -171,17 +178,17 @@ export function DataTable<T extends { id?: string; ref?: string }>({
 
   const selectedRowObjects = useMemo(() => {
     return data.filter((r, i) => selectedIds.has(getRowId(r, i)));
-  }, [data, selectedIds]);
+  }, [data, selectedIds, getRowId]);
 
   // CSV Export
   const exportCsv = () => {
     const activeColumns = columns.filter((c) => visibleCols.has(c.id));
-    const headerRow = activeColumns.map((c) => `"${c.header.replace(/"/g, '""')}"`).join(",");
+    const headerRow = activeColumns.map((c) => csvCell(c.header)).join(",");
     const rows = sortedData.map((r) => {
       return activeColumns
         .map((c) => {
           const val = c.accessor ? c.accessor(r) : (r as any)[c.id];
-          return `"${String(val ?? "").replace(/"/g, '""')}"`;
+          return csvCell(val);
         })
         .join(",");
     });
@@ -194,6 +201,7 @@ export function DataTable<T extends { id?: string; ref?: string }>({
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+    URL.revokeObjectURL(url);
   };
 
   const displayedColumns = columns.filter((c) => visibleCols.has(c.id));
@@ -207,6 +215,7 @@ export function DataTable<T extends { id?: string; ref?: string }>({
             <select
               className="console-select"
               style={{ fontSize: 13, height: 34 }}
+              aria-label="Saved view"
               key={savedViews.map((sv) => sv.id).join("|")}
               onChange={(e) => {
                 setPickedView(e.target.value);
@@ -241,13 +250,14 @@ export function DataTable<T extends { id?: string; ref?: string }>({
           )}
 
           <div
-            className="row g8 console-panel"
+            className="row g8 console-panel c-table-search"
             style={{ padding: "0 10px", height: 34, width: 240, maxWidth: "100%", background: "var(--c-surface)" }}
           >
             <Icon name="search" size={15} color="var(--c-text-subtle)" />
             <input
               value={q}
               onChange={(e) => { setQ(e.target.value); setPage(1); }}
+              aria-label={searchPlaceholder}
               placeholder={searchPlaceholder}
               style={{ border: 0, outline: 0, fontSize: 13, width: "100%", background: "transparent" }}
             />
@@ -267,6 +277,7 @@ export function DataTable<T extends { id?: string; ref?: string }>({
               key={f.id}
               className="console-select"
               style={{ fontSize: 13, height: 34 }}
+              aria-label={f.label}
               value={activeFilters[f.id] || "all"}
               onChange={(e) => {
                 setActiveFilters({ ...activeFilters, [f.id]: e.target.value });
@@ -385,7 +396,7 @@ export function DataTable<T extends { id?: string; ref?: string }>({
             <button
               type="button"
               className="c-btn c-btn-ghost c-btn-sm"
-              onClick={() => setSaveViewOpen(true)}
+              onClick={() => { setViewError(""); setSaveViewOpen(true); }}
               title="Save this view"
             >
               <Icon name="bookmark" size={14} />
@@ -442,6 +453,10 @@ export function DataTable<T extends { id?: string; ref?: string }>({
                 return (
                   <th
                     key={col.id}
+                    scope="col"
+                    aria-sort={isSorted ? (sortDir === "asc" ? "ascending" : "descending") : undefined}
+                    tabIndex={col.sortable !== false ? 0 : undefined}
+                    onKeyDown={(e) => { if (col.sortable !== false && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); e.currentTarget.click(); } }}
                     className={col.align === "right" ? "num" : ""}
                     style={{
                       width: col.width,
@@ -484,6 +499,8 @@ export function DataTable<T extends { id?: string; ref?: string }>({
               return (
                 <tr
                   key={rowId}
+                  tabIndex={onRowClick ? 0 : undefined}
+                  onKeyDown={(e) => { if (e.target === e.currentTarget && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); onRowClick?.(row); } }}
                   onClick={() => onRowClick?.(row)}
                   style={{
                     cursor: onRowClick ? "pointer" : "default",
@@ -603,12 +620,24 @@ export function DataTable<T extends { id?: string; ref?: string }>({
 
       {/* Save View Modal */}
       {saveViewOpen && onSaveCurrentView && (
-        <div className="console-dialog-overlay" onClick={() => setSaveViewOpen(false)}>
-          <div className="console-dialog stack g14" onClick={(e) => e.stopPropagation()} style={{ padding: 18 }}>
+        <div ref={viewDialog} className="console-dialog-overlay" role="dialog" aria-modal="true" aria-label="Save current view" onClick={() => { if (!viewSaving) setSaveViewOpen(false); }}>
+          <form className="console-dialog stack g14" onClick={(e) => e.stopPropagation()} style={{ padding: 18 }} onSubmit={async (e) => {
+            e.preventDefault();
+            if (!newViewName.trim() || viewSaving) return;
+            setViewSaving(true); setViewError("");
+            try {
+              await onSaveCurrentView(newViewName.trim(), activeFilters, Array.from(visibleCols));
+              setSaveViewOpen(false); setNewViewName("");
+            } catch (error) {
+              setViewError(error instanceof Error ? error.message : "The view could not be saved. Try again.");
+            } finally { setViewSaving(false); }
+          }}>
             <h3 style={{ fontSize: 16, fontWeight: 600, margin: 0 }}>Save current view</h3>
             <div className="console-form-group">
-              <label className="console-label">View name</label>
+              <label className="console-label" htmlFor={viewNameId}>View name</label>
               <input
+                id={viewNameId}
+                disabled={viewSaving}
                 className="console-input"
                 value={newViewName}
                 onChange={(e) => setNewViewName(e.target.value)}
@@ -616,28 +645,25 @@ export function DataTable<T extends { id?: string; ref?: string }>({
                 autoFocus
               />
             </div>
+            {viewError && <p className="err-text" role="alert">{viewError}</p>}
             <div className="row g8" style={{ justifyContent: "flex-end" }}>
               <button
                 type="button"
                 className="c-btn c-btn-secondary"
+                disabled={viewSaving}
                 onClick={() => setSaveViewOpen(false)}
               >
                 Cancel
               </button>
               <button
-                type="button"
+                type="submit"
                 className="c-btn c-btn-primary"
-                disabled={!newViewName.trim()}
-                onClick={async () => {
-                  await onSaveCurrentView(newViewName.trim(), activeFilters, Array.from(visibleCols));
-                  setSaveViewOpen(false);
-                  setNewViewName("");
-                }}
+                disabled={!newViewName.trim() || viewSaving}
               >
-                Save view
+                {viewSaving ? "Saving…" : "Save view"}
               </button>
             </div>
-          </div>
+          </form>
         </div>
       )}
     </div>

@@ -269,7 +269,7 @@ export function RequestRow({ r }: { r: CustomerRequest }) {
 
 /** Stacked bars: our fees (ember) over official pass-through (grey). Values in RWF thousands. */
 export function FeeBars({ data, height = 160 }: { data: { label: string; official: number; ours: number }[]; height?: number }) {
-  const max = Math.max(...data.map((d) => d.official + d.ours));
+  const max = Math.max(1, ...data.map((d) => d.official + d.ours));
   return (
     <figure className="stack g14">
       <div className="row g16 wrapx" style={{ fontSize: 12.5 }}>

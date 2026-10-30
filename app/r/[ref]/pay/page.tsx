@@ -1,3 +1,4 @@
+import { paymentExperience } from "@/lib/payments";
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import PayScreen from "@/components/PayScreen";
@@ -37,7 +38,7 @@ export default async function LinkedPayPage({ params }: { params: Promise<{ ref:
       <main id="main" className="wrap rq-pay">
         <div className="stack g18 pay-page">
           {checkout && <Steps names={steps} current={2} label={t("start.stepLabel", { n: 3, total: 3, name: steps[2] })} caption={`${t("start.stepOf", { n: 3, total: 3 })} · ${steps[2]}`} />}
-          <PayScreen reqRef={r.ref} billing={r.billing} phone={r.account.phone} serviceName={r.service.name} contact={r.account.email ?? r.account.phone}
+          <PayScreen experience={paymentExperience()} reqRef={r.ref} billing={r.billing} phone={r.account.phone} serviceName={r.service.name} contact={r.account.email ?? r.account.phone}
             checkout={checkout} waiting={waiting ?? undefined} base={`/r/${r.ref}`} />
         </div>
       </main>

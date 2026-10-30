@@ -17,7 +17,8 @@ export default function PublicNav() {
   const [open, setOpen] = useState(false);
   const [menu, setMenu] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
-  const busy = path.startsWith("/start") || path.startsWith("/sign-in") || path.startsWith("/track");
+  const bare = barePath(path);
+  const busy = bare.startsWith("/start") || bare.startsWith("/sign-in") || bare.startsWith("/track");
   useEffect(() => { setOpen(false); setMenu(false); }, [path]);
   const dialog = useDialog<HTMLDivElement>(open, () => setOpen(false));
 
@@ -36,7 +37,6 @@ export default function PublicNav() {
     { href: "/#help", label: t("nav.help") },
     { href: "/track", label: t("nav.track") },
   ];
-  const bare = barePath(path);
   const onServices = bare === "/services" || bare.startsWith("/services/");
 
   return (
@@ -46,7 +46,7 @@ export default function PublicNav() {
         <div className="row" style={{ gap: 40 }}>
           <Logo label={t("shell.logo")} href={withLocale(locale, "/")} />
           <nav aria-label={t("nav.main")} className="pubnav-links">
-            <div className="svcmenu" ref={menuRef}>
+            <div className="svcmenu" ref={menuRef} onBlur={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setMenu(false); }}>
               <button type="button" className="pub pub-btn" aria-expanded={menu} aria-controls="svc-panel" aria-current={onServices ? "page" : undefined} onClick={() => setMenu(!menu)}>
                 {t("nav.services")}<Icon name="down" size={16} stroke={2.2} />
               </button>
@@ -87,7 +87,7 @@ export default function PublicNav() {
             <button className="btn btn-g btn-ico" type="button" aria-label={t("nav.closeMenu")} onClick={() => setOpen(false)}><Icon name="x" size={24} /></button>
           </div>
           <div className="mobmenu-body">
-            <form className="mobmenu-search" role="search" action="/services" method="get">
+            <form className="mobmenu-search" role="search" action={withLocale(locale, "/services")} method="get">
               <Icon name="search" size={20} />
               <label htmlFor="mm-q" className="sr-only">{t("home.searchLabel")}</label>
               <input id="mm-q" name="q" type="search" placeholder={t("home.searchLabel")} autoComplete="off" enterKeyHint="search" />

@@ -1,6 +1,6 @@
 "use client";
 import Link from "next/link";
-import { useMemo, useState, useTransition } from "react";
+import { useCallback, useMemo, useState, useTransition } from "react";
 import { bulkAssignRequests, bulkMessageRequests, deleteSavedView, saveSavedView } from "@/app/actions/console";
 import { Icon } from "@/components/ui";
 import { fmtAgo, fmtDay, fmtWhen, initials, rwf, shortName } from "@/lib/format";
@@ -40,7 +40,9 @@ export function RequestsListView({
 }) {
   const [viewMode, setViewMode] = useState<"table" | "board">("table");
   const [selectedReq, setSelectedReq] = useState<RequestView | null>(null);
-  const [toast, setToast] = useState("");
+  const [toast, setToastState] = useState("");
+  const [toastType, setToastType] = useState<"ok" | "err">("ok");
+  const setToast = useCallback((message: string, type: "ok" | "err" = "ok") => { setToastState(message); setToastType(type); }, []);
   const [busy, start] = useTransition();
 
   // Bulk actions state
@@ -51,14 +53,18 @@ export function RequestsListView({
   const [clearSelectionFn, setClearSelectionFn] = useState<(() => void) | null>(null);
 
   // Copy helper
-  const copyToClipboard = (text: string, e: React.MouseEvent) => {
+  const copyToClipboard = useCallback(async (text: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    navigator.clipboard.writeText(text);
-    setToast(`Copied ${text}`);
-  };
+    try {
+      await navigator.clipboard.writeText(text);
+      setToast(`Copied ${text}`);
+    } catch {
+      setToast("Could not copy. Select the reference and copy it manually.", "err");
+    }
+  }, [setToast]);
 
   // Helper calculations for row
-  const calcMetrics = (r: RequestView) => {
+  const calcMetrics = useCallback((r: RequestView) => {
     const ageDays = Math.max(0, Math.floor((Date.parse(now) - Date.parse(r.openedAt)) / (864e5)));
     const stageEntered = r.stageDates[r.stage] ?? r.openedAt;
     const stageDays = Math.max(0, Math.floor((Date.parse(now) - Date.parse(stageEntered)) / (864e5)));
@@ -67,7 +73,7 @@ export function RequestsListView({
     const isSlaBreached = isOpen(r) && targetHours > 0 && stageHours > targetHours;
 
     return { ageDays, stageDays, stageHours, isSlaBreached };
-  };
+  }, [now, stageTargets]);
 
   // DataTable Columns
   const columns: ColumnDef<RequestView>[] = useMemo(() => [
@@ -198,7 +204,7 @@ export function RequestsListView({
       align: "right",
       defaultVisible: false,
     },
-  ], [categories, now, stageTargets]);
+  ], [categories, now, calcMetrics, copyToClipboard]);
 
   // Filters Definitions
   const filtersDef: FilterDef<RequestView>[] = useMemo(() => [
@@ -331,7 +337,8 @@ export function RequestsListView({
   const handleBulkAssign = (agentId: string) => {
     start(async () => {
       const refs = selectedForBulk.map((r) => r.ref);
-      const res = await bulkAssignRequests(refs, agentId || null);
+      const res = await bulkAssignRequests(refs, agentId || null).catch(() => ({ ok: false as const, error: "Assignment could not be confirmed. Refresh the list before trying again." }));
+      if (!res.ok) { setToast(res.error ?? "Could not assign requests.", "err"); return; }
       if (res.ok) {
         setBulkAssignOpen(false);
         clearSelectionFn?.();
@@ -343,7 +350,8 @@ export function RequestsListView({
   const handleBulkMessage = (body: string) => {
     start(async () => {
       const refs = selectedForBulk.map((r) => r.ref);
-      const res = await bulkMessageRequests(refs, body);
+      const res = await bulkMessageRequests(refs, body).catch(() => ({ ok: false as const, error: "Messages could not be confirmed. Check the request timelines before trying again." }));
+      if (!res.ok) { setToast(res.error ?? "Could not send messages.", "err"); return; }
       if (res.ok) {
         setBulkMessageOpen(false);
         clearSelectionFn?.();
@@ -420,15 +428,14 @@ export function RequestsListView({
             </>
           )}
           onSaveCurrentView={async (name, filters, cols) => {
-            const res = await saveSavedView({ entity: "requests", name, filters, columns: cols });
-            if (res.ok) {
-              setToast(`Saved view “${name}”`);
-            }
+            const res = await saveSavedView({ entity: "requests", name, filters, columns: cols }).catch(() => ({ ok: false as const, error: "The view could not be saved. Check your connection and try again." }));
+            if (!res.ok) throw new Error(res.error ?? "The view could not be saved. Try again.");
+            setToast(`Saved view “${name}”`);
           }}
           canDeleteSavedView={(view) => (view.staffId ? view.staffId === viewerId : canManageViews)}
           onDeleteSavedView={async (id) => {
-            const res = await deleteSavedView(id);
-            setToast(res.ok ? "Saved view deleted" : res.error ?? "Could not delete that view");
+            const res = await deleteSavedView(id).catch(() => ({ ok: false as const, error: "Could not delete that view. Check your connection and try again." }));
+            setToast(res.ok ? "Saved view deleted" : res.error ?? "Could not delete that view", res.ok ? "ok" : "err");
           }}
         />
       ) : (
@@ -611,7 +618,7 @@ export function RequestsListView({
         busy={busy}
       />
 
-      {toast && <Toast message={toast} onDismiss={() => setToast("")} />}
+      {toast && <Toast message={toast} type={toastType} onDismiss={() => setToast("")} />}
     </div>
   );
 }

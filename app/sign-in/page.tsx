@@ -1,3 +1,4 @@
+import Image from "next/image";
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import PublicNav from "@/components/PublicNav";
@@ -25,11 +26,11 @@ export default async function SignInPage({ searchParams }: { searchParams: Promi
       <PublicNav />
       <main id="main" className="wrap auth-main auth-split">
         <div className="auth-card">
-          <span className="auth-mark" aria-hidden="true"><img src="/illustrations/document-ready.svg" alt="" width={466} height={757} decoding="async" /></span>
+          <span className="auth-mark" aria-hidden="true"><Image src="/illustrations/document-ready.svg" alt="" width={466} height={757} decoding="async" /></span>
           <SignIn next={back ?? undefined} demo={{ email: showsEmailCodeOnScreen(), phone: showsCodeOnScreen() }} />
         </div>
         <aside className="auth-art" aria-hidden="true">
-          <span className="auth-art-frame"><img src="/illustrations/document-ready.svg" alt="" width={466} height={757} decoding="async" /></span>
+          <span className="auth-art-frame"><Image src="/illustrations/document-ready.svg" alt="" width={466} height={757} decoding="async" /></span>
           <p>{text(locale, "signIn.aside")}</p>
         </aside>
       </main>

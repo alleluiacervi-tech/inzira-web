@@ -7,6 +7,8 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 // Next.js inlines small scripts without nonces, so inline scripts are allowed; nothing from other
 // domains is. Vercel preview deployments also load the Vercel toolbar.
 const dev = process.env.NODE_ENV !== "production";
+// An explicitly built demo may run on local HTTP. Real production builds retain HTTPS upgrades and HSTS.
+const secureTransport = !dev && process.env.INZIRA_DEMO !== "1";
 const preview = process.env.VERCEL_ENV === "preview";
 const turnstile = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY ? " https://challenges.cloudflare.com" : "";
 const csp = [
@@ -21,7 +23,7 @@ const csp = [
   "object-src 'none'",
   "base-uri 'self'",
   "form-action 'self'",
-  ...(dev ? [] : ["upgrade-insecure-requests"]),
+  ...(secureTransport ? ["upgrade-insecure-requests"] : []),
 ].join("; ");
 
 // Public pages that read nothing about the visitor (lib/seo.ts isSharedPage) are kept by Vercel's CDN for
@@ -75,7 +77,7 @@ const nextConfig = {
         { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
         // The camera is used to photograph documents; nothing else is needed.
         { key: "Permissions-Policy", value: "camera=(self), microphone=(), geolocation=(), payment=()" },
-        ...(process.env.NODE_ENV === "production" ? [{ key: "Strict-Transport-Security", value: "max-age=31536000; includeSubDomains" }] : []),
+        ...(secureTransport ? [{ key: "Strict-Transport-Security", value: "max-age=31536000; includeSubDomains" }] : []),
       ],
     }];
   },

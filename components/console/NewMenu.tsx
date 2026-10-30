@@ -36,6 +36,7 @@ export function NewMenu({
         type="button"
         className="c-btn c-btn-primary c-btn-sm"
         onClick={() => setOpen(!open)}
+        aria-label="New actions"
         aria-expanded={open}
       >
         <Icon name="plus" size={15} />

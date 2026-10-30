@@ -1,6 +1,6 @@
 "use client";
 import { withStepUp } from "./console/StepUp";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { inviteStaff, resetStaffTotp, savePermissions, sendPasswordLink, updateStaff } from "@/app/actions/admin";
 import { initials } from "@/lib/format";
 import type { Staff, StaffRole } from "@/lib/types";
@@ -19,13 +19,27 @@ export default function RolesMatrix({ roles, groups, initial, canEdit }: { roles
   const [saved, setSaved] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const roleNav = useRef<HTMLElement>(null);
+  const selectedIndex = Math.max(0, roles.findIndex((r) => r.name === role));
+  useEffect(() => {
+    const nav = roleNav.current;
+    if (!nav) return;
+    const position = () => {
+      if (!window.matchMedia("(max-width: 720px)").matches) return;
+      const selected = nav.querySelector<HTMLElement>("[aria-pressed=true]");
+      if (selected) nav.scrollLeft = selected.offsetLeft - (nav.clientWidth - selected.offsetWidth) / 2;
+    };
+    const observer = new ResizeObserver(position);
+    observer.observe(nav); position();
+    return () => observer.disconnect();
+  }, [role]);
   const flip = (p: string, i: number) => { setM({ ...m, [p]: m[p].map((v, j) => (j === i ? !v : v)) }); setDirty(true); setSaved(false); };
 
   return (
     <div className="roles">
-      <nav className="card stack" style={{ padding: 8, gap: 2 }} aria-label="Roles">
+      <nav ref={roleNav} className="card stack role-nav" style={{ padding: 8, gap: 2 }} aria-label="Roles">
         {roles.map((r) => (
-          <button key={r.name} type="button" onClick={() => setRole(r.name)} aria-pressed={role === r.name} className={`role-btn stack ${role === r.name ? "role-on" : ""}`}>
+          <button key={r.name} type="button" disabled={busy} onClick={() => setRole(r.name)} aria-pressed={role === r.name} className={`role-btn stack ${role === r.name ? "role-on" : ""}`}>
             <span className="row between" style={{ fontWeight: 700, fontSize: 14.5 }}>{r.name}<span style={{ fontWeight: 600, opacity: 0.7 }}>{r.count}</span></span>
             <span style={{ fontSize: 12.5, opacity: 0.75 }}>{r.desc}</span>
           </button>
@@ -34,7 +48,17 @@ export default function RolesMatrix({ roles, groups, initial, canEdit }: { roles
       <div className="stack g14" style={{ minWidth: 0 }}>
         {!canEdit && <Alert kind="info" title="Only the owner can change this table">You can see what each role may do. The owner decides it, so no one can widen their own access.</Alert>}
         <Alert kind="info" title="Separation of fees is enforced by permission">Agents record official fees but cannot change our assistance fee on a case without a supervisor.</Alert>
-        <div className="card table-wrap">
+        <div className="role-mobile-permissions card stack g16">
+          <h2 className="h-flow">{role} permissions</h2>
+          {groups.map((g) => <fieldset key={g.group} className="role-permission-group">
+            <legend>{g.group}</legend>
+            {g.items.map((it) => <label key={it.key} className="role-permission-choice">
+              <span>{it.name}</span>
+              <input type="checkbox" aria-label={`${it.name} — ${role}`} checked={selectedIndex === 0 || !!m[it.key]?.[selectedIndex]} disabled={selectedIndex === 0 || !canEdit || busy} onChange={() => flip(it.key, selectedIndex)} />
+            </label>)}
+          </fieldset>)}
+        </div>
+        <div className="card table-wrap role-matrix-desktop">
           <table>
             <thead><tr><th>Permission</th>{roles.map((r) => <th key={r.name} style={{ textAlign: "center", color: r.name === role ? "var(--ember-deep)" : undefined }}>{r.short}</th>)}</tr></thead>
             <tbody>
@@ -42,14 +66,13 @@ export default function RolesMatrix({ roles, groups, initial, canEdit }: { roles
                 <tr key={g.group}><td colSpan={roles.length + 1} className="group-row">{g.group}</td></tr>,
                 ...g.items.map((it) => (
                   <tr key={it.key}><td style={{ fontWeight: 600 }}>{it.name}</td>
-                    {roles.map((r, i) => <td key={r.name} style={{ textAlign: "center", background: r.name === role ? "var(--bone)" : undefined }}><input type="checkbox" aria-label={`${it.name} — ${r.name}`} checked={i === 0 || !!m[it.key]?.[i]} disabled={i === 0 || !canEdit} onChange={() => flip(it.key, i)} style={{ width: 18, height: 18, accentColor: "var(--ink)" }} /></td>)}
+                    {roles.map((r, i) => <td key={r.name} style={{ textAlign: "center", background: r.name === role ? "var(--bone)" : undefined }}><input type="checkbox" aria-label={`${it.name} — ${r.name}`} checked={i === 0 || !!m[it.key]?.[i]} disabled={i === 0 || !canEdit || busy} onChange={() => flip(it.key, i)} style={{ width: 18, height: 18, accentColor: "var(--ink)" }} /></td>)}
                   </tr>
                 )),
               ])}
             </tbody>
           </table>
         </div>
-        <span className="hint d-hide">Swipe the table sideways to see every role.</span>
         {saved && <Alert kind="ok" title="Permissions saved" live>They apply the next time each person opens a page. The change is in the audit log.</Alert>}
         {error && <Alert kind="err" title="Not saved" live>{error}</Alert>}
         <div className="row g8" style={{ justifyContent: "flex-end" }}>

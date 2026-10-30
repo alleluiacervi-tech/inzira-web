@@ -7,6 +7,8 @@ requests, uploads, payments (simulated until a provider is connected) and an aud
 > Inzira is a **private assistance company**. The UI never imitates Irembo, RRA, RDB, RURA or any
 > government institution.
 
+See [Product refinement and release readiness](docs/PRODUCTION_READINESS.md) for the verification commands, review evidence and required production deployment configuration.
+
 ## Run it on your computer
 
 ```bash
@@ -60,20 +62,25 @@ cancelled, a payment overdue). Progress (taken, checked, submitted, a plain stag
 only; an agent's own words are always sent.
 
 ```bash
+npm run lint -- --max-warnings=0
 npm run typecheck
 npm run check:i18n           # both languages have every key and placeholder; SMS texts stay GSM-7
-npm run build && npm start   # production build; add INZIRA_DEMO=1 to keep demo codes and payments
+npm run build && npm start   # production build; set INZIRA_DEMO=1 for both build and start for a local demo
 npm run smoke                # with the app running: every page loads, is styled, private pages need sign-in
 npm run test:unit            # authenticator codes (RFC 6238 vectors), encryption, upload sniffing, money maths
 npm run check:backend        # in-memory database: encryption at rest, outbox retries, one payment prompt, one-use codes
-npm run flows                # with the app running in demo mode on a fresh database: 143 end-to-end checks,
+npm run test:ui              # demo server: 42 routes at 5 widths, accessibility smoke and failure recovery
+npm run test:a11y            # demo server: accessible names, enlarged text, reflow and keyboard/error recovery
+npm run test:release         # release-policy regression tests; no external operations
+npm run check:release        # production configuration and compiled-build preflight; no external operations
+npm run flows                # with the app running in demo mode on a fresh database: 247 end-to-end checks,
                              # including what each role can see (needs Chrome and Node 22+)
 npm run check:providers      # with real keys set: tests SMS, MTN MoMo, Airtel Money and Blob storage end to end
 npm run check:email          # with email settings set: checks Resend and SMTP, and sends one message through each
 npm run db:remove-samples    # live database that may hold sample staff: lists them; add --yes to switch them off
 ```
 
-GitHub Actions (`.github/workflows/ci.yml`) runs typecheck, the i18n check, build, smoke and flows on every pull request
+GitHub Actions (`.github/workflows/ci.yml`) runs lint, typecheck, the i18n check, unit and backend checks, build, smoke and flows on every pull request
 and on pushes to `main`, against a fresh demo database.
 
 Run one server at a time from this folder: two servers, or a build while a server is running,
@@ -100,7 +107,7 @@ Copy `.env.example` to `.env.local`. None are needed for development.
 | `AUTH_SECRET` | Keys stored sign-in codes to this server. Set a long random value on the live site (`openssl rand -hex 32`). |
 | `CUSTOMER_PHONE_SIGNIN` | Set to `0` once customers have added their email, to end phone sign-in for customers. Staff keep it. |
 | `SMS_PROVIDER` | `africastalking` to send real SMS (`AT_USERNAME`, `AT_API_KEY`, optional `AT_SENDER_ID`). |
-| `PAYMENT_PROVIDER` | `live` for IntouchPay (MTN and Airtel through one API), `simulator` for demos, or `direct` for the older MTN MoMo and Airtel Money APIs. |
+| `PAYMENT_PROVIDER` | Leave unset or `disabled` for the current release. Future integration: `live` for IntouchPay (MTN and Airtel through one API), `simulator` for demos, or `direct` for the older MTN MoMo and Airtel Money APIs. |
 | `INTOUCHPAY_USERNAME`, `INTOUCHPAY_ACCOUNT_NO`, `INTOUCHPAY_PARTNER_PASSWORD` | Partner credentials from IntouchPay. The partner password is only used to build the SHA-256 request password and is never sent or shown. |
 | `INTOUCHPAY_BASE_URL` | Defaults to `https://www.intouchpay.co.rw/api`. Must be HTTPS outside local development. The published guide uses this host for both test and production credentials. |
 | `INTOUCHPAY_CALLBACK_USER`, `INTOUCHPAY_CALLBACK_PASSWORD` | Optional. `POST /api/payments/callback` always answers 200 `{ "message": "success", "success": true, "request_id": … }` straight away, as IntouchPay requires, and then checks the payment with IntouchPay; a callback never decides the outcome, so it needs no login. If IntouchPay ever sends HTTP Basic with these values, a callback that says a prompt failed also closes it at once instead of when IntouchPay's status says so. |

@@ -37,7 +37,7 @@ function StatePanel({ icon, tone, title, body, children, alert }: { icon: string
 export function ConsoleError({ error, reset }: { error: Error & { digest?: string }; reset: () => void }) {
   return (
     <StatePanel alert icon="alert" tone="red" title="This page didn’t load"
-      body={`Nothing was saved or lost. Check the connection and try again.${error.digest ? ` If it keeps happening, send IT this code: ${error.digest}.` : ""}`}>
+      body={`We couldn’t load the latest information. Check your connection and try again.${error.digest ? ` If it keeps happening, send IT this code: ${error.digest}.` : ""}`}>
       <button type="button" className="c-btn c-btn-primary" onClick={reset}><Icon name="refresh" size={15} />Try again</button>
       <Link href="/console/my-day" className="c-btn c-btn-secondary">Go to My day</Link>
     </StatePanel>

@@ -1,6 +1,6 @@
 "use client";
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { checkPayment, startPayment } from "@/app/actions/customer";
 import { billOfficial, fmtDay, rwf } from "@/lib/format";
 import { trError } from "@/lib/i18n/errors";
@@ -28,7 +28,8 @@ const clock = (ms: number) => { const s = Math.max(0, Math.floor(ms / 1000)); re
 /** The payment screen: what is being paid, the phone that gets the prompt, then the wait and the outcome.
  *  With `checkout`, the request is waiting to be paid before it is sent to staff, and paying sends it: the whole price,
  *  or for a quoted service its review fee (lib/pricing.ts). */
-export default function PayScreen({ reqRef, billing: b, phone, serviceName, contact, checkout: startedAtCheckout = false, waiting, base }: {
+export default function PayScreen({ reqRef, billing: b, phone, serviceName, contact, checkout: startedAtCheckout = false, waiting, base, experience = "unavailable" }: {
+  experience?: "test" | "live" | "unavailable";
   reqRef: string; billing: Billing; phone: string; serviceName: string;
   /** The request's page: the portal's for a signed-in customer (the default), its private page (/r/…) for anyone else. */
   base?: string;
@@ -39,6 +40,7 @@ export default function PayScreen({ reqRef, billing: b, phone, serviceName, cont
   waiting?: { txId: number; receipt: string; amount: number; payer: string | null };
 }) {
   const { locale, t } = useI18n();
+  const test = experience === "test";
   const page = base ?? `/portal/requests/${reqRef}`;
   // Fixed when the screen opens: once paid, the server says the checkout is over, but this screen still finishes it.
   const [checkout] = useState(startedAtCheckout);
@@ -62,11 +64,16 @@ export default function PayScreen({ reqRef, billing: b, phone, serviceName, cont
   const [startedAt, setStartedAt] = useState(() => Date.now());
   const [now, setNow] = useState(() => Date.now());
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const active = useRef(true);
+  const initialWaitingId = useRef(waiting?.txId);
   const heading = useRef<HTMLHeadingElement>(null);
   const network = networkOf(num);
   // The number decides the network; a tap only says which one they mean to use before typing it.
   const shownNet = network ?? picked;
-  useEffect(() => () => { if (timer.current) clearTimeout(timer.current); }, []);
+  useEffect(() => {
+    active.current = true;
+    return () => { active.current = false; if (timer.current) clearTimeout(timer.current); };
+  }, []);
   // The waiting card counts up, so a long wait reads as progress rather than a frozen screen.
   useEffect(() => {
     if (stage !== "pending" && stage !== "sending") return;
@@ -78,25 +85,29 @@ export default function PayScreen({ reqRef, billing: b, phone, serviceName, cont
 
   // Approving takes a PIN on the phone, and the callback usually settles it first, so the screen asks slowly. The server
   // also limits how often the provider is asked (reconcileForScreen). About fifteen minutes in all: the prompt's own limit.
-  const poll = (id: number, tries = 0) => {
+  const poll = useCallback(function schedule(id: number, tries = 0) {
     const wait = tries === 0 ? 3000 : tries < 12 ? 5000 : 10000;
     timer.current = setTimeout(async () => {
+      if (!active.current) return;
       const r = await checkPayment(id).catch(() => null);
+      if (!active.current) return;
       if (r?.ok && r.status === "paid") { setStage("paid"); return; }
       if (r?.ok && r.status === "failed") { setStage("failed"); return; }
       if (tries > 95) { setStage("slow"); return; }
-      poll(id, tries + 1);
+      schedule(id, tries + 1);
     }, wait);
-  };
+  }, []);
   // Picks up checking a prompt sent before this page was opened. Runs once: `poll` reschedules itself.
-  useEffect(() => { if (waiting) poll(waiting.txId); }, []);
+  useEffect(() => { if (initialWaitingId.current !== undefined) poll(initialWaitingId.current); }, [poll]);
   const send = async () => {
+    if (experience === "unavailable") return;
     if (!isMobile(num)) { setError(t("pay.badNumber")); return; }
     if (!agree) { setError(t("pay.tick")); return; }
     setError("");
     setStartedAt(Date.now());
     setStage("sending");
     const r = await startPayment(reqRef, num).catch(() => ({ ok: false as const, error: t("pay.reach") }));
+    if (!active.current) return;
     if (!r.ok) { setError(trError(locale, r.error)); setStage("review"); return; }
     setReceipt(r.receipt);
     setTxId(r.txId);
@@ -139,6 +150,18 @@ export default function PayScreen({ reqRef, billing: b, phone, serviceName, cont
     </section>
   );
 
+  if (experience === "unavailable" && !waiting) return (
+    <div className="stack g16">
+      {bill}
+      <section className="card stack g16" style={{ padding: 28 }}>
+        <span className="ico-tile"><Icon name="lock" size={24} /></span>
+        <h1 className="h-flow">{t("pay.unavailableTitle")}</h1>
+        <p className="mut">{t("pay.unavailableBody")}</p>
+        <Link className="btn btn-p" href={page}>{t("pay.back")}</Link>
+      </section>
+    </div>
+  );
+
   if (!canPay && stage === "review") {
     return (
       <div className="stack g16">
@@ -154,6 +177,7 @@ export default function PayScreen({ reqRef, billing: b, phone, serviceName, cont
 
   return (
     <div className="stack g16">
+      {test && <aside className="alert t-info"><Icon name="info" size={20} /><div className="alert-body"><strong>{t("pay.testTitle")}</strong><span>{t("pay.testBody")}</span></div></aside>}
       {stage !== "paid" && bill}
 
       {stage === "review" && (
@@ -188,14 +212,14 @@ export default function PayScreen({ reqRef, billing: b, phone, serviceName, cont
           {error && <span className="err-text" role="alert"><Icon name="alert" size={15} /> {error}</span>}
           <div className="pay-cta">
             <button className="btn btn-p btn-lg pay-btn" type="button" onClick={send} data-pay>
-              <Icon name="lock" size={18} /> {t("pay.payBtn", { total: rwf(due) })}
+              <Icon name="lock" size={18} /> {test ? `${t("pay.testCta")} · ${rwf(due)}` : t("pay.payBtn", { total: rwf(due) })}
             </button>
           </div>
-          <ul className="pay-trust">
+          {!test && <ul className="pay-trust">
             <li><Icon name="shield" size={16} color="var(--ok)" /> {t("pay.trustApprove")}</li>
             <li><Icon name="file-text" size={16} /> {t("pay.trustReceipt")}</li>
             <li><Icon name="check-circle" size={16} /> {review ? t("start.reviewRefund") : b.official && !b.officialMode ? t("pay.refundAll") : t("service.refund")}</li>
-          </ul>
+          </ul>}
           {checkout && <p className="hint" style={{ margin: 0 }}>{t("pay.later")} <Link className="lnk" href={page}>{t("pay.laterLink")}</Link></p>}
         </section>
       )}
@@ -207,21 +231,22 @@ export default function PayScreen({ reqRef, billing: b, phone, serviceName, cont
             <span className="pay-handset"><span className="pay-pin"><i /><i /><i /><i /></span></span>
           </div>
           <div className="stack g6" style={{ textAlign: "center", alignItems: "center" }}>
-            <h1 ref={heading} tabIndex={-1} className="d" style={{ fontSize: 24 }}>{stage === "sending" ? t("pay.sendingTitle") : t("pay.checkPhone")}</h1>
+            <h1 ref={heading} tabIndex={-1} className="d" style={{ fontSize: 24 }}>{test ? t("pay.testPending") : stage === "sending" ? t("pay.sendingTitle") : t("pay.checkPhone")}</h1>
             <p style={{ fontSize: 15, lineHeight: 1.55, maxWidth: 400 }}>
-              {stage === "sending" ? t("pay.sendingBody", { phone: shownNumber }) : stage === "slow" ? t("side.stillOpen") : t("side.sent", { amount: rwf(sentAmount), phone: shownNumber })}
+              {test ? t("pay.testBody") : stage === "sending" ? t("pay.sendingBody", { phone: shownNumber }) : stage === "slow" ? t("side.stillOpen") : t("side.sent", { amount: rwf(sentAmount), phone: shownNumber })}
             </p>
+            {test && <p className="hint">{shownNumber}</p>}
             {MERCHANT && stage !== "slow" && <p className="hint" style={{ margin: 0 }} data-merchant>{t("pay.merchant", { name: MERCHANT })}</p>}
           </div>
-          <ol className="pay-steps">
+          {!test && <ol className="pay-steps">
             <li className={stage === "sending" ? "cur" : "done"}>{stage === "sending" ? t("pay.stepSending") : t("pay.stepSent")}</li>
             <li className={stage === "sending" ? "" : "cur"}>{t("pay.stepPin")}</li>
             <li>{checkout ? t("pay.stepSentToTeam") : t("pay.stepDone")}</li>
-          </ol>
+          </ol>}
           {stage !== "slow" && <span className="pay-elapsed">{t("pay.elapsed", { time: clock(now - startedAt) })}</span>}
           {stage === "slow" && txId !== null
             ? <button className="btn btn-p" type="button" onClick={() => { setStage("pending"); poll(txId); }}>{t("side.checkAgain")}</button>
-            : <p className="hint" style={{ textAlign: "center", maxWidth: 400 }}>{t("pay.noPrompt")}</p>}
+            : !test && <p className="hint" style={{ textAlign: "center", maxWidth: 400 }}>{t("pay.noPrompt")}</p>}
         </section>
       )}
 
@@ -229,8 +254,9 @@ export default function PayScreen({ reqRef, billing: b, phone, serviceName, cont
         <section className="card pay-done" role="status" aria-live="polite">
           <svg className="pay-tick" viewBox="0 0 52 52" aria-hidden="true"><circle cx="26" cy="26" r="24" /><path d="M15 27l7 7 15-16" /></svg>
           <div className="stack g8" style={{ textAlign: "center", alignItems: "center" }}>
-            <h1 ref={heading} tabIndex={-1} className="d" style={{ fontSize: 26 }}>{checkout ? t("pay.paidCheckoutTitle") : t("pay.received")}</h1>
+            <h1 ref={heading} tabIndex={-1} className="d" style={{ fontSize: 26 }}>{test ? t("pay.testDone") : checkout ? t("pay.paidCheckoutTitle") : t("pay.received")}</h1>
             <p style={{ fontSize: 15.5, lineHeight: 1.55, maxWidth: 420 }}>
+              {test && <>{t("pay.testResult")} </>}
               {review ? t("pay.paidReviewBody", { time: t("responseTime"), contact, fee: rwf(b.reviewFee!) })
                 : checkout ? t("pay.paidCheckoutBody", { time: t("responseTime"), contact }) : t("side.got", { amount: rwf(sentAmount), receipt })}
             </p>

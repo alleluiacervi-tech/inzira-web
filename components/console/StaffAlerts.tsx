@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { listMyStaffAlerts, markMyStaffAlertsRead } from "@/app/actions/console";
 import { Icon } from "@/components/ui";
 import { fmtAgo } from "@/lib/format";
@@ -21,7 +21,7 @@ export function StaffAlerts({ now }: { now: string }) {
   const seen = useRef<Set<string> | null>(null);
   const router = useRouter();
 
-  const load = async () => {
+  const load = useCallback(async () => {
     const r = await listMyStaffAlerts().catch(() => null);
     if (!r) return;
     if (seen.current) {
@@ -34,7 +34,7 @@ export function StaffAlerts({ now }: { now: string }) {
     seen.current = new Set(r.alerts.map((a) => a.id));
     setAlerts(r.alerts);
     setUnread(r.unread);
-  };
+  }, [router]);
 
   useEffect(() => {
     void load();
@@ -42,7 +42,7 @@ export function StaffAlerts({ now }: { now: string }) {
     const onShow = () => { if (document.visibilityState === "visible") void load(); };
     document.addEventListener("visibilitychange", onShow);
     return () => { window.clearInterval(id); document.removeEventListener("visibilitychange", onShow); };
-  }, []);
+  }, [load]);
 
   useEffect(() => {
     if (!money) return;

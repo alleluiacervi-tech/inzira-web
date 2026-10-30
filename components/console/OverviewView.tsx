@@ -1,4 +1,5 @@
 "use client";
+import Image from "next/image";
 import Link from "next/link";
 import { useState } from "react";
 import { Icon } from "@/components/ui";
@@ -257,7 +258,7 @@ export function OverviewView({ overview: o, name }: { overview: AdminOverview; n
                   const share = Math.round((v / Math.max(1, o.revenue.methods.reduce((t, [, x]) => t + x, 0))) * 100);
                   return (
                     <li key={m}>
-                      {METHOD_LOGO[m] ? <img src={METHOD_LOGO[m]} alt="" width={22} height={22} /> : <span className="c-method-ico"><Icon name={m === "Cash" ? "c-tax" : "card"} size={13} /></span>}
+                      {METHOD_LOGO[m] ? <Image src={METHOD_LOGO[m]} alt="" width={22} height={22} /> : <span className="c-method-ico"><Icon name={m === "Cash" ? "c-tax" : "card"} size={13} /></span>}
                       <span className="c-methods-name">{m}</span>
                       <span className="c-methods-track" aria-hidden="true"><span style={{ width: `${share}%` }} /></span>
                       <b className="tnum">{rwf(v)}</b>

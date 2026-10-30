@@ -11,7 +11,7 @@ const root = process.env.UPLOAD_DIR ?? (process.env.VERCEL ? "/tmp/inzira-upload
 const keyPath = (key: string) => key.split("/").map((part) => part.replace(/[^a-zA-Z0-9._-]/g, "_")).filter((part) => part && part !== "." && part !== "..").join("/");
 const safe = (key: string) => path.join(root, keyPath(key));
 const hasBlobCredentials = () => !!process.env.BLOB_READ_WRITE_TOKEN || (!!process.env.BLOB_STORE_ID && !!process.env.VERCEL_OIDC_TOKEN);
-const useBlob = () => {
+const shouldUseBlob = () => {
   if (hasBlobCredentials()) return true;
   if (process.env.NODE_ENV === "production" && process.env.INZIRA_DEMO !== "1") {
     throw new Error("Private file storage is not configured. Connect a private Vercel Blob store or set BLOB_READ_WRITE_TOKEN.");
@@ -44,7 +44,7 @@ export async function checkUpload(f: File): Promise<string | null> {
 export async function putFile(key: string, bytes: Uint8Array, contentType = "application/octet-stream") {
   const pathname = keyPath(key);
   if (!pathname) throw new Error("A storage key is required.");
-  if (useBlob()) {
+  if (shouldUseBlob()) {
     await put(pathname, Buffer.from(bytes), { access: "private", addRandomSuffix: false, contentType });
     return;
   }
@@ -54,7 +54,7 @@ export async function putFile(key: string, bytes: Uint8Array, contentType = "app
 export async function readFile(key: string): Promise<Buffer | null> {
   const pathname = keyPath(key);
   if (!pathname) return null;
-  if (useBlob()) {
+  if (shouldUseBlob()) {
     const result = await get(pathname, { access: "private" });
     if (!result || result.statusCode !== 200 || !result.stream) return null;
     return Buffer.from(await new Response(result.stream).arrayBuffer());
@@ -65,7 +65,7 @@ export async function readFile(key: string): Promise<Buffer | null> {
 export async function deleteFile(key: string): Promise<void> {
   const pathname = keyPath(key);
   if (!pathname) return;
-  if (useBlob()) { await del(pathname); return; }
+  if (shouldUseBlob()) { await del(pathname); return; }
   await rm(safe(pathname), { force: true });
 }
 export const humanSize = (n: number) => (n >= 1e6 ? `${(n / 1e6).toFixed(1)} MB` : `${Math.max(1, Math.round(n / 1e3))} KB`);

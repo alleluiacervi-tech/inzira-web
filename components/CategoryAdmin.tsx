@@ -1,4 +1,5 @@
 "use client";
+import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -90,7 +91,7 @@ export default function CategoryAdmin({ categories, services, builtIn, canTransl
             <li key={c.id} className="card" style={{ padding: 16 }}>
               <div className="row g12" style={{ alignItems: "flex-start" }}>
                 <span className="ico-tile" style={{ width: 44, height: 44, flexShrink: 0, overflow: "hidden" }}>
-                  {c.mark ? <img src={c.mark} alt="" style={{ maxWidth: 36, maxHeight: 28, objectFit: "contain" }} /> : <Icon name={c.icon} size={24} />}
+                  {c.mark ? <Image src={c.mark} alt="" width={36} height={28} unoptimized style={{ maxWidth: 36, maxHeight: 28, objectFit: "contain" }} /> : <Icon name={c.icon} size={24} />}
                 </span>
                 <div className="stack" style={{ gap: 4, flexGrow: 1, minWidth: 0 }}>
                   <strong>{c.name}</strong>
@@ -174,7 +175,7 @@ export default function CategoryAdmin({ categories, services, builtIn, canTransl
                       <span className="field-label" style={{ fontSize: 14, fontWeight: 600 }}>Logo <span className="mut" style={{ fontWeight: 400 }}>(optional)</span></span>
                       <div className="row g12" style={{ alignItems: "center" }}>
                         <span style={{ width: 120, height: 56, border: "1px dashed var(--line)", borderRadius: 8, display: "grid", placeItems: "center", background: "var(--paper, #fff)", flexShrink: 0 }}>
-                          {preview ? <img src={preview} alt="Logo preview" style={{ maxWidth: 108, maxHeight: 44, objectFit: "contain" }} /> : <span className="hint">No logo</span>}
+                          {preview ? <Image src={preview} alt="Logo preview" width={108} height={44} unoptimized style={{ maxWidth: 108, maxHeight: 44, objectFit: "contain" }} /> : <span className="hint">No logo</span>}
                         </span>
                         <span className="row g8 wrapx">
                           <label className="btn btn-s btn-sm" style={{ cursor: "pointer" }}>

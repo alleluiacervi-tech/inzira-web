@@ -1,4 +1,5 @@
 "use client";
+import { useDialog } from "@/components/useDialog";
 // "Confirm it's you" (lib/step-up.ts): one dialog for the whole console. An action that answers STEP_UP opens it; the
 // code is checked, and the action runs once more.
 import { useEffect, useRef, useState } from "react";
@@ -34,10 +35,11 @@ export function StepUpHost() {
     return () => window.removeEventListener(EVENT, open);
   }, []);
   useEffect(() => { if (ask) input.current?.focus(); }, [ask, recovery]);
+  const close = (ok: boolean) => { ask?.resolve(ok); setAsk(null); };
+  const dialog = useDialog<HTMLDivElement>(!!ask, () => { if (!busy) close(false); });
   if (!ask) return null;
-  const close = (ok: boolean) => { ask.resolve(ok); setAsk(null); };
   return (
-    <div className="console-dialog-overlay" role="presentation" onKeyDown={(e) => { if (e.key === "Escape") close(false); }}>
+    <div ref={dialog} className="console-dialog-overlay" role="presentation">
       <form className="console-dialog stepup" role="dialog" aria-modal="true" aria-labelledby="stepup-h" data-step-up onSubmit={async (e) => {
         e.preventDefault();
         if (!recovery && !/^\d{6}$/.test(code)) { setError("Enter the 6-digit code from the app."); return; }

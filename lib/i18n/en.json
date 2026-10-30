@@ -893,7 +893,15 @@
     "netAirtel": "072 · 073",
     "numberFor": "Your {network} number",
     "merchant": "Your phone will show a payment request from {name}.",
-    "refundAll": "Refunded in full, the official fee included, if we can’t submit"
+    "refundAll": "Refunded in full, the official fee included, if we can’t submit",
+    "testTitle": "Test payment — no money moves",
+    "testBody": "This exercises the request workflow only. No mobile money prompt is sent and no PIN is needed.",
+    "testCta": "Run test payment",
+    "testPending": "Checking the test payment",
+    "testDone": "Test payment completed",
+    "testResult": "This is a test confirmation. No money was collected.",
+    "unavailableTitle": "Online payments are not available yet",
+    "unavailableBody": "Your request is saved. You can return to its details while payment collection is being prepared."
   },
   "docs": {
     "filter": "Filter by status",
@@ -1485,5 +1493,29 @@
     "sentLink": "We sent the link to {to}.",
     "recent": "Your recent requests on this device",
     "demo": "Demo: no message is sent. The link:"
+  },
+  "demo": {
+    "title": "Demonstration environment",
+    "body": "Sample data and test payments only. No money is collected or transferred."
+  },
+  "receipt": {
+    "title": "Receipt",
+    "lead": "Inzira’s record of payments. Official fees and our assistance fee are shown separately.",
+    "test": "Test document only. No money was collected or transferred for simulated transactions.",
+    "reference": "Reference",
+    "invoice": "Invoice",
+    "service": "Service",
+    "client": "Client",
+    "opened": "Opened",
+    "line": "Line",
+    "amount": "Amount",
+    "assistance": "Inzira assistance fee",
+    "official": "Official government fee",
+    "paid": "Paid",
+    "refunded": "Refunded",
+    "testTransaction": "Test transaction",
+    "received": "Received by Inzira so far",
+    "ourFee": "our fee",
+    "officialFee": "official fee"
   }
 }

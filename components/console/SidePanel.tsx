@@ -1,5 +1,6 @@
 "use client";
-import { useEffect, type ReactNode } from "react";
+import { useDialog } from "@/components/useDialog";
+import { type ReactNode } from "react";
 import { Icon } from "@/components/ui";
 
 export function SidePanel({
@@ -19,24 +20,14 @@ export function SidePanel({
   footer?: ReactNode;
   width?: number;
 }) {
-  useEffect(() => {
-    if (!open) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-    window.addEventListener("keydown", onKey);
-    const origOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => {
-      window.removeEventListener("keydown", onKey);
-      document.body.style.overflow = origOverflow;
-    };
-  }, [open, onClose]);
+
+
+  const dialog = useDialog<HTMLDivElement>(open, () => { onClose(); });
 
   if (!open) return null;
 
   return (
-    <div className="console-sidepanel-backdrop" onClick={onClose} role="dialog" aria-modal="true" aria-label={title}>
+    <div ref={dialog} className="console-sidepanel-backdrop" onClick={onClose} role="dialog" aria-modal="true" aria-label={title}>
       <div
         className="console-sidepanel"
         style={{ width: `${width}px` }}

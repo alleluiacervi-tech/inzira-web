@@ -893,7 +893,15 @@
     "netAirtel": "072 · 073",
     "numberFor": "Numero yawe ya {network}",
     "merchant": "Telefoni yawe izakwereka icyifuzo cyo kwishyura giturutse kuri {name}.",
-    "refundAll": "Usubizwa yose, n'ay'urwego arimo, iyo tudashoboye kubitanga"
+    "refundAll": "Usubizwa yose, n'ay'urwego arimo, iyo tudashoboye kubitanga",
+    "testTitle": "Ubwishyu bwo kugerageza — nta mafaranga yimurwa",
+    "testBody": "Ibi bigerageza imikorere y’ubusabe gusa. Nta busabe bwo kwishyura bwoherezwa kuri telefoni kandi nta PIN ikenewe.",
+    "testCta": "Gerageza ubwishyu",
+    "testPending": "Turagenzura ubwishyu bwo kugerageza",
+    "testDone": "Ubwishyu bwo kugerageza bwarangiye",
+    "testResult": "Ibi ni icyemezo cyo kugerageza. Nta mafaranga yakiriwe.",
+    "unavailableTitle": "Kwishyura kuri uru rubuga ntibiratangira",
+    "unavailableBody": "Ubusabe bwawe bwabitswe. Ushobora gusubira ku makuru yabwo mu gihe uburyo bwo kwishyura bugitegurwa."
   },
   "docs": {
     "filter": "Gushungura ku miterere yazo",
@@ -1485,5 +1493,29 @@
     "sentLink": "Twohereje ihuza kuri {to}.",
     "recent": "Ubusabe bwawe buheruka kuri iki gikoresho",
     "demo": "Igerageza: nta butumwa bwoherezwa. Ihuza:"
+  },
+  "demo": {
+    "title": "Urubuga rwo kwerekana imikorere",
+    "body": "Amakuru n’ubwishyu byo kugerageza gusa. Nta mafaranga yakirwa cyangwa yoherezwa."
+  },
+  "receipt": {
+    "title": "Inyemezabuguzi",
+    "lead": "Inyandiko y’Inzira y’ubwishyu. Amafaranga y’urwego n’ayo twishyuza ku bufasha byanditswe ukwabyo.",
+    "test": "Inyandiko yo kugerageza gusa. Nta mafaranga yakiriwe cyangwa yoherezwa ku bwishyu bwo kugerageza.",
+    "reference": "Nomero y’ubusabe",
+    "invoice": "Inyemezabuguzi",
+    "service": "Serivisi",
+    "client": "Umukiriya",
+    "opened": "Byatangiye",
+    "line": "Ibisobanuro",
+    "amount": "Amafaranga",
+    "assistance": "Amafaranga y’ubufasha bwa Inzira",
+    "official": "Amafaranga y’urwego rwa leta",
+    "paid": "Byishyuwe",
+    "refunded": "Yasubijwe",
+    "testTransaction": "Ubwishyu bwo kugerageza",
+    "received": "Amafaranga Inzira imaze kwakira",
+    "ourFee": "ay’ubufasha bwacu",
+    "officialFee": "ay’urwego"
   }
 }

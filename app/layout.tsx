@@ -1,6 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { headers } from "next/headers";
-import { Hanken_Grotesk } from "next/font/google";
+import localFont from "next/font/local";
 import ContentBridge from "@/components/ContentBridge";
 import { LocaleProvider } from "@/components/I18n";
 import { NavCategoriesProvider } from "@/components/NavCategories";
@@ -11,13 +11,12 @@ import { text } from "@/lib/i18n/messages";
 import { navCategories } from "@/lib/nav-categories";
 import { isIndexable, languageAlternates } from "@/lib/seo";
 import { siteOrigin } from "@/lib/site";
+import { isDemo } from "@/lib/sms";
 import "./globals.css";
 import "./public.css";
 
-// Fonts are downloaded at build time and served from our own domain: no request to Google when a
-// page loads, which matters on slow mobile connections.
-// One family for everything: Hanken Grotesk, with the weight and size doing the hierarchy.
-const sans = Hanken_Grotesk({ subsets: ["latin"], variable: "--f-sans", display: "swap" });
+// Vendored under the SIL Open Font License: builds and page loads need no font service.
+const sans = localFont({ src: "./fonts/hanken-grotesk-latin.woff2", weight: "100 900", variable: "--f-sans", display: "swap" });
 
 export async function generateMetadata(): Promise<Metadata> {
   const locale = await getLocale();
@@ -52,7 +51,10 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     <html lang={locale} className={sans.variable}>
       <body>
         <ContentBridge entries={locale === "rw" ? contentEntries() : {}} version={locale === "rw" ? contentVersion() : ""} />
-        <LocaleProvider locale={locale}><NavCategoriesProvider categories={menu}>{children}</NavCategoriesProvider></LocaleProvider>
+        <LocaleProvider locale={locale}><NavCategoriesProvider categories={menu}>
+          {isDemo() && <aside className="demo-notice" aria-label={text(locale, "demo.title")}><strong>{text(locale, "demo.title")}</strong><span>{text(locale, "demo.body")}</span></aside>}
+          {children}
+        </NavCategoriesProvider></LocaleProvider>
       </body>
     </html>
   );

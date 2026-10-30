@@ -1,4 +1,5 @@
 "use client";
+import Image from "next/image";
 
 import { useState } from "react";
 import Link from "next/link";
@@ -54,7 +55,7 @@ export function FilingRail({
             return (
               <li key={`${o.code}-${i}`} {...(clone ? { "data-clone": "", "aria-hidden": true, inert: true } : {})}>
                 <Link href={o.href} aria-label={clone ? undefined : o.name} tabIndex={clone ? -1 : undefined}>
-                  {o.mark && <img src={o.mark} alt="" />}
+                  {o.mark && <Image src={o.mark} alt="" width={156} height={32} />}
                   {o.label && <span className={o.mark ? "filed-code" : "filed-word"}>{o.label}</span>}
                 </Link>
               </li>
