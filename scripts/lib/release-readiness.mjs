@@ -1,3 +1,5 @@
+import brand from "../../lib/brand.json" with { type: "json" };
+
 // Pure release checks: return names/status only, never environment or credential values.
 export function releaseChecks(environment, artifact) {
   const value = name => environment[name]?.trim() ?? '';
@@ -11,15 +13,16 @@ export function releaseChecks(environment, artifact) {
       const url = new URL(raw);
       const host = url.hostname.toLowerCase().replace(/^\[|\]$/g, '');
       const loopback = host === 'localhost' || host.endsWith('.localhost') || host === '::1' || host === '0.0.0.0' || /^127\./.test(host) || host.startsWith('::ffff:7f');
-      return url.protocol === 'https:' && !loopback && !url.username && !url.password && url.pathname === '/' && !url.search && !url.hash;
+      return url.origin === brand.canonicalOrigin && url.protocol === 'https:' && !loopback && !url.username && !url.password && url.pathname === '/' && !url.search && !url.hash;
     } catch { return false; }
   };
+  check('Search indexing enabled', value('SEO_NOINDEX') !== '1' && value('VERCEL_ENV') !== 'preview', 'Remove SEO_NOINDEX=1 and use the production deployment for launch; staging and previews must remain noindex.');
   check('Demo mode disabled', value('INZIRA_DEMO') !== '1', 'Remove INZIRA_DEMO=1 from the production deployment.');
   check('Persistent Postgres', urlUses(value('DATABASE_URL'), ['postgres:', 'postgresql:']), 'Configure DATABASE_URL for the production database.');
   check('Authentication secret', value('AUTH_SECRET').length >= 32, 'Configure a unique AUTH_SECRET of at least 32 characters.');
   const key = value('DATA_KEY');
   check('Identity encryption key', /^[a-f\d]{64}$/i.test(key) || (/^[A-Za-z\d+/]{43}=$/.test(key) && Buffer.from(key, 'base64').length === 32), 'Configure a 32-byte DATA_KEY and retain a secure backup.');
-  check('Public HTTPS address', publicOrigin(value('NEXT_PUBLIC_SITE_URL')), 'Set NEXT_PUBLIC_SITE_URL to the public HTTPS origin, without credentials, a subpath, query or fragment, before building.');
+  check('Public HTTPS address', publicOrigin(value('NEXT_PUBLIC_SITE_URL')), 'Set NEXT_PUBLIC_SITE_URL to the owner-confirmed Inzira HTTPS origin in lib/brand.json, without credentials, a subpath, query or fragment, before building.');
   check('Private file storage', value('BLOB_READ_WRITE_TOKEN') || (value('BLOB_STORE_ID') && value('VERCEL_OIDC_TOKEN')), 'Connect private Vercel Blob storage and verify file permissions on the deployment.');
   const resend = value('RESEND_API_KEY') && value('EMAIL_FROM');
   const smtp = ['SMTP_HOST', 'SMTP_USER', 'SMTP_PASS'].every(name => value(name)) && (value('SMTP_FROM') || value('EMAIL_FROM'));

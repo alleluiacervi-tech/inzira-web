@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { LANG_COOKIE } from "@/lib/i18n/cookie";
-import { barePath, blockedHost, isSharedPage, withLocale } from "@/lib/seo";
+import { barePath, blockedHost, isIndexable, isSharedPage, withLocale } from "@/lib/seo";
 import { siteOrigin } from "@/lib/site";
+import { publicSearchEnabled } from "@/lib/search-policy";
 
 /** The page that was asked for, so a signed-out visit can return there after sign-in.
  *  Set on the forwarded request; a value sent by the browser is replaced.
@@ -12,7 +13,7 @@ import { siteOrigin } from "@/lib/site";
  *  every visitor: a visitor who chose English is sent to the /en address instead of getting English at the bare one. */
 export function middleware(req: NextRequest) {
   const response = routeRequest(req);
-  if (process.env.INZIRA_DEMO === "1" || process.env.NODE_ENV !== "production") response.headers.set("X-Robots-Tag", "noindex, nofollow");
+  if (!publicSearchEnabled() || !isIndexable(req.nextUrl.pathname)) response.headers.set("X-Robots-Tag", "noindex, nofollow");
   return response;
 }
 
@@ -24,7 +25,7 @@ function routeRequest(req: NextRequest) {
   const blocked = blockedHost({
     host: req.headers.get("x-forwarded-host") ?? req.headers.get("host"),
     pathname,
-    origin: siteOrigin(),
+    origin: process.env.NEXT_PUBLIC_SITE_URL ? siteOrigin() : null,
     production: process.env.VERCEL_ENV === "production",
   });
   if (blocked) return new NextResponse("Not found", { status: 404, headers: { "x-robots-tag": "noindex" } });
@@ -36,6 +37,7 @@ function routeRequest(req: NextRequest) {
 
   if (pathname === "/en" || pathname.startsWith("/en/")) {
     const bare = barePath(pathname);
+    if (/^\/(portal|console|admin|api|files|sign-in|r|staff|brand)(\/|$)/.test(bare)) return NextResponse.redirect(publicUrl(req, bare), 308);
     headers.set("x-inzira-locale", "en");
     const url = req.nextUrl.clone();
     url.pathname = bare;

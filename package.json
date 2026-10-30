@@ -26,7 +26,9 @@
     "test:ui": "node scripts/ui-review.mjs",
     "check:release": "node scripts/release-check.mjs",
     "test:a11y": "node scripts/ui-review.mjs --accessibility",
-    "test:release": "node --test scripts/release-check.test.mjs"
+    "test:release": "node --test scripts/release-check.test.mjs",
+    "test:seo": "tsx scripts/seo-unit.mts",
+    "check:seo": "node scripts/ui-review.mjs --seo"
   },
   "engines": {
     "node": ">=20.0.0"

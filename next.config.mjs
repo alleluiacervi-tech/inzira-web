@@ -1,4 +1,5 @@
 import path from "node:path";
+import brand from "./lib/brand.json" with { type: "json" };
 import { fileURLToPath } from "node:url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -61,6 +62,7 @@ const nextConfig = {
   // The agent workspace and the admin home now live in the staff console.
   async redirects() {
     return [
+      { source: "/:path*", has: [{ type: "host", value: `www\\.${new URL(brand.canonicalOrigin).hostname.split(".").join("\\.")}` }], destination: `${brand.canonicalOrigin}/:path*`, permanent: true },
       { source: "/agent", destination: "/console/my-day", permanent: true },
       { source: "/agent/intake", destination: "/console/intake", permanent: true },
       { source: "/agent/cases/:ref", destination: "/console/requests/:ref", permanent: true },

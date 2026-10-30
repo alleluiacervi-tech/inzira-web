@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { publicMetadata, snippet } from "@/lib/public-metadata";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import PublicNav from "@/components/PublicNav";
@@ -14,23 +15,16 @@ import { text } from "@/lib/i18n/messages";
 import { displayOfficial, displayOurs, displayPrice, displayTime, displayTotal, localizeCategory, localizeService, localizeServices, officeCopy } from "@/lib/i18n/present";
 import { getService, listCategories, listServices } from "@/lib/repo";
 import { JsonLd } from "@/components/JsonLd";
-import { languageAlternates, withLocale } from "@/lib/seo";
-import { SITE, siteOrigin } from "@/lib/site";
+import { withLocale } from "@/lib/seo";
+import { siteOrigin } from "@/lib/site";
 
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const [locale, raw] = await Promise.all([getLocale(), getService((await params).slug)]);
-  if (!raw) return {};
+  if (!raw || !raw.visible) return { robots: { index: false, follow: false } };
   const s = localizeService(raw, locale);
   const t = (path: string, vars?: Record<string, string | number>) => text(locale, path, vars);
-  const tail = t("meta.serviceTail");
-  const description = s.summary.length + tail.length < 180 ? `${s.summary} ${tail}` : s.summary;
-  const origin = siteOrigin();
-  return {
-    title: t("meta.inPlace", { name: s.name }),
-    description,
-    ...(origin ? { alternates: languageAlternates(origin, `/services/${s.slug}`, locale) } : {}),
-  };
+  return publicMetadata({ title: t("meta.inPlace", { name: s.name }), description: snippet(s.summary, t("meta.serviceTail")), path: `/services/${s.slug}`, locale });
 }
 
 export default async function ServiceDetail({ params }: { params: Promise<{ slug: string }> }) {
@@ -78,12 +72,14 @@ export default async function ServiceDetail({ params }: { params: Promise<{ slug
             },
             {
               "@type": "Service",
+              "@id": `${pageUrl(`/services/${s.slug}`)}#service`,
+              mainEntityOfPage: pageUrl(`/services/${s.slug}`),
               name: s.name,
               description: s.summary,
               serviceType: s.name,
               url: pageUrl(`/services/${s.slug}`),
               areaServed: { "@type": "Country", name: "Rwanda" },
-              provider: { "@type": "Organization", name: SITE.legalName, url: origin },
+              provider: { "@id": `${origin}/#organization` },
             },
           ],
         }} />

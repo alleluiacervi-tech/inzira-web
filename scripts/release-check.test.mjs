@@ -5,7 +5,7 @@ import { releaseChecks } from './lib/release-readiness.mjs';
 // Synthetic fixtures, never used for an external request or saved as deployment configuration.
 const environment = {
   DATABASE_URL: 'postgresql://fixture.invalid/test', AUTH_SECRET: 'a'.repeat(32), DATA_KEY: '01'.repeat(32),
-  NEXT_PUBLIC_SITE_URL: 'https://release.example.org', BLOB_READ_WRITE_TOKEN: 'fixture',
+  NEXT_PUBLIC_SITE_URL: 'https://inziraservices.com', BLOB_READ_WRITE_TOKEN: 'fixture',
   RESEND_API_KEY: 'fixture', EMAIL_FROM: 'fixture@example.org', CUSTOMER_PHONE_SIGNIN: '0', PAYMENT_PROVIDER: 'disabled',
 };
 const artifact = {headers: [{source: '/:path*', headers: [
@@ -29,7 +29,7 @@ test('conditional or partial security headers do not establish production policy
   assert.equal(passed(check({}, partial), 'Production build policy'), false);
 });
 test('local, insecure, credential-bearing or non-origin public URLs fail', () => {
-  for (const url of ['http://release.example.org', 'https://localhost', 'https://app.localhost', 'https://127.0.0.2', 'https://[::1]', 'https://0.0.0.0', 'https://user:pass@release.example.org', 'https://release.example.org/app', 'https://release.example.org/?key=fixture', 'https://release.example.org/#fixture', 'invalid']) assert.equal(passed(check({NEXT_PUBLIC_SITE_URL: url}), 'Public HTTPS address'), false, url);
+  for (const url of ['http://release.example.org', 'https://unrelated.example.org', 'https://localhost', 'https://app.localhost', 'https://127.0.0.2', 'https://[::1]', 'https://0.0.0.0', 'https://user:pass@release.example.org', 'https://release.example.org/app', 'https://release.example.org/?key=fixture', 'https://release.example.org/#fixture', 'invalid']) assert.equal(passed(check({NEXT_PUBLIC_SITE_URL: url}), 'Public HTTPS address'), false, url);
 });
 test('demo mode and active payment providers block this release', () => {
   assert.equal(passed(check({INZIRA_DEMO: '1'}), 'Demo mode disabled'), false);
@@ -44,4 +44,9 @@ test('results never include configured credentials', () => {
   const secret = 'sensitive-fixture-do-not-log';
   const result = JSON.stringify(check({SMTP_PASS: secret, BLOB_READ_WRITE_TOKEN: secret}));
   assert(!result.includes(secret));
+});
+
+test('a staging noindex switch or preview deployment blocks public release', () => {
+  assert.equal(passed(check({SEO_NOINDEX: '1'}), 'Search indexing enabled'), false);
+  assert.equal(passed(check({VERCEL_ENV: 'preview'}), 'Search indexing enabled'), false);
 });

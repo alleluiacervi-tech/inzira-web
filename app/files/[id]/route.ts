@@ -15,7 +15,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   const session = await getSession();
   // Staff read the console in English; everyone else in the language they last picked.
   const locale = session?.kind === "staff" ? "en" : await getLocale();
-  const say = (key: "signIn" | "notFound" | "gone", status: number) => new Response(text(locale, `fileRoute.${key}`), { status, headers: { "Content-Type": "text/plain; charset=utf-8" } });
+  const say = (key: "signIn" | "notFound" | "gone", status: number) => new Response(text(locale, `fileRoute.${key}`), { status, headers: { "Content-Type": "text/plain; charset=utf-8", "X-Robots-Tag": "noindex, nofollow" } });
   const d = await db();
   const [file] = await d.select().from(s.files).where(eq(s.files.id, id));
   if (!file) return say(session ? "notFound" : "signIn", session ? 404 : 401);
@@ -38,6 +38,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
       "Content-Type": file.mime,
       "Content-Disposition": `inline; filename="${file.name.replace(/[^\w.\- ]/g, "_")}"`,
       "Cache-Control": "private, no-store",
+      "X-Robots-Tag": "noindex, nofollow",
       "X-Content-Type-Options": "nosniff",
     },
   });

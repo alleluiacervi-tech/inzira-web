@@ -1,6 +1,11 @@
+import brand from "./brand.json";
+
 // Company details shown across the site. Fill these in once before launch.
 export const SITE = {
-  name: "Inzira",
+  name: brand.name,
+  alternateName: brand.alternateName,
+  /** Official brand origin confirmed by the business owner. Preview/test links may remain relative. */
+  canonicalOrigin: brand.canonicalOrigin,
   legalName: "Inzira Ltd",
   city: "Kigali",
   /** A street, once there is one. Until then the public site says meetings are by appointment in the city. */
@@ -8,7 +13,7 @@ export const SITE = {
   phone: "+250 788 274 354",
   /** Digits only, with country code (e.g. 2507XXXXXXXX). Empty until the real number exists. */
   whatsapp: "250788274354",
-  email: "contact@inzira.rw",
+  email: brand.email,
   companyCode: "[Company code]",
   tin: "[TIN]",
   hours: "Mon–Fri 8:00–18:00 · Sat 9:00–13:00",
@@ -30,7 +35,7 @@ export const mailUrl = (subject?: string) => `mailto:${SITE.email}${subject ? `?
 export const DISCLAIMER =
   "Inzira is a private, independent assistance company. We are not Irembo, RRA, RDB, RURA, the land administration or any government institution, and we do not give legal advice. Official fees and taxes are set and collected by the relevant institution; our assistance fee is separate and always shown on its own line.";
 
-/** The site's absolute origin (e.g. https://inziraservices.com), or null while NEXT_PUBLIC_SITE_URL is not set. */
-export function siteOrigin(): string | null {
-  try { return new URL(process.env.NEXT_PUBLIC_SITE_URL ?? "").origin; } catch { return null; }
+/** Owner-confirmed canonical brand origin. Preview hosts never become the canonical URL; indexing still requires explicit production configuration. */
+export function siteOrigin(): string {
+  return SITE.canonicalOrigin;
 }

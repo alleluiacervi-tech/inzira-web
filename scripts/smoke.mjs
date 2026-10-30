@@ -13,7 +13,7 @@ const english = { headers: { cookie: "inzira_lang=en" } };
 
 /** [path, ...text that must appear in the HTML] */
 const ROUTES = [
-  ["/", "Government paperwork, done from your phone.", "Services and fees", "Rwanda Utilities Regulatory Authority", "Birth certificate", "RWF 2,500"],
+  ["/", "Government paperwork, with help at every step.", "Services and fees", "Rwanda Utilities Regulatory Authority", "Birth certificate", "RWF 2,500"],
   ["/services", "Find the service you need", "Company registration", "Monthly business tax declarations"],
   ["/services?category=tax", "Trading licence declaration"],
   ["/services/company-registration", "Start · 2 min", "Assistance fee", "Filed with the Rwanda Development Board", "RWF 10,000"],
@@ -53,8 +53,8 @@ const MOVED = [
 ];
 /** [what, cookie or null, the html lang, text that must appear on the home page] */
 const LANGUAGES = [
-  ["Kinyarwanda by default", null, "rw", "Inyandiko za leta, zigukorerwa uri kuri telefoni yawe."],
-  ["English when chosen", "inzira_lang=en", "en", "Government paperwork, done from your phone."],
+  ["Kinyarwanda by default", null, "rw", "Inyandiko za leta, tugufasha kuri buri ntambwe."],
+  ["English when chosen", "inzira_lang=en", "en", "Government paperwork, with help at every step."],
 ];
 const NOT_FOUND = ["/services/does-not-exist", "/services/criminal-record-certificate", "/start/does-not-exist"];
 

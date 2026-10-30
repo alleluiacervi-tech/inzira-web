@@ -72,6 +72,8 @@ npm run check:backend        # in-memory database: encryption at rest, outbox re
 npm run test:ui              # demo server: 48 routes at 5 widths, accessibility smoke and failure recovery
 npm run test:ui -- --cancellation # demo server: cancellation refresh and closed-request payment blocking
 npm run test:a11y            # demo server: accessible names, enlarged text, reflow and keyboard/error recovery
+npm run test:seo             # indexing, canonical, sitemap and connected brand-entity checks
+npm run check:seo            # read-only rendered-page SEO audit against the running demo server
 npm run test:release         # release-policy regression tests; no external operations
 npm run check:release        # production configuration and compiled-build preflight; no external operations
 npm run flows                # with the app running in demo mode on a fresh database: 247 end-to-end checks,
@@ -114,7 +116,7 @@ Copy `.env.example` to `.env.local`. None are needed for development.
 | `INTOUCHPAY_CALLBACK_USER`, `INTOUCHPAY_CALLBACK_PASSWORD` | Optional. `POST /api/payments/callback` always answers 200 `{ "message": "success", "success": true, "request_id": … }` straight away, as IntouchPay requires, and then checks the payment with IntouchPay; a callback never decides the outcome, so it needs no login. If IntouchPay ever sends HTTP Basic with these values, a callback that says a prompt failed also closes it at once instead of when IntouchPay's status says so. |
 | `MTN_MOMO_*`, `AIRTEL_*` | Used only when `PAYMENT_PROVIDER=direct`. |
 | `CRON_SECRET` | Protects `/api/cron`. Vercel sends it automatically to scheduled jobs. |
-| `NEXT_PUBLIC_SITE_URL` | The public address (`https://inziraservices.com`), used in SMS links, the sitemap and canonical links. Once it is set, the live deployment answers 404 on its `*.vercel.app` address (except `/api/cron` and `/api/health`). |
+| `NEXT_PUBLIC_SITE_URL` | The owner-confirmed production address (`https://inziraservices.com`), used in SMS links, the sitemap and canonical links. Once it is set, the live deployment answers 404 on its `*.vercel.app` address (except `/api/cron` and `/api/health`). |
 | `BLOB_READ_WRITE_TOKEN` | Vercel Blob read/write token for local or non-Vercel deployments. On Vercel, connect a private Blob store to use OIDC instead. |
 | `UPLOAD_DIR` | Local development upload directory (default `.data/uploads`). Production requires private Blob storage. |
 | `OWNER_NAME`, `OWNER_PHONE` | Used once by `npm run db:setup`. |
@@ -325,3 +327,7 @@ by every server action.
 - Not set up: ESLint (`npm run lint` has no config yet).
 - **Staff alerts** are a daily SMS summary. Nothing alerts staff the moment a customer replies; they see it
   in the console.
+
+Brand identity, public contact details and the canonical origin are centralized in `lib/brand.json`. See [Brand and SEO strategy](docs/BRAND_SEO_STRATEGY.md) for the keyword/page map, Search Console setup, deployment checks and measurement plan. Set `GOOGLE_SITE_VERIFICATION` for URL-prefix meta-tag verification, or use Search Console DNS verification. Set `SEO_NOINDEX=1` on non-Vercel staging hosts.
+
+See [SEO audit](docs/SEO_AUDIT.md) for rendered-page verification and the distinction between demo, production and staging indexing. Canonical metadata always identifies the confirmed official brand domain; release/indexing checks also require the configured production URL to match it.

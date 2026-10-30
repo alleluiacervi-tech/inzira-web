@@ -28,6 +28,7 @@ jobs:
       - run: npm run check:i18n
       - run: npm run test:unit
       - run: npm run test:release
+      - run: npm run test:seo
       - run: npm run check:backend
       - run: INZIRA_DEMO=1 npm run build
 
