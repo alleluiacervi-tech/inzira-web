@@ -2,6 +2,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Icon, Logo } from "@/components/ui";
+import { useDialog } from "@/components/useDialog";
 import { initials } from "@/lib/format";
 import { hasAdminAccess } from "@/lib/permissions";
 import type { Permission, Staff } from "@/lib/types";
@@ -42,6 +43,7 @@ export function Sidebar({
   onCloseMobile?: () => void;
 }) {
   const path = usePathname();
+  const dialog = useDialog<HTMLElement>(mobileOpen, () => onCloseMobile?.());
   const can = (p?: Permission) => !p || permissions.includes(p) || user.role === "Owner";
   const admin = hasAdminAccess(user.role, permissions);
 
@@ -108,7 +110,7 @@ export function Sidebar({
           style={{ zIndex: 39 }}
         />
       )}
-      <aside className={`console-sidebar ${mobileOpen ? "open" : ""}`}>
+      <aside ref={dialog} className={`console-sidebar ${mobileOpen ? "open" : ""}`} role={mobileOpen ? "dialog" : undefined} aria-modal={mobileOpen || undefined} aria-label="Staff navigation">
         {/* Brand Header */}
         <div className="row between c-rail-head">
           <div className="stack" style={{ gap: 0 }}>

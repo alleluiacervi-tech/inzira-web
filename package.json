@@ -6,7 +6,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint",
+    "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "test:unit": "tsx scripts/unit.mts",
     "smoke": "node scripts/smoke.mjs",
@@ -22,32 +22,45 @@
     "db:setup": "tsx scripts/db.mts setup",
     "check:backend": "tsx scripts/backend-check.mts",
     "check:providers": "tsx scripts/check-providers.mts",
-    "check:email": "tsx scripts/check-email.mts"
+    "check:email": "tsx scripts/check-email.mts",
+    "test:ui": "node scripts/ui-review.mjs",
+    "check:release": "node scripts/release-check.mjs",
+    "test:a11y": "node scripts/ui-review.mjs --accessibility",
+    "test:release": "node --test scripts/release-check.test.mjs"
   },
   "engines": {
     "node": ">=20.0.0"
   },
   "dependencies": {
     "@electric-sql/pglite": "^0.5.8",
-    "@vercel/blob": "^2.8.0",
+    "@vercel/blob": "2.8.2",
     "drizzle-orm": "^0.45.3",
-    "next": "15.5.27",
-    "nodemailer": "7.0.13",
+    "next": "15.5.28",
+    "nodemailer": "10.3.1",
     "pg": "^8.23.1",
     "qrcode": "1.5.4",
     "react": "19.1.1",
     "react-dom": "19.1.1",
-    "undici": "6.29.0"
+    "undici": "6.29.1"
   },
   "devDependencies": {
+    "@eslint/eslintrc": "^3.3.7",
     "@types/node": "^22",
-    "@types/nodemailer": "^6.4.24",
+    "@types/nodemailer": "8.0.2",
     "@types/pg": "^8.23.1",
     "@types/qrcode": "1.5.6",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "drizzle-kit": "^0.31.11",
+    "eslint": "^9.39.5",
+    "eslint-config-next": "15.5.28",
     "tsx": "^4.23.15",
     "typescript": "^5"
+  },
+  "overrides": {
+    "@vercel/cli-config": {
+      "zod": "^4.6.7"
+    },
+    "postcss": "^8.5.23"
   }
 }

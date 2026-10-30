@@ -1,15 +1,17 @@
 "use client";
 import { withStepUp } from "./StepUp";
 import Link from "next/link";
-import { useState, useTransition } from "react";
+import { useId, useState, useTransition } from "react";
 import { addClientNote, addClientTag, removeClientTag, revealNationalId, revealTin } from "@/app/actions/console";
-import { Icon } from "@/components/ui";
+import { Alert, Icon } from "@/components/ui";
 import { fmtAgo, fmtDay, fmtWhen, initials, rwf, shortName } from "@/lib/format";
 import { payStatus } from "@/lib/status";
 import type { ClientDetail } from "@/lib/types";
 import { RequestStatusBadge, PaymentStatusBadge, DocStatusBadge } from "./StatusBadge";
 import { Timeline } from "./Timeline";
 import { Toast } from "./Toast";
+
+type ClientTab = "overview" | "requests" | "payments" | "documents" | "messages" | "notes" | "activity";
 
 export function ClientDetailView({
   client,
@@ -19,8 +21,19 @@ export function ClientDetailView({
   now: string;
 }) {
   const [busy, start] = useTransition();
-  const [activeTab, setActiveTab] = useState<"overview" | "requests" | "payments" | "documents" | "messages" | "notes" | "activity">("overview");
+  const [activeTab, setActiveTab] = useState<ClientTab>("overview");
+  const tabId = useId();
   const [toast, setToast] = useState("");
+  const [error, setError] = useState("");
+  const tabs: {id: ClientTab; label: string; icon: string}[] = [
+    {id: "overview", label: "Overview", icon: "home"},
+    {id: "requests", label: `Requests (${client.requests.length})`, icon: "list"},
+    {id: "payments", label: "Payments", icon: "card"},
+    {id: "documents", label: `Documents (${client.documents.length})`, icon: "file"},
+    {id: "messages", label: `Messages (${client.messages.length})`, icon: "msg"},
+    {id: "notes", label: `Notes (${client.notes.length})`, icon: "note"},
+    {id: "activity", label: `Activity (${client.events.length})`, icon: "log"},
+  ];
 
   // Privacy reveal states
   const [unmaskedNid, setUnmaskedNid] = useState<string | null>(null);
@@ -33,27 +46,30 @@ export function ClientDetailView({
   const [newNote, setNewNote] = useState("");
 
   const phone = client.phone.replace(/\D/g, "");
+  const transactions = client.requests.flatMap(request => request.billing.transactions.map(transaction => ({...transaction, ref: request.ref, name: request.name})));
 
   const handleRevealNid = () => {
+    setError("");
     setRevealingNid(true);
     start(async () => {
-      const res = await withStepUp(() => revealNationalId(client.id));
+      const res = await withStepUp(() => revealNationalId(client.id)).catch(() => ({ok: false as const, error: "The ID could not be loaded. Check your connection and try again."}));
       if (res.ok) {
         setUnmaskedNid(res.nationalId);
         setToast("National ID revealed (logged in audit)");
-      }
+      } else setError(res.error);
       setRevealingNid(false);
     });
   };
 
   const handleRevealTin = () => {
+    setError("");
     setRevealingTin(true);
     start(async () => {
-      const res = await withStepUp(() => revealTin(client.id));
+      const res = await withStepUp(() => revealTin(client.id)).catch(() => ({ok: false as const, error: "The TIN could not be loaded. Check your connection and try again."}));
       if (res.ok) {
         setUnmaskedTin(res.tin);
         setToast("TIN revealed (logged in audit)");
-      }
+      } else setError(res.error);
       setRevealingTin(false);
     });
   };
@@ -61,38 +77,42 @@ export function ClientDetailView({
   const handleAddTag = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newTag.trim()) return;
+    setError("");
     start(async () => {
-      const res = await addClientTag(client.id, newTag.trim());
+      const res = await addClientTag(client.id, newTag.trim()).catch(() => ({ok: false as const, error: "The tag could not be confirmed. Refresh the client before trying again."}));
       if (res.ok) {
         setNewTag("");
         setToast(`Tag “${newTag}” added`);
-      }
+      } else setError(res.error);
     });
   };
 
   const handleRemoveTag = (tag: string) => {
+    setError("");
     start(async () => {
-      const res = await removeClientTag(client.id, tag);
+      const res = await removeClientTag(client.id, tag).catch(() => ({ok: false as const, error: "The tag change could not be confirmed. Refresh the client before trying again."}));
       if (res.ok) {
         setToast(`Tag “${tag}” removed`);
-      }
+      } else setError(res.error);
     });
   };
 
   const handleAddNote = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newNote.trim()) return;
+    setError("");
     start(async () => {
-      const res = await addClientNote(client.id, newNote.trim());
+      const res = await addClientNote(client.id, newNote.trim()).catch(() => ({ok: false as const, error: "The note could not be confirmed. Check the activity history before trying again."}));
       if (res.ok) {
         setNewNote("");
         setToast("Client note saved");
-      }
+      } else setError(res.error);
     });
   };
 
   return (
     <div className="stack g18">
+      {error && <Alert kind="err" title="Action could not be confirmed" live>{error}</Alert>}
       {/* Header Profile Card */}
       <div className="console-panel stack g14" style={{ padding: "18px 22px" }}>
         <div className="row between g16 wrapx">
@@ -184,23 +204,25 @@ export function ClientDetailView({
       </div>
 
       {/* Tabs */}
-      <div className="row console-tabs c-tabs" role="tablist" aria-label="Client sections">
-        {[
-          { id: "overview", label: "Overview", icon: "home" },
-          { id: "requests", label: `Requests (${client.requests.length})`, icon: "list" },
-          { id: "payments", label: "Payments", icon: "card" },
-          { id: "documents", label: `Documents (${client.documents.length})`, icon: "file" },
-          { id: "messages", label: `Messages (${client.messages.length})`, icon: "msg" },
-          { id: "notes", label: `Notes (${client.notes.length})`, icon: "note" },
-          { id: "activity", label: `Activity (${client.events.length})`, icon: "log" },
-        ].map((tab) => (
+      <div className="row console-tabs c-tabs" role="tablist" aria-label="Client sections" onKeyDown={(e) => {
+        if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(e.key)) return;
+        e.preventDefault();
+        const current = tabs.findIndex(tab => tab.id === activeTab);
+        const next = e.key === "Home" ? 0 : e.key === "End" ? tabs.length - 1 : (current + (e.key === "ArrowRight" ? 1 : -1) + tabs.length) % tabs.length;
+        setActiveTab(tabs[next].id);
+        e.currentTarget.querySelectorAll<HTMLButtonElement>('[role="tab"]')[next]?.focus();
+      }}>
+        {tabs.map((tab) => (
           <button
             key={tab.id}
             type="button"
             role="tab"
+            id={`${tabId}-${tab.id}`}
+            aria-controls={`${tabId}-panel`}
+            tabIndex={activeTab === tab.id ? 0 : -1}
             aria-selected={activeTab === tab.id}
             className="c-tab"
-            onClick={() => setActiveTab(tab.id as any)}
+            onClick={() => setActiveTab(tab.id)}
           >
             <Icon name={tab.icon} size={14} />
             <span>{tab.label}</span>
@@ -209,6 +231,7 @@ export function ClientDetailView({
       </div>
 
       {/* Tab Panels */}
+      <div role="tabpanel" id={`${tabId}-panel`} aria-labelledby={`${tabId}-${activeTab}`} tabIndex={0} className="stack g20" style={{minWidth: 0}}>
       {activeTab === "overview" && (
         <div className="grid cols-2" style={{ gap: 20, alignItems: "start" }}>
           {/* Identification with Audited Unmasking */}
@@ -271,6 +294,7 @@ export function ClientDetailView({
                     <span>{t}</span>
                     <button
                       type="button"
+                      disabled={busy}
                       onClick={() => handleRemoveTag(t)}
                       style={{ background: "none", border: "none", color: "inherit", cursor: "pointer", padding: "0 0 0 4px" }}
                       aria-label={`Remove tag ${t}`}
@@ -286,7 +310,7 @@ export function ClientDetailView({
                   style={{ height: 30, fontSize: 12.5 }}
                   value={newTag}
                   onChange={(e) => setNewTag(e.target.value)}
-                  placeholder="Add tag (e.g. VIP)..."
+                  placeholder="Add tag (e.g. VIP)..." aria-label="Add client tag"
                 />
                 <button type="submit" className="c-btn c-btn-secondary c-btn-sm" disabled={!newTag.trim() || busy}>
                   Add tag
@@ -367,13 +391,15 @@ export function ClientDetailView({
         <div className="console-panel stack g14" style={{ padding: 18 }}>
           <h3 className="console-section-title" style={{ margin: 0 }}>Payment Transactions</h3>
           <div className="stack g8">
-            {client.requests.flatMap((r) => r.billing.transactions.map((t) => ({ ...t, ref: r.ref, name: r.name }))).map((tx, idx) => (
-              <div key={idx} className="console-panel row between g12" style={{ padding: 12 }}>
+            {!transactions.length && <p className="mut">No payment history yet. Payments recorded against this client’s requests appear here.</p>}
+            {transactions.map((tx, idx) => (
+              <div key={idx} className="console-panel row between g12 wrapx" style={{ padding: 12 }}>
                 <div className="stack" style={{ gap: 2 }}>
-                  <div className="row g8">
+                  <div className="row g8 wrapx">
                     <span className="c-mono-ref">{tx.receipt}</span>
                     <strong style={{ fontSize: 13 }}>{tx.name} ({tx.ref})</strong>
-                    <span className="c-badge c-badge-green">{tx.status}</span>
+                    <span className={`c-badge c-badge-${tx.status === "paid" ? "green" : tx.status === "failed" ? "red" : tx.status === "pending" ? "amber" : "neutral"}`}>{tx.status}</span>
+                    {tx.providerRef?.startsWith("sim:") && <span className="c-badge c-badge-neutral">Test transaction</span>}
                   </div>
                   <span style={{ fontSize: 12, color: "var(--c-text-muted)" }}>{tx.method} · {fmtWhen(tx.at, now)}</span>
                 </div>
@@ -391,10 +417,11 @@ export function ClientDetailView({
         <div className="console-panel stack g14" style={{ padding: 18 }}>
           <h3 className="console-section-title" style={{ margin: 0 }}>Customer Document Library</h3>
           <div className="stack g8">
+            {!client.documents.length && <p className="mut">No documents saved for this client. Files uploaded to their requests appear here.</p>}
             {client.documents.map((d) => (
-              <div key={d.key} className="console-panel row between g12" style={{ padding: 12 }}>
+              <div key={d.key} className="console-panel row between g12 wrapx" style={{ padding: 12 }}>
                 <div className="stack" style={{ gap: 2 }}>
-                  <div className="row g8">
+                  <div className="row g8 wrapx">
                     <strong style={{ fontSize: 13.5 }}>{d.name}</strong>
                     <DocStatusBadge status={d.status} />
                   </div>
@@ -415,6 +442,7 @@ export function ClientDetailView({
         <div className="console-panel stack g12" style={{ padding: 18 }}>
           <h3 className="console-section-title" style={{ margin: 0 }}>All Messages History</h3>
           <div className="stack g10" style={{ maxHeight: 400, overflowY: "auto" }}>
+            {!client.messages.length && <p className="mut">No messages yet. Open one of this client’s requests to start a conversation.</p>}
             {client.messages.map((m) => (
               <div key={m.id} className="console-panel stack g4" style={{ padding: 12, background: m.by === "customer" ? "var(--c-surface)" : "var(--c-ember-bg)" }}>
                 <div className="row between g8" style={{ fontSize: 12, color: "var(--c-text-muted)" }}>
@@ -447,8 +475,9 @@ export function ClientDetailView({
           </div>
 
           <form onSubmit={handleAddNote} className="stack g8" style={{ paddingTop: 10, borderTop: "1px solid var(--c-border)" }}>
-            <label className="console-label">Add new note</label>
+            <label className="console-label" htmlFor={`${tabId}-note`}>Add new note</label>
             <textarea
+              id={`${tabId}-note`}
               className="console-textarea"
               rows={3}
               value={newNote}
@@ -474,6 +503,7 @@ export function ClientDetailView({
         </div>
       )}
 
+      </div>
       {toast && <Toast message={toast} onDismiss={() => setToast("")} />}
     </div>
   );

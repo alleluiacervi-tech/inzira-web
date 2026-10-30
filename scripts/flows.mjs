@@ -304,10 +304,10 @@ await step("start", async () => {
   await waitPath(p, (path) => path.endsWith("/pay"), 120); await waitFor(p, "Pay the review fee to send your request", 60);
   check("start: a phone number used before never blocks a new request, nor joins it to another account", await p.has("Pay the review fee to send your request") && !(await p.has("already belongs to another account")),
     (await p.ev(`document.body?.innerText ?? ""`)).slice(0, 300).replace(/\s+/g, " "));
-  check("review fee: the payment screen charges only the review fee", (await p.ev(`document.querySelector("[data-pay]")?.textContent ?? ""`)).includes("Pay RWF 1,000") && await p.has("Review fee"));
+  check("review fee: the payment screen charges only the review fee", (await p.ev(`document.querySelector("[data-pay]")?.textContent ?? ""`)).includes("Run test payment · RWF 1,000") && await p.has("Review fee"));
   check("pay: at checkout there is no second tick to approve the amounts", (await p.ev(`document.querySelector("#pay-agree") === null`)));
-  await p.set("#mm", "788 123 456"); await p.click("Pay RWF 1,000", "button");
-  await waitFor(p, "Your request is with our team", 100);
+  await p.set("#mm", "788 123 456"); await p.click("Run test payment · RWF 1,000", "button");
+  await waitFor(p, "Test payment completed", 100);
   check("review fee: paying it sends the request and says the fees come next", await p.has("sends the exact fees") && await p.has("taken off our fee") && await p.has("minus what you paid today"),
     (await p.ev(`document.body?.innerText ?? ""`)).slice(0, 300).replace(/\s+/g, " "));
   await p.click("Follow your request"); await waitFor(p, "You paid a RWF 1,000 review fee");
@@ -319,10 +319,10 @@ await step("start", async () => {
   check("pay first: the review shows the total and that paying sends it", (await p.ev(`document.querySelector("[data-checkout-total]")?.innerText ?? ""`)).includes("RWF 20,000") && !(await p.has("you pay it directly to the institution")), (await p.ev(`document.querySelector("main")?.innerText ?? ""`)).slice(0, 300).replace(/\s+/g, " "));
   await p.ev(`document.querySelector('input[aria-describedby="ack-err"]').click()`); await p.click("Continue to payment");
   await waitPath(p, (path) => path.endsWith("/pay"), 120); await waitFor(p, "Pay to send your request", 60);
-  check("pay first: the checkout asks for the fixed price", await p.has("Pay to send your request") && (await p.ev(`document.querySelector("[data-pay]")?.textContent ?? ""`)).includes("Pay RWF 20,000"));
-  await p.set("#mm", "788 123 456"); await p.click("Pay RWF 20,000", "button");
-  await waitFor(p, "Your request is with our team", 100);
-  check("pay first: paying sends the request and says what happens next", await p.has("Your request is with our team") && await p.has("RWF 20,000") && await p.has("What happens next") && await p.has("MTN MoMo"),
+  check("pay first: the checkout asks for the fixed price", await p.has("Pay to send your request") && (await p.ev(`document.querySelector("[data-pay]")?.textContent ?? ""`)).includes("Run test payment · RWF 20,000"));
+  await p.set("#mm", "788 123 456"); await p.click("Run test payment · RWF 20,000", "button");
+  await waitFor(p, "Test payment completed", 100);
+  check("pay first: paying sends the request and says what happens next", await p.has("Test payment completed") && await p.has("RWF 20,000") && await p.has("What happens next") && await p.has("MTN MoMo"),
     (await p.ev(`document.body?.innerText ?? ""`)).slice(0, 300).replace(/\s+/g, " "));
   await p.click("Follow your request"); await waitFor(p, "Paid RWF 20,000");
   check("pay first: the request reads Paid and received", await p.has("Paid RWF 20,000") && await p.has("We’ve received your request") && !(await p.has("Pay to send your request")) && !(await p.has("Review and pay")));
@@ -396,22 +396,22 @@ await step("customer", async () => {
     await p.go(href);
   }
   await waitFor(p, "Approve and pay", 40);
-  check("pay: the payment screen shows the amount on its own page", (await p.ev("location.pathname")).endsWith("/pay") && await p.has("Approve and pay") && await p.has("20,000") && await p.has("Nothing is taken until you approve it"),
+  check("pay: the payment screen shows the amount on its own page", (await p.ev("location.pathname")).endsWith("/pay") && await p.has("Approve and pay") && await p.has("20,000") && await p.has("No money is collected or transferred"),
     `${await p.ev("location.pathname")} ${(await p.ev("document.body.innerText")).replace(/\s+/g, " ").slice(0, 220)}`);
-  await p.click("Pay RWF 20,000", "button"); await sleep(200);
+  await p.click("Run test payment · RWF 20,000", "button"); await sleep(200);
   check("pay: cannot pay without approving the amounts", await p.has("Tick the box to approve"));
   await p.ev(`document.querySelector("#pay-agree").click()`);
-  await p.set("#mm", "788 120 000"); await p.click("Pay RWF 20,000", "button"); await sleep(600);
-  check("pay: shows a waiting state", await p.has("Check your phone"));
+  await p.set("#mm", "788 120 000"); await p.click("Run test payment · RWF 20,000", "button"); await sleep(600);
+  check("pay: shows a waiting state", await p.has("Checking the test payment"));
   await sleep(4500);
   check("pay: a declined prompt says nothing was charged", await p.has("didn’t go through") && await p.has("Nothing was charged"));
   // A number ending 1111 is approved by the simulator after twelve seconds: leave the page while it waits and come back.
-  await p.click("Try again"); await sleep(200); await p.set("#mm", "788 121 111"); await p.click("Pay RWF 20,000", "button"); await sleep(1000);
-  await p.go(await p.ev("location.pathname")); await waitFor(p, "Check your phone", 20);
-  check("pay: coming back to the page shows the prompt still waiting, not a new one", await p.has("Check your phone") && await p.has("788 121 111") && !(await p.ev(`!!document.querySelector("[data-pay]")`)),
+  await p.click("Try again"); await sleep(200); await p.set("#mm", "788 121 111"); await p.click("Run test payment · RWF 20,000", "button"); await sleep(1000);
+  await p.go(await p.ev("location.pathname")); await waitFor(p, "Checking the test payment", 20);
+  check("pay: coming back to the page shows the prompt still waiting, not a new one", await p.has("Checking the test payment") && await p.has("788 121 111") && !(await p.ev(`!!document.querySelector("[data-pay]")`)),
     (await p.ev("document.body.innerText")).replace(/\s+/g, " ").slice(0, 220));
-  await waitFor(p, "Payment received", 100);
-  check("pay: success shows a receipt", await p.has("Payment received") && await p.has("INZ-R-22107"));
+  await waitFor(p, "Test payment completed", 100);
+  check("pay: success shows a receipt", await p.has("Test payment completed") && await p.has("INZ-R-22107"));
   await p.click("Done"); await waitFor(p, "Paid RWF 20,000");
   check("pay: the request now reads Paid, from the database", await p.has("Paid RWF 20,000") && !(await p.has("Review and pay")));
   await p.go("/portal/requests/INZ-2026-04817");
@@ -602,9 +602,9 @@ await step("admin", async () => {
   await p.go("/admin/payments");
   await p.click("Refund"); await sleep(400);
   check("refund: dialog explains only our fee is refunded", await p.has("Only our assistance fee"));
-  check("refund: the dialog says the money goes back through IntouchPay", await p.has("through IntouchPay"));
-  await p.click("Send refund"); await waitFor(p, "sent back to");
-  check("refund: sent back by mobile money and recorded", await p.has("sent back to") && await p.has("by mobile money"));
+  check("refund: the demo explicitly says no money will move", await p.has("No money will be transferred") && await p.has("sample transaction history only"));
+  await p.click("Run test refund"); await waitFor(p, "test refund recorded");
+  check("refund: a test refund is recorded without claiming money moved", await p.has("test refund recorded") && await p.has("No money was transferred"), await p.ev(`JSON.stringify({feedback:[...document.querySelectorAll('[role=status], [role=alert], .err-text')].map(el=>el.innerText),dialog:document.querySelector('.modal')?.innerText})`));
   await p.go("/admin/roles");
   await p.click("Invite person"); await sleep(200); await p.set("#pp-name", "New Colleague"); await p.set("#pp-phone", "788 444 555"); await p.click("Send invite"); await waitFor(p, "invited as");
   check("people: inviting adds a person", await p.has("New Colleague"));
@@ -818,8 +818,8 @@ await step("whatsapp", async () => {
   await waitPath(p, (path) => path.endsWith("/pay"), 120); await waitFor(p, "Pay to send your request", 60);
   check("whatsapp: no code: straight to paying the one total, with the WhatsApp number ready for MoMo", (await p.ev(`document.querySelector("[data-pay]")?.textContent ?? ""`)).includes("RWF 2,500") && (await p.ev(`document.querySelector("#mm")?.value ?? ""`)).replace(/\D/g, "").endsWith("788555020"));
   const ref = (await p.ev("location.pathname")).split("/")[2] ?? "";
-  await p.click("Pay RWF 2,500", "button"); await waitFor(p, "Your request is with our team", 100);
-  check("whatsapp: paying sends the request", await p.has("Your request is with our team"));
+  await p.click("Run test payment · RWF 2,500", "button"); await waitFor(p, "Test payment completed", 100);
+  check("whatsapp: paying sends the request", await p.has("Test payment completed"));
   await p.go("/start/single-status"); await waitFor(p, "Continue");
   check("whatsapp: single status warns, before anything is paid, that NIDA must list them as single", await p.has("Only if NIDA lists you as single"));
   await p.close();

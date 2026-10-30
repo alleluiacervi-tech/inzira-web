@@ -34,6 +34,7 @@ export default function StaffShell({
 
   return (
     <div className="console-root">
+      <a className="skip" href="#main">Skip to content</a>
       <StepUpHost />
       <div className="console-layout">
         <Sidebar
@@ -54,7 +55,7 @@ export default function StaffShell({
             onOpenRecordPayment={() => setPaymentModalOpen(true)}
             onToggleMobileMenu={() => setMobileOpen(!mobileOpen)}
           />
-          <main className="console-content">
+          <main id="main" tabIndex={-1} className="console-content">
             {children}
           </main>
           <StaffTabBar user={user} permissions={permissions} inboxCount={inboxCount} />

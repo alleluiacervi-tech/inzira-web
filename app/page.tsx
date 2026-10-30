@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import PublicNav from "@/components/PublicNav";
 import Footer from "@/components/Footer";
@@ -202,7 +203,7 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ a
                   <li key={c.id}>
                     <Link href={withLocale(locale, c.href ?? `/services?category=${c.id}`)}>
                       <span className="desk-markslot">
-                        {mark ? <img className="desk-mark" src={mark} alt="" /> : office && <span className="desk-word">{office.code === "CIV" ? t("home.filedCivil") : officeCopy(office, locale).name}</span>}
+                        {mark ? <Image className="desk-mark" width={156} height={32} src={mark} alt="" /> : office && <span className="desk-word">{office.code === "CIV" ? t("home.filedCivil") : officeCopy(office, locale).name}</span>}
                       </span>
                       <span className="desk-name">{c.short}</span>
                       <span className="desk-foot">
@@ -231,7 +232,7 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ a
               <h2 id="how-h" className="h-2">{t("home.howTitle")}</h2>
               <QuickSteps locale={locale} />
             </div>
-            <img className="how-art" src="/illustrations/agent-with-client.svg" alt="" width={833} height={633} loading="lazy" decoding="async" />
+            <Image className="how-art" src="/illustrations/agent-with-client.svg" alt="" width={833} height={633} loading="lazy" decoding="async" />
           </div>
         </section>
 
@@ -254,8 +255,8 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ a
             <div className="stack g20">
               <p className="people">
                 <span className="people-faces" aria-hidden="true">
-                  <img src="/illustrations/agent-woman.svg" alt="" width={48} height={48} loading="lazy" />
-                  <img src="/illustrations/agent-man.svg" alt="" width={48} height={48} loading="lazy" />
+                  <Image src="/illustrations/agent-woman.svg" alt="" width={48} height={48} loading="lazy" />
+                  <Image src="/illustrations/agent-man.svg" alt="" width={48} height={48} loading="lazy" />
                 </span>
                 {t("home.people")}
               </p>

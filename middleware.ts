@@ -11,6 +11,12 @@ import { siteOrigin } from "@/lib/site";
  *  Shared public pages take their language from the address alone, so the cached copy (next.config.mjs) fits
  *  every visitor: a visitor who chose English is sent to the /en address instead of getting English at the bare one. */
 export function middleware(req: NextRequest) {
+  const response = routeRequest(req);
+  if (process.env.INZIRA_DEMO === "1" || process.env.NODE_ENV !== "production") response.headers.set("X-Robots-Tag", "noindex, nofollow");
+  return response;
+}
+
+function routeRequest(req: NextRequest) {
   const headers = new Headers(req.headers);
   const { pathname } = req.nextUrl;
   headers.set("x-inzira-path", pathname + req.nextUrl.search);

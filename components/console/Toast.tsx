@@ -12,7 +12,7 @@ export function Toast({
   onDismiss: () => void;
 }) {
   useEffect(() => {
-    const t = setTimeout(onDismiss, 2800);
+    const t = setTimeout(onDismiss, 6000);
     return () => clearTimeout(t);
   }, [onDismiss]);
 
@@ -20,7 +20,7 @@ export function Toast({
 
   return (
     <div className="console-toast-container">
-      <div className="console-toast">
+      <div className="console-toast" role={type === "err" ? "alert" : "status"} aria-atomic="true">
         <Icon
           name={type === "ok" ? "check" : type === "err" ? "alert" : "info"}
           size={16}

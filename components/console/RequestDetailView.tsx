@@ -131,9 +131,13 @@ export function RequestDetailView({
     });
   };
 
-  const copyRef = (text: string) => {
-    navigator.clipboard.writeText(text);
-    setToast(`Copied ${text}`);
+  const copyRef = async (text: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setToast(`Copied ${text}`);
+    } catch {
+      setError("Could not copy. Select the reference and copy it manually.");
+    }
   };
 
   const uploadFile = (kind: "deliverable" | "receipt" | "document", file: File | undefined, extra: Record<string, string> = {}, ok = "File saved") => {
@@ -164,7 +168,7 @@ export function RequestDetailView({
                   type="button"
                   className="c-copy-btn"
                   onClick={() => copyRef(c.ref)}
-                  title="Copy reference"
+                  title="Copy reference" aria-label="Copy reference"
                 >
                   <Icon name="file" size={12} />
                 </button>

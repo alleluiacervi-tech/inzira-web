@@ -11,9 +11,9 @@ concurrency:
 
 jobs:
   check:
-    name: Typecheck, i18n, build, smoke and flows
+    name: Quality checks, build and end-to-end flows
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
 
@@ -23,9 +23,13 @@ jobs:
           cache: npm
 
       - run: npm ci
+      - run: npm run lint -- --max-warnings=0
       - run: npm run typecheck
       - run: npm run check:i18n
-      - run: npm run build
+      - run: npm run test:unit
+      - run: npm run test:release
+      - run: npm run check:backend
+      - run: INZIRA_DEMO=1 npm run build
 
       # Demo mode on a fresh embedded database: sign-in codes are shown on screen and payments are
       # simulated, which is what smoke and flows expect. The server keeps running for the next steps.

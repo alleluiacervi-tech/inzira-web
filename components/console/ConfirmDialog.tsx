@@ -1,4 +1,5 @@
 "use client";
+import { useDialog } from "@/components/useDialog";
 import { useEffect, useId, useState, type ReactNode } from "react";
 import { Icon } from "@/components/ui";
 
@@ -37,21 +38,16 @@ export function ConfirmDialog({
     if (open) setReason("");
   }, [open]);
 
-  useEffect(() => {
-    if (!open) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && !busy) onClose();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [open, onClose, busy]);
+
+
+  const dialog = useDialog<HTMLDivElement>(open, () => { if (!busy) onClose(); });
 
   if (!open) return null;
 
   const canSubmit = !requireReason || reason.trim().length > 0;
 
   return (
-    <div className="console-dialog-overlay" onClick={busy ? undefined : onClose} role="dialog" aria-modal="true" aria-label={title}>
+    <div ref={dialog} className="console-dialog-overlay" onClick={busy ? undefined : onClose} role="dialog" aria-modal="true" aria-label={title}>
       <div className="console-dialog stack" onClick={(e) => e.stopPropagation()}>
         <div className="console-panel-header">
           <h3 style={{ fontSize: 16, fontWeight: 600, margin: 0 }}>{title}</h3>

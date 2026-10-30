@@ -1,5 +1,6 @@
 "use client";
-import { useState, useTransition } from "react";
+import { useDialog } from "@/components/useDialog";
+import { useEffect, useId, useState, useTransition } from "react";
 import { createClient } from "@/app/actions/console";
 import { Icon } from "@/components/ui";
 
@@ -12,6 +13,7 @@ export function AddClientModal({
   onClose: () => void;
   onSuccess?: (profileId: string, name: string) => void;
 }) {
+  const formId = useId();
   const [busy, start] = useTransition();
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
@@ -22,6 +24,14 @@ export function AddClientModal({
   const [tagInput, setTagInput] = useState("");
   const [notes, setNotes] = useState("");
   const [error, setError] = useState("");
+
+  useEffect(() => {
+    if (!open) return;
+    setName(""); setPhone(""); setKind("person"); setDistrict("Gasabo");
+    setNationalId(""); setTin(""); setTagInput(""); setNotes(""); setError("");
+  }, [open]);
+
+  const dialog = useDialog<HTMLDivElement>(open, () => { if (!busy) onClose(); });
 
   if (!open) return null;
 
@@ -43,7 +53,7 @@ export function AddClientModal({
         tin: tin.trim() || undefined,
         tags: tags.length ? tags : undefined,
         notes: notes.trim() || undefined,
-      });
+      }).catch(() => ({ ok: false as const, error: "The client could not be saved. Check your connection and try again." }));
 
       if (!res.ok) {
         setError(res.error);
@@ -56,7 +66,7 @@ export function AddClientModal({
   };
 
   return (
-    <div className="console-dialog-overlay" onClick={busy ? undefined : onClose} role="dialog" aria-modal="true" aria-label="Add New Client">
+    <div ref={dialog} className="console-dialog-overlay" onClick={busy ? undefined : onClose} role="dialog" aria-modal="true" aria-label="Add New Client">
       <div className="console-dialog stack" onClick={(e) => e.stopPropagation()}>
         <div className="console-panel-header">
           <div className="stack" style={{ gap: 2 }}>
@@ -65,7 +75,7 @@ export function AddClientModal({
               Create a client account and profile in the directory.
             </span>
           </div>
-          <button type="button" className="c-btn c-btn-ghost c-btn-sm c-btn-icon" onClick={onClose} disabled={busy}>
+          <button type="button" className="c-btn c-btn-ghost c-btn-sm c-btn-icon" onClick={onClose} disabled={busy} aria-label="Close dialog">
             <Icon name="x" size={18} />
           </button>
         </div>
@@ -73,15 +83,15 @@ export function AddClientModal({
         <form onSubmit={handleSubmit}>
           <div className="console-panel-body stack g12">
             {error && (
-              <div style={{ background: "var(--c-red-bg)", border: "1px solid var(--c-red-border)", padding: "8px 12px", borderRadius: 4, color: "var(--c-red)", fontSize: 13 }}>
+              <div role="alert" style={{ background: "var(--c-red-bg)", border: "1px solid var(--c-red-border)", padding: "8px 12px", borderRadius: 4, color: "var(--c-red)", fontSize: 13 }}>
                 {error}
               </div>
             )}
 
             <div className="grid cols-2" style={{ gap: 12 }}>
               <div className="console-form-group">
-                <label className="console-label">Full name / Entity name *</label>
-                <input
+                <label className="console-label" htmlFor={`${formId}-1`}>Full name / Entity name *</label>
+                <input id={`${formId}-1`}
                   className="console-input"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
@@ -92,11 +102,11 @@ export function AddClientModal({
               </div>
 
               <div className="console-form-group">
-                <label className="console-label">Client type *</label>
-                <select
+                <label className="console-label" htmlFor={`${formId}-2`}>Client type *</label>
+                <select id={`${formId}-2`}
                   className="console-select"
                   value={kind}
-                  onChange={(e) => setKind(e.target.value as any)}
+                  onChange={(e) => setKind(e.target.value as "person" | "business" | "organization")}
                   disabled={busy}
                 >
                   <option value="person">Individual (Person)</option>
@@ -108,9 +118,11 @@ export function AddClientModal({
 
             <div className="grid cols-2" style={{ gap: 12 }}>
               <div className="console-form-group">
-                <label className="console-label">Phone number (login) *</label>
-                <input
+                <label className="console-label" htmlFor={`${formId}-3`}>Phone number (login) *</label>
+                <input id={`${formId}-3`}
                   className="console-input"
+                  type="tel"
+                  autoComplete="tel-national"
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
                   placeholder="0788 123 456"
@@ -120,8 +132,8 @@ export function AddClientModal({
               </div>
 
               <div className="console-form-group">
-                <label className="console-label">District</label>
-                <input
+                <label className="console-label" htmlFor={`${formId}-4`}>District</label>
+                <input id={`${formId}-4`}
                   className="console-input"
                   value={district}
                   onChange={(e) => setDistrict(e.target.value)}
@@ -133,8 +145,8 @@ export function AddClientModal({
 
             <div className="grid cols-2" style={{ gap: 12 }}>
               <div className="console-form-group">
-                <label className="console-label">National ID (16 digits)</label>
-                <input
+                <label className="console-label" htmlFor={`${formId}-5`}>National ID (16 digits)</label>
+                <input id={`${formId}-5`}
                   className="console-input"
                   value={nationalId}
                   onChange={(e) => setNationalId(e.target.value)}
@@ -144,8 +156,8 @@ export function AddClientModal({
               </div>
 
               <div className="console-form-group">
-                <label className="console-label">TIN (Tax ID - 9 digits)</label>
-                <input
+                <label className="console-label" htmlFor={`${formId}-6`}>TIN (Tax ID - 9 digits)</label>
+                <input id={`${formId}-6`}
                   className="console-input"
                   value={tin}
                   onChange={(e) => setTin(e.target.value)}
@@ -156,8 +168,8 @@ export function AddClientModal({
             </div>
 
             <div className="console-form-group">
-              <label className="console-label">Tags (comma separated)</label>
-              <input
+              <label className="console-label" htmlFor={`${formId}-7`}>Tags (comma separated)</label>
+              <input id={`${formId}-7`}
                 className="console-input"
                 value={tagInput}
                 onChange={(e) => setTagInput(e.target.value)}
@@ -167,8 +179,8 @@ export function AddClientModal({
             </div>
 
             <div className="console-form-group">
-              <label className="console-label">Initial note (internal)</label>
-              <textarea
+              <label className="console-label" htmlFor={`${formId}-8`}>Initial note (internal)</label>
+              <textarea id={`${formId}-8`}
                 className="console-textarea"
                 rows={2}
                 value={notes}

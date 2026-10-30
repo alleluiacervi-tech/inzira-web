@@ -1,4 +1,5 @@
 "use client";
+import { useDialog } from "@/components/useDialog";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { Icon } from "@/components/ui";
@@ -21,6 +22,8 @@ export function GlobalSearch({
   const [q, setQ] = useState("");
   const [results, setResults] = useState<SearchResult>({ requests: [], clients: [], services: [] });
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [retry, setRetry] = useState(0);
   const [active, setActive] = useState(0);
 
   useEffect(() => {
@@ -30,31 +33,35 @@ export function GlobalSearch({
       return;
     }
 
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
     setActive(0);
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
   }, [open, onClose]);
 
   useEffect(() => {
-    if (!q.trim()) {
+    let current = true;
+    setError("");
+    if (!open || !q.trim()) {
       setResults({ requests: [], clients: [], services: [] });
+      setLoading(false);
       return;
     }
+    setLoading(true);
+    setResults({ requests: [], clients: [], services: [] });
     const timer = setTimeout(async () => {
-      setLoading(true);
       try {
         const res = await onSearch(q);
+        if (!current) return;
         setResults(res);
         setActive(0);
+      } catch {
+        if (current) setError("Search could not load. Check your connection and try again.");
       } finally {
-        setLoading(false);
+        if (current) setLoading(false);
       }
     }, 200);
-    return () => clearTimeout(timer);
-  }, [q, onSearch]);
+    return () => { current = false; clearTimeout(timer); };
+  }, [q, onSearch, open, retry]);
+
+  const dialog = useDialog<HTMLDivElement>(open, () => { onClose(); });
 
   if (!open) return null;
 
@@ -72,7 +79,7 @@ export function GlobalSearch({
   const rowClass = (href: string) => `row between g10 console-nav-item${hits[active]?.href === href ? " is-search-active" : ""}`;
 
   return (
-    <div className="console-dialog-overlay" onClick={onClose} role="dialog" aria-modal="true" aria-label="Global Search">
+    <div ref={dialog} className="console-dialog-overlay" onClick={onClose} role="dialog" aria-modal="true" aria-label="Global Search">
       <div
         className="console-dialog stack"
         style={{ maxWidth: 580, maxHeight: "80vh", overflow: "hidden" }}
@@ -83,6 +90,8 @@ export function GlobalSearch({
           <Icon name="search" size={18} color="var(--c-text-muted)" />
           <input
             autoFocus
+            className="console-search-input"
+            aria-label="Search requests, clients and services"
             value={q}
             onChange={(e) => setQ(e.target.value)}
             onKeyDown={onInputKey}
@@ -94,7 +103,8 @@ export function GlobalSearch({
 
         {/* Results List */}
         <div className="stack g12 grow" style={{ overflowY: "auto", padding: "14px 18px", maxHeight: "calc(80vh - 60px)" }}>
-          {q && !loading && totalResults === 0 && (
+          {error && <div role="alert" className="stack g12"><p>{error}</p><button type="button" className="c-btn c-btn-secondary" onClick={() => setRetry((n) => n + 1)}>Try search again</button></div>}
+          {q && !loading && !error && totalResults === 0 && (
             <div style={{ textAlign: "center", padding: "32px 0", color: "var(--c-text-muted)" }}>
               No results found for “{q}”
             </div>

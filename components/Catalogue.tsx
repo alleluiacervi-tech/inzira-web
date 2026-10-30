@@ -127,7 +127,7 @@ export default function Catalogue({ services, categories, initialQuery, initialC
             <div className="row g8">
               <button type="button" className="btn btn-s btn-sm d-hide" aria-expanded={showFilters} onClick={() => setShowFilters(!showFilters)}><Icon name="filter" size={16} /> {t("catalogue.filters")}{aud.length + fees.length ? ` · ${aud.length + fees.length}` : ""}</button>
               <label htmlFor="srt" className="mut m-hide" style={{ fontWeight: 500 }}>{t("catalogue.sort")}</label>
-              <select id="srt" className="in" style={{ width: 180, height: 40 }} value={sort} onChange={(e) => setSort(e.target.value)}>
+              <select id="srt" aria-label={t("catalogue.sort")} className="in" style={{ width: 180, height: 40 }} value={sort} onChange={(e) => setSort(e.target.value)}>
                 <option value="popular">{t("catalogue.popular")}</option><option value="cost">{t("catalogue.cost")}</option><option value="name">{t("catalogue.az")}</option>
               </select>
             </div>

@@ -5,7 +5,7 @@ import type { Locale } from "@/lib/i18n/locale";
 import { contentVersion } from "@/lib/i18n/live";
 import { text, type Messages, messages } from "@/lib/i18n/messages";
 
-type Bag = { locale: Locale; m: Messages; t: (path: string, vars?: Record<string, string | number>) => string };
+type Bag = { version: ReturnType<typeof contentVersion>; locale: Locale; m: Messages; t: (path: string, vars?: Record<string, string | number>) => string };
 
 const Ctx = createContext<Bag | null>(null);
 
@@ -13,7 +13,7 @@ const Ctx = createContext<Bag | null>(null);
 export function LocaleProvider({ locale, children }: { locale: Locale; children: ReactNode }) {
   // The text changes when the edits made in the admin console do (components/ContentBridge.tsx).
   const version = contentVersion();
-  const value = useMemo<Bag>(() => ({ locale, m: messages(locale), t: (path, vars) => text(locale, path, vars) }), [locale, version]);
+  const value = useMemo<Bag>(() => ({ locale, version, m: messages(locale), t: (path, vars) => text(locale, path, vars) }), [locale, version]);
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
 
@@ -23,6 +23,6 @@ export function ForceEnglish({ children }: { children: ReactNode }) {
 
 export function useI18n() {
   const ctx = useContext(Ctx);
-  if (!ctx) return { locale: "rw" as Locale, m: messages("rw"), t: (path: string, vars?: Record<string, string | number>) => text("rw", path, vars) };
+  if (!ctx) return { version: contentVersion(), locale: "rw" as Locale, m: messages("rw"), t: (path: string, vars?: Record<string, string | number>) => text("rw", path, vars) };
   return ctx;
 }

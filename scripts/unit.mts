@@ -26,8 +26,18 @@ import { allFields, checkText, collectRows, countRows, findMatches, findPattern,
 import { defaultSteps, defaultStepsRw, pathInService, shiftList } from "../lib/service-text.ts";
 import en from "../lib/i18n/en.json" with { type: "json" };
 
+import { csvCell } from "../lib/csv.ts";
+
 let passed = 0;
 const test = (name: string, fn: () => void) => { try { fn(); passed++; } catch (e) { console.error(`FAIL ${name}\n`, e); process.exitCode = 1; } };
+
+test("CSV export escapes quotes and neutralizes spreadsheet formulas", () => {
+  assert.equal(csvCell('A "quoted" name'), '"A ""quoted"" name"');
+  assert.equal(csvCell('=HYPERLINK("https://example.com")'), `"'=HYPERLINK(""https://example.com"")"`);
+  assert.equal(csvCell('  +SUM(1,2)'), `"'  +SUM(1,2)"`);
+  assert.equal(csvCell(-25), '"-25"');
+  assert.equal(csvCell(null), '""');
+});
 
 // ---- authenticator codes: RFC 6238 appendix B vectors (SHA-1; the last six digits of the 8-digit values)
 const rfc = base32(Buffer.from("12345678901234567890"));
@@ -478,7 +488,7 @@ test("sample sign-in: a live site shows no code on screen, not even for a reserv
     assert.equal(canDeliverEmailCodes(), true);
   } finally { restore(); }
 });
-test("sample payment: the simulator is only for a reserved account when no provider is set", () => {
+test("payments: production never simulates collection, including reserved accounts", () => {
   const prev = { node: process.env.NODE_ENV, demo: process.env.INZIRA_DEMO, provider: process.env.PAYMENT_PROVIDER };
   const restore = () => {
     const set = (k: string, v: string | undefined) => { if (v === undefined) delete process.env[k]; else process.env[k] = v; };
@@ -488,7 +498,10 @@ test("sample payment: the simulator is only for a reserved account when no provi
     process.env.NODE_ENV = "production";
     delete process.env.INZIRA_DEMO;
     delete process.env.PAYMENT_PROVIDER;
-    assert.equal(providerFor("788123456", true).key, "sim");
+    assert.throws(() => providerFor("788123456", true), /not configured/);
+    process.env.PAYMENT_PROVIDER = "simulator";
+    assert.throws(() => providerFor("788123456", true), /only runs in development/);
+    delete process.env.PAYMENT_PROVIDER;
     assert.throws(() => providerFor("788123456", false), /not configured/);
   } finally { restore(); }
 });

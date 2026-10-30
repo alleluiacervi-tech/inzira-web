@@ -1,4 +1,5 @@
 "use client";
+import { useDialog } from "@/components/useDialog";
 import { useEffect, useState } from "react";
 import { Icon } from "@/components/ui";
 import { defaultFollowUpAt, fromKigaliDateTime, kigaliDateTimeParts } from "@/lib/desk";
@@ -31,17 +32,14 @@ export function FollowUpDialog({
     setDate(p.date); setTime(p.time); setWhat(initial?.what ?? ""); setError("");
   }, [open, initial?.at, initial?.what]);
 
-  useEffect(() => {
-    if (!open) return;
-    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape" && !busy) onClose(); };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [open, busy, onClose]);
+
+
+  const dialog = useDialog<HTMLDivElement>(open, () => { if (!busy) onClose(); });
 
   if (!open) return null;
 
   return (
-    <div className="console-dialog-overlay" onClick={() => !busy && onClose()}>
+    <div ref={dialog} className="console-dialog-overlay" onClick={() => !busy && onClose()}>
       <div className="console-dialog stack g14" style={{ padding: 18, maxWidth: 420 }} onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-labelledby="fu-t">
         <div className="row between">
           <h3 id="fu-t" style={{ margin: 0, fontSize: 16 }}>Remind me</h3>

@@ -31,7 +31,7 @@ export const MAX_CHANGES = 300;
 // ---------------- the screens of the site ----------------
 const UI_GROUPS: { id: string; title: string; hint: string; preview: string; keys: string[] }[] = [
   { id: "home", title: "Home page", hint: "The first page visitors see: hero, how it works, opening hours, contact.", preview: "/", keys: ["home", "steps", "contact", "hours", "responseTime"] },
-  { id: "menu", title: "Menu, footer & page titles", hint: "The top menu, the footer, and the titles and descriptions shown in Google results and browser tabs.", preview: "/", keys: ["nav", "footer", "meta", "notFound", "error"] },
+  { id: "menu", title: "Menu, footer & page titles", hint: "The top menu, the footer, and the titles and descriptions shown in Google results and browser tabs.", preview: "/", keys: ["nav", "footer", "meta", "notFound", "error", "demo"] },
   { id: "about", title: "About page", hint: "Who Inzira is.", preview: "/about", keys: ["about"] },
   { id: "legal", title: "Privacy & terms", hint: "The privacy notice and the terms of service.", preview: "/privacy", keys: ["legal"] },
   { id: "services-pages", title: "Services pages", hint: "The labels on the services list and on every service page. The text of each service is under Services.", preview: "/services", keys: ["catalogue", "service", "prices", "price", "feeTag"] },
@@ -39,7 +39,7 @@ const UI_GROUPS: { id: string; title: string; hint: string; preview: string; key
   { id: "sign-in", title: "Sign-in & codes", hint: "Customer sign-in, the codes people receive, and the errors they can meet.", preview: "/sign-in", keys: ["signIn", "code", "authErr", "custErr"] },
   { id: "track", title: "Track a request", hint: "The page where a customer looks up a request.", preview: "/track", keys: ["track"] },
   { id: "portal", title: "Customer account", hint: "What a signed-in customer sees: requests, documents and settings.", preview: "/portal", keys: ["portal", "shell", "portalBanner", "request", "teams", "status", "doc", "groups", "docs", "account", "dates", "side", "fileRoute"] },
-  { id: "payment", title: "Payment", hint: "The payment screen and its messages.", preview: "/portal", keys: ["pay"] },
+  { id: "payment", title: "Payment", hint: "The payment screen and its messages.", preview: "/portal", keys: ["pay", "receipt"] },
   { id: "updates", title: "Customer updates & emails", hint: "The lines on a request's timeline, notifications and emails. They are written once and shown in the reader's language.", preview: "/portal", keys: ["stored", "email"] },
 ];
 const CATALOGUE_GROUPS: { id: string; title: string; hint: string; keys: ("categories" | "offices" | "units" | "officialPhrases")[] }[] = [

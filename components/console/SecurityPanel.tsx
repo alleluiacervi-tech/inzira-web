@@ -1,4 +1,5 @@
 "use client";
+import Image from "next/image";
 import { useState } from "react";
 import { beginTotp, confirmTotp, disableTotp, newRecoveryCodesFor } from "@/app/actions/security";
 import { Alert, Icon } from "@/components/ui";
@@ -63,7 +64,7 @@ export default function SecurityPanel({ enabled, recoveryLeft, required, mustSet
           <h2 className="d" style={{ fontSize: 18 }}>Add Inzira to your app</h2>
           <div className="totp-add">
             <figure className="totp-qr">
-              <img src={setup.qr} width={208} height={208} alt="QR code that adds your Inzira account to an authenticator app" data-totp-qr />
+              <Image src={setup.qr} unoptimized width={208} height={208} alt="QR code that adds your Inzira account to an authenticator app" data-totp-qr />
             </figure>
             <div className="stack g10">
               <p style={{ margin: 0, fontSize: 15, lineHeight: 1.5 }}><strong>1.</strong> In your authenticator app, tap <strong>+</strong> and scan this code.</p>

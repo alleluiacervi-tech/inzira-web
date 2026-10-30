@@ -32,7 +32,7 @@ export default async function Page() {
           <Kpi label="Refunds" value={o.revenue.refunds} sub={balance === undefined ? `${o.revenue.refundCount} refunds` : balance === null ? "IntouchPay balance unavailable" : `IntouchPay balance ${rwf(balance)}`} icon="refresh" />
         </div>
         <PendingRefunds initial={pending} now={now} />
-        <Ledger initial={rows} now={now} canRefund={perms.includes("refund")} autoRefund={!!provider} />
+        <Ledger initial={rows} now={now} canRefund={perms.includes("refund")} autoRefund={!!provider} testRefund={provider === "sim"} />
       </div>
     </>
   );

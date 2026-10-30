@@ -72,6 +72,7 @@ export default function AppShell({ who, unread = 0, children }: { who: Who; unre
   const dialog = useDialog<HTMLDivElement>(drawer, () => setDrawer(false));
   return (
     <div className="shell">
+      <a className="skip" href="#main">{t("nav.skip")}</a>
       <Sidebar path={path} who={who} />
       <div className="main">
         <header className="mobtop">
@@ -83,7 +84,7 @@ export default function AppShell({ who, unread = 0, children }: { who: Who; unre
             <button className="btn btn-g btn-ico" type="button" aria-label={t("shell.openNav")} aria-expanded={drawer} onClick={() => setDrawer(true)}><Icon name="menu" size={22} /></button>
           </div>
         </header>
-        {children}
+        <main id="main" tabIndex={-1}>{children}</main>
       </div>
       {drawer && (
         <div ref={dialog} className="drawer" role="dialog" aria-modal="true" aria-label={t("shell.nav")}>

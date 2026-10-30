@@ -175,13 +175,21 @@ const intouch: Provider = {
 // ---------------- choosing ----------------
 const mode = () => process.env.PAYMENT_PROVIDER ?? (isDemo() ? "simulator" : "");
 
+/** Safe presentation state; never exposes provider credentials to the browser. */
+export function paymentExperience(): "test" | "live" | "unavailable" {
+  const selected = mode();
+  if (selected === "simulator" && isDemo()) return "test";
+  if (["live", "intouchpay", "direct"].includes(selected)) return "live";
+  return "unavailable";
+}
+
 /** The provider that will send a prompt to this number. Throws if payments are not configured.
  *  `sampleDesk` is a reserved test account (example.com / .test) on a site with no payment provider:
- *  the simulator runs for that account only, so a real customer is never marked paid without IntouchPay. */
+ *  reserved accounts may use it only in development or an explicit demo environment. */
 export function providerFor(phone9: string, sampleDesk = false): Provider {
   const selected = mode();
   if (selected === "simulator" || (!selected && sampleDesk)) {
-    if (selected === "simulator" && !isDemo()) throw new Error("The payment simulator only runs in development or with INZIRA_DEMO=1.");
+    if (!isDemo()) throw new Error("Payments are not configured. The payment simulator only runs in development or with INZIRA_DEMO=1.");
     return simulator;
   }
   if (selected === "live" || selected === "intouchpay") return intouch;

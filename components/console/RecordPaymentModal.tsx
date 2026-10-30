@@ -1,6 +1,7 @@
 "use client";
+import { useDialog } from "@/components/useDialog";
 import { withStepUp } from "./StepUp";
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useId, useState, useTransition } from "react";
 import { recordManualPayment } from "@/app/actions/console";
 import { Icon } from "@/components/ui";
 import { rwf } from "@/lib/format";
@@ -17,6 +18,7 @@ export function RecordPaymentModal({
   prefilledRef?: string;
   onSuccess?: (msg: string) => void;
 }) {
+  const formId = useId();
   const [busy, start] = useTransition();
   const [ref, setRef] = useState(prefilledRef);
   const [method, setMethod] = useState<PayMethod>("Cash");
@@ -40,6 +42,8 @@ export function RecordPaymentModal({
     }
   }, [open, prefilledRef]);
 
+  const dialog = useDialog<HTMLDivElement>(open, () => { if (!busy) onClose(); });
+
   if (!open) return null;
 
   const officialVal = Number(official) || 0;
@@ -50,6 +54,7 @@ export function RecordPaymentModal({
     e.preventDefault();
     if (!ref.trim()) { setError("Enter a request reference (e.g. INZ-2026-04817)"); return; }
     if (!receipt.trim()) { setError("Enter receipt/reference number."); return; }
+    if (![officialVal, oursVal].every((v) => Number.isSafeInteger(v) && v >= 0)) { setError("Enter whole, non-negative amounts in RWF."); return; }
     if (totalVal <= 0) { setError("Total amount must be greater than 0."); return; }
 
     start(async () => {
@@ -62,7 +67,7 @@ export function RecordPaymentModal({
         receipt: receipt.trim(),
         payer: payer.trim() || undefined,
         notes: notes.trim() || undefined,
-      }));
+      })).catch(() => ({ ok: false as const, error: "The record could not be confirmed. Check the request history before trying again." }));
 
       if (!res.ok) {
         setError(res.error);
@@ -75,16 +80,16 @@ export function RecordPaymentModal({
   };
 
   return (
-    <div className="console-dialog-overlay" onClick={busy ? undefined : onClose} role="dialog" aria-modal="true" aria-label="Record Payment by Hand">
+    <div ref={dialog} className="console-dialog-overlay" onClick={busy ? undefined : onClose} role="dialog" aria-modal="true" aria-label="Record Payment by Hand">
       <div className="console-dialog stack" onClick={(e) => e.stopPropagation()}>
         <div className="console-panel-header">
           <div className="stack" style={{ gap: 2 }}>
             <h3 style={{ fontSize: 16, fontWeight: 600, margin: 0 }}>Record payment by hand</h3>
             <span style={{ fontSize: 12.5, color: "var(--c-text-muted)" }}>
-              Record cash at desk, direct bank transfer or manual mobile money.
+              Record a payment already received outside this website. This does not collect or transfer money.
             </span>
           </div>
-          <button type="button" className="c-btn c-btn-ghost c-btn-sm c-btn-icon" onClick={onClose} disabled={busy}>
+          <button type="button" className="c-btn c-btn-ghost c-btn-sm c-btn-icon" onClick={onClose} disabled={busy} aria-label="Close dialog">
             <Icon name="x" size={18} />
           </button>
         </div>
@@ -92,14 +97,14 @@ export function RecordPaymentModal({
         <form onSubmit={handleSubmit}>
           <div className="console-panel-body stack g14">
             {error && (
-              <div style={{ background: "var(--c-red-bg)", border: "1px solid var(--c-red-border)", padding: "8px 12px", borderRadius: 4, color: "var(--c-red)", fontSize: 13 }}>
+              <div role="alert" style={{ background: "var(--c-red-bg)", border: "1px solid var(--c-red-border)", padding: "8px 12px", borderRadius: 4, color: "var(--c-red)", fontSize: 13 }}>
                 {error}
               </div>
             )}
 
             <div className="console-form-group">
-              <label className="console-label">Request reference (e.g. INZ-2026-04817) *</label>
-              <input
+              <label className="console-label" htmlFor={`${formId}-1`}>Request reference (e.g. INZ-2026-04817) *</label>
+              <input id={`${formId}-1`}
                 className="console-input tabular-nums"
                 value={ref}
                 onChange={(e) => setRef(e.target.value.toUpperCase())}
@@ -111,8 +116,8 @@ export function RecordPaymentModal({
 
             <div className="grid cols-2" style={{ gap: 12 }}>
               <div className="console-form-group">
-                <label className="console-label">Payment method *</label>
-                <select
+                <label className="console-label" htmlFor={`${formId}-2`}>Payment method *</label>
+                <select id={`${formId}-2`}
                   className="console-select"
                   value={method}
                   onChange={(e) => setMethod(e.target.value as PayMethod)}
@@ -127,8 +132,8 @@ export function RecordPaymentModal({
               </div>
 
               <div className="console-form-group">
-                <label className="console-label">Receipt / Transaction ref *</label>
-                <input
+                <label className="console-label" htmlFor={`${formId}-3`}>Receipt / Transaction ref *</label>
+                <input id={`${formId}-3`}
                   className="console-input"
                   value={receipt}
                   onChange={(e) => setReceipt(e.target.value)}
@@ -144,11 +149,11 @@ export function RecordPaymentModal({
               <strong style={{ fontSize: 13 }}>Two-line breakdown (RWF)</strong>
               
               <div className="row between g12">
-                <label className="row g6" style={{ fontSize: 13 }}>
+                <label className="row g6" htmlFor={`${formId}-official`} style={{ fontSize: 13 }}>
                   <span className="c-fee-tag-official">Official</span>
                   <span>Government fee</span>
                 </label>
-                <input
+                <input id={`${formId}-official`}
                   className="console-input tabular-nums"
                   style={{ width: 140, textAlign: "right" }}
                   inputMode="numeric"
@@ -160,11 +165,11 @@ export function RecordPaymentModal({
               </div>
 
               <div className="row between g12">
-                <label className="row g6" style={{ fontSize: 13 }}>
+                <label className="row g6" htmlFor={`${formId}-ours`} style={{ fontSize: 13 }}>
                   <span className="c-fee-tag-ours">Inzira</span>
                   <span>Assistance fee</span>
                 </label>
-                <input
+                <input id={`${formId}-ours`}
                   className="console-input tabular-nums"
                   style={{ width: 140, textAlign: "right" }}
                   inputMode="numeric"
@@ -184,8 +189,8 @@ export function RecordPaymentModal({
             </div>
 
             <div className="console-form-group">
-              <label className="console-label">Payer name / phone (optional)</label>
-              <input
+              <label className="console-label" htmlFor={`${formId}-4`}>Payer name / phone (optional)</label>
+              <input id={`${formId}-4`}
                 className="console-input"
                 value={payer}
                 onChange={(e) => setPayer(e.target.value)}
