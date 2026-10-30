@@ -114,7 +114,7 @@ export function ClientDetailView({
     <div className="stack g18">
       {error && <Alert kind="err" title="Action could not be confirmed" live>{error}</Alert>}
       {/* Header Profile Card */}
-      <div className="console-panel stack g14" style={{ padding: "18px 22px" }}>
+      <div className="console-panel c-record-header stack g14">
         <div className="row between g16 wrapx">
           <div className="row g14">
             <span

@@ -69,7 +69,8 @@ npm run build && npm start   # production build; set INZIRA_DEMO=1 for both buil
 npm run smoke                # with the app running: every page loads, is styled, private pages need sign-in
 npm run test:unit            # authenticator codes (RFC 6238 vectors), encryption, upload sniffing, money maths
 npm run check:backend        # in-memory database: encryption at rest, outbox retries, one payment prompt, one-use codes
-npm run test:ui              # demo server: 42 routes at 5 widths, accessibility smoke and failure recovery
+npm run test:ui              # demo server: 48 routes at 5 widths, accessibility smoke and failure recovery
+npm run test:ui -- --cancellation # demo server: cancellation refresh and closed-request payment blocking
 npm run test:a11y            # demo server: accessible names, enlarged text, reflow and keyboard/error recovery
 npm run test:release         # release-policy regression tests; no external operations
 npm run check:release        # production configuration and compiled-build preflight; no external operations

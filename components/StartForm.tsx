@@ -209,7 +209,7 @@ export default function StartForm({ service: s, describeFee = null }: { service:
   }
 
   return (
-    <section className="wrap split" style={{ ["--aside" as string]: "380px", paddingTop: 32, paddingBottom: 96, gap: 40 }}>
+    <section className="wrap split application-workspace" style={{ ["--aside" as string]: "380px", paddingTop: 32, paddingBottom: 96, gap: 40 }}>
       <div className="stack g24" style={{ maxWidth: 640 }}>
         <div className="stack g12">
           <Link href={s ? `/services/${s.slug}` : "/services"} className="lnk row g6" style={{ fontSize: 14 }}><Icon name="arrow-l" size={16} /> {s ? s.name : t("start.all")}</Link>

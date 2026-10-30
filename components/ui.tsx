@@ -144,19 +144,20 @@ export function Alert({ kind, title, children, action, live }: { kind: keyof typ
   );
 }
 
-export function Kpi({ label, value, delta, sub, icon, valueColor }: { label: string; value: string; delta?: string; sub?: string; icon?: string; valueColor?: string }) {
-  return (
-    <div className="card stack g10" style={{ padding: "18px 20px" }}>
+export function Kpi({ label, value, delta, sub, icon, valueColor, href }: { label: string; value: string; delta?: string; sub?: string; icon?: string; valueColor?: string; href?: string }) {
+  const card = (
+    <div className="card metric-card stack g10" style={{ padding: "18px 20px" }}>
       <div className="row between g8"><span className="mut" style={{ fontSize: 13.5, fontWeight: 600 }}>{label}</span>{icon && <span className="kpi-ico"><Icon name={icon} size={17} /></span>}</div>
       <span className="d fig tnum nowrap" style={{ fontSize: 30, lineHeight: 1, color: valueColor }}>{value}</span>
       <div className="row g8">{delta && <span style={{ fontSize: 13, fontWeight: 600, color: "var(--ok)" }}>{delta}</span>}{sub && <span className="mut" style={{ fontSize: 13 }}>{sub}</span>}</div>
     </div>
   );
+  return href ? <Link href={href} className="metric-link">{card}</Link> : card;
 }
 
 export function DocCard({ name, meta, badge, action, icon = "file", compact }: { name: string; meta: string; badge: ReactNode; action?: ReactNode; icon?: string; compact?: boolean }) {
   return (
-    <div className="card row g14" style={{ padding: compact ? 12 : 16, flexWrap: "wrap" }}>
+    <div className="card document-card row g14" style={{ padding: compact ? 12 : 16, flexWrap: "wrap" }}>
       <span className="ico-tile" style={{ width: 40, height: 40, borderRadius: 6 }}><Icon name={icon} size={20} /></span>
       <div className="stack grow" style={{ gap: 3, minWidth: 160 }}><strong style={{ fontSize: 14.5 }}>{name}</strong><span className="mut" style={{ fontSize: 13 }}>{meta}</span></div>
       {badge}{action}
@@ -291,11 +292,11 @@ export function FeeBars({ data, height = 160 }: { data: { label: string; officia
   );
 }
 
-export function PageHead({ title, sub, children }: { title: string; sub?: string; children?: ReactNode }) {
+export function PageHead({ title, sub, children, variant = "default" }: { title: string; sub?: string; children?: ReactNode; variant?: "default" | "overview" }) {
   return (
-    <div className="topbar">
-      <div className="stack" style={{ gap: 3 }}><h1 className="d" style={{ fontSize: 20 }}>{title}</h1>{sub && <span className="mut" style={{ fontSize: 13 }}>{sub}</span>}</div>
+    <header className={`topbar page-heading page-heading-${variant}`}>
+      <div className="page-heading-copy"><h1 className="d">{title}</h1>{sub && <p className="page-heading-sub">{sub}</p>}</div>
       {children && <div className="row g12 wrapx">{children}</div>}
-    </div>
+    </header>
   );
 }

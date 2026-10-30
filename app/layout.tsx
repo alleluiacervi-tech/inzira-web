@@ -14,6 +14,7 @@ import { siteOrigin } from "@/lib/site";
 import { isDemo } from "@/lib/sms";
 import "./globals.css";
 import "./public.css";
+import "./design-refresh.css";
 
 // Vendored under the SIL Open Font License: builds and page loads need no font service.
 const sans = localFont({ src: "./fonts/hanken-grotesk-latin.woff2", weight: "100 900", variable: "--f-sans", display: "swap" });

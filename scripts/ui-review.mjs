@@ -148,11 +148,15 @@ async function review(p, path, widths = [360, 390, 768, 1024, 1440]) {
       const controls = [...document.querySelectorAll('input:not([type=hidden]),select,textarea')].filter(visible);
       const unlabeled = controls.filter(el => !el.labels?.length && !el.getAttribute('aria-label') && !el.getAttribute('aria-labelledby')).map(el => el.id || el.outerHTML.slice(0,100));
       const buttons = [...document.querySelectorAll('button')].filter(visible).filter(el => !el.textContent.trim() && !el.getAttribute('aria-label') && !el.getAttribute('aria-labelledby')).map(el => el.outerHTML.slice(0,140));
-      return {path: location.pathname, title: document.title, overflow: document.documentElement.scrollWidth > innerWidth + 1, main: document.querySelectorAll('main').length, unlabeled, buttons};
+      const recordCells = [...document.querySelectorAll('.responsive-records tbody td')].filter(visible);
+      const readableRecords = innerWidth > 1100 || recordCells.every(el => el.dataset.label && getComputedStyle(el).display === 'grid');
+      const consent = document.querySelector('#pay-agree')?.closest('label'), pay = document.querySelector('[data-pay]');
+      const consentOrder = !consent || !pay || pay.getBoundingClientRect().top >= consent.getBoundingClientRect().bottom;
+      return {readableRecords, consentOrder, path: location.pathname, title: document.title, overflow: document.documentElement.scrollWidth > innerWidth + 1, main: document.querySelectorAll('main').length, unlabeled, buttons};
     })()`);
     result.wrongRoute = /^\/(portal|console|admin)(\/|$)/.test(path) && result.path !== path;
     audit.push({requested:path,width,...result, errors: [...p.issues.errors], warnings: [...p.issues.warnings]});
-    if ([390,768,1440].includes(width) && ['/en','/en/services','/sign-in','/portal','/console/overview','/admin/roles','/console/requests/INZ-2026-04817'].includes(path)) {
+    if ([390,1440].includes(width) || (width === 768 && ['/en','/en/services','/portal','/console/overview'].includes(path))) {
       await p.ev(`Promise.all([...document.images].map(img => { img.loading = 'eager'; return img.decode().catch(() => null); })).then(() => true)`);
       const metrics = await p.send('Page.getLayoutMetrics');
       const size = metrics.result.cssContentSize ?? metrics.result.contentSize;
@@ -170,6 +174,28 @@ try {
    console.log('ACCESSIBILITY', JSON.stringify({cases:result.pages.length,errorAnnouncement:result.errorAnnouncement,modalSemantics:result.modalSemantics,passed:result.passed}));
    await p.close(); stop(result.passed ? 0 : 1);
  }
+ if (process.argv.includes('--cancellation')) {
+   await signIn(p,'aline.uwase@example.com');
+   await p.go('/start/ebm-training');
+   await p.ev(`document.querySelector('[data-via=email] input').click(); true`);
+   await p.set('#f-name','Aline Uwase'); await p.set('#f-email','aline.uwase@example.com');
+   await p.click('Continue'); await sleep(300);
+   await p.ev(`document.querySelector('input[aria-describedby="ack-err"]').click(); true`);
+   await p.click('Continue to payment');
+   await waitPath(p,path=>/^\/portal\/requests\/INZ-\d{4}-\d{5}\/pay$/.test(path),120);
+   const req = (await p.ev('location.pathname')).split('/')[3];
+   if (!/^INZ-\d{4}-\d{5}$/.test(req ?? '')) throw new Error('Signed-in cancellation fixture was not created');
+   await p.go(`/portal/requests/${req}`);
+   await p.click('Cancel this request','summary'); await p.click('Cancel request','button');
+   await waitFor(p,'Cancelled by you');
+   const immediate = await p.ev(`({cancelled: __t.has('Cancelled by you'), paymentTitle: __t.has('Pay to send your request'), banner: document.querySelector('.banner')?.innerText, errors: [...document.querySelectorAll('[role=alert]')].map(el=>el.innerText)})`);
+   await p.go(`/portal/requests/${req}`);
+   const afterReload = await p.ev(`({cancelled: __t.has('Cancelled by you'), paymentTitle: __t.has('Pay to send your request'), banner: document.querySelector('.banner')?.innerText, canPay: !!document.querySelector('#payments a[href$="/pay"]')})`);
+   await p.go(`/portal/requests/${req}/pay`);
+   const closedCheckoutRedirect = (await p.ev('location.pathname')) === `/portal/requests/${req}`;
+   console.log('CANCELLATION',JSON.stringify({immediate,afterReload,closedCheckoutRedirect}));
+   await p.close(); stop(immediate.cancelled && !immediate.paymentTitle && afterReload.cancelled && !afterReload.paymentTitle && !afterReload.canPay && closedCheckoutRedirect ? 0 : 1);
+ }
  if (process.argv.includes('--payment-unavailable')) {
    await signIn(p,'aline.uwase@example.com');
    await p.go('/portal/requests/INZ-2026-04761/pay');
@@ -181,10 +207,25 @@ try {
    await p.close(); stop(unavailable && preserved ? 0 : 1);
  }
  for(const path of ['/en','/en/services','/en/services/company-registration','/en/services/birth-certificate','/en/about','/en/privacy','/en/terms','/start','/start/company-registration','/track','/sign-in','/staff','/staff/set-password','/staff/unlock','/r/MISSING','/does-not-exist']) await review(p,path);
+ // A real disposable request lets the visual review inspect private pages with their working access cookie.
+ await p.send('Emulation.setDeviceMetricsOverride',{width:1440,height:1000,deviceScaleFactor:1,mobile:false});
+ await p.go('/start/land-spouse-update');
+ await p.ev(`document.querySelector('[data-via=email] input').click(); true`);
+ await p.set('#f-name','Visual Review'); await p.set('#f-email','visual.review@example.com');
+ await p.set('#f-nid','1 1995 8 0045123 0 17');
+ await p.click('Add a spouse after marriage','label'); await p.click('Continue'); await sleep(300);
+ await p.ev(`document.querySelector('input[aria-describedby="ack-err"]').click(); true`);
+ await p.click('Continue to payment');
+ await waitPath(p,path=>/^\/r\/INZ-\d{4}-\d{5}\/pay$/.test(path),120);
+ const privateRef = (await p.ev('location.pathname')).split('/')[2];
+ if (!/^INZ-\d{4}-\d{5}$/.test(privateRef ?? '')) throw new Error('Private visual-review request was not created');
+ await p.go(`/r/${privateRef}`);
+ if (await p.ev(`!!document.querySelector('[data-link-gate]')`) || !(await p.has('Add or remove a spouse in the land register'))) throw new Error('Private review opened a gate instead of the created request');
+ for(const path of [`/r/${privateRef}`,`/r/${privateRef}/pay`,`/r/${privateRef}/receipt`,`/r/${privateRef}/save`]) await review(p,path);
  await signIn(p,'aline.uwase@example.com');
  for(const path of ['/portal','/portal/requests','/portal/documents','/portal/account','/portal/requests/INZ-2026-04817','/portal/requests/INZ-2026-04761/pay','/portal/requests/INZ-2026-04761/receipt']) await review(p,path);
  await signOut(p); await signIn(p,'admin@inzira.test');
- for(const path of ['/console/overview','/console/my-day','/console/requests','/console/requests/INZ-2026-04817','/console/clients','/console/clients/p-aline','/console/intake','/console/inbox','/console/taxes','/console/identity','/console/security','/admin/services','/admin/categories','/admin/content','/admin/content/replace','/admin/payments','/admin/roles','/admin/audit','/admin/system']) await review(p,path);
+ for(const path of ['/console/overview','/console/my-day','/console/requests','/console/requests/INZ-2026-04817','/console/clients','/console/clients/p-aline','/console/intake','/console/inbox','/console/taxes','/console/identity','/console/security','/admin/services','/admin/categories','/admin/content','/admin/content/replace','/admin/content/service/company-registration','/console/requests/INZ-2026-04761/receipt','/admin/payments','/admin/roles','/admin/audit','/admin/system']) await review(p,path);
  await p.send('Emulation.setDeviceMetricsOverride',{width:390,height:1000,deviceScaleFactor:1,mobile:true});
  await p.go('/admin/roles'); await p.click('Finance','button'); await sleep(200);
  const roleBefore = await p.ev(`document.querySelector('.role-mobile-permissions input').checked`);
@@ -232,5 +273,5 @@ try {
 
  writeFileSync('/tmp/inzira-ui-audit.json',JSON.stringify({pages:audit,dialog:{focused,contained,closed,paymentLabels},network:{saveFailure,searchFailure,searchRecovery},mobileRoles},null,2));
  console.log("UI review report: /tmp/inzira-ui-audit.json; screenshots: /tmp/inzira-ui-*.png");
- await p.close(); stop(audit.some(r=>r.overflow||r.main!==1||r.unlabeled.length||r.buttons.length||r.wrongRoute||r.errors.length)||!focused||!contained||!closed||!paymentLabels||!saveFailure||!searchFailure||!searchRecovery||!mobileRoles?1:0);
+ await p.close(); stop(audit.some(r=>!r.readableRecords||!r.consentOrder||r.overflow||r.main!==1||r.unlabeled.length||r.buttons.length||r.wrongRoute||r.errors.length)||!focused||!contained||!closed||!paymentLabels||!saveFailure||!searchFailure||!searchRecovery||!mobileRoles?1:0);
 } catch(e) { console.error(e);writeFileSync('/tmp/inzira-ui-audit.json',JSON.stringify(audit,null,2));stop(1); }

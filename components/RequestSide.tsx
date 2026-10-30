@@ -1,5 +1,6 @@
 "use client";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { cancelRequest, sendMessage } from "@/app/actions/customer";
 import { billOfficial, fmtDay, fmtWhen, initials, rwf } from "@/lib/format";
@@ -53,7 +54,7 @@ export function Messages({ reqRef, initial, agent, now }: { reqRef: string; init
 
 /** What the customer owes and has paid. The actual prompt happens on the payment screen. `checkoutOpen`: the request
  *  waits to be paid before it is sent (the whole price, or a quoted service's review fee). */
-export function PaymentPanel({ reqRef, billing: b, now, checkoutOpen = false, base }: { reqRef: string; billing: Billing; now: string; phone: string; checkoutOpen?: boolean; base?: string }) {
+export function PaymentPanel({ reqRef, billing: b, now, checkoutOpen = false, closed = false, base }: { reqRef: string; billing: Billing; now: string; phone: string; checkoutOpen?: boolean; closed?: boolean; base?: string }) {
   const { locale, t } = useI18n();
   const page = base ?? `/portal/requests/${reqRef}`;
   const ours = rwf(b.ours) + (b.oursUnit ? ` ${unitLabel(b.oursUnit, locale)}` : "");
@@ -65,7 +66,7 @@ export function PaymentPanel({ reqRef, billing: b, now, checkoutOpen = false, ba
   const paid = paidSplit(b);
   const paidSum = paid.official + paid.ours;
   const payable = payableNow(b, checkoutOpen);
-  const canPay = payable.amount > 0 && status !== "refunded" && status !== "pending";
+  const canPay = !closed && payable.amount > 0 && status !== "refunded" && status !== "pending";
   const shown = b.transactions.filter((tx) => tx.status !== "failed");
 
   return (
@@ -87,7 +88,7 @@ export function PaymentPanel({ reqRef, billing: b, now, checkoutOpen = false, ba
         </ul>
       )}
       {b.quote === "estimate" && !payable.review && <p className="hint row g8" style={{ alignItems: "flex-start" }}><Icon name="info" size={16} /><span>{paidSum > 0 ? t("side.reviewPaid", { amount: rwf(paidSum) }) : t("side.estimate")}</span></p>}
-      {payable.review && <p className="hint row g8" style={{ alignItems: "flex-start" }}><Icon name="info" size={16} /><span>{t("side.reviewDue", { fee: rwf(payable.amount) })}</span></p>}
+      {!closed && payable.review && <p className="hint row g8" style={{ alignItems: "flex-start" }}><Icon name="info" size={16} /><span>{t("side.reviewDue", { fee: rwf(payable.amount) })}</span></p>}
       {paidSum > 0 && <Link className="btn btn-s btn-sm" href={`${page}/receipt`}>{t("portal.receiptDownload")}</Link>}
       {canPay && (
         <>
@@ -102,6 +103,7 @@ export function PaymentPanel({ reqRef, billing: b, now, checkoutOpen = false, ba
 /** Shown while a request can still be cancelled by the customer: before payment and submission. */
 export function CancelRequest({ reqRef }: { reqRef: string }) {
   const { locale, t } = useI18n();
+  const router = useRouter();
   const [reason, setReason] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -114,6 +116,7 @@ export function CancelRequest({ reqRef }: { reqRef: string }) {
         const r = await cancelRequest(reqRef, reason).catch(() => ({ ok: false as const, error: t("pay.notSaved") }));
         setBusy(false);
         if (!r.ok) { setError(trError(locale, r.error)); return; }
+        router.refresh();
       }}>
         <p className="hint">{t("side.cancelFree")}</p>
         <label htmlFor="cx">{t("side.why")} <span className="mut" style={{ fontWeight: 400 }}>{t("start.optional")}</span></label>

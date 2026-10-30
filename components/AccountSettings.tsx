@@ -42,7 +42,7 @@ export default function AccountSettings({ account, profiles, data }: Props) {
   };
 
   return (
-    <div className="stack" style={{ gap: 24, maxWidth: 760 }}>
+    <div className="stack account-workspace" style={{ gap: 24, maxWidth: 760 }}>
       <section className="card acct" aria-labelledby="acct-details">
         <h2 id="acct-details" className="acct-h">{t("account.details")}</h2>
         <form action={save} className="stack g20">

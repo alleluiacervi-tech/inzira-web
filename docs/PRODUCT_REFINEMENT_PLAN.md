@@ -81,8 +81,11 @@ Work through these phases in order. A checked item requires implementation or re
 ## 9. Cross-application quality pass
 
 - [x] Review every inventoried route and interactive component after shared changes.
-- [ ] Verify representative widths of 360, 390, 768, 1024 and 1440 pixels, plus zoom and long content.
-- [ ] Check keyboard journeys, dialog focus management, labels and screen-reader announcements.
+- [x] Verify representative widths of 360, 390, 768, 1024 and 1440 pixels and long content across 48 destinations.
+- [x] Verify simulated 200% reflow and doubled text across 21 representative destinations.
+- [ ] Verify native browser zoom and physical devices.
+- [x] Check keyboard journeys, dialog focus management, accessibility-tree names, alert announcements and modal semantics.
+- [ ] Complete a real screen-reader session.
 - [x] Verify English and Kinyarwanda for clipping, missing keys, formatting and translation consistency.
 - [x] Inspect browser console, failed network requests, broken assets and hydration warnings.
 - [x] Measure page responsiveness, loading behavior, image/font delivery and unnecessary client JavaScript.
@@ -110,3 +113,13 @@ Do not claim production readiness solely from a successful build or attractive s
 - Five viewport widths and full-page long-content screenshots were checked. An additional 51 accessibility cases passed at desktop, simulated 200% reflow and doubled text, with no root overflow or clipped controls. Native browser zoom and real-device verification remain separate.
 - Keyboard focus, accessibility-tree names, roles, alert/modal semantics and client-tab navigation were checked. Failed client tag/note saves retain entered text and show an error. A real screen-reader session is still required for a complete assistive-technology audit.
 - Public launch is blocked by the seven deployment prerequisites in [Production readiness](PRODUCTION_READINESS.md), not by an enabled real-money gateway.
+
+## Application-wide visual follow-up
+
+- [x] Restore the user’s preferred navy blue identity across the public site, portal and staff console.
+- [x] Recompose the customer dashboard, staff overview and daily workspace.
+- [x] Refine every page family: catalogue/detail, application, authentication, request/client records, documents, settings, payment, catalogue administration, translations, audit and system status.
+- [x] Review all 46 inventoried page templates through shared components and representative routes; see [Page design review](PAGE_DESIGN_REVIEW.md).
+- [x] Replace cramped mobile service/payment/audit/identity tables with labeled record cards.
+- [x] Keep payment confirmation before the action and prevent payment entry on closed requests.
+- [x] Capture desktop and mobile evidence for 48 destinations and pass 240 responsive cases and 63 accessibility cases.

@@ -37,7 +37,7 @@ export async function reviewAccessibility({ p, signIn, signOut, sleep }) {
   await signIn(p, 'aline.uwase@example.com');
   for (const path of ['/portal', '/portal/requests', '/portal/documents', '/portal/account', '/portal/requests/INZ-2026-04761/pay']) await inspect(path);
   await signOut(p); await signIn(p, 'admin@inzira.test');
-  for (const path of ['/console/overview', '/console/requests', '/console/clients/p-aline', '/console/intake', '/admin/roles']) await inspect(path);
+  for (const path of ['/console/overview', '/console/requests', '/console/clients/p-aline', '/console/intake', '/console/identity', '/admin/services', '/admin/payments', '/admin/audit', '/admin/roles']) await inspect(path);
   await p.send('Emulation.setDeviceMetricsOverride', {width: 1280, height: 900, deviceScaleFactor: 1, mobile: false});
   await p.go('/console/clients/p-aline');
   await p.ev(`document.querySelector('[role=tab][aria-selected=true]').focus(); true`);

@@ -157,7 +157,7 @@ export function RequestDetailView({
   return (
     <div className="stack g18">
       {/* 1. One-line key-facts header */}
-      <div className="console-panel stack g12" style={{ padding: "16px 20px" }}>
+      <div className="console-panel c-record-header stack g12">
         <div className="row between g16 wrapx">
           {/* Left: Monospace ref, Title, Customer, Category */}
           <div className="stack" style={{ gap: 4 }}>
@@ -173,7 +173,7 @@ export function RequestDetailView({
                   <Icon name="file" size={12} />
                 </button>
               </span>
-              <h1 className="console-page-title" style={{ fontSize: 18 }}>{c.name}</h1>
+              <h1 className="console-page-title c-record-title">{c.name}</h1>
               <span className="c-badge c-badge-ember">{category}</span>
               <RequestStatusBadge r={c} viewer="staff" />
               <PaymentStatusBadge status={payStatus(c.billing, now)} />

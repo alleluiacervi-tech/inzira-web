@@ -44,7 +44,7 @@ To check deferred collection, start a fresh demo server with `PAYMENT_PROVIDER=d
 npm run test:ui -- http://localhost:3000 --payment-unavailable
 ```
 
-`npm run test:release` checks the release-policy rules without a running server or provider credentials. `test:a11y` reports 51 accessibility stress cases plus keyboard and failed-save recovery checks; native zoom and real assistive technology still require manual review.
+`npm run test:release` checks the release-policy rules without a running server or provider credentials. `test:a11y` reports 63 accessibility stress cases plus keyboard and failed-save recovery checks; native zoom and real assistive technology still require manual review.
 
 For actual production, rebuild without `INZIRA_DEMO` and run `npm run check:release` with the intended deployment variables. Configure and verify persistent Postgres, `AUTH_SECRET`, `DATA_KEY`, the HTTPS public address, private document storage and messaging. Real-money processing remains unset/disabled for this release. See [Production readiness](PRODUCTION_READINESS.md) for the full checks and limitations.
 

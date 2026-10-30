@@ -142,7 +142,11 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ a
                 <li><Icon name="whatsapp" size={18} />{t("home.onWhatsapp")}</li>
               </ul>
             </div>
-            <CaseFile t={t} />
+            <div className="hero-scene">
+              <Image className="hero-city" src="/photos/kigali-centre.webp" alt="" fill priority sizes="(max-width: 1060px) 100vw, 48vw" />
+              <div className="hero-scene-caption"><Icon name="pin" size={16} /><span>Kigali, Rwanda</span></div>
+              <CaseFile t={t} />
+            </div>
           </div>
           <div className="wrap">
             <FilingRail

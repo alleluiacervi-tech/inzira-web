@@ -41,17 +41,17 @@ export default function Ledger({ initial: rows, now, canRefund, autoRefund = fal
           URL.revokeObjectURL(a.href);
         }}>Export CSV</button>
       </div>
-      <div className="card table-wrap"><table>
-        <thead><tr><th>Invoice</th><th>Customer</th><th>Service</th><th>Official fee</th><th>Our fee</th><th>Method</th><th>Status</th><th>Official receipt</th><th><span className="sr-only">Actions</span></th></tr></thead>
-        <tbody>{rows.map((r) => {
+      <div className="card table-wrap"><table role="table" className="responsive-records">
+        <thead role="rowgroup"><tr><th>Invoice</th><th>Customer</th><th>Service</th><th>Official fee</th><th>Our fee</th><th>Method</th><th>Status</th><th>Official receipt</th><th><span className="sr-only">Actions</span></th></tr></thead>
+        <tbody role="rowgroup">{rows.map((r) => {
           const b = r.billing;
           return (
-            <tr key={r.ref}>
-              <td className="nowrap"><span className="stack" style={{ gap: 1 }}><span className="m">{b.invoice}</span><span className="m mut" style={{ fontSize: 11.5 }}>{r.ref}</span></span></td>
-              <td><strong>{r.profile.name}</strong></td><td className="mut">{r.name}</td>
-              <td style={{ fontWeight: 600 }}>{billOfficial(b)}</td><td className="fee-ours nowrap" style={{ fontWeight: 700 }}>{rwf(b.ours)}</td>
-              <td>{b.transactions[0]?.method ?? "—"}</td><td><PayBadge s={payStatus(b, now)} />{b.transactions.some((t) => t.providerRef?.startsWith("sim:")) && <span className="tag" style={{ marginLeft: 6 }}>Test transaction</span>}</td><td className="mut" style={{ fontSize: 13 }}>{b.officialMode === "direct" ? "Paid by customer" : b.officialMode === "none" ? "n/a" : RECEIPT[b.officialReceipt]}</td>
-              <td style={{ textAlign: "right" }}>{canRefund && refundable(r) > 0 && <button type="button" className="btn btn-s btn-sm" onClick={() => { setDone(""); setRefund(r); }}>Refund</button>}</td>
+            <tr role="row" key={r.ref}>
+              <td role="cell" data-label="Invoice" className="nowrap"><span className="stack" style={{ gap: 1 }}><span className="m">{b.invoice}</span><span className="m mut" style={{ fontSize: 11.5 }}>{r.ref}</span></span></td>
+              <td role="cell" data-label="Customer"><strong>{r.profile.name}</strong></td><td role="cell" data-label="Service" className="mut">{r.name}</td>
+              <td role="cell" data-label="Official fee" style={{ fontWeight: 600 }}>{billOfficial(b)}</td><td role="cell" data-label="Our fee" className="fee-ours nowrap" style={{ fontWeight: 700 }}>{rwf(b.ours)}</td>
+              <td role="cell" data-label="Method">{b.transactions[0]?.method ?? "—"}</td><td role="cell" data-label="Status"><PayBadge s={payStatus(b, now)} />{b.transactions.some((t) => t.providerRef?.startsWith("sim:")) && <span className="tag" style={{ marginLeft: 6 }}>Test transaction</span>}</td><td role="cell" data-label="Official receipt" className="mut" style={{ fontSize: 13 }}>{b.officialMode === "direct" ? "Paid by customer" : b.officialMode === "none" ? "n/a" : RECEIPT[b.officialReceipt]}</td>
+              <td role="cell" data-label="Actions" style={{ textAlign: "right" }}>{canRefund && refundable(r) > 0 && <button type="button" className="btn btn-s btn-sm" onClick={() => { setDone(""); setRefund(r); }}>Refund</button>}</td>
             </tr>
           );
         })}</tbody>
