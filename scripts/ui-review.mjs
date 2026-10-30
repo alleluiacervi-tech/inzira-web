@@ -2,6 +2,7 @@
 // Temporarily changes a sample role permission and restores it after checking persistence.
 // Run after npm run build and INZIRA_DEMO=1 npm start. Uses Chromium; CHROME_PATH overrides it.
 // Screenshots and JSON results are written to /tmp. This does not replace screen-reader testing.
+import { reviewSeo } from "./lib/seo-review.mjs";
 import { reviewAccessibility } from "./lib/accessibility-review.mjs";
 import { spawn } from "node:child_process";
 import { existsSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
@@ -9,7 +10,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 const base = (process.argv.slice(2).find(arg => !arg.startsWith("--")) ?? "http://localhost:3000").replace(/\/$/, "");
-const port = 9340;
+const port = Number(process.env.UI_REVIEW_PORT ?? 9340);
+if (!Number.isInteger(port) || port < 1024 || port > 65535) throw new Error("UI_REVIEW_PORT must be a port between 1024 and 65535");
 const chromePath = process.env.CHROME_PATH ?? ["/Applications/Google Chrome.app/Contents/MacOS/Google Chrome", "/usr/bin/google-chrome", "/usr/bin/google-chrome-stable", "/usr/bin/chromium", "/usr/bin/chromium-browser"].find(existsSync);
 if (!chromePath) { console.error("Chrome not found. Set CHROME_PATH to the browser binary."); process.exit(2); }
 if (typeof WebSocket === "undefined") { console.error("This script needs Node 22 or newer."); process.exit(2); }
@@ -35,7 +37,7 @@ for (let i = 0; ; i++) {
   }
   await sleep(250);
 }
-try { const response = await fetch(base); if (!response.ok || !(await response.text()).includes('class="demo-notice"')) throw new Error(); } catch { console.error(`Start a demo server at ${base}. UI review requires sample accounts and never runs against a live production site.`); stop(2); }
+if (!process.argv.includes('--seo')) try { const response = await fetch(base); if (!response.ok || !(await response.text()).includes('class="demo-notice"')) throw new Error(); } catch { console.error(`Start a demo server at ${base}. UI review requires sample accounts and never runs against a live production site.`); stop(2); }
 
 
 async function page(width = 1280) {
@@ -168,6 +170,13 @@ async function review(p, path, widths = [360, 390, 768, 1024, 1440]) {
 }
 try {
  const p=await page();
+ if (process.argv.includes('--seo')) {
+   const result=await reviewSeo({p,base,expectedIndexable:process.argv.includes('--seo-indexable'),expectedOrigin:process.env.SEO_EXPECTED_ORIGIN,sourceHtml:process.argv.includes("--seo-html")});
+   writeFileSync('/tmp/inzira-seo-audit.json',JSON.stringify(result,null,2));
+   writeFileSync('/tmp/inzira-seo-'+(result.expectedIndexable?'production':process.argv.includes('--seo-html')?'staging':'demo')+'-audit.json',JSON.stringify(result,null,2));
+   console.log('SEO_REVIEW',JSON.stringify({pages:result.pages.length,checkedLinks:result.checkedLinks,failures:result.failures,passed:result.passed}));
+   await p.close(); stop(result.passed?0:1);
+ }
  if (process.argv.includes('--accessibility')) {
    const result = await reviewAccessibility({p,signIn,signOut,sleep});
    writeFileSync('/tmp/inzira-accessibility.json', JSON.stringify(result, null, 2));

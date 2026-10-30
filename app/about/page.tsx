@@ -1,14 +1,15 @@
 import type { Metadata } from "next";
+import { publicMetadata } from "@/lib/public-metadata";
 import { JsonLd } from "@/components/JsonLd";
 import { LegalPage } from "@/components/LegalPage";
 import { getLocale } from "@/lib/i18n/locale";
 import { text } from "@/lib/i18n/messages";
 import { withLocale } from "@/lib/seo";
-import { isSet, SITE, siteOrigin } from "@/lib/site";
+import { SITE, siteOrigin } from "@/lib/site";
 
 export async function generateMetadata(): Promise<Metadata> {
   const locale = await getLocale();
-  return { title: { absolute: text(locale, "meta.aboutTitle") }, description: text(locale, "meta.aboutDescription") };
+  return publicMetadata({ title: text(locale, "meta.aboutTitle"), description: text(locale, "meta.aboutDescription"), path: "/about", locale, absolute: true });
 }
 
 export default async function AboutPage() {
@@ -26,8 +27,8 @@ export default async function AboutPage() {
           name: t("meta.aboutTitle"),
           description: t("meta.aboutDescription"),
           url,
-          isPartOf: { "@type": "WebSite", name: SITE.name, url: origin },
-          about: { "@type": "Organization", name: SITE.legalName, url: origin, email: isSet(SITE.email) ? SITE.email : undefined, telephone: isSet(SITE.phone) ? SITE.phone : undefined, areaServed: "Rwanda" },
+          isPartOf: { "@id": `${origin}/#website` },
+          about: { "@id": `${origin}/#organization` },
         }} />
       )}
       <LegalPage

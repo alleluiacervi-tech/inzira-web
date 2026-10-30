@@ -1,4 +1,6 @@
 import type { Metadata } from "next";
+import { publicMetadata } from "@/lib/public-metadata";
+import { withLocale } from "@/lib/seo";
 import { LegalPage } from "@/components/LegalPage";
 import { getLocale } from "@/lib/i18n/locale";
 import { text } from "@/lib/i18n/messages";
@@ -7,7 +9,7 @@ import { SITE } from "@/lib/site";
 
 export async function generateMetadata(): Promise<Metadata> {
   const locale = await getLocale();
-  return { title: text(locale, "meta.privacyTitle"), description: text(locale, "meta.privacyDescription") };
+  return publicMetadata({ title: text(locale, "meta.privacyTitle"), description: text(locale, "meta.privacyDescription"), path: "/privacy", locale });
 }
 
 export default async function PrivacyPage() {
@@ -28,7 +30,7 @@ export default async function PrivacyPage() {
         { title: t("legal.deleteT"), body: t("legal.delete", days) },
         { title: t("legal.askT"), body: t("legal.ask", { email: SITE.email, phone: SITE.phone }) },
       ]}
-      more={{ href: "/terms", label: t("legal.seeTerms") }}
+      more={{ href: withLocale(locale, "/terms"), label: t("legal.seeTerms") }}
     />
   );
 }

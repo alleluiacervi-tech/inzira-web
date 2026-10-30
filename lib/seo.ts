@@ -34,7 +34,7 @@ const UNPREFIXED = /^\/(portal|console|admin|api|files|sign-in|r|staff)(\/|$)/;
 
 /** Signed-in areas and the sign-in page stay off the public index. */
 export function isIndexable(pathname: string): boolean {
-  return !UNPREFIXED.test(barePath(pathname));
+  return SHARED.test(barePath(pathname)) || barePath(pathname) === "/track";
 }
 
 /**

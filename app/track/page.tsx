@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { publicMetadata } from "@/lib/public-metadata";
 import Link from "next/link";
 import PublicNav from "@/components/PublicNav";
 import Footer from "@/components/Footer";
@@ -10,7 +11,7 @@ import { heldRefs } from "@/lib/request-links";
 
 export async function generateMetadata(): Promise<Metadata> {
   const locale = await getLocale();
-  return { title: text(locale, "meta.trackTitle"), description: text(locale, "meta.trackDescription") };
+  return publicMetadata({ title: text(locale, "meta.trackTitle"), description: text(locale, "meta.trackDescription"), path: "/track", locale });
 }
 
 export default async function TrackPage() {

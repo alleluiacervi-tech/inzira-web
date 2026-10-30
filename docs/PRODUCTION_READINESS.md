@@ -114,3 +114,7 @@ The user’s preferred blue identity is retained across the recomposed dashboard
 The full workflow rerun passed 246 checks and exposed one cancellation-screen failure. Focused inspection confirmed cancellation persisted but a closed request still offered payment. Closed requests now hide payment actions and redirect direct checkout visits, and cancellation explicitly refreshes the record. The focused browser regression passed immediate/reloaded state and checkout blocking; the dependent start/privacy sequence passed 46 checks with zero failures afterward. The entire workflow suite was not rerun again after this focused fix.
 
 The final demo build passes. This evidence does not satisfy the external production prerequisites or replace a real-device and screen-reader review.
+
+## Brand and SEO follow-up
+
+The business owner confirmed `https://inziraservices.com` and `contact@inziraservices.com`; these are centralized in `lib/brand.json`. Deployment-aware indexing, connected brand/service schema, public metadata, bilingual sitemap annotations, social previews and Search Console verification support have been refined. Demo, production-mode and non-demo staging audits each passed 85 public variants and 104 links. See [SEO audit](SEO_AUDIT.md) and [Brand and SEO strategy](BRAND_SEO_STRATEGY.md) for evidence, scope, domain/Search Console setup and remaining external work. Actual Google ownership verification and indexing/submission have not been performed.

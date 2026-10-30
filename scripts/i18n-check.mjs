@@ -29,7 +29,7 @@ for (const [k, v] of E) {
 const GSM = "@£$¥èéùìòÇ\nØø\rÅåΔ_ΦΓΛΩΠΨΣΘΞÆæßÉ !\"#¤%&'()*+,-./0123456789:;<=>?¡ABCDEFGHIJKLMNOPQRSTUVWXYZÄÖÑÜ§¿abcdefghijklmnopqrstuvwxyzäöñüà";
 const EXT = "^{}\\[~]|€";
 // Typical values: a long service name, a reference, the site address, amounts.
-const SAMPLE = { ref: "INZ-2026-04817", code: "123456", url: "https://inzira.rw", service: "Change of company details on RDB", doc: "National ID copy", stage: "With the institution",
+const SAMPLE = { ref: "INZ-2026-04817", code: "123456", url: "https://inziraservices.com", service: "Change of company details on RDB", doc: "National ID copy", stage: "With the institution",
   amount: "RWF 120,000", official: "RWF 12,000", officialText: "official RWF 12,000", ours: "RWF 15,000", total: "RWF 27,000", date: "12 Oct 2026", n: 3, name: "Aline", agent: "Jean Bosco", message: "Please bring the original lease.", why: "Customer asked to stop.", channel: "Irembo", receipt: "INV-2026-0042" };
 const PREFIX = "Inzira INZ-2026-04817: ";
 for (const [locale, all] of [["en", E], ["rw", R]]) {

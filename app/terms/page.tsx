@@ -1,4 +1,6 @@
 import type { Metadata } from "next";
+import { publicMetadata } from "@/lib/public-metadata";
+import { withLocale } from "@/lib/seo";
 import { LegalPage } from "@/components/LegalPage";
 import { getLocale } from "@/lib/i18n/locale";
 import { text } from "@/lib/i18n/messages";
@@ -6,7 +8,7 @@ import { isSet, SITE } from "@/lib/site";
 
 export async function generateMetadata(): Promise<Metadata> {
   const locale = await getLocale();
-  return { title: text(locale, "meta.termsTitle"), description: text(locale, "meta.termsDescription") };
+  return publicMetadata({ title: text(locale, "meta.termsTitle"), description: text(locale, "meta.termsDescription"), path: "/terms", locale });
 }
 
 export default async function TermsPage() {
@@ -29,7 +31,7 @@ export default async function TermsPage() {
         { title: t("legal.docsT"), body: t("legal.docs") },
         { title: t("legal.companyT"), body: company },
       ]}
-      more={{ href: "/privacy", label: t("legal.seePrivacy") }}
+      more={{ href: withLocale(locale, "/privacy"), label: t("legal.seePrivacy") }}
     />
   );
 }

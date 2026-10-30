@@ -1,3 +1,5 @@
+import type { Metadata } from "next";
+import { publicMetadata } from "@/lib/public-metadata";
 import Image from "next/image";
 import Link from "next/link";
 import PublicNav from "@/components/PublicNav";
@@ -16,6 +18,11 @@ import { QuickSteps } from "@/components/QuickSteps";
 import { withLocale } from "@/lib/seo";
 
 type T = (path: string, vars?: Record<string, string | number>) => string;
+
+export async function generateMetadata(): Promise<Metadata> {
+  const locale = await getLocale();
+  return publicMetadata({ title: text(locale, "meta.title"), description: text(locale, "meta.description"), path: "/", locale, absolute: true });
+}
 
 /** A made-up request, labelled as an example, showing what following a request looks like. */
 function CaseFile({ t }: { t: T }) {
@@ -95,25 +102,9 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ a
           "@context": "https://schema.org",
           "@graph": [
             {
-              "@type": "Organization",
-              name: SITE.name,
-              legalName: SITE.legalName,
-              url: origin,
-              email: isSet(SITE.email) ? SITE.email : undefined,
-              telephone: isSet(SITE.phone) ? SITE.phone : undefined,
-              areaServed: { "@type": "Country", name: "Rwanda" },
-              address: { "@type": "PostalAddress", addressLocality: SITE.city, addressCountry: "RW" },
-            },
-            {
-              "@type": "WebSite",
-              name: SITE.name,
-              url: origin,
-              inLanguage: locale === "en" ? "en" : "rw",
-              publisher: { "@type": "Organization", name: SITE.legalName },
-              potentialAction: { "@type": "SearchAction", target: `${pageUrl("/services")}?q={search_term_string}`, "query-input": "required name=search_term_string" },
-            },
-            {
               "@type": "FAQPage",
+              "@id": `${pageUrl("/")}#questions`,
+              isPartOf: { "@id": `${origin}/#website` },
               mainEntity: faqs.map(([q, a]) => ({ "@type": "Question", name: t(q), acceptedAnswer: { "@type": "Answer", text: a } })),
             },
           ],
