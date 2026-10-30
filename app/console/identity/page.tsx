@@ -87,8 +87,8 @@ export default async function IdentityPage({ searchParams }: { searchParams: Pro
         <button className="c-btn c-btn-primary c-btn-sm" type="submit" style={{ alignSelf: "end" }}>Filter</button>
       </form>
       <div className="console-panel" style={{ overflowX: "auto" }}>
-        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13.5 }}>
-          <thead>
+        <table role="table" className="responsive-records" style={{ width: "100%", borderCollapse: "collapse", fontSize: 13.5 }}>
+          <thead role="rowgroup">
             <tr style={{ textAlign: "left", color: "var(--c-text-muted)" }}>
               <th style={{ padding: "10px 12px" }}>Reference</th>
               <th style={{ padding: "10px 12px" }}>Client</th>
@@ -99,16 +99,16 @@ export default async function IdentityPage({ searchParams }: { searchParams: Pro
               <th style={{ padding: "10px 12px" }}>Assigned</th>
             </tr>
           </thead>
-          <tbody>
+          <tbody role="rowgroup">
             {shown.map((r) => (
-              <tr key={r.ref} style={{ borderTop: "1px solid var(--c-border-subtle)" }}>
-                <td style={{ padding: "10px 12px" }}><Link href={`/console/requests/${r.ref}#id-review`}>{r.ref}</Link></td>
-                <td style={{ padding: "10px 12px" }}>{r.profileName}</td>
-                <td style={{ padding: "10px 12px" }}>{r.serviceName}</td>
-                <td style={{ padding: "10px 12px" }}>{fmtDay(r.openedAt)}</td>
-                <td style={{ padding: "10px 12px" }}>{STATUS[r.idReview ?? "none"]}</td>
-                <td style={{ padding: "10px 12px" }} className="tabular-nums">{r.idMasked ?? "—"}</td>
-                <td style={{ padding: "10px 12px" }}>{r.agentName ?? "Unassigned"}</td>
+              <tr role="row" key={r.ref} style={{ borderTop: "1px solid var(--c-border-subtle)" }}>
+                <td role="cell" data-label="Reference" style={{ padding: "10px 12px" }}><Link href={`/console/requests/${r.ref}#id-review`}>{r.ref}</Link></td>
+                <td role="cell" data-label="Client" style={{ padding: "10px 12px" }}>{r.profileName}</td>
+                <td role="cell" data-label="Service" style={{ padding: "10px 12px" }}>{r.serviceName}</td>
+                <td role="cell" data-label="Submitted" style={{ padding: "10px 12px" }}>{fmtDay(r.openedAt)}</td>
+                <td role="cell" data-label="ID review" style={{ padding: "10px 12px" }}>{STATUS[r.idReview ?? "none"]}</td>
+                <td role="cell" data-label="National ID" style={{ padding: "10px 12px" }} className="tabular-nums">{r.idMasked ?? "—"}</td>
+                <td role="cell" data-label="Assigned" style={{ padding: "10px 12px" }}>{r.agentName ?? "Unassigned"}</td>
               </tr>
             ))}
           </tbody>

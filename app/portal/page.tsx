@@ -19,14 +19,14 @@ export default async function PortalHome() {
 
   return (
     <>
-      <PageHead title={`${dayPart(now) === "morning" ? t("dates.greetMorning") : t("dates.greetLater")}, ${account.first}`} sub={fmtLong(now, locale)}>
+      <PageHead variant="overview" title={`${dayPart(now) === "morning" ? t("dates.greetMorning") : t("dates.greetLater")}, ${account.first}`} sub={fmtLong(now, locale)}>
         <form action="/portal/requests" role="search" className="card row g8 m-hide" style={{ padding: "0 12px", height: 40, width: 280 }}>
           <Icon name="search" size={18} /><label htmlFor="ps" className="sr-only">{t("portal.searchLabel")}</label>
           <input id="ps" name="q" placeholder={t("portal.searchPh")} style={{ border: 0, outline: 0, fontSize: 14, width: "100%" }} />
         </form>
         <Link className="btn btn-s btn-sm m-hide" href="/services" style={{ height: 40 }}><Icon name="plus" size={18} /> {t("portal.start")}</Link>
       </PageHead>
-      <div className="content">
+      <div className="content portal-dashboard">
         {!account.email && (
           <Alert kind="info" title={t("portalBanner.title")} action={<Link className="btn btn-p btn-sm" href="/portal/account">{t("portalBanner.cta")}</Link>}>
             {t("portalBanner.body")}
@@ -40,9 +40,9 @@ export default async function PortalHome() {
           </Alert>
         ))}
         <div className="grid cols-4 m-cols-2" style={{ gap: 14 }}>
-          <Kpi label={t("portal.active")} value={String(open.length)} sub={t("portal.withInst", { n: open.filter((r) => r.stage === "institution" && !r.hold).length })} icon="list" />
-          <Kpi label={t("portal.action")} value={String(holds.length)} sub={holds.length ? t("portal.since", { date: fmtDay(holds[0].hold!.since, locale) }) : t("portal.nothing")} icon="alert" valueColor={holds.length ? "var(--ember-deep)" : undefined} />
-          <Kpi label={t("portal.completed")} value={String(requests.filter((r) => r.stage === "completed").length)} sub={t("portal.sinceMonth", { date: fmtMonth(account.since, locale) })} icon="check" />
+          <Kpi href="/portal/requests" label={t("portal.active")} value={String(open.length)} sub={t("portal.withInst", { n: open.filter((r) => r.stage === "institution" && !r.hold).length })} icon="list" />
+          <Kpi href="/portal/requests#needs-action" label={t("portal.action")} value={String(holds.length)} sub={holds.length ? t("portal.since", { date: fmtDay(holds[0].hold!.since, locale) }) : t("portal.nothing")} icon="alert" valueColor={holds.length ? "var(--ember-deep)" : undefined} />
+          <Kpi href="/portal/requests#finished" label={t("portal.completed")} value={String(requests.filter((r) => r.stage === "completed").length)} sub={t("portal.sinceMonth", { date: fmtMonth(account.since, locale) })} icon="check" />
           <div className="card stack g10" style={{ padding: "18px 20px" }}>
             <span className="mut" style={{ fontSize: 13.5, fontWeight: 600 }}>{t("portal.paid")}</span>
             <div className="row between g8 wrapx" style={{ fontSize: 14 }}><FeeTag kind="ours" /><strong className="fee-ours">{rwf(paid.ours)}</strong></div>

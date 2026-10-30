@@ -20,10 +20,10 @@ export default function AuditLog({ entries }: { entries: AuditEntry[] }) {
         </select>
         <label className="check" style={{ marginLeft: "auto" }}><input type="checkbox" checked={feeOnly} onChange={(e) => setFeeOnly(e.target.checked)} /> Fee &amp; payment events only</label>
       </div>
-      <div className="card table-wrap"><table>
-        <thead><tr><th>Time</th><th>Actor</th><th>Action</th><th>Entity</th><th>Source</th></tr></thead>
-        <tbody>{rows.map((a) => (
-          <tr key={a.at + a.action + a.entity}><td className="m" style={{ whiteSpace: "nowrap" }}>{fmtDay(a.at)} {fmtTime(a.at)}</td><td><span className="stack" style={{ gap: 1 }}><strong>{a.actor}</strong><span className="mut" style={{ fontSize: 12.5 }}>{a.role}</span></span></td><td><span className={`tag ${a.fee ? "tag-ember" : ""}`}>{a.action}</span></td><td>{a.entity}</td><td className="mut" style={{ fontSize: 13 }}>{a.source}</td></tr>
+      <div className="card table-wrap"><table role="table" className="responsive-records">
+        <thead role="rowgroup"><tr><th>Time</th><th>Actor</th><th>Action</th><th>Entity</th><th>Source</th></tr></thead>
+        <tbody role="rowgroup">{rows.map((a) => (
+          <tr role="row" key={a.at + a.action + a.entity}><td role="cell" data-label="Time" className="m" style={{ whiteSpace: "nowrap" }}>{fmtDay(a.at)} {fmtTime(a.at)}</td><td role="cell" data-label="Actor"><span className="stack" style={{ gap: 1 }}><strong>{a.actor}</strong><span className="mut" style={{ fontSize: 12.5 }}>{a.role}</span></span></td><td role="cell" data-label="Action"><span className={`tag ${a.fee ? "tag-ember" : ""}`}>{a.action}</span></td><td role="cell" data-label="Entity">{a.entity}</td><td role="cell" data-label="Source" className="mut" style={{ fontSize: 13 }}>{a.source}</td></tr>
         ))}</tbody>
       </table>
       {rows.length === 0 && <p className="hint" style={{ padding: 24, textAlign: "center" }}>No events match these filters.</p>}

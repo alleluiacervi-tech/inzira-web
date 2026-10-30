@@ -24,6 +24,7 @@ export default async function PayPage({ params, searchParams }: { params: Promis
   const phoneShared = (await searchParams).phone === "shared";
   const [r, locale] = await Promise.all([getMyRequest(ref), getPortalLocale()]);
   if (!r) notFound();
+  if (r.closed) redirect(`/portal/requests/${r.ref}`);
   // A customer who left while a prompt was waiting comes back to that prompt, not to a new one. It is checked first:
   // paid goes back to the request, and one that expired or was declined leaves the screen ready to pay again.
   let waiting = await getWaitingPayment(r.ref);

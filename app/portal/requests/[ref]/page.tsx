@@ -98,7 +98,7 @@ export default async function RequestPage({ params }: { params: Promise<{ ref: s
               <div className="stack grow" style={{ gap: 3 }}><span className="eb" style={{ fontSize: 10.5 }}>{t("request.yourAgent")}</span><strong style={{ fontSize: 16 }}>{agent}</strong><span className="mut" style={{ fontSize: 13 }}>{r.agent?.team ? teamName(r.agent.team, locale) : t("request.assigning")} · {t("request.replies")}</span></div>
               <Link className="btn btn-s btn-ico" href={whatsappUrl(t("request.waHello", { ref: r.ref }))} aria-label={t("request.waAbout", { ref: r.ref })}><Icon name="whatsapp" size={19} /></Link>
             </div>
-            <PaymentPanel reqRef={r.ref} billing={r.billing} now={now} phone={r.account.phone} checkoutOpen={r.checkout === "open" && !r.closed} />
+            <PaymentPanel reqRef={r.ref} billing={r.billing} now={now} phone={r.account.phone} closed={!!r.closed} checkoutOpen={r.checkout === "open" && !r.closed} />
             <section className="card stack g4" style={{ padding: 18 }} aria-labelledby="act-h">
               <h2 id="act-h" className="d" style={{ fontSize: 18, marginBottom: 8 }}>{t("request.activity")}</h2>
               <TimelineV events={r.events.map((e, i) => ({

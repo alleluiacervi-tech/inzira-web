@@ -75,7 +75,7 @@ export function MyDayView({ staff, data, now, taxes = [] }: { staff: Staff; data
 
   return (
     <div className="stack g24">
-      <div className="c-page-head">
+      <div className="c-page-head c-dashboard-head">
         <div className="stack g6">
           <span className="c-eyebrow">{fmtLong(now)}</span>
           <h1 className="console-page-title">Good {dayPart(now)}, {shortName(staff.name)}</h1>

@@ -79,15 +79,15 @@ export default function ServiceAdmin({ services: rows, categories, demand, canTr
       </div>
       {saved && <div className="alert t-ok" role="status"><Icon name="check" size={20} /><div className="alert-body"><strong>Saved</strong><span>{saved}</span></div></div>}
       <div className="card table-wrap">
-        <table>
-          <thead><tr><th>Service</th><th>Category</th><th>Official fee</th><th>Our fee</th><th>Documents</th><th>Status</th>{canTranslate && <th>Kinyarwanda</th>}<th style={{ textAlign: "right" }}>30-day</th><th><span className="sr-only">Edit</span></th></tr></thead>
-          <tbody>{shown.map((r) => (
-            <tr key={r.slug}>
-              <td><span className="stack" style={{ gap: 2 }}><strong>{r.name || "Untitled service"}</strong><span className="mut" style={{ fontSize: 12.5 }}>{r.via}</span></span></td><td><span className="tag">{short(r.category)}</span></td>
-              <td><span className="stack" style={{ gap: 4, alignItems: "flex-start" }}><span style={{ fontWeight: 600 }}>{officialLabel(r)}</span>{needsCheck(r) && <Badge tone="warn" label="Not checked" />}</span></td>
-              <td className="fee-ours" style={{ fontWeight: 700 }}>{oursLabel(r)}</td><td className="mut">{r.documents.length || "—"}</td>
-              <td><span className="row g6 wrapx"><Badge tone={r.visible ? "ok" : "neutral"} label={r.visible ? "Active" : "Draft"} />{(r.idPolicy ?? "unsure") === "unsure" && <Badge tone="warn" label="ID not confirmed" />}</span></td>{canTranslate && <td>{rwStatus[r.slug]?.missing ? <Badge tone="warn" label={`${rwStatus[r.slug].missing} to translate`} /> : <Badge tone="ok" label="Complete" />}</td>}<td style={{ textAlign: "right" }}>{demand[r.slug] ?? 0}</td>
-              <td><button type="button" className="btn btn-g btn-sm btn-ico" aria-label={`Edit ${r.name}`} onClick={() => open({ ...r }, false)}><Icon name="edit" size={17} /></button></td>
+        <table role="table" className="responsive-records">
+          <thead role="rowgroup"><tr><th>Service</th><th>Category</th><th>Official fee</th><th>Our fee</th><th>Documents</th><th>Status</th>{canTranslate && <th>Kinyarwanda</th>}<th style={{ textAlign: "right" }}>30-day</th><th><span className="sr-only">Edit</span></th></tr></thead>
+          <tbody role="rowgroup">{shown.map((r) => (
+            <tr role="row" key={r.slug}>
+              <td role="cell" data-label="Service"><span className="stack" style={{ gap: 2 }}><strong>{r.name || "Untitled service"}</strong><span className="mut" style={{ fontSize: 12.5 }}>{r.via}</span></span></td><td role="cell" data-label="Category"><span className="tag">{short(r.category)}</span></td>
+              <td role="cell" data-label="Official fee"><span className="stack" style={{ gap: 4, alignItems: "flex-start" }}><span style={{ fontWeight: 600 }}>{officialLabel(r)}</span>{needsCheck(r) && <Badge tone="warn" label="Not checked" />}</span></td>
+              <td role="cell" data-label="Our fee" className="fee-ours" style={{ fontWeight: 700 }}>{oursLabel(r)}</td><td role="cell" data-label="Documents" className="mut">{r.documents.length || "—"}</td>
+              <td role="cell" data-label="Status"><span className="row g6 wrapx"><Badge tone={r.visible ? "ok" : "neutral"} label={r.visible ? "Active" : "Draft"} />{(r.idPolicy ?? "unsure") === "unsure" && <Badge tone="warn" label="ID not confirmed" />}</span></td>{canTranslate && <td role="cell" data-label="Kinyarwanda">{rwStatus[r.slug]?.missing ? <Badge tone="warn" label={`${rwStatus[r.slug].missing} to translate`} /> : <Badge tone="ok" label="Complete" />}</td>}<td role="cell" data-label="30-day" style={{ textAlign: "right" }}>{demand[r.slug] ?? 0}</td>
+              <td role="cell" data-label="Edit"><button type="button" className="btn btn-g btn-sm btn-ico" aria-label={`Edit ${r.name}`} onClick={() => open({ ...r }, false)}><Icon name="edit" size={17} /></button></td>
             </tr>
           ))}</tbody>
         </table>

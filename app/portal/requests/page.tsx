@@ -32,8 +32,8 @@ export default async function RequestsPage({ searchParams }: { searchParams: Pro
         <Link className="btn btn-s btn-sm m-hide" href="/services" style={{ height: 40 }}><Icon name="plus" size={18} /> {t("portal.start")}</Link>
       </PageHead>
       <div className="content">
-        {groups.filter(([, list]) => list.length).map(([title, list]) => (
-          <section key={title} className="card" aria-label={title}>
+        {groups.map(([title, list], index) => ({ title, list, id: ["needs-action", "in-progress", "finished"][index] })).filter(({ list }) => list.length).map(({ title, list, id }) => (
+          <section key={title} id={id} className="card request-group" aria-label={title}>
             <div className="card-head"><h2 className="d" style={{ fontSize: 19 }}>{title}</h2><span className="mut" style={{ fontSize: 13 }}>{list.length}</span></div>
             {list.map((r) => <RequestRow key={r.ref} r={r} />)}
           </section>

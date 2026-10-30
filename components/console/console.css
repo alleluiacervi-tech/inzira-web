@@ -829,7 +829,7 @@ li:last-child > .c-attn { border-bottom: 0; }
 /* Admin pages built with the shared page header (PageHead) and state panels sit inside the console:
    drop their own band and padding so they line up with the other console pages. */
 .console-content > .topbar, .console-content > div > .topbar { background: transparent; border: 0; padding: 0 0 16px; min-height: 0; }
-.console-content .topbar h1 { font-size: 20px !important; font-weight: 600; letter-spacing: -0.015em; }
+.console-content .topbar h1 { font-weight: 650; letter-spacing: -0.035em; }
 .console-content .content { padding: 0; }
 .console-content .table-wrap { background: var(--c-surface); }
 .console-content table th { background: var(--c-surface); }
@@ -1291,3 +1291,93 @@ a.c-kpi:focus-visible { outline: 2px solid var(--brand-2); outline-offset: -2px;
   .c-btn, .c-btn-sm, .c-btn-icon, .c-btn-icon.c-btn-sm { min-height: 44px; }
   .c-btn-icon, .c-btn-icon.c-btn-sm { min-width: 44px; }
 }
+
+/* Blue service workspace: quieter chrome, clearer content hierarchy. */
+.console-root {
+  --c-rail: #0f1e3d;
+  --c-rail-hover: #182b52;
+  --c-rail-active: #1d3363;
+  --c-rail-ink: #f3f6fc;
+  --c-rail-muted: #b7c5df;
+  --c-canvas: #f2f5fa;
+  --c-radius: 14px;
+  --c-radius-lg: 20px;
+  --c-shadow: 0 3px 16px -12px rgba(18,76,69,.2);
+}
+.console-topbar { background: #fff; border-bottom: 1px solid var(--c-border); }
+.console-page-title { font-size: clamp(28px,3vw,36px); font-weight: 650; letter-spacing: -.04em; }
+.console-nav-item { border-radius: 10px; min-height: 44px; }
+.console-nav-item.active { background: #e8edf6; color: #0f1e3d; }
+.console-nav-item.active svg { color: #142850; }
+.c-stat { padding: 24px; border-top: 3px solid var(--brand-line); }
+.c-stat-label { font-size: 14px; }
+.c-stat-icon { color: var(--brand); }
+.console-content table th { background: #f5f8f6; }
+@media(max-width:720px) { .c-stat { padding: 16px; } }
+
+/* Shared page composition for dashboards, records, administration and dialogs. */
+.console-content { padding-top: 32px; }
+.c-page-head { align-items: center; padding-block: 8px 20px; }
+.c-dashboard-head { padding: 30px; border-radius: 22px; background: var(--brand); color: white; min-height: 170px; }
+.c-dashboard-head .console-page-title { color: white; }
+.c-dashboard-head .c-eyebrow, .c-dashboard-head .c-lede { color: #dce6f7; }
+.c-dashboard-head .c-btn-primary { background: white; color: var(--brand); border-color: white; }
+.c-dashboard-head .c-btn-primary:hover { background: var(--brand-tint); }
+.c-dashboard-head .c-btn-secondary { background: transparent; color: white; border-color: #8097bd; }
+.c-dashboard-head .c-btn-secondary:hover { background: #ffffff12; }
+.c-today-summary { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 18px; }
+.c-today-summary > a { display: flex; align-items: center; gap: 18px; padding: 24px; background: #fff; border: 1px solid var(--c-border); border-radius: 18px; color: var(--c-text); text-decoration: none; min-width: 0; }
+.c-today-summary > a:hover { border-color: var(--brand); }
+.c-today-summary > a > span:nth-child(2) { display: flex; flex-direction: column; gap: 8px; min-width: 0; flex: 1; }
+.c-today-summary strong { font-size: 34px; font-weight: 650; line-height: 1; letter-spacing: -.04em; }
+.c-summary-label { color: var(--c-text-muted); font-size: 13px; }
+.c-summary-icon { width: 48px; height: 48px; display: grid; place-items: center; flex-shrink: 0; background: var(--brand-tint); color: var(--brand); border-radius: 14px; }
+.console-panel-header { min-height: 76px; padding: 22px 24px; }
+.console-section-title { font-size: 17px; font-weight: 650; letter-spacing: -.02em; }
+.console-table-container { border-radius: 18px; box-shadow: var(--c-shadow); }
+.console-table th { font-size: 12px; font-weight: 650; color: var(--c-text-muted); padding-block: 16px; }
+.console-table td { padding-block: 20px; }
+.console-table tbody tr:hover { background: #f6f8fc; }
+.console-content .page-heading { padding-block: 8px 24px; }
+.console-content .page-heading h1 { font-size: clamp(26px,2.6vw,34px); font-weight: 650; }
+.console-content .page-heading-sub { color: var(--c-text-muted); }
+.console-content .content > .card, .console-content .content > .table-wrap { border-radius: 18px; }
+.c-kpis { gap: 14px; background: transparent; border: 0; box-shadow: none; overflow: visible; }
+.c-kpi { border: 1px solid var(--c-border); border-radius: 16px; background: #fff; padding: 22px; }
+.c-kpi + .c-kpi { border-left: 1px solid var(--c-border); }
+.c-kpi-value { font-size: 32px; font-weight: 650; letter-spacing: -.035em; }
+.console-dialog { border-radius: 22px; box-shadow: 0 24px 100px #10234940; }
+.console-dialog-header { background: #f6f8fc; border-radius: 22px 22px 0 0; }
+.console-input, .console-select, .console-textarea { background: #fcfdff; border-radius: 10px; }
+.console-input:focus, .console-select:focus, .console-textarea:focus { border-color: var(--brand); box-shadow: 0 0 0 3px var(--brand-tint); }
+.c-empty { padding: 40px 24px; background: #fbfcff; border-radius: 14px; }
+.c-tabs { padding: 4px; gap: 4px; border: 1px solid var(--c-border); border-radius: 12px; background: #f6f8fc; }
+.c-tab[aria-selected="true"] { background: #fff; color: var(--brand); border-radius: 8px; box-shadow: 0 2px 5px #14285010; }
+@media(max-width:1100px) {
+  .c-today-summary { gap: 12px; }
+  .c-today-summary > a { padding: 18px; gap: 12px; }
+  .c-summary-icon { width: 36px; height: 36px; border-radius: 10px; }
+}
+@media(max-width:720px) {
+  .console-content { padding-top: 20px; }
+  .c-dashboard-head { padding: 24px; gap: 20px; }
+  .c-today-summary { grid-template-columns: minmax(0,1fr); gap: 10px; }
+  .c-today-summary > a { padding: 16px 20px; }
+  .c-today-summary > a > span:nth-child(2) { flex-direction: row; align-items: center; justify-content: space-between; gap: 12px; }
+  .c-today-summary strong { font-size: 28px; }
+  .console-panel-header { padding: 18px; }
+  .c-kpis { gap: 10px; }
+  .c-kpi { padding: 16px; }
+}
+.c-record-header { padding: 28px; border-top: 4px solid var(--brand); background: #fff; }
+.c-record-title { font-size: clamp(24px,2.6vw,32px); }
+.c-record-header .c-avatar { width: 56px; height: 56px; font-size: 20px; border-radius: 16px; }
+.c-table-toolbar { padding: 16px; border: 1px solid var(--c-border); border-radius: 16px; background: #fff; }
+.console-content .table-wrap th { background: #f5f7fb; padding-block: 16px; color: var(--c-text-muted); }
+.console-content .table-wrap td { padding-block: 18px; }
+.console-content .role-on { background: var(--brand); color: white; }
+.console-content .role-btn { border-radius: 12px; padding: 16px; }
+.console-content .modal { border-radius: 22px; border-top: 4px solid var(--brand); }
+@media(max-width:720px) { .c-record-header { padding: 20px; } .c-table-toolbar { padding: 12px; } }
+
+#donext-title { scroll-margin-top: 100px; }

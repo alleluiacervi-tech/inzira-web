@@ -54,11 +54,13 @@ npm run test:ui
 npm run test:a11y
 ```
 
-`test:ui` requires Chromium (or `CHROME_PATH`) and a demo server. It reviews 42 public, customer, staff and admin destinations at 360, 390, 768, 1024 and 1440 pixels. It checks page overflow, main landmarks, accessible control names, unexpected redirects and browser exceptions; captures representative screenshots; verifies that mobile role edits persist and restores the original permission; and checks dialog behavior plus recovery from intentionally blocked search and saved-view requests. JSON evidence and screenshots are written under `/tmp/inzira-ui-*`.
+`test:ui` requires Chromium (or `CHROME_PATH`) and a demo server. It reviews 48 public, private-request, customer, staff and admin destinations at 360, 390, 768, 1024 and 1440 pixels. It checks page overflow, main landmarks, accessible control names, unexpected redirects, readable narrow-screen record tables, payment confirmation order and browser exceptions; captures representative screenshots; verifies that mobile role edits persist and restores the original permission; and checks dialog behavior plus recovery from intentionally blocked search and saved-view requests. JSON evidence and screenshots are written under `/tmp/inzira-ui-*`.
 
-`test:a11y` checks 17 representative destinations in desktop, simulated 200% reflow and doubled-text modes (51 cases). It inspects the browser accessibility tree for named controls and a single main landmark, checks control clipping, verifies alert and modal semantics, tests client-tab keyboard navigation, and verifies that failed tag/note saves preserve entered text. These simulations do not replace native browser zoom, real devices or a screen-reader session. Evidence is written to `/tmp/inzira-accessibility.json`.
+`test:a11y` checks 21 representative destinations in desktop, simulated 200% reflow and doubled-text modes (63 cases). It inspects the browser accessibility tree for named controls and a single main landmark, checks control clipping, verifies alert and modal semantics, tests client-tab keyboard navigation, and verifies that failed tag/note saves preserve entered text. These simulations do not replace native browser zoom, real devices or a screen-reader session. Evidence is written to `/tmp/inzira-accessibility.json`.
 
-Run `npm run flows` against a **new** disposable database. The flow suite deliberately changes sample accounts, languages, requests, permissions, passwords and authenticator settings. Do not run it concurrently with the UI review against the same database. The UI review also requires disposable data because it verifies permission persistence and creates sign-in audit events.
+Run `npm run flows` against a **new** disposable database. The flow suite deliberately changes sample accounts, languages, requests, permissions, passwords and authenticator settings. Do not run it concurrently with the UI review against the same database. The UI review also requires disposable data because it creates an anonymous request to exercise the private request/checkout/receipt screens, verifies permission persistence and creates sign-in audit events.
+
+The additional visual refresh is described in [Visual direction](VISUAL_DIRECTION.md): a new city-photo homepage composition, blue visual identity, catalogue cards, and refreshed portal/console surfaces. The five-width review passed 210 cases after that redesign; the final build includes the subsequent catalogue layout and breadcrumb contrast fixes.
 
 Verification obtained during this refinement on 30 October 2026:
 
@@ -75,7 +77,7 @@ Verification obtained during this refinement on 30 October 2026:
 
 CI now runs lint, type checking, translations, unit checks, release-policy tests, backend checks, build, smoke and browser flows. The full visual/accessibility review is available separately as `npm run test:ui` and `npm run test:a11y`.
 
-The route inventory records 46 page templates, 100 exported server actions and 36 components containing forms or dialogs. See [Route inventory](ROUTE_INVENTORY.md). Current cloud startup instructions are preserved in [Environment startup](ENVIRONMENT_STARTUP.md); updating the environment service’s setup draft was rejected because the draft is no longer editable, so persistence of that draft update was not confirmed.
+The route inventory records 46 page templates, 100 exported server actions and 36 components containing forms or dialogs. See [Route inventory](ROUTE_INVENTORY.md) and [Page design review](PAGE_DESIGN_REVIEW.md). Current cloud startup instructions are preserved in [Environment startup](ENVIRONMENT_STARTUP.md); updating the environment service’s setup draft was rejected because the draft is no longer editable, so persistence of that draft update was not confirmed.
 
 ## Production deployment prerequisites
 
@@ -104,3 +106,11 @@ For this release, leave `PAYMENT_PROVIDER` unset or set it to `disabled`. The cu
 ## Limits of the review
 
 External Postgres, email, SMS, Blob, real browser/device combinations, deployed monitoring and backup restoration still need verification in the actual production environment. Keyboard and automated accessibility checks were performed; a full assistive-technology audit with a screen reader was not performed. The checks cover representative dynamic records and major conditional flows, not every possible content combination or concurrency condition. No deployment, Git push or publication was performed.
+
+## Blue dashboard and page-wide follow-up
+
+The user’s preferred blue identity is retained across the recomposed dashboards and all page families. The updated review passed 240 responsive cases across 48 destinations, 63 accessibility cases and 41 route smoke checks. Labeled mobile record cards replace squeezed legacy service, payment, audit and identity tables. Payment confirmation appears before the action.
+
+The full workflow rerun passed 246 checks and exposed one cancellation-screen failure. Focused inspection confirmed cancellation persisted but a closed request still offered payment. Closed requests now hide payment actions and redirect direct checkout visits, and cancellation explicitly refreshes the record. The focused browser regression passed immediate/reloaded state and checkout blocking; the dependent start/privacy sequence passed 46 checks with zero failures afterward. The entire workflow suite was not rerun again after this focused fix.
+
+The final demo build passes. This evidence does not satisfy the external production prerequisites or replace a real-device and screen-reader review.

@@ -109,7 +109,7 @@ export default async function LinkedRequestPage({ params }: { params: Promise<{ 
           </div>
 
           <div className="stack g16">
-            <PaymentPanel reqRef={r.ref} billing={r.billing} now={now} phone={r.account.phone} checkoutOpen={r.checkout === "open" && !r.closed} base={base} />
+            <PaymentPanel reqRef={r.ref} billing={r.billing} now={now} phone={r.account.phone} closed={!!r.closed} checkoutOpen={r.checkout === "open" && !r.closed} base={base} />
             <div className="card row g14" style={{ padding: 16 }}>
               <span className="av" style={{ width: 44, height: 44, fontSize: 14 }}>{initials(agent)}</span>
               <div className="stack grow" style={{ gap: 3 }}><span className="eb" style={{ fontSize: 10.5 }}>{t("request.yourAgent")}</span><strong style={{ fontSize: 15.5 }}>{agent}</strong><span className="mut" style={{ fontSize: 13 }}>{r.agent?.team ? teamName(r.agent.team, locale) : t("request.assigning")}</span></div>

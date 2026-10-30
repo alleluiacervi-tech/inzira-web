@@ -204,7 +204,7 @@ export function OverviewView({ overview: o, name }: { overview: AdminOverview; n
 
   return (
     <div className="stack c-overview">
-      <div className="c-page-head">
+      <div className="c-page-head c-dashboard-head">
         <div className="stack g6">
           <span className="c-eyebrow">{fmtLong(o.now)}</span>
           <h1 className="console-page-title">{first ? `Good ${dayPart(o.now)}, ${first}` : "Operations"}</h1>
@@ -221,6 +221,12 @@ export function OverviewView({ overview: o, name }: { overview: AdminOverview; n
           <Link href="/console/intake" className="c-btn c-btn-primary"><Icon name="plus" size={15} />New request</Link>
         </div>
       </div>
+
+      <nav className="c-today-summary" aria-label="Current operations">
+        <Link href="/console/requests?state=open"><span className="c-summary-icon"><Icon name="inbox" size={22} /></span><span><span className="c-summary-label">Open cases</span><strong className="tnum">{o.activeCases.value}</strong></span><Icon name="right" size={18} /></Link>
+        <Link href="#donext-title"><span className="c-summary-icon"><Icon name="alert" size={22} /></span><span><span className="c-summary-label">Need attention</span><strong className="tnum">{o.queue.length}</strong></span><Icon name="right" size={18} /></Link>
+        <Link href="/console/requests?stage=completed"><span className="c-summary-icon"><Icon name="check-circle" size={22} /></span><span><span className="c-summary-label">Completed · {o.period.toLowerCase()}</span><strong className="tnum">{o.completed.value}</strong></span><Icon name="right" size={18} /></Link>
+      </nav>
 
       <RouteMap stages={o.pipeline} completed={o.completed.value} period={o.period} now={o.now} />
 

@@ -209,7 +209,7 @@ export function DataTable<T extends { id?: string; ref?: string }>({
   return (
     <div className="stack g12" style={{ width: "100%" }}>
       {/* Controls Bar: Saved Views, Search, Filters, Tools */}
-      <div className="row between g12 wrapx">
+      <div className="row between g12 wrapx c-table-toolbar">
         <div className="row g8 wrapx">
           {savedViews.length > 0 && (
             <select

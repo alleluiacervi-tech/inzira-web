@@ -781,6 +781,9 @@ await step("privacy", async () => {
   await p.go(`/portal/requests/${unpaidRef}`); await waitFor(p, "Cancel this request");
   await p.click("Cancel this request", "summary"); await sleep(300); await p.click("Cancel request", "button"); await waitFor(p, "Cancelled by you");
   check("cancel: an unpaid checkout can be cancelled by the customer", await p.has("Cancelled by you") && !(await p.has("Pay to send your request")));
+  check("cancel: a closed request offers no payment action", !(await p.ev(`!!document.querySelector('#payments a[href$="/pay"]')`)));
+  await p.go(`/portal/requests/${unpaidRef}/pay`);
+  check("cancel: direct checkout returns to the closed request", (await p.ev('location.pathname')) === `/portal/requests/${unpaidRef}` && await p.has('Cancelled by you'));
   await p.go("/portal/account"); await waitFor(p, "Your details");
   check("privacy: finished requests' documents are counted", await p.has("1 file from 1 request"));
   await p.set("#acct-name", "Test Person Renamed");

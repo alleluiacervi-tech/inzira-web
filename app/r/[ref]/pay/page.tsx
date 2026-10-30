@@ -22,6 +22,7 @@ export default async function LinkedPayPage({ params }: { params: Promise<{ ref:
   if (await ownsRequest(ref)) redirect(`/portal/requests/${ref}/pay`);
   const [r, locale] = await Promise.all([getLinkedRequest(ref), getLocale()]);
   if (!r) redirect(`/r/${ref}`);
+  if (r.closed) redirect(`/r/${r.ref}`);
   let waiting = await getWaitingPayment(r.ref);
   if (waiting) {
     const now = await reconcileForScreen(waiting.txId);

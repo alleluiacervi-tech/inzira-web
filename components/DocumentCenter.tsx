@@ -57,7 +57,7 @@ export default function DocumentCenter({ initial }: { initial: LibraryDoc[] }) {
   const choose = (key: string) => { setTarget(key); setError(""); setDone(""); panel.current?.scrollIntoView({ behavior: "smooth", block: "nearest" }); };
 
   return (
-    <div className="split" style={{ ["--aside" as string]: "400px", gap: 28 }}>
+    <div className="split document-workspace" style={{ ["--aside" as string]: "400px", gap: 28 }}>
       <div className="stack g20">
         <div className="chips-scroll" role="group" aria-label={tr("docs.filter")}>
           {TABS.map((k) => (
