@@ -4,6 +4,7 @@ import { and, asc, desc, eq, gte, inArray, isNull, ne, or, sql, type SQL } from 
 import { WORKS_CASES, canSeeCase, canTriage, caseScope, seesAllCases } from "./access";
 import { getSession, requireCustomerId, requireStaff } from "./auth";
 import { db, iso, schema as s } from "./db";
+import { getPrivacyOverview } from "./privacy-overview";
 import { allowFor } from "./ratelimit";
 import { hasLink } from "./request-links";
 import { timingSafeEqual } from "node:crypto";
@@ -120,7 +121,7 @@ async function loadRequests(where?: SQL, locale: Locale = "en"): Promise<Request
   const rows = await d.select().from(s.requests).where(where);
   if (!rows.length) return [];
   const refs = rows.map((r) => r.ref);
-  const [docs, outs, msgs, nts, evs, txs, svcs, profs, staffRows] = await Promise.all([
+  const [docs, outs, msgs, nts, evs, txs, svcs, profs, staffRows, financeFiles] = await Promise.all([
     d.select().from(s.requestDocuments).where(inArray(s.requestDocuments.ref, refs)).orderBy(asc(s.requestDocuments.position)),
     d.select().from(s.deliverables).where(inArray(s.deliverables.ref, refs)),
     d.select().from(s.messages).where(inArray(s.messages.ref, refs)).orderBy(asc(s.messages.at), asc(s.messages.id)),
@@ -130,6 +131,7 @@ async function loadRequests(where?: SQL, locale: Locale = "en"): Promise<Request
     d.select().from(s.services).where(inArray(s.services.slug, [...new Set(rows.map((r) => r.serviceSlug))])),
     d.select().from(s.profiles).where(inArray(s.profiles.id, [...new Set(rows.map((r) => r.profileId))])),
     d.select().from(s.staff),
+    d.select({ id: s.files.id, ref: s.files.ref }).from(s.files).where(and(inArray(s.files.ref, refs), eq(s.files.retentionClass, "financial"))),
   ]);
   const accs = await d.select().from(s.accounts).where(inArray(s.accounts.id, [...new Set(profs.map((p) => p.accountId))]));
   const by = <T extends { ref: string }>(list: T[]) => { const m = new Map<string, T[]>(); for (const x of list) m.set(x.ref, [...(m.get(x.ref) ?? []), x]); return m; };
@@ -145,6 +147,8 @@ async function loadRequests(where?: SQL, locale: Locale = "en"): Promise<Request
     const name = (who?: string | null) => (who === "customer" ? account.name : !who || who === "system" ? "System" : staffRows.find((x) => x.id === who)?.name ?? "Inzira");
     const sm = r.summary.msg;
     const req: Request = {
+      financialEvidence: financeFiles.filter((f) => f.ref === r.ref).map((f) => ({ id: f.id })),
+      privacyStartedAt: iso(r.privacyStartedAt), privacyPurgedAt: iso(r.privacyPurgedAt), privacyReturned: r.privacyReturned, privacySource: r.privacySource ?? undefined,
       ref: r.ref, serviceSlug: r.serviceSlug, title: r.title ?? undefined, profileId: r.profileId, agentId: r.agentId, openedAt: iso(r.openedAt)!,
       stage: r.stage, stageDates: r.stageDates, channel: r.channel,
       hold: r.hold ? localHold(locale, r.hold) : undefined,
@@ -178,18 +182,33 @@ async function loadRequests(where?: SQL, locale: Locale = "en"): Promise<Request
       }),
     };
     const times = [req.events[0]?.at, req.messages[req.messages.length - 1]?.at, req.closed?.at, req.openedAt].filter(Boolean) as string[];
-    return {
+    const view: RequestView = {
       ...req, service, account, agent: agentRow ? { id: agentRow.id, name: agentRow.name, role: agentRow.role, team: agentRow.team, title: agentRow.title, active: agentRow.active } : null,
       profile: toProfile(profile),
       name: req.title ?? service.name, flow: service.flow ?? [...STAGES], labels: service.stageLabels ?? {},
       updatedAt: times.sort((a, b) => Date.parse(b) - Date.parse(a))[0],
+    };
+    if (!r.privacyStartedAt) return view;
+    // Redact before serialization, including retries whose durable storage locators still exist.
+    return {
+      ...view, profileId: "privacy-archive", title: undefined,
+      profile: { id: "privacy-archive", accountId: "privacy-archive", kind: "person", name: "Archived client" },
+      account: { id: "privacy-archive", name: "Archived client", first: "Archived", phone: "", whatsapp: false, languages: [], since: r.openedAt, locale },
+      officialRef: undefined, officialBill: undefined, dependsOn: undefined, purpose: undefined,
+      answers: undefined, deliverVia: undefined, hold: undefined, followUp: undefined, handover: undefined,
+      idReviewNote: undefined, idReviewedBy: undefined, requirementsSnapshot: undefined,
+      summary: { title: "Privacy archived", body: "Operational details are unavailable during or after privacy cleanup." },
+      next: "Operational details removed after completion.", channel: "Archived",
+      closed: req.closed ? { kind: req.closed.kind, at: req.closed.at, reason: "Closed" } : undefined,
+      documents: [], deliverables: [], messages: [], notes: [], events: [],
+      billing: { ...view.billing, oursNote: undefined },
     };
   });
 }
 
 /** Drops everything a customer must never receive. */
 function forCustomer(r: RequestView): CustomerRequest {
-  const { notes: _notes, followUp: _followUp, handover: _handover, idReviewNote: _note, idReviewedBy: _by, ...rest } = r;
+  const { notes: _notes, followUp: _followUp, handover: _handover, idReviewNote: _note, idReviewedBy: _by, financialEvidence: _finance, ...rest } = r;
   return rest;
 }
 const byUpdated = (a: RequestView, b: RequestView) => Date.parse(b.updatedAt) - Date.parse(a.updatedAt);
@@ -457,7 +476,7 @@ export async function listClients(): Promise<ClientSummary[]> {
   const reqsByProfile = new Map<string, RequestView[]>();
   for (const r of requests) reqsByProfile.set(r.profileId, [...(reqsByProfile.get(r.profileId) ?? []), r]);
 
-  return profs.map((p) => clientSummary(p, accMap.get(p.accountId), tagsByProfile.get(p.id) ?? [], reqsByProfile.get(p.id) ?? []));
+  return profs.filter((p) => p.id !== "privacy-archive" && !accMap.get(p.accountId)?.deletedAt).map((p) => clientSummary(p, accMap.get(p.accountId), tagsByProfile.get(p.id) ?? [], reqsByProfile.get(p.id) ?? []));
 }
 
 /** One client's file. Without "View all cases", only clients of their own cases, and only those cases. */
@@ -465,7 +484,7 @@ export async function getClient(profileId: string): Promise<ClientDetail | undef
   const me = await requireStaff(`/console/clients/${profileId}`);
   const d = await db();
   const [profRow] = await d.select().from(s.profiles).where(eq(s.profiles.id, profileId));
-  if (!profRow) return undefined;
+  if (!profRow || profileId === "privacy-archive") return undefined;
 
   const requests = await loadRequests(and(eq(s.requests.profileId, profileId), caseScope(me)));
   if (!seesAllCases(me) && !requests.length) return undefined;
@@ -647,14 +666,15 @@ export async function getAdminOverview(rangeDays: OverviewRange = 30) {
   const inRange = (at: string | undefined) => !!at && Date.parse(at) >= since;
   const inPrev = (at: string | undefined) => !!at && Date.parse(at) >= prevSince && Date.parse(at) < since;
 
-  const [everything, accountRows, txRows, cats, services, targets, workers] = await Promise.all([
+  const [everything, accountRows, txRows, cats, services, targets, workers, privacy] = await Promise.all([
     loadRequests(),
-    d.select({ since: s.accounts.since }).from(s.accounts),
+    d.select({ since: s.accounts.since }).from(s.accounts).where(isNull(s.accounts.deletedAt)),
     d.select().from(s.transactions),
     listCategories({ includeHidden: true }),
     listServices({ includeHidden: true }),
     listStageTargets(),
     listAgents(),
+    getPrivacyOverview(now),
   ]);
   const txs = txRows.map((x) => ({ ...x, at: iso(x.at)! }));
   // Unpaid checkouts are not cases yet; they are counted only in the checkout figures.
@@ -752,8 +772,9 @@ export async function getAdminOverview(rangeDays: OverviewRange = 30) {
     now,
     period: `Last ${rangeDays} days`,
     rangeDays,
+    privacy,
     needsAttention: attentionCounts(cases, services, targets, now),
-    queue: workQueue(cases, targets, now),
+    queue: workQueue(cases.filter((r) => !r.privacyStartedAt), targets, now),
     customers: { value: accountRows.length.toLocaleString("en-US"), delta: `+${accountRows.filter((a) => Date.parse(iso(a.since)!) >= kigaliMonthStart(now)).length} this month` },
     activeCases: { value: open.length, needCustomer: open.filter((r) => r.hold).length },
     opened: { value: openedInRange.length, delta: deltaStr(openedInRange.length, openedPrevRange.length) },

@@ -20,6 +20,10 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   const [file] = await d.select().from(s.files).where(eq(s.files.id, id));
   if (!file) return say(session ? "notFound" : "signIn", session ? 404 : 401);
 
+  const [privacy] = await d.select({ started: s.requests.privacyStartedAt }).from(s.requests).where(eq(s.requests.ref, file.ref));
+  if (privacy?.started && file.retentionClass !== "financial") return say("gone", 410);
+  if (privacy?.started && session?.kind !== "staff") return say("gone", 410);
+
   if (session?.kind !== "staff") {
     const [owner] = await d.select({ accountId: s.profiles.accountId }).from(s.requests).innerJoin(s.profiles, eq(s.profiles.id, s.requests.profileId)).where(eq(s.requests.ref, file.ref));
     const mine = session?.kind === "customer" && owner?.accountId === session.subjectId;
@@ -27,7 +31,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   } else {
     const me = await getStaffUser();
     const [r] = await d.select({ agentId: s.requests.agentId }).from(s.requests).where(eq(s.requests.ref, file.ref));
-    if (!me || !r || !me.permissions.has("downloadDocs") || !canSeeCase(me, r)) return say("notFound", 404);
+    if (!me || !r || !(file.retentionClass === "financial" ? me.permissions.has("recordOfficial") : me.permissions.has("downloadDocs")) || !canSeeCase(me, r)) return say("notFound", 404);
     await audit(d, { actor: me.name, role: me.role, action: "Viewed document", entity: `${file.ref} · ${file.name}` });
   }
 

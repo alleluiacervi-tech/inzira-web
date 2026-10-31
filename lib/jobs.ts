@@ -227,7 +227,11 @@ export async function runAll() {
   const out: Record<string, unknown> = {};
   let failed = 0;
   for (const [name, task] of Object.entries(tasks)) {
-    try { out[name] = await task(); } catch (e) {
+    try {
+      const result = await task();
+      out[name] = result;
+      if (result && typeof result === "object" && "error" in result) failed++;
+    } catch (e) {
       failed++;
       out[name] = { error: e instanceof Error ? e.message : String(e) };
       console.error(`[cron] ${name} failed`, e);

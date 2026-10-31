@@ -58,10 +58,10 @@ async function hold(list: Held[]) {
 /** Whether a view secret opens this request now: not revoked, not expired, and its request not closed for 90 days. */
 async function validView(ref: string, token: string, database?: Queryable): Promise<boolean> {
   const d = database ?? await db();
-  const [row] = await d.select({ closed: s.requests.closed }).from(s.requestLinks)
+  const [row] = await d.select({ closed: s.requests.closed, privacyStartedAt: s.requests.privacyStartedAt }).from(s.requestLinks)
     .innerJoin(s.requests, eq(s.requests.ref, s.requestLinks.ref))
     .where(and(eq(s.requestLinks.id, sha(token)), eq(s.requestLinks.ref, ref), eq(s.requestLinks.kind, "view"), isNull(s.requestLinks.revokedAt), gt(s.requestLinks.expiresAt, new Date().toISOString())));
-  if (!row) return false;
+  if (!row || row.privacyStartedAt) return false;
   return !row.closed || Date.parse(row.closed.at) + AFTER_CLOSE_DAYS * DAY > Date.now();
 }
 

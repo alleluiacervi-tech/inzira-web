@@ -121,7 +121,7 @@ Copy `.env.example` to `.env.local`. None are needed for development.
 | `UPLOAD_DIR` | Local development upload directory (default `.data/uploads`). Production requires private Blob storage. |
 | `OWNER_NAME`, `OWNER_PHONE` | Used once by `npm run db:setup`. |
 | `OWNER_USERNAME`, `OWNER_PASSWORD_HASH` | Console login for the owner. Applied the first time the server starts with that hash and recorded in the audit log, so a restart never undoes a password the owner changed later; a new hash is a reset. Make the hash with `OWNER_PASSWORD='…' npm run db:owner -- hash`. The owner's account keeps no email, so nothing is sent to it. Sign-in is then username, password and the authenticator code; "keep me signed in" holds a device for 30 days. `OWNER_USERNAME=… OWNER_PASSWORD=… npm run db:owner` does the same from a shell with the live `DATABASE_URL`. |
-| `DOC_RETENTION_DAYS` | Days after a request finishes before the customer's uploaded documents are deleted (default 90). |
+| Completed-case retention | Fixed at seven days. Scheduled cleanup removes operational content; financial evidence, holds, backups and ongoing accounts have separate rules. `DOC_RETENTION_DAYS` is no longer used. |
 | `TEST_PHONE`, `TEST_AIRTEL_PHONE`, `CHECK_AMOUNT`, `CHECK_REFUND` | Used only by `npm run check:providers`. |
 
 ## Deploying
@@ -273,8 +273,8 @@ by every server action.
   the institution, then mark the fee as checked in the admin console (customers see that date).
 - **Personal data.** Customers manage their details in Portal › Account, can delete the documents of
   finished requests, and can delete their account once nothing is open. Uploaded documents are deleted
-  automatically `DOC_RETENTION_DAYS` after a request finishes. Payments and official receipts are kept
-  (anonymised when an account is deleted), as financial records must be. Have the privacy policy say so.
+  through scheduled cleanup seven days after completion (subject to justified holds). Payments and official receipts are kept
+  under their own retention rules; this is not full anonymization. See `docs/CASE_RETENTION_RELEASE.md` for rollout, exceptions and backup limitations.
 - **Abuse protection.** Codes expire after 10 minutes, allow 5 attempts and one resend per 30 seconds
   per number, and every public action is rate-limited per IP (`lib/ratelimit.ts`). Responses carry
   security headers, including a Content Security Policy that only allows this site's own scripts, styles,

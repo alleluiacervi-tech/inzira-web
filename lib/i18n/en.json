@@ -99,11 +99,11 @@
     "notT": "What we do not do",
     "not": "We do not look you up in a government register. We do not search NIDA, Irembo or RRA. A 16-digit number is not proof that an identity card exists, or that it is yours.",
     "keepT": "How long we keep it",
-    "keep": "Documents you upload are deleted {days} days after the request is finished, or sooner when you ask. Certificates we send you stay in your account until you delete it. Payment records stay, because they are accounts. If you delete your account, those records stay without your name, email or phone number.",
+    "keep": "Scheduled cleanup removes operational case details, supporting documents and delivered certificates after {days} days from completion, unless a justified retention hold applies. Download your documents before then. Minimal case statistics and necessary financial records remain. Registered account details and other ongoing services have separate purposes. Backup expiry is separate from active-system deletion. Contact us about retention or deletion.",
     "seeT": "Who can see it",
-    "see": "The person handling your request can see what you sent. We send an institution only what that filing needs. We do not sell your details.",
+    "see": "Authorized staff can access information needed to deliver and oversee your service. Access depends on staff permissions and case assignments; some administrative and financial roles have broader access. We send an institution what the filing needs. We do not sell your details.",
     "deleteT": "Deleting your account",
-    "delete": "You can delete your account when no request is still open. Your name, email, phone and files are removed. You can also ask us to delete the documents of a finished request before the {days} days are up.",
+    "delete": "You can request account deletion when no request is still open. Necessary financial records and justified retention exceptions may remain. You can also ask us to delete supporting documents of a finished request before {days} days have passed. Contact us if you need help or want to ask about information that remains.",
     "askT": "Questions",
     "ask": "Questions about your information: {email} or {phone}.",
     "termsTitle": "Terms",
@@ -598,7 +598,8 @@
     "errUpi": "Write each UPI like 1/02/03/04/1234.",
     "errTicket": "Enter the ticket number as printed.",
     "errDate": "Choose a date.",
-    "inPersonTitle": "One step in person"
+    "inPersonTitle": "One step in person",
+    "retentionNotice": "Download finished documents within 7 days of completion. Scheduled cleanup then removes operational case details and documents, subject to justified retention exceptions. Minimal reporting and necessary financial records remain."
   },
   "notFound": {
     "kicker": "Page not found",
@@ -963,7 +964,7 @@
     "lost": "Lost a device, or signed in on someone else’s computer? Sign out everywhere, then sign in again with a new code.",
     "everywhere": "Sign out of every device",
     "data": "Your documents and data",
-    "retention": "We delete the documents you uploaded {days} days after a request is finished. Certificates we delivered stay in your portal. Payments and official receipts are kept, because the law requires us to keep financial records.",
+    "retention": "Download your completed documents within {days} days. Scheduled cleanup then removes operational case details and documents, including certificates, unless a justified hold applies. Minimal reporting and necessary financial records remain. Your registered account and other ongoing services are handled separately; backup expiry is separate.",
     "finished": "Documents from finished requests",
     "stored": "{files} from {requests}",
     "file": "file",
@@ -1415,7 +1416,8 @@
     "tooManyFiles": "Send up to {n} files with the request. You can add more from your portal afterwards.",
     "option": "Choose which one you need.",
     "answerFormat": "Check “{q}”: it is not in the expected format.",
-    "notHuman": "We couldn’t confirm you are not a robot. Reload the page and try again."
+    "notHuman": "We couldn’t confirm you are not a robot. Reload the page and try again.",
+    "retentionHold": "A case has a justified retention hold. Contact us to review your deletion request; the account has not been deleted."
   },
   "fileRoute": {
     "signIn": "Sign in to see this file.",

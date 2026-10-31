@@ -7,6 +7,7 @@ import type { QueueItem, Reason } from "@/lib/dashboard";
 import { dayPart, fmtAgo, fmtDay, fmtDayRel, fmtHours, fmtLong, initials, isSameDay, rwf } from "@/lib/format";
 import type { AdminOverview, OverviewRange } from "@/lib/repo";
 import { BarList, DailyTrend, FeeTrendChart, ShareBar } from "./charts";
+import { PrivacyPanel } from "./PrivacyPanel";
 import { KpiStrip } from "./KpiStrip";
 
 type Tone = "red" | "ember" | "amber" | "blue" | "green";
@@ -190,7 +191,7 @@ const RANGES: OverviewRange[] = [7, 30, 90];
 const METHOD_LOGO: Record<string, string> = { "MTN MoMo": "/pay/mtn-momo.svg", "Airtel Money": "/pay/airtel-money.svg" };
 const rwfShortK = (n: number) => (n >= 1e6 ? `RWF ${(n / 1e6).toFixed(1).replace(/\.0$/, "")}M` : n >= 1e4 ? `RWF ${Math.round(n / 1e3)}k` : rwf(n));
 
-export function OverviewView({ overview: o, name }: { overview: AdminOverview; name?: string }) {
+export function OverviewView({ overview: o, name, canManagePrivacy = false }: { overview: AdminOverview; name?: string; canManagePrivacy?: boolean }) {
   const [more, setMore] = useState(false);
   const [measure, setMeasure] = useState<"money" | "requests">("money");
   const late = o.needsAttention.slaBreached;
@@ -206,8 +207,9 @@ export function OverviewView({ overview: o, name }: { overview: AdminOverview; n
     <div className="stack c-overview">
       <div className="c-page-head c-dashboard-head">
         <div className="stack g6">
-          <span className="c-eyebrow">{fmtLong(o.now)}</span>
-          <h1 className="console-page-title">{first ? `Good ${dayPart(o.now)}, ${first}` : "Operations"}</h1>
+          <span className="c-eyebrow">INZIRA / BUSINESS OVERVIEW</span>
+          <h1 className="console-page-title">Your business, at a glance.</h1>
+          <span className="c-dashboard-date">{fmtLong(o.now)}{first ? ` · Good ${dayPart(o.now)}, ${first}` : ""}</span>
           <p className="c-lede">
             {o.queue.length === 0
               ? `Nothing is waiting. ${o.activeCases.value} open ${o.activeCases.value === 1 ? "case" : "cases"}.`
@@ -222,18 +224,65 @@ export function OverviewView({ overview: o, name }: { overview: AdminOverview; n
         </div>
       </div>
 
+      <div className="c-results-head">
+        <div className="stack" style={{ gap: 2 }}>
+          <h2 className="console-section-title c-results-title">Results</h2>
+          <span className="c-caption">{o.period}, compared with the {o.rangeDays} days before</span>
+        </div>
+        <nav className="c-segmented" aria-label="Period">
+          {RANGES.map((r) => (
+            <Link key={r} href={r === 30 ? "/console/overview" : `/console/overview?range=${r}`} aria-current={o.rangeDays === r ? "page" : undefined} scroll={false}>{r} days</Link>
+          ))}
+        </nav>
+      </div>
+
+      <KpiStrip
+        label={`Results, ${o.period.toLowerCase()}`}
+        items={[
+          { label: "Inzira fees collected", value: o.revenue.ours, delta: o.revenue.delta || undefined, href: "/admin/payments", spark: days.map((d) => d.ours), icon: "card" },
+          { label: "Requests opened", value: o.opened.value, delta: o.opened.delta, href: "/console/requests", spark: days.map((d) => d.opened), icon: "inbox" },
+          { label: "Completed", value: o.completed.value, delta: o.completed.delta, href: "/console/requests?stage=completed", spark: days.map((d) => d.completed), sub: o.onTime.pct === null ? undefined : `${o.onTime.pct}% within target`, icon: "check-circle" },
+          { label: "Balances due now", value: o.pending.value, href: "/console/requests?attention=balance", alert: o.pending.overdue > 0, sub: `${o.pending.invoices} ${o.pending.invoices === 1 ? "case" : "cases"}, ${o.pending.overdue} overdue`, icon: "clock" },
+        ]}
+      />
+
+      <div className="c-grid-trend">
+        <Panel
+          id="daily"
+          title={measure === "money" ? "Our fees by day" : "New requests by day"}
+          caption={measure === "money" ? "Inzira fees collected each day; the dashed line is the same days of the period before." : "Requests opened each day; the dashed line is the same days of the period before."}
+          action={
+            <div className="c-segmented c-segmented-sm" role="group" aria-label="Measure">
+              <button type="button" aria-pressed={measure === "money"} onClick={() => setMeasure("money")}>Fees</button>
+              <button type="button" aria-pressed={measure === "requests"} onClick={() => setMeasure("requests")}>Requests</button>
+            </div>
+          }
+        >
+          <DailyTrend
+            days={trend}
+            title={measure === "money" ? "Our fees by day" : "New requests by day"}
+            prevLabel={`Previous ${o.rangeDays} days`}
+            format={measure === "money" ? rwfShortK : (n) => String(Math.round(n))}
+          />
+        </Panel>
+        <Panel id="trend" title="Fees by month" caption="Last 6 months. Only our fee is Inzira revenue.">
+          <FeeTrendChart data={o.monthly} height={220} />
+        </Panel>
+      </div>
+
       <nav className="c-today-summary" aria-label="Current operations">
         <Link href="/console/requests?state=open"><span className="c-summary-icon"><Icon name="inbox" size={22} /></span><span><span className="c-summary-label">Open cases</span><strong className="tnum">{o.activeCases.value}</strong></span><Icon name="right" size={18} /></Link>
         <Link href="#donext-title"><span className="c-summary-icon"><Icon name="alert" size={22} /></span><span><span className="c-summary-label">Need attention</span><strong className="tnum">{o.queue.length}</strong></span><Icon name="right" size={18} /></Link>
         <Link href="/console/requests?stage=completed"><span className="c-summary-icon"><Icon name="check-circle" size={22} /></span><span><span className="c-summary-label">Completed · {o.period.toLowerCase()}</span><strong className="tnum">{o.completed.value}</strong></span><Icon name="right" size={18} /></Link>
       </nav>
 
+      <div className="c-section-heading"><div><span className="c-eyebrow">OPERATIONS</span><h2>Keep every case moving.</h2></div><span className="c-caption">Live workload, priorities and service delivery</span></div>
       <RouteMap stages={o.pipeline} completed={o.completed.value} period={o.period} now={o.now} />
 
       <div className="c-grid-work">
         <DoNext queue={o.queue} unchecked={o.needsAttention.uncheckedOfficial} now={o.now} />
         <div className="stack g16">
-        <Panel id="money" title="Money in" caption={`Collected in the ${o.period.toLowerCase()}`}>
+        <Panel id="money" title="Collections breakdown" caption={`Collected in the ${o.period.toLowerCase()}`}>
           <div className="c-money-hero">
             <span className="c-money-total tnum">{o.revenue.gross}</span>
             <span className="c-caption">{o.revenue.refundCount ? `${o.revenue.refunds} refunded (${o.revenue.refundCount})` : "Nothing refunded"}</span>
@@ -275,7 +324,7 @@ export function OverviewView({ overview: o, name }: { overview: AdminOverview; n
             </div>
           ) : <p className="c-caption">No payments in this period.</p>}
         </Panel>
-          <Panel id="speed" title="Speed" caption={`Cases completed in the ${o.period.toLowerCase()}`}>
+          <Panel id="speed" title="Delivery performance" caption={`Cases completed in the ${o.period.toLowerCase()}`}>
           {o.onTime.of ? (
             <div className="stack g12">
               <div className="c-gauge">
@@ -296,51 +345,9 @@ export function OverviewView({ overview: o, name }: { overview: AdminOverview; n
         </div>
       </div>
 
-      <div className="c-results-head">
-        <div className="stack" style={{ gap: 2 }}>
-          <h2 className="console-section-title c-results-title">Results</h2>
-          <span className="c-caption">{o.period}, compared with the {o.rangeDays} days before</span>
-        </div>
-        <nav className="c-segmented" aria-label="Period">
-          {RANGES.map((r) => (
-            <Link key={r} href={r === 30 ? "/console/overview" : `/console/overview?range=${r}`} aria-current={o.rangeDays === r ? "page" : undefined} scroll={false}>{r} days</Link>
-          ))}
-        </nav>
-      </div>
+      <PrivacyPanel data={o.privacy} now={o.now} canManage={canManagePrivacy} />
 
-      <KpiStrip
-        label={`Results, ${o.period.toLowerCase()}`}
-        items={[
-          { label: "Our fees earned", value: o.revenue.ours, delta: o.revenue.delta || undefined, href: "/admin/payments", spark: days.map((d) => d.ours), icon: "card" },
-          { label: "Requests opened", value: o.opened.value, delta: o.opened.delta, href: "/console/requests", spark: days.map((d) => d.opened), icon: "inbox" },
-          { label: "Completed", value: o.completed.value, delta: o.completed.delta, href: "/console/requests?stage=completed", spark: days.map((d) => d.completed), sub: o.onTime.pct === null ? undefined : `${o.onTime.pct}% within target`, icon: "check-circle" },
-          { label: "Balances due now", value: o.pending.value, href: "/console/requests?attention=balance", alert: o.pending.overdue > 0, sub: `${o.pending.invoices} ${o.pending.invoices === 1 ? "case" : "cases"}, ${o.pending.overdue} overdue`, icon: "clock" },
-        ]}
-      />
-
-      <div className="c-grid-trend">
-        <Panel
-          id="daily"
-          title={measure === "money" ? "Our fees by day" : "New requests by day"}
-          caption={measure === "money" ? "What Inzira earned each day; the dashed line is the same days of the period before." : "Requests opened each day; the dashed line is the same days of the period before."}
-          action={
-            <div className="c-segmented c-segmented-sm" role="group" aria-label="Measure">
-              <button type="button" aria-pressed={measure === "money"} onClick={() => setMeasure("money")}>Fees</button>
-              <button type="button" aria-pressed={measure === "requests"} onClick={() => setMeasure("requests")}>Requests</button>
-            </div>
-          }
-        >
-          <DailyTrend
-            days={trend}
-            title={measure === "money" ? "Our fees by day" : "New requests by day"}
-            prevLabel={`Previous ${o.rangeDays} days`}
-            format={measure === "money" ? rwfShortK : (n) => String(Math.round(n))}
-          />
-        </Panel>
-        <Panel id="trend" title="Fees by month" caption="Last 6 months. Only our fee is Inzira revenue.">
-          <FeeTrendChart data={o.monthly} height={220} />
-        </Panel>
-      </div>
+      <div className="c-history-band"><div><span className="c-eyebrow">BUSINESS RECORD</span><h2>Performance that stays with you.</h2><p>Case counts and income reporting remain available after operational details are removed.</p></div><dl><div><dt>Inzira fees collected, all time</dt><dd>{rwfShortK(o.privacy.lifetimeFees)}</dd></div><div><dt>Total cases handled</dt><dd>{o.privacy.total.toLocaleString("en-US")}</dd></div><div><dt>Completed, all time</dt><dd>{o.privacy.completed.toLocaleString("en-US")}</dd></div><div><dt>Privacy archived</dt><dd>{o.privacy.archived.toLocaleString("en-US")}</dd></div></dl></div>
 
       <div className="c-grid-2">
         <Panel id="src" title="Where requests came from" caption={`New requests, ${o.period.toLowerCase()}`}>
