@@ -220,6 +220,13 @@ export const requests = pgTable("requests", {
   checkout: text("checkout").$type<Checkout>().notNull().default("none"),
   /** The review fee a quoted request was sent with (lib/pricing.ts). Null when it was free or priced in full at checkout. */
   reviewFee: integer("review_fee"),
+  /** Operational case content is removed seven days after completion; reporting/finance remain. */
+  privacyStartedAt: ts("privacy_started_at"),
+  privacyPurgedAt: ts("privacy_purged_at"),
+  privacyHoldUntil: ts("privacy_hold_until"),
+  privacyHoldReason: text("privacy_hold_reason"),
+  privacyReturned: boolean("privacy_returned").notNull().default(false),
+  privacySource: text("privacy_source"),
   // billing — always two lines: official (institution) and ours (Inzira)
   invoice: text("invoice").notNull().unique(),
   official: integer("official"),
@@ -357,6 +364,7 @@ export const files = pgTable("files", {
   id: text("id").primaryKey(),
   ref: text("ref").notNull().references(() => requests.ref),
   storageKey: text("storage_key").notNull(),
+  retentionClass: text("retention_class").$type<"operational" | "financial">().notNull().default("operational"),
   name: text("name").notNull(),
   mime: text("mime").notNull(),
   bytes: integer("bytes").notNull(),

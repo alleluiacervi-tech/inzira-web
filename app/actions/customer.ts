@@ -244,10 +244,10 @@ export async function submitRequest(fd: FormData): Promise<Result<{ ref: string;
 /** Who may act on a request: the signed-in customer whose request it is, or a browser holding its private link. */
 async function ownRequest(ref: string) {
   const d = await db();
-  const [row] = await d.select({ ref: s.requests.ref, accountId: s.profiles.accountId, name: s.accounts.name, email: s.accounts.email, contactEmail: s.requests.contactEmail })
+  const [row] = await d.select({ ref: s.requests.ref, privacyStartedAt: s.requests.privacyStartedAt, accountId: s.profiles.accountId, name: s.accounts.name, email: s.accounts.email, contactEmail: s.requests.contactEmail })
     .from(s.requests).innerJoin(s.profiles, eq(s.profiles.id, s.requests.profileId)).innerJoin(s.accounts, eq(s.accounts.id, s.profiles.accountId))
     .where(eq(s.requests.ref, ref));
-  if (!row) return null;
+  if (!row || row.privacyStartedAt) return null;
   const session = await getSession();
   const signedIn = session?.kind === "customer" && session.subjectId === row.accountId;
   if (!signedIn && !(await hasLink(ref))) return null;

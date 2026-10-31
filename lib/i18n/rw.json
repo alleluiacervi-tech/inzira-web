@@ -99,11 +99,11 @@
     "notT": "Ibyo tudakora",
     "not": "Ntidushakisha umwirondoro wawe mu gitabo cya leta. Ntidureba NIDA, Irembo cyangwa RRA. Umubare w'imibare 16 si ukuri ko indangamuntu ibaho, cyangwa ko ari iyawe.",
     "keepT": "Igihe tubibikira",
-    "keep": "Inyandiko wohereje zisibwa nyuma y'iminsi {days} ubusabe bumaranye, cyangwa vuba iyo ubisabye. Ibyangombwa tuguha biguma muri konti yawe kugeza uyisiba. Amakuru y'ubwishyu aguma, kuko ari amafaranga yanditswe. Niyo usiba konti, ayo makuru aguma ariko nta zina, imeri cyangwa telefoni yawe.",
+    "keep": "Nyuma y’iminsi {days} ubusabe burangiye, igikorwa giteganyijwe gisiba amakuru yakoreshejwe mu kubukora, inyandiko watanze n’ibyangombwa twaguhaye, keretse hari impamvu yumvikana yo gukomeza kubibika. Bika kopi yawe mbere y’icyo gihe. Imibare y’ubusabe n’amakuru y’imari akenewe biraguma. Konti yawe na serivisi zigikomeza bifite impamvu zabyo zo kubika amakuru. Gusiba kopi z’ububiko bw’ingoboka bikorwa ukwabyo. Twandikire ku bibazo byo kubika cyangwa gusiba amakuru.",
     "seeT": "Uvabibona",
-    "see": "Umukozi ukurikirana ubusabe bwawe ni we ubibona. Twohereza urwego ibyo ubwo busabe bukeneye gusa. Ntidugurisha imyirondoro yawe.",
+    "see": "Abakozi babifitiye uburenganzira babona amakuru akenewe mu gutanga no kugenzura serivisi. Uburenganzira buterwa n’inshingano zabo n’ubusabe bashinzwe; bamwe mu bayobozi n’abashinzwe imari bafite uburenganzira bwagutse. Twohereza urwego amakuru akenewe muri ubwo busabe. Ntidugurisha amakuru yawe.",
     "deleteT": "Gusiba konti",
-    "delete": "Ushobora gusiba konti yawe iyo nta busabe bukiri gukorwa. Izina, imeri, telefoni n'inyandiko birasibwa. Ushobora kandi gusaba ko inyandiko z'ubusabe bwarangiye zisibwa mbere y'iminsi {days}.",
+    "delete": "Ushobora gusaba gusiba konti yawe iyo nta busabe bugikorwa. Amakuru y’imari akenewe n’andi afite impamvu yo gukomeza kubikwa ashobora kuguma. Ushobora gusaba gusiba inyandiko z’ubusabe bwarangiye mbere y’iminsi {days}. Twandikire niba ukeneye ubufasha cyangwa ushaka kumenya amakuru akibitswe.",
     "askT": "Kubaza",
     "ask": "Ibibazo ku myirondoro yawe: {email} cyangwa {phone}.",
     "termsTitle": "Amasezerano",
@@ -598,7 +598,8 @@
     "errUpi": "Andika buri UPI nka 1/02/03/04/1234.",
     "errTicket": "Andika numero y'itike nk'uko yanditse.",
     "errDate": "Hitamo itariki.",
-    "inPersonTitle": "Intambwe imwe ukora ubwawe"
+    "inPersonTitle": "Intambwe imwe ukora ubwawe",
+    "retentionNotice": "Bika kopi y’ibyangombwa byawe mu minsi 7 ubusabe burangiye. Nyuma yaho, igikorwa giteganyijwe gisiba amakuru yakoreshejwe mu gukora ubusabe n’inyandiko, keretse hari impamvu yo gukomeza kubibika. Imibare n’amakuru y’imari akenewe biraguma."
   },
   "notFound": {
     "kicker": "Urupapuro ntirubonetse",
@@ -963,7 +964,7 @@
     "lost": "Waba wataye igikoresho, cyangwa winjiye kuri mudasobwa y'undi? Sohoka ahantu hose, hanyuma wongere winjire ukoresheje kode nshya.",
     "everywhere": "Sohoka ku bikoresho byose",
     "data": "Inyandiko zawe n'amakuru yawe",
-    "retention": "Dusiba inyandiko waduhaye nyuma y'iminsi {days} ubusabe burangiye. Ibyangombwa twaguhaye biguma muri konti yawe. Amakuru y'ubwishyu n'inyemezabwishyu za leta arabikwa kubera ko amategeko adusaba kubika inyandiko z'ibaruramari.",
+    "retention": "Bika kopi y’ibyangombwa byawe mu minsi {days} ubusabe burangiye. Nyuma yaho, igikorwa giteganyijwe gisiba amakuru yakoreshejwe mu gukora ubusabe n’inyandiko, harimo ibyemezo, keretse hari impamvu yo gukomeza kubibika. Imibare n’amakuru y’imari akenewe biraguma. Konti yawe na serivisi zigikomeza bikurikiranwa ukwabyo; kopi z’ububiko bw’ingoboka zisibwa ukwazo.",
     "finished": "Inyandiko z'ubusabe bwamaze kurangira",
     "stored": "{files} zikomoka ku {requests}",
     "file": "dosiye",
@@ -1415,7 +1416,8 @@
     "tooManyFiles": "Ohereza dosiye zitarenze {n} hamwe n'ubusabe. Izindi wazongeraho nyuma kuri konti yawe.",
     "option": "Hitamo icyo ukeneye.",
     "answerFormat": "Reba “{q}”: ntiyanditse uko bikwiye.",
-    "notHuman": "Ntitwashoboye kwemeza ko utari robo. Ongera ufungure urupapuro wongere ugerageze."
+    "notHuman": "Ntitwashoboye kwemeza ko utari robo. Ongera ufungure urupapuro wongere ugerageze.",
+    "retentionHold": "Hari ubusabe bufite impamvu yo gukomeza kubika amakuru. Twandikire dusuzume icyifuzo cyawe cyo gusiba; konti ntabwo yasibwe."
   },
   "fileRoute": {
     "signIn": "Injira muri konti kugira ngo urebe iyi dosiye.",

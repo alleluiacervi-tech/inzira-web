@@ -170,6 +170,59 @@ async function review(p, path, widths = [360, 390, 768, 1024, 1440]) {
 }
 try {
  const p=await page();
+ if (process.argv.includes('--privacy')) {
+   await signIn(p, 'admin@inzira.test');
+   await p.go('/console/overview');
+   const metrics = () => p.ev(`Array.from(document.querySelectorAll('.c-history-band dd')).map(x => x.textContent)`);
+   const before = await metrics();
+   if (before.length !== 4) throw new Error('Lifetime income and case metrics are missing');
+   await p.click('Manage a justified retention exception', 'summary');
+   await p.set('.c-retention-controls input', 'INZ-2026-04764');
+   await p.set('.c-retention-controls label:nth-of-type(2) select', 'dispute');
+   await p.set('.c-retention-controls label:nth-of-type(3) select', '7');
+   await p.click('Save exception', 'button');
+   await waitFor(p, 'Retention hold saved.');
+   const held = await p.has('Retention hold saved.') && await p.has('On hold');
+   if (!held) throw new Error('Retention hold did not save or appear in the queue');
+   await p.set('.c-retention-controls label:nth-of-type(3) select', '0');
+   await p.click('Save exception', 'button');
+   await waitFor(p, 'Hold released.');
+   const released = await p.has('Hold released.');
+   if (!released || JSON.stringify(before) !== JSON.stringify(await metrics())) throw new Error('Hold controls changed reporting or failed to release');
+   await p.click('90 days', 'a');
+   await waitFor(p, 'Last 90 days');
+   const rangeWorks = (await p.ev('location.search')).includes('90') && await p.has('Last 90 days');
+   if (!rangeWorks) throw new Error('Reporting period did not change');
+   await p.go('/console/requests/INZ-2026-03390');
+   const archived = await p.has('Case details removed') && await p.ev(`!document.querySelector('textarea') && [...document.querySelectorAll('input[type=file]')].every(x => x.closest('.c-archived-finance'))`);
+   if (!archived) throw new Error('Archived case exposes operational controls or did not render its archive state');
+   const receiptFile = '/tmp/inzira-privacy-financial-receipt.pdf';
+   writeFileSync(receiptFile, '%PDF-1.4\n% Synthetic financial receipt fixture, no real payment.\n%%EOF\n');
+   const documentNode = await p.send('DOM.getDocument');
+   const fileNode = await p.send('DOM.querySelector', {nodeId: documentNode.result.root.nodeId, selector: '.c-archived-finance input[type=file]'});
+   await p.send('DOM.setFileInputFiles', {nodeId: fileNode.result.nodeId, files: [receiptFile]});
+   await p.click('Attach financial receipt', 'button');
+   await waitFor(p, 'Financial receipt attached');
+   const receiptAttached = await p.has('Financial receipt attached') && await p.has('Financial receipt 1');
+   if (!receiptAttached) throw new Error('Financial-only receipt upload failed on the archived case');
+   const evidenceReadable = await p.ev(`(async () => { const a = [...document.querySelectorAll('a')].find(x => x.textContent.includes('Financial receipt 1')); return a && (await fetch(a.href)).status === 200; })()`);
+   if (!evidenceReadable) throw new Error('Authorized financial evidence cannot be read');
+   rmSync(receiptFile, {force: true});
+   await p.click('View financial record', 'a');
+   await waitPath(p, path => path.endsWith('/receipt'));
+   const receiptWorks = await p.ev(`location.pathname.endsWith('/receipt') && !!document.querySelector('.receipt')`);
+   if (!receiptWorks) throw new Error('Retained financial record is unavailable');
+   await review(p, '/console/overview');
+   await p.go('/en/services');
+   await sleep(1500);
+   const english = await p.ev(`document.documentElement.lang === 'en'`);
+   if (!english || p.issues.errors.length) throw new Error('English routing or public prefetch still fails');
+   const result = {held, released, rangeWorks, archived, receiptWorks, receiptAttached, evidenceReadable, english, lifetimeMetricsStable: true, responsiveChecks: audit};
+   writeFileSync('/tmp/inzira-privacy-ui.json', JSON.stringify(result, null, 2));
+   console.log('PRIVACY_UI', JSON.stringify({...result, responsiveChecks: audit.length}));
+   const bad = audit.some(r => r.overflow || r.unlabeled.length || r.buttons.length || r.errors.length || r.wrongRoute);
+   await p.close(); stop(bad ? 1 : 0);
+ }
  if (process.argv.includes('--seo')) {
    const result=await reviewSeo({p,base,expectedIndexable:process.argv.includes('--seo-indexable'),expectedOrigin:process.env.SEO_EXPECTED_ORIGIN,sourceHtml:process.argv.includes("--seo-html")});
    writeFileSync('/tmp/inzira-seo-audit.json',JSON.stringify(result,null,2));

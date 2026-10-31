@@ -1381,3 +1381,75 @@ a.c-kpi:focus-visible { outline: 2px solid var(--brand-2); outline-offset: -2px;
 @media(max-width:720px) { .c-record-header { padding: 20px; } .c-table-toolbar { padding: 12px; } }
 
 #donext-title { scroll-margin-top: 100px; }
+
+/* Executive overview: calm blue, legible figures, clear separation of business and client data. */
+.c-overview { gap: 26px; }
+.c-dashboard-head { background: #102d5b; border: 1px solid #244675; border-radius: 20px; padding: 36px; min-height: 190px; position: relative; overflow: hidden; }
+.c-dashboard-head .console-page-title { font-size: clamp(27px, 3vw, 40px); letter-spacing: -.045em; line-height: 1.12; font-weight: 600; }
+.c-dashboard-head .c-eyebrow { color: #b5caed; font-size: 10px; letter-spacing: .16em; font-weight: 700; }
+.c-dashboard-date { color: #ccd9ec; font-size: 13px; }
+.c-dashboard-head .c-lede { max-width: 540px; font-size: 13px; line-height: 1.6; color: #d7e3f4; }
+.c-dashboard-head .c-btn { min-height: 42px; }
+.c-overview .c-results-head { margin: 2px 0 -10px; }
+.c-overview .c-results-title { font-size: 20px; }
+.c-overview .c-kpi { min-height: 144px; border-radius: 14px; box-shadow: 0 3px 9px #122d5604; }
+.c-overview .c-kpi:first-child { border-top: 3px solid #2a64cb; padding-top: 20px; }
+.c-overview .c-kpi-value { font-size: clamp(25px, 2.2vw, 34px); color: #142e54; }
+.c-overview .c-kpi-foot { font-size: 11px; line-height: 1.6; }
+.c-overview .console-panel { border-color: #e0e6ef; box-shadow: 0 3px 12px #18365504; }
+.c-overview .c-grid-trend { gap: 20px; }
+.c-overview .c-today-summary { gap: 14px; }
+.c-overview .c-today-summary > a { padding: 20px 22px; border-radius: 14px; }
+.c-overview .c-today-summary strong { font-size: 28px; }
+.c-section-heading { display: flex; justify-content: space-between; align-items: end; gap: 14px; padding: 8px 0 0; }
+.c-section-heading h2, .c-history-band h2 { font-size: 23px; font-weight: 600; letter-spacing: -.035em; margin: 7px 0 0; }
+.c-section-heading .c-eyebrow, .c-history-band .c-eyebrow { font-size: 10px; letter-spacing: .14em; color: #527098; }
+.c-privacy-mark { display: grid; place-items: center; width: 42px; height: 42px; border-radius: 12px; color: #285aa6; background: #edf3fc; flex-shrink: 0; }
+.c-health-label { display: inline-flex; align-items: center; gap: 7px; font-size: 11px; line-height: 1.5; padding: 6px 10px; border-radius: 7px; background: #f2f5f9; color: #53627a; }
+.c-health-label > span { width: 6px; height: 6px; border-radius: 50%; background: #9a6a14; flex-shrink: 0; }
+.c-health-label.is-current { background: #edf7f2; color: #286648; }
+.c-health-label.is-current > span { background: #36825b; }
+.c-privacy-body { display: grid; grid-template-columns: minmax(0, .8fr) minmax(0, 1.2fr); }
+.c-privacy-summary { display: flex; flex-direction: column; gap: 20px; padding: 26px; background: #f8fafd; border-right: 1px solid #e3e9f1; border-radius: 0 0 0 16px; }
+.c-privacy-summary strong { display: block; font-size: 44px; letter-spacing: -.06em; line-height: 1.2; color: #153861; font-weight: 600; margin: 7px 0; }
+.c-privacy-summary strong small { font-size: 19px; letter-spacing: -.02em; font-weight: 500; }
+.c-privacy-summary p { margin: 0; line-height: 1.7; }
+.c-privacy-summary dl { display: grid; gap: 12px; margin: 0; }
+.c-privacy-summary dl > div { display: flex; align-items: center; justify-content: space-between; gap: 16px; font-size: 12px; }
+.c-privacy-summary dt { color: #5c6c82; }
+.c-privacy-summary dd { margin: 0; font-size: 15px; color: #213f64; font-weight: 600; font-variant-numeric: tabular-nums; }
+.c-privacy-note { display: flex; align-items: flex-start; gap: 8px; border-top: 1px solid #e0e7f0; padding-top: 18px; }
+.c-privacy-note svg { flex-shrink: 0; margin-top: 3px; }
+.c-privacy-queue { padding: 26px; min-width: 0; }
+.c-privacy-queue > ul { list-style: none; margin: 16px 0 0; padding: 0; }
+.c-privacy-queue > ul > li { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 0; border-top: 1px solid #edf0f5; }
+.c-lifecycle-status { font-size: 10px; font-weight: 600; padding: 5px 9px; border-radius: 6px; color: #48678f; background: #eef3fa; white-space: nowrap; }
+.c-lifecycle-status.needs-review { color: #8b5c11; background: #fff6e4; }
+.c-privacy-empty { display: grid; justify-items: center; gap: 10px; padding: 38px 14px; text-align: center; color: #557394; }
+.c-privacy-empty strong { color: #31465f; font-size: 14px; }
+.c-retention-controls { margin-top: 20px; border-top: 1px solid #e3e9f1; padding-top: 16px; }
+.c-retention-controls summary { cursor: pointer; font-size: 12px; font-weight: 600; color: #285aa6; padding: 6px 0; }
+.c-retention-controls > p { line-height: 1.7; }
+.c-retention-controls form { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 16px 0; }
+.c-retention-controls label { display: flex; flex-direction: column; gap: 7px; font-size: 11px; color: #536781; }
+.c-retention-controls input, .c-retention-controls select { width: 100%; min-width: 0; }
+.c-retention-controls form > button { align-self: end; min-height: 40px; }
+.c-history-band { display: grid; grid-template-columns: 1fr 1fr; gap: 32px; padding: 30px; border: 1px solid #dce6f2; background: #f1f5fb; border-radius: 16px; }
+.c-history-band p { font-size: 12px; color: #59708b; max-width: 370px; line-height: 1.7; margin: 10px 0 0; }
+.c-history-band dl { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; align-items: center; margin: 0; }
+.c-history-band dt { font-size: 11px; line-height: 1.5; color: #5d718c; }
+.c-history-band dd { font-size: 30px; font-weight: 600; letter-spacing: -.04em; margin: 8px 0 0; color: #173b65; font-variant-numeric: tabular-nums; }
+@media (max-width: 1100px) { .c-history-band { grid-template-columns: 1fr; gap: 24px; } .c-privacy-body { grid-template-columns: 1fr 1.2fr; } }
+@media (max-width: 760px) {
+  .c-dashboard-head { padding: 26px 22px; }
+  .c-overview { gap: 20px; }
+  .c-privacy-panel .console-panel-header, .c-section-heading { align-items: flex-start; flex-direction: column; }
+  .c-privacy-body { grid-template-columns: 1fr; }
+  .c-privacy-summary { border-right: 0; border-bottom: 1px solid #e3e9f1; border-radius: 0; padding: 22px; }
+  .c-privacy-queue { padding: 22px; }
+  .c-overview .c-kpi { min-height: 130px; }
+  .c-history-band { padding: 22px; }
+  .c-history-band dl { gap: 12px; }
+  .c-history-band dd { font-size: 26px; }
+}
+@media (max-width: 380px) { .c-retention-controls form { grid-template-columns: 1fr; } .c-privacy-queue > ul > li { align-items: flex-start; flex-direction: column; } }

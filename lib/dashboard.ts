@@ -89,7 +89,7 @@ export function workQueue(cases: RequestView[], targets: Record<Stage, number>, 
 // ---------------- performance ----------------
 /** A case went back to the institution after a first submission: it was not accepted first time.
  *  Older data recorded this only as a "Returned…" title. */
-export const wasReturned = (r: RequestView) => r.events.some((e) => e.key === "ev.resubmitted" || e.title.startsWith("Returned"));
+export const wasReturned = (r: RequestView) => !!r.privacyReturned || r.events.some((e) => e.key === "ev.resubmitted" || e.title.startsWith("Returned"));
 
 /** Hours a whole case is expected to take: the sum of its stage targets. */
 export const caseTargetHours = (r: RequestView, targets: Record<Stage, number>) => r.flow.filter((s) => s !== "completed").reduce((n, s) => n + (targets[s] ?? 0), 0);
@@ -103,6 +103,7 @@ export const median = (xs: number[]) => {
 /** Where a case came from: online, or the source staff picked when they opened it at intake. */
 export const SOURCES = ["Online", "Walk-in", "Phone call", "WhatsApp", "Referred by a customer"] as const;
 export function sourceOf(r: RequestView): string {
+  if (r.privacySource) return r.privacySource;
   const opened = r.events.find((e) => e.key === "ev.opened") ?? r.events[r.events.length - 1];
   if (!opened || opened.by === "customer") return "Online";
   return opened.body && (SOURCES as readonly string[]).includes(opened.body) ? opened.body : "Other";

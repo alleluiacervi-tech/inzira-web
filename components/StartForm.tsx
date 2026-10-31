@@ -1,5 +1,6 @@
 "use client";
 import Link from "next/link";
+import { withLocale } from "@/lib/seo";
 import { useRouter } from "next/navigation";
 import { Fragment, useEffect, useState, type ReactNode } from "react";
 import { displayOfficial, displayOurs, displayTotal } from "@/lib/i18n/present";
@@ -435,6 +436,7 @@ export default function StartForm({ service: s, describeFee = null }: { service:
             )}
             <label className="check"><input type="checkbox" checked={ack} onChange={(e) => setAck(e.target.checked)} aria-describedby="ack-err" /> {storeId ? `${t("start.ack")} ${t("start.ackId")}` : t("start.ack")}</label>
             {err("ack")}
+            <p className="hint">{t("start.retentionNotice")} <Link href={withLocale(locale, "/privacy")} target="_blank" rel="noopener noreferrer">{t("nav.privacy")}</Link></p>
           </div>
         )}
 

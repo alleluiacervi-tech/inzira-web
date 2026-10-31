@@ -37,6 +37,8 @@ export async function audit(tx: Tx | Db, e: { actor: string; role: string; actio
 /** A line on the request's timeline, which the customer sees too. `body` is someone's own words,
  *  shown as typed; a message with a body part of its own takes no `body`. */
 export async function event(tx: Tx | Db, ref: string, what: Msg, by: string, body?: string) {
+  const [privacy] = await tx.select({ started: s.requests.privacyStartedAt }).from(s.requests).where(eq(s.requests.ref, ref));
+  if (privacy?.started) return; // Finance may settle without repopulating an archived operational timeline.
   const ownBody = hasPart(what, "body");
   if (ownBody && body !== undefined) console.error(`[i18n] ${what.key} has its own body; the text passed was dropped`);
   await tx.insert(s.events).values({
@@ -52,12 +54,12 @@ export async function event(tx: Tx | Db, ref: string, what: Msg, by: string, bod
  *  a fresh private link to it (lib/request-links.ts). With `claim`, their email also offers to save it to an account. */
 export async function notify(tx: Tx | Db, ref: string, n: { icon: string; title: Msg; sms?: Msg; claim?: boolean }) {
   const [row] = await tx.select({
-    accountId: s.profiles.accountId, phone: s.accounts.phone, email: s.accounts.email, locale: s.accounts.locale, registeredAt: s.accounts.registeredAt,
+    privacyStartedAt: s.requests.privacyStartedAt, accountId: s.profiles.accountId, phone: s.accounts.phone, email: s.accounts.email, locale: s.accounts.locale, registeredAt: s.accounts.registeredAt,
     contactPhone: s.requests.contactPhone, contactEmail: s.requests.contactEmail,
   })
     .from(s.requests).innerJoin(s.profiles, eq(s.profiles.id, s.requests.profileId)).innerJoin(s.accounts, eq(s.accounts.id, s.profiles.accountId))
     .where(eq(s.requests.ref, ref));
-  if (!row) return;
+  if (!row || row.privacyStartedAt) return;
   await tx.insert(s.notifications).values({ accountId: row.accountId, icon: n.icon, title: english(n.title), key: n.title.key, vars: n.title.vars ?? null, href: `/portal/requests/${ref}` });
   if (!n.sms) return;
   const body = smsText(row.locale, n.sms);

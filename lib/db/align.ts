@@ -267,6 +267,13 @@ async function addLaterObjects(database: Db) {
     )`,
   ];
   for (const statement of statements) await database.execute(sql.raw(statement));
+  const privacyMigration = readFileSync(path.join(migrationsFolder, "0023_case_privacy_retention.sql"), "utf8");
+  for (const statement of privacyMigration.split("--> statement-breakpoint")) {
+    const idempotent = statement.replace(/ADD COLUMN /g, "ADD COLUMN IF NOT EXISTS ");
+    const trigger = idempotent.match(/CREATE TRIGGER privacy_guard BEFORE .* ON (\w+) FOR EACH ROW/);
+    if (trigger) await database.execute(sql.raw(`DROP TRIGGER IF EXISTS privacy_guard ON ${trigger[1]}`));
+    if (idempotent.trim()) await database.execute(sql.raw(idempotent));
+  }
 }
 
 /** The timestamp of the newest bundled migration, as drizzle records it in __drizzle_migrations.created_at. */

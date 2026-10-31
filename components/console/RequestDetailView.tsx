@@ -154,6 +154,27 @@ export function RequestDetailView({
   const ageDays = Math.max(0, Math.floor((Date.parse(now) - Date.parse(c.openedAt)) / 864e5));
   const stageDays = Math.max(0, Math.floor((Date.parse(now) - Date.parse(c.stageDates[c.stage] ?? c.openedAt)) / 864e5));
 
+  if (c.privacyStartedAt) return (
+    <div className="stack g24">
+      <Link href="/console/requests" className="c-btn c-btn-ghost">← Back to cases</Link>
+      <section className="console-panel console-panel-body stack g16">
+        <span className="c-eyebrow">{c.ref} / PRIVACY ARCHIVE</span>
+        <h1 className="console-page-title">{c.privacyPurgedAt ? "Case details removed" : "Case cleanup in progress"}</h1>
+        <p className="c-lede">{c.privacyPurgedAt ? "Operational details and documents have been removed after completion. Minimal case reporting and necessary financial evidence remain." : "This case is locked while operational information is removed. Failed storage operations will be retried by scheduled cleanup."}</p>
+        <dl className="c-money"><div><dt>Service</dt><dd>{c.service.name}</dd></div><div><dt>Completed</dt><dd>{c.stageDates.completed ? fmtWhen(c.stageDates.completed, now) : "—"}</dd></div><div><dt>Inzira service fee</dt><dd>{rwf(c.billing.ours)}</dd></div><div><dt>Invoice</dt><dd>{c.billing.invoice}</dd></div></dl>
+        <Link href={`/console/requests/${c.ref}/receipt`} className="c-btn c-btn-secondary">View financial record</Link>
+        {can("recordOfficial") && c.privacyPurgedAt && <form className="c-archived-finance stack g12" onSubmit={(e) => { e.preventDefault(); const fd = new FormData(e.currentTarget); fd.set("ref", c.ref); fd.set("kind", "receipt"); run("Financial receipt attached", () => uploadCaseFile(fd)); }}>
+          <label className="stack g8">Attach an official financial receipt<input type="file" name="file" accept="application/pdf,image/jpeg,image/png,image/webp" required disabled={busy} /></label>
+          <p className="c-caption">Financial evidence only. Do not upload new operational documents or identity copies.</p>
+          {error && <p role="alert" className="c-text-red">{error}</p>}
+          {toast && <p role="status">{toast}</p>}
+          <button type="submit" className="c-btn c-btn-secondary" disabled={busy}>{busy ? "Attaching…" : "Attach financial receipt"}</button>
+        </form>}
+        {can("recordOfficial") && !!c.financialEvidence?.length && <div className="stack g8"><h2 className="console-section-title">Retained financial evidence</h2><p className="c-caption">These files follow the financial retention policy rather than the operational seven-day cleanup.</p>{c.financialEvidence.map((f, i) => <a key={f.id} href={`/files/${f.id}`} target="_blank" rel="noopener noreferrer" className="c-ref-link">Financial receipt {i + 1} ↗</a>)}</div>}
+      </section>
+    </div>
+  );
+
   return (
     <div className="stack g18">
       {/* 1. One-line key-facts header */}

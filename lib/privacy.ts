@@ -2,7 +2,8 @@
 //
 // - Customer documents (ID copies, leases, anything uploaded against a request's checklist) are deleted
 //   on request once a request is finished, and automatically DOC_RETENTION_DAYS after it finished.
-// - Deliverables (certificates we hand over) stay until the customer deletes their account.
+// - Completed-case operational content and deliverables are removed after seven days by scheduled cleanup.
+// - Necessary financial records/evidence and ongoing account/engagement data have separate retention.
 // - Payments, invoices and official receipts are financial records and are kept, as the law requires.
 import { and, eq, inArray, isNotNull, sql } from "drizzle-orm";
 import { db, schema as s, type Db } from "./db";
@@ -12,10 +13,11 @@ import { msg } from "./i18n/stored";
 import { event } from "./mutate";
 import { dropOutboxFor } from "./outbox";
 import { deleteFile } from "./storage";
+import { CASE_RETENTION_DAYS, sweepCompletedCases } from "./case-retention";
 
 type Tx = Parameters<Parameters<Db["transaction"]>[0]>[0];
 
-export const RETENTION_DAYS = Math.max(1, Number(process.env.DOC_RETENTION_DAYS) || 90);
+export const RETENTION_DAYS = CASE_RETENTION_DAYS;
 
 /** When a request stopped needing its documents, or null while it is still open. */
 export function finishedAt(r: { stage: string; stageDates: Partial<Record<string, string>>; closed: { at: string } | null }) {
@@ -27,8 +29,8 @@ export function finishedAt(r: { stage: string; stageDates: Partial<Record<string
 async function storedDocuments(tx: Tx | Db, refs: string[]) {
   if (!refs.length) return [];
   return tx.select({ docId: s.requestDocuments.id, ref: s.requestDocuments.ref, fileId: s.files.id, key: s.files.storageKey })
-    .from(s.requestDocuments).innerJoin(s.files, eq(s.files.id, s.requestDocuments.fileId))
-    .where(and(inArray(s.requestDocuments.ref, refs), isNotNull(s.requestDocuments.fileId)));
+    .from(s.requestDocuments).innerJoin(s.files, eq(s.files.id, s.requestDocuments.fileId)).innerJoin(s.requests, eq(s.requests.ref, s.requestDocuments.ref))
+    .where(and(inArray(s.requestDocuments.ref, refs), isNotNull(s.requestDocuments.fileId), eq(s.files.retentionClass, "operational"), sql`${s.requests.privacyStartedAt} is null`, sql`(${s.requests.privacyHoldUntil} is null or ${s.requests.privacyHoldUntil} <= now())`));
 }
 
 /**
@@ -45,12 +47,16 @@ const NOTE_REASON: Record<PurgeReason, string> = {
   unpaid: "when the unpaid request was closed",
 };
 export async function purgeDocuments(refs: string[], why: PurgeReason): Promise<number> {
+  if (!refs.length) return 0;
   const reason = NOTE_REASON[why];
   const d = await db();
-  const docs = await storedDocuments(d, refs);
-  if (!docs.length) return 0;
-  const when = new Date().toISOString();
-  await d.transaction(async (tx) => {
+  return d.transaction(async (tx) => {
+    // Serialize with file writes and hold changes. Database guards acquire the same parent locks.
+    await tx.select({ ref: s.requests.ref }).from(s.requests).where(inArray(s.requests.ref, refs)).orderBy(s.requests.ref).for("update");
+    const docs = await storedDocuments(tx, refs);
+    if (!docs.length) return 0;
+    for (const x of docs) await deleteFile(x.key);
+    const when = new Date().toISOString();
     await tx.update(s.requestDocuments).set({ fileId: null, fileName: null, fileSize: null, note: `File deleted ${reason} on ${when.slice(0, 10)}.` })
       .where(inArray(s.requestDocuments.id, docs.map((x) => x.docId)));
     await tx.delete(s.files).where(inArray(s.files.id, docs.map((x) => x.fileId)));
@@ -58,10 +64,8 @@ export async function purgeDocuments(refs: string[], why: PurgeReason): Promise<
       const n = docs.filter((x) => x.ref === ref).length;
       await event(tx, ref, why === "customer" ? msg("ev.docsDeletedCustomer", { n }) : why === "account" ? msg("ev.docsDeletedAccount", { n }) : why === "unpaid" ? msg("ev.docsDeletedUnpaid", { n }) : msg("ev.docsDeletedRetention", { n, days: RETENTION_DAYS }), "system");
     }
+    return docs.length;
   });
-  // Bytes go after the database: a failed delete leaves an orphan file, never a row pointing at nothing.
-  for (const x of docs) await deleteFile(x.key).catch((e) => console.error("[privacy] could not delete", x.key, e));
-  return docs.length;
 }
 
 /** The account's finished requests that still hold customer documents. */
@@ -83,12 +87,14 @@ export async function retentionSweep() {
   const rows = await d.select({ ref: s.requests.ref, stage: s.requests.stage, stageDates: s.requests.stageDates, closed: s.requests.closed }).from(s.requests)
     .where(sql`${finished} is not null and (${finished})::timestamptz < ${new Date(cutoff).toISOString()}::timestamptz`);
   const due = rows.filter((r) => { const f = finishedAt(r); return f && Date.parse(f) < cutoff; }).map((r) => r.ref);
-  return { deleted: await purgeDocuments(due, "retention") };
+  const completed = await sweepCompletedCases(d, deleteFile);
+  const closed = rows.filter((r) => r.stage !== "completed" && due.includes(r.ref)).map((r) => r.ref);
+  return { ...completed, deleted: completed.files + await purgeDocuments(closed, "retention") };
 }
 
 /**
  * Deletes a customer account. Only allowed when nothing is open. Personal details are wiped and every
- * stored file of theirs is deleted; requests, payments and receipts stay, anonymised, for the accounts.
+ * stored file of theirs is deleted; minimal case, payment and receipt records remain subject to their own retention obligations.
  */
 export async function deleteAccount(accountId: string, locale: Locale = "en"): Promise<{ ok: true } | { ok: false; error: string }> {
   const d = await db();
@@ -97,6 +103,10 @@ export async function deleteAccount(accountId: string, locale: Locale = "en"): P
   const profiles = await d.select({ id: s.profiles.id }).from(s.profiles).where(eq(s.profiles.accountId, accountId));
   const profileIds = profiles.map((p) => p.id);
   const refs = profileIds.length ? (await d.select({ ref: s.requests.ref }).from(s.requests).where(inArray(s.requests.profileId, profileIds))).map((r) => r.ref) : [];
+  if (refs.length) {
+    const [held] = await d.select({ ref: s.requests.ref }).from(s.requests).where(and(inArray(s.requests.ref, refs), sql`${s.requests.privacyHoldUntil} > now()`)).limit(1);
+    if (held) return { ok: false, error: text(locale, "custErr.retentionHold") };
+  }
   await purgeDocuments(refs, "account");
   // Messages still waiting to be sent to them are dropped with the account.
   const [contact] = await d.select({ email: s.accounts.email, phone: s.accounts.phone }).from(s.accounts).where(eq(s.accounts.id, accountId));
@@ -104,6 +114,7 @@ export async function deleteAccount(accountId: string, locale: Locale = "en"): P
 
   // Deliverables are the customer's to keep, so they go with the account.
   const delivered = refs.length ? await d.select({ id: s.files.id, key: s.files.storageKey }).from(s.deliverables).innerJoin(s.files, eq(s.files.id, s.deliverables.fileId)).where(inArray(s.deliverables.ref, refs)) : [];
+  for (const f of delivered) await deleteFile(f.key);
   const now = new Date().toISOString();
   await d.transaction(async (tx) => {
     if (delivered.length) {
@@ -111,7 +122,7 @@ export async function deleteAccount(accountId: string, locale: Locale = "en"): P
       await tx.delete(s.files).where(inArray(s.files.id, delivered.map((f) => f.id)));
     }
     if (profileIds.length) {
-      await tx.update(s.profiles).set({ name: "Deleted customer", idMasked: null, nationalId: null, tinMasked: null, tin: null, district: null }).where(inArray(s.profiles.id, profileIds));
+      await tx.update(s.profiles).set({ name: "Deleted customer", idMasked: null, nationalId: null, tinMasked: null, tin: null, district: null, dateOfBirth: null, idCheckedAt: null, idCheckedBy: null }).where(inArray(s.profiles.id, profileIds));
       await tx.delete(s.taxPeriods).where(inArray(s.taxPeriods.profileId, profileIds));
       await tx.delete(s.taxWatches).where(inArray(s.taxWatches.profileId, profileIds));
       await tx.delete(s.clientTags).where(inArray(s.clientTags.profileId, profileIds));
@@ -128,7 +139,6 @@ export async function deleteAccount(accountId: string, locale: Locale = "en"): P
     // The phone number and email are freed so the person can start again later; the row stays for the accounts.
     await tx.update(s.accounts).set({ name: "Deleted customer", first: "Deleted", phone: `deleted:${accountId}`, email: null, whatsapp: false, languages: [], deletedAt: now }).where(eq(s.accounts.id, accountId));
   });
-  for (const f of delivered) await deleteFile(f.key).catch((e) => console.error("[privacy] could not delete", f.key, e));
   return { ok: true };
 }
 

@@ -191,6 +191,11 @@ export type Billing = {
 export type Checkout = "none" | "open" | "paid";
 
 export type Request = {
+  privacyStartedAt?: string;
+  privacyPurgedAt?: string;
+  privacyReturned?: boolean;
+  privacySource?: string;
+  financialEvidence?: { id: string }[];
   ref: string;
   serviceSlug: string;
   /** Shown instead of the service name when one service recurs, e.g. "Monthly tax declarations · September 2026". */

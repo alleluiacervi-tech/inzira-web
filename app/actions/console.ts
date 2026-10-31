@@ -28,10 +28,11 @@ async function staffAction(perm?: Permission) {
 }
 
 /** A staff action on one case: they need `perm` and must be allowed to see the case. */
-async function caseAction(ref: string, perm: Permission) {
+async function caseAction(ref: string, perm: Permission, archivedFinance = false) {
   const a = await staffAction(perm);
   if ("error" in a) return { error: a.error! } as const;
   const [req] = await a.d.select().from(s.requests).where(eq(s.requests.ref, ref));
+  if (req?.privacyStartedAt && (!archivedFinance || !req.privacyPurgedAt)) return { error: "This case is archived for privacy and cannot be changed." } as const;
   if (!req || !canSeeCase(a.me, req)) return { error: NOT_FOUND } as const;
   return { ...a, req };
 }
@@ -43,6 +44,7 @@ async function casesAction(refs: string[], perm: Permission) {
   const unique = [...new Set(refs)];
   if (!unique.length) return { error: "Select at least one request." } as const;
   const rows = await a.d.select().from(s.requests).where(inArray(s.requests.ref, unique));
+  if (rows.some((r) => r.privacyStartedAt)) return { error: "Archived cases cannot be changed. Remove them from the selection." } as const;
   if (rows.length !== unique.length || !rows.every((r) => canSeeCase(a.me, r))) return { error: "Some of the selected requests were not found. Refresh and try again." } as const;
   return { ...a, refs: unique };
 }
@@ -234,7 +236,7 @@ export async function recordManualPayment(input: {
   notes?: string;
 }): Promise<Result> {
   const ref = input.ref.trim().toUpperCase();
-  const a = await caseAction(ref, "recordOfficial");
+  const a = await caseAction(ref, "recordOfficial", true);
   if ("error" in a) return fail(a.error!);
   if (!a.me.stepUpFresh) return fail(STEP_UP);
   const { me, d, req } = a;

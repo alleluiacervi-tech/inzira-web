@@ -22,11 +22,12 @@ import { lockMessage, isGated, paymentLock } from "@/lib/payment-gate";
 import { STAGES, type Billing, type Closed, type Hold, type Stage } from "@/lib/types";
 
 /** Loads a case for the signed-in staff member, if they may see it and hold `perm`. */
-async function work(ref: string, perm?: Permission) {
+async function work(ref: string, perm?: Permission, archivedFinance = false) {
   const me = await getStaffUser();
   if (!me) return { error: "Your session has ended. Sign in again." } as const;
   const d = await db();
   const [r] = await d.select().from(s.requests).where(eq(s.requests.ref, ref));
+  if (r?.privacyStartedAt && (!archivedFinance || !r.privacyPurgedAt)) return { error: "This case is archived for privacy and cannot be changed." } as const;
   if (!r || !canSeeCase(me, r)) return { error: "Case not found." } as const;
   if (perm && !me.permissions.has(perm)) return { error: `Your role can’t do this (${PERMISSIONS[perm]}). Ask a supervisor.` } as const;
   const svc = await getService(r.serviceSlug);
@@ -138,7 +139,7 @@ export async function setStage(ref: string, stage: Stage, message: string, tell:
   }
   await d.transaction(async (tx) => {
     if (paid) await recordOverride(tx, w, paid);
-    await tx.update(s.requests).set({ stage, stageDates: { ...r.stageDates, [stage]: r.stageDates[stage] ?? now() }, hold: stage === "completed" ? null : r.hold }).where(eq(s.requests.ref, ref));
+    await tx.update(s.requests).set({ stage, stageDates: { ...r.stageDates, [stage]: stage === "completed" && r.stage !== "completed" ? now() : r.stageDates[stage] ?? now() }, hold: stage === "completed" ? null : r.hold }).where(eq(s.requests.ref, ref));
     const done = stage === "completed";
     await event(tx, ref, done ? msg("ev.completed") : msg("ev.moved", { stage: STAGE_LABEL[stage] }), me.id, message.trim() || undefined);
     // The agent's own message, when they wrote one, is the SMS as typed.
@@ -339,7 +340,7 @@ export async function uploadCaseFile(fd: FormData): Promise<Result> {
   const kind = String(fd.get("kind") ?? "") as "deliverable" | "receipt" | "document";
   const file = fd.get("file");
   const perm = kind === "deliverable" ? "complete" : kind === "receipt" ? "recordOfficial" : "reviewDocs";
-  const w = await work(ref, perm);
+  const w = await work(ref, perm, kind === "receipt");
   if ("error" in w) return fail(w.error!);
   const { me, d, r } = w;
   if (!(file instanceof File) || !file.size) return fail("Choose a file first.");
@@ -353,7 +354,7 @@ export async function uploadCaseFile(fd: FormData): Promise<Result> {
   if (!mime) return fail("Please upload a PDF, JPG or PNG.");
   await putFile(`${ref}/${fileId}`, bytes, mime);
   try { await d.transaction(async (tx) => {
-    await tx.insert(s.files).values({ id: fileId, ref, storageKey: `${ref}/${fileId}`, name: file.name, mime, bytes: file.size, uploadedBy: me.id });
+    await tx.insert(s.files).values({ id: fileId, ref, storageKey: `${ref}/${fileId}`, name: file.name, mime, bytes: file.size, uploadedBy: me.id, retentionClass: kind === "receipt" ? "financial" : "operational" });
     if (kind === "deliverable") {
       await tx.insert(s.deliverables).values({ id: `${ref}-o${randomBytes(3).toString("hex")}`, ref, name, issuedAt: now(), issuedBy: r.channel, fileId });
       await event(tx, ref, msg("ev.delivered", { doc: name }), me.id);
