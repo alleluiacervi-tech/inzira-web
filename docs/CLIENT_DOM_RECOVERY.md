@@ -1,0 +1,15 @@
+# Public-page DOM mutation recovery
+
+The reported stack is React failing to remove a DOM node that is no longer its child (`NotFoundError`, `removeChild`). The accompanying Google Translate stylesheet request shows a translation tool is active. Translation tools can replace or wrap text nodes outside React's ownership; filtering or navigating can then trigger this failure. The exact browser extension and production reproduction were not independently observed.
+
+The root document now uses `translate="no"`, the `notranslate` class and the Google `notranslate` directive. Inzira's own English/Kinyarwanda controls remain available. Catalogue result labels and conditional filter counts use stable element boundaries so removing a query/filter label does not remove a bare text node moved by a translator.
+
+A small pre-hydration listener handles only the reported DOM ownership failures (`removeChild`/`insertBefore` with a missing-child error). On a clean, online page it permits one fresh document load per tab within five minutes. It stores only a timestamp, reads no form values and never replays a submission. Unfinished inputs, payment pages, offline connections and unavailable session storage require explicit refresh. Repeated failure presents a refresh notice rather than looping. Existing route boundaries use a full document refresh for this class of error; an independent root error screen avoids relying on a failing layout/provider/navigation stack.
+
+The existing CSP remains intact. Browser tools may still report their own connection errors or blocked injections; an extension that forces changes despite the translation directives cannot be universally controlled by the site. Browser DOM methods are not monkey-patched, and unknown errors are not silently swallowed.
+
+`app/favicon.ico` contains the existing Inzira mark, resolving requests for the conventional favicon URL.
+
+Validation: run `npm run test:client-recovery` for the exact bootstrap script's loop guard, input protection, payment/offline/storage behavior and error classification. After a demo build/start on `localhost`, run `node scripts/ui-review.mjs --client-recovery` for public pages, both languages, responsive layouts, favicon delivery and catalogue actions/navigation after deliberately wrapping text nodes in translation-style `<font>` elements. The simulation intentionally ignores `translate="no"` to exercise the component boundaries; it does not install a browser extension or weaken CSP. Deployment to the affected site is still required.
+
+Verified locally: optimized build, TypeScript, lint, bilingual keys and nine executable recovery checks passed. Chromium passed 124 public page/viewport checks, including all 35 listed service detail routes in both languages. Forced wrapping of 215 catalogue text nodes passed search, empty results, sorting, category filters, mobile filters and detail navigation at 390px and 1440px. The favicon returned HTTP 200 with a valid ICO signature. These checks use disposable demo data; live deployment is not verified.

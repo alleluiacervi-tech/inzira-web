@@ -123,9 +123,9 @@ export default function Catalogue({ services, categories, initialQuery, initialC
         <div className="m-hide">{filters}</div>
         <div className="stack g18 grow">
           <div className="row between g12 wrapx">
-            <span style={{ fontSize: 15 }} aria-live="polite"><strong>{results.length}</strong> <span className="mut">{results.length === 1 ? t("catalogue.one") : t("catalogue.many")}{q && <> {t("catalogue.forQuery", { q })}</>}</span></span>
+            <span style={{ fontSize: 15 }} aria-live="polite"><strong>{results.length}</strong> <span className="mut"><span>{results.length === 1 ? t("catalogue.one") : t("catalogue.many")}</span>{q && <span> {t("catalogue.forQuery", { q })}</span>}</span></span>
             <div className="row g8">
-              <button type="button" className="btn btn-s btn-sm d-hide" aria-expanded={showFilters} onClick={() => setShowFilters(!showFilters)}><Icon name="filter" size={16} /> {t("catalogue.filters")}{aud.length + fees.length ? ` · ${aud.length + fees.length}` : ""}</button>
+              <button type="button" className="btn btn-s btn-sm d-hide" aria-expanded={showFilters} onClick={() => setShowFilters(!showFilters)}><Icon name="filter" size={16} /> <span>{t("catalogue.filters")}</span>{aud.length + fees.length > 0 && <span> · {aud.length + fees.length}</span>}</button>
               <label htmlFor="srt" className="mut m-hide" style={{ fontWeight: 500 }}>{t("catalogue.sort")}</label>
               <select id="srt" aria-label={t("catalogue.sort")} className="in" style={{ width: 180, height: 40 }} value={sort} onChange={(e) => setSort(e.target.value)}>
                 <option value="popular">{t("catalogue.popular")}</option><option value="cost">{t("catalogue.cost")}</option><option value="name">{t("catalogue.az")}</option>

@@ -1,5 +1,6 @@
 "use client";
 import Link from "next/link";
+import { useClientRecovery } from "@/components/ClientRecovery";
 import { useI18n } from "./I18n";
 import { Icon } from "./ui";
 
@@ -21,8 +22,9 @@ export function PageSkeleton() {
   );
 }
 
-/** Shown when a screen fails to load. Says what happened, that nothing was lost, and how to retry. */
+/** Shown when a screen fails to load. Says what happened and how to retry. */
 export function PageError({ error, reset }: { error: Error & { digest?: string }; reset: () => void }) {
+  const retry = useClientRecovery(error, reset);
   const { t } = useI18n();
   return (
     <div className="content">
@@ -30,7 +32,7 @@ export function PageError({ error, reset }: { error: Error & { digest?: string }
         <span className="ico-tile t-err"><Icon name="alert" size={22} /></span>
         <strong>{t("error.load")}</strong>
         <span className="hint" style={{ maxWidth: 420 }}>{t("error.body")}{error.digest ? ` ${t("error.digest", { code: error.digest })}` : ""}</span>
-        <div className="row g8 wrapx" style={{ justifyContent: "center" }}><button type="button" className="btn btn-p btn-sm" onClick={reset}>{t("error.retry")}</button><Link className="btn btn-s btn-sm" href="/">{t("error.home")}</Link></div>
+        <div className="row g8 wrapx" style={{ justifyContent: "center" }}><button type="button" className="btn btn-p btn-sm" onClick={retry}>{t("error.retry")}</button><Link className="btn btn-s btn-sm" href="/">{t("error.home")}</Link></div>
       </div>
     </div>
   );

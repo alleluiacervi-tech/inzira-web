@@ -30,7 +30,8 @@
     "test:seo": "tsx scripts/seo-unit.mts",
     "check:seo": "node scripts/ui-review.mjs --seo",
     "test:privacy": "node --import tsx scripts/privacy-retention.mts",
-    "test:privacy:ui": "node scripts/ui-review.mjs --privacy"
+    "test:privacy:ui": "node scripts/ui-review.mjs --privacy",
+    "test:client-recovery": "node --import tsx scripts/client-recovery.mts"
   },
   "engines": {
     "node": ">=20.0.0"
