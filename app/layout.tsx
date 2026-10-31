@@ -15,6 +15,7 @@ import { isDemo } from "@/lib/sms";
 import { searchRobots } from "@/lib/public-metadata";
 import { brandGraph } from "@/lib/brand-schema";
 import { JsonLd } from "@/components/JsonLd";
+import { CLIENT_RECOVERY_BOOTSTRAP } from "@/lib/client-recovery";
 import "./globals.css";
 import "./public.css";
 import "./design-refresh.css";
@@ -58,7 +59,8 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   const pathname = (await headers()).get("x-inzira-path") ?? "/";
   const origin = siteOrigin();
   return (
-    <html lang={locale} className={sans.variable}>
+    <html lang={locale} translate="no" className={`${sans.variable} notranslate`}>
+      <head><meta name="google" content="notranslate" /><script id="inzira-client-recovery" dangerouslySetInnerHTML={{ __html: CLIENT_RECOVERY_BOOTSTRAP }} /></head>
       <body>
         {origin && isIndexable(pathname) && <JsonLd data={{ "@context": "https://schema.org", "@graph": brandGraph(origin, text(locale, "meta.description")) }} />}
         <ContentBridge entries={locale === "rw" ? contentEntries() : {}} version={locale === "rw" ? contentVersion() : ""} />

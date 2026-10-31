@@ -2,6 +2,7 @@
 // Temporarily changes a sample role permission and restores it after checking persistence.
 // Run after npm run build and INZIRA_DEMO=1 npm start. Uses Chromium; CHROME_PATH overrides it.
 // Screenshots and JSON results are written to /tmp. This does not replace screen-reader testing.
+import { reviewClientRecovery } from "./lib/client-recovery-review.mjs";
 import { reviewSeo } from "./lib/seo-review.mjs";
 import { reviewAccessibility } from "./lib/accessibility-review.mjs";
 import { spawn } from "node:child_process";
@@ -170,6 +171,12 @@ async function review(p, path, widths = [360, 390, 768, 1024, 1440]) {
 }
 try {
  const p=await page();
+ if (process.argv.includes('--client-recovery')) {
+   const result = await reviewClientRecovery({p, base});
+   writeFileSync('/tmp/inzira-client-recovery-ui.json', JSON.stringify(result,null,2));
+   console.log('CLIENT_RECOVERY_UI', JSON.stringify({passed:result.passed,pages:result.pages.length,serviceRoutes:result.serviceRoutes,mutations:result.mutations,favicon:result.favicon}));
+   await p.close(); stop(result.passed ? 0 : 1);
+ }
  if (process.argv.includes('--privacy')) {
    await signIn(p, 'admin@inzira.test');
    await p.go('/console/overview');

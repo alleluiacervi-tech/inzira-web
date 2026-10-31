@@ -618,7 +618,7 @@
   },
   "error": {
     "load": "We couldn’t load this page",
-    "body": "Nothing was lost. Check your connection and try again.",
+    "body": "Check your connection and try again. Unsaved entries may need to be entered again.",
     "digest": "If it keeps happening, tell us this code: {code}.",
     "retry": "Try again",
     "home": "Home",
